@@ -36,7 +36,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M3 (tests to write first a
 - [x] 3.1 Copy electron files
 - [x] 3.2 Smoke harness
 - [x] 3.3 Shell policy
-- [ ] 3.4 Core client
+- [x] 3.4 Core client
 - [ ] 3.5 Preload, relay, lifecycle
 - [ ] 3.6 Pickers and reveal
 - [ ] 3.7 Packaging
@@ -100,4 +100,24 @@ Known red gates that are not this milestone's:
   matches manual step 6 ("kill it six times quickly → unavailable").
 - `test:electron` = `node --test "electron/*.test.js"` (quoted glob, Node >= 21), and a step in
   `build_visualization_test`. 17 tests green.
+
+### 3.4
+- `electron/coreClient.js`: `CoreClient extends EventEmitter` with injected `spawn`, `logStream`, `now`,
+  `setTimeout`, `clearTimeout` (added beside the plan's list so the kill timer can be cancelled),
+  `clientName`, `protocolVersion`. Methods `start`, `request(method, params) → { id, promise }` (the promise never
+  rejects; it resolves `{ ok, value | error }`), `cancel(id)`, `stop() → Promise`, plus `restart()` (only from
+  `unavailable`: resets the failure history and starts again) and `currentState()`. Events `"notification"
+  (method, params)` and `"state" ({ state, message })`, states `starting | ready | restarting | unavailable |
+  stopped`.
+- Requests made before the hello answer are queued and written after it (the core gates on hello inline, so
+  pipelining would also work, but queueing keeps a failed hello from producing `BAD_REQUEST`s). A cancel of a
+  queued request answers `CANCELLED` without writing anything.
+- Spawn `ENOENT` → `unavailable` at once with the expected path in the message, no restart. Another spawn error
+  counts as an exit. A hello answered with `PROTOCOL_MISMATCH` (or a different `protocolVersion`) →
+  `unavailable`, stdin closed, no restart.
+- Wire errors: `error.data` is the `ErrorPayload` (the core always sends one, also for framing faults);
+  without it the client answers `INTERNAL` with the JSON-RPC message.
+- Tests: the seven plan names plus "should report unavailable with the path when the core is missing", "should
+  send core.cancel for a running request", "should write the core log to the log stream", "should start again
+  from unavailable when restarted". `test:electron`: 28 green.
 
