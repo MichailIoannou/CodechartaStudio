@@ -27,7 +27,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 01-M1 Core skeleton, protocol, contract, CI | core | done | — | feature/studio-01-m1 | c6b3d9a7f (merged 8688edb53) |
 | 01-M2 Process runner, tools, settings, doctor | core | done (Windows-only tests not yet run) | — | feature/studio-01-m2 | 5169e28c9 (merged a57c8e7e9) |
 | 01-M3 Electron shell | shell | done (Windows/macOS and CI not run) | — | feature/studio-01-m3 | d8cdbfdfd (merged 1ce44fc54) |
-| 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | todo | 01-M3 | feature/studio-01-m4 | — |
+| 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | todo (next) | — | feature/studio-01-m4 | — |
 | 01-M4.2 Desktop tools panel | UI | blocked | design 01-desktop-tools; 01-M4.1 | — | — |
 | 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
 | 02-M1 Dark by default | UI | blocked | design 02-themes | — | — |
@@ -38,7 +38,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M6 Native window appearance | UI | blocked | design 02-themes; plan 01 | — | — |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
-| 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | in progress (part A: tasks 1–7) | part B (tasks 8–9): 01-M3, 01-M4.1 | feature/studio-03-m2 | — |
+| 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | part A (tasks 1–7) verified, **merge pending**; part B todo | merge: uncommitted owner/designer edits to plan 03 in the main checkout; part B (tasks 8–9): 01-M4.1 | feature/studio-03-m2 | 168d4fa21 (verified, not merged) |
 | 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | todo | 03-M2 | — | — |
 | 03-M4 Renderer load path | renderer | todo | 03-M3; check for visible parts first | — | — |
 | 03-M5 Projects UI | UI | blocked | design 03-projects | — | — |
@@ -120,6 +120,15 @@ the milestone is started.
 - Local e2e on this machine: `app/playwright.helper.ts` picks `channel: "chrome"`, which is not
   installed; verification uses a temporary, never-committed `chromium` override with Playwright's
   browser under `node_modules/.cache/ms-playwright`.
+- 03-M2 part A (see `03-m2-projects.md` on `feature/studio-03-m2`): results wrapped in named types
+  (`ProjectList`, `ResolveCommitResult`, `SourceFileLookup`) for the contract exporter; async `GitRunner`
+  trait in `git/runner.rs`; six error codes appended (`TOKEN_EXPIRED`, `DUPLICATE_FOLDER`,
+  `DUPLICATE_LABEL`, `FOLDER_UNAVAILABLE`, `DIFFERENT_HISTORY`, `TOO_LARGE`); `trash` 5.4.0 added
+  (cargo-deny passes); OD1 applied (`workingFolderId`, `projects.setView { projectId, view }`).
+  Pick tokens settle the 01/03 conflict: the shell builds `projects.pickFolder` (native dialog → shell-only
+  `projects.inspectFolder` → token), the renderer sends only tokens; plan 01's path-returning
+  `pickFolder` stays for the shell's own uses. Shell-only methods are absent from the renderer allow-list
+  (checked). For 03-M3: `NOT_A_COMMIT` not yet appended; `resolve_commit` lacks `%cI` and `%P`.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -149,6 +158,13 @@ Design questions are in `design/open-questions.md`; none are left here.
 
 ## Session log
 
+- 2026-11-18, end of session: 03-M2 part A verified on a scratch merge of `feature/studio-integration` +
+  `feature/studio-03-m2` (cargo fmt/clippy/test 230, cargo-deny, contract drift, format, lint, tsc,
+  npm test 636/636, test:electron 42/42). Real merge refused: the main checkout has uncommitted edits to
+  `02-themes.md`, `03-projects-and-managed-store.md`, `04-git-branches-and-history.md` and two design
+  files, not made by the orchestrator. Next session: once those are committed, run
+  `git merge --no-ff feature/studio-03-m2` and re-run the gates; then start 01-M4.1 (visualization lane)
+  and 03-M3 (core lane). Session stopped at 5-hour usage ~75% to stay clear of the limit.
 - 2026-11-18: 01-M3 verified on the merged integration branch (format, lint, tsc, contract drift, npm test 636/636, test:electron 42/42, ensureElectron download on npm 12, build, e2e:desktop 9/9, web e2e:ci 149/149) and merged.
 - 2026-11-18: 03-M1 verified on the merged integration branch (cargo fmt/clippy/test 164, contract drift, format, lint, tsc, npm test 636/636, coverage 96.71/90.1/95.33/96.62) and merged; 03-M2 part A started.
 - 2026-11-18: 03-M1 started in the core lane (plan 01 core done; 03-M0 store items answered on Linux).
