@@ -40,7 +40,7 @@ label `color` and `border` from the `buildingLabel` palette.
 - [x] 4. Scene background
 - [x] 5. Floors and floor labels
 - [x] 6. Labels, connectors, view cube
-- [ ] 7. Map screenshot
+- [x] 7. Map screenshot
 - [ ] 8. Preference and migration
 - [ ] 9. Apply and flip to dark
 - [ ] 10. Picker
@@ -122,4 +122,13 @@ Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feat
   and an `effect` in the constructor recolors meshes and outline and renders when `activeTheme` changes
   (no-op before `ngOnInit` built the cube). Hover emissive from the palette; the unhover reset stays black
   (no emission). The spec now constructs the component inside `TestBed.runInInjectionContext`.
+
+### 7. Map screenshot
+
+- `prepareLabelsForScreenshot` sets background, **text color** (M0 finding) and border from
+  `map.buildingLabel`; `onExportBackground` (16 px padding on the theme surface, `null` keeps the
+  transparent PNG) runs after `cropTransparentMargins` in `ScreenshotService` only. The chart screenshot
+  services are M3 as planned.
+- Spec note: JSDOM drops `backdrop-filter`, so the label spec defines `style.backdropFilter` on the
+  element to make it look like a live label.
 
