@@ -28,7 +28,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 01-M3 Electron shell | shell | todo | 01-M2 | feature/studio-01-m3 | — |
 | 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | todo | 01-M3 | feature/studio-01-m4 | — |
 | 01-M4.2 Desktop tools panel | UI | blocked | design 01-desktop-tools; 01-M4.1 | — | — |
-| 02-M0 Spike | spike | in progress | — | feature/studio-02-m0 (throwaway, progress file only) | — |
+| 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
 | 02-M1 Dark by default | UI | blocked | design 02-themes | — | — |
 | 02-M2 No-flash boot | UI | blocked | design 02-themes; 02-M1 | — | — |
 | 02-M3 Radial map and word cloud | UI | blocked | design 02-themes; 02-M2 | — | — |
@@ -82,8 +82,12 @@ the milestone is started.
 - Pre-M3 fix needed: with npm 12 `script/ensureElectron.js` reports success but the allowScripts gate
   blocks the Electron download; `npm start` / packaging need `install.js` called directly. To be done
   as task 0 of 01-M3.
+- 02-M0 (see `02-m0-spike.md`): plan 02 design holds. For M1: delete `@theme` lines 19-38; task 7 must
+  also set label `color` and `border` from the `buildingLabel` palette. E2E on this Linux machine
+  needs a temporary `channel: "chromium"` override (no Google Chrome installed); not a repo change.
 
 ## Session log
 
+- 2026-11-18: 02-M0 verified (format check green, notes read); plan 02 now waits only on design 02-themes.
 - 2026-11-18: 01-M0 verified (format check green, notes read); 01-M1 and 02-M0 started.
 - 2026-11-18: file created; no design folder yet, so all UI work is blocked on design.
