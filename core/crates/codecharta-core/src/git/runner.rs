@@ -1,19 +1,24 @@
 use std::ffi::OsString;
 use std::future::Future;
+use std::ops::ControlFlow;
 use std::path::Path;
 use std::pin::Pin;
 use std::time::Duration;
 
 use codecharta_core_api::methods::tools::{ToolId, ToolState};
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use super::command::{GitCommand, GitInvocation, invocation_of};
 use super::error::command_failed;
 use crate::error::{CoreError, CoreResult};
-use crate::process::RunOutput;
+use crate::process::lines::LineSplitter;
+use crate::process::{OutputChunk, OutputMode, RunOutput};
 use crate::tools::{ToolRunOptions, Tools};
 
 pub const GIT_TIMEOUT: Duration = Duration::from_secs(15);
+/// Output chunks a streamed command may run ahead of the code reading its lines.
+const STREAM_CHUNK_BUFFER: usize = 64;
 
 /// A finished git command; a non-zero exit is an answer, not an error.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,6 +72,32 @@ pub trait GitProcess: Send + Sync {
         invocation: GitInvocation,
         cancel: &'call CancellationToken,
     ) -> ProcessFuture<'call>;
+
+    /// Sends the output to `chunks` as it arrives; the answer then holds no text. This default collects
+    /// first and sends afterwards, which is enough for a process that does not really run git.
+    fn stream<'call>(
+        &'call self,
+        invocation: GitInvocation,
+        chunks: mpsc::Sender<OutputChunk>,
+        cancel: &'call CancellationToken,
+    ) -> ProcessFuture<'call> {
+        Box::pin(async move {
+            let output = self.execute(invocation, cancel).await?;
+            for chunk in [
+                OutputChunk::Stdout(output.stdout),
+                OutputChunk::Stderr(output.stderr),
+            ] {
+                if chunks.send(chunk).await.is_err() {
+                    break;
+                }
+            }
+            Ok(RunOutput {
+                stdout: String::new(),
+                stderr: String::new(),
+                ..output
+            })
+        })
+    }
 }
 
 impl GitProcess for Tools {
@@ -108,6 +139,32 @@ impl GitProcess for Tools {
             Tools::run(self, ToolId::Git, invocation.args, options, cancel).await
         })
     }
+
+    fn stream<'call>(
+        &'call self,
+        invocation: GitInvocation,
+        chunks: mpsc::Sender<OutputChunk>,
+        cancel: &'call CancellationToken,
+    ) -> ProcessFuture<'call> {
+        Box::pin(async move {
+            let options = ToolRunOptions {
+                cwd: Some(invocation.cwd),
+                env: invocation.env,
+                env_remove: invocation.removed_env,
+                max_output_bytes: Some(invocation.limits.max_stdout_bytes),
+                stdin: invocation.stdin,
+                output: OutputMode::Stream(chunks),
+                ..ToolRunOptions::new(invocation.limits.timeout)
+            };
+            Tools::run(self, ToolId::Git, invocation.args, options, cancel).await
+        })
+    }
+}
+
+/// What reading a streamed command's output saw: its stderr, and whether the reader stopped it.
+struct StreamedOutput {
+    stderr: String,
+    is_stopped_by_reader: bool,
 }
 
 /// Runs git commands through the process runner and turns a refusal of git into a classified error.
@@ -138,6 +195,35 @@ impl<'core> GitCli<'core> {
         Ok(output.stdout)
     }
 
+    /// Hands every stdout line to `on_line` as git prints it; `Break` stops git, which is then no error.
+    pub async fn stream_lines(
+        &self,
+        command: &GitCommand,
+        cancel: &CancellationToken,
+        on_line: &mut (dyn FnMut(&str) -> ControlFlow<()> + Send),
+    ) -> CoreResult<()> {
+        let (sender, receiver) = mpsc::channel(STREAM_CHUNK_BUFFER);
+        let stop = cancel.child_token();
+        let invocation = invocation_of(command, self.data_dir);
+        let (run, streamed) = tokio::join!(
+            self.process.stream(invocation, sender, &stop),
+            read_lines(receiver, on_line, &stop)
+        );
+        match run {
+            Err(CoreError::Cancelled)
+                if streamed.is_stopped_by_reader && !cancel.is_cancelled() =>
+            {
+                Ok(())
+            }
+            Err(error) => Err(error),
+            Ok(output) if output.exit_code != 0 => Err(command_failed(&RunOutput {
+                stderr: streamed.stderr,
+                ..output
+            })),
+            Ok(_) => Ok(()),
+        }
+    }
+
     /// The exit code is the caller's business.
     pub async fn run_raw(
         &self,
@@ -146,6 +232,41 @@ impl<'core> GitCli<'core> {
     ) -> CoreResult<RunOutput> {
         let invocation = invocation_of(command, self.data_dir);
         self.process.execute(invocation, cancel).await
+    }
+}
+
+/// Returning drops the receiver, so the output readers of a stopped command do not wait for it.
+async fn read_lines(
+    mut receiver: mpsc::Receiver<OutputChunk>,
+    on_line: &mut (dyn FnMut(&str) -> ControlFlow<()> + Send),
+    stop: &CancellationToken,
+) -> StreamedOutput {
+    let mut lines = LineSplitter::default();
+    let mut stderr = String::new();
+    while let Some(chunk) = receiver.recv().await {
+        let text = match chunk {
+            OutputChunk::Stderr(text) => {
+                stderr.push_str(&text);
+                continue;
+            }
+            OutputChunk::Stdout(text) => text,
+        };
+        if lines
+            .push(&text)
+            .iter()
+            .any(|line| on_line(line).is_break())
+        {
+            stop.cancel();
+            return StreamedOutput {
+                stderr,
+                is_stopped_by_reader: true,
+            };
+        }
+    }
+    let is_stopped_by_reader = lines.finish().is_some_and(|line| on_line(&line).is_break());
+    StreamedOutput {
+        stderr,
+        is_stopped_by_reader,
     }
 }
 

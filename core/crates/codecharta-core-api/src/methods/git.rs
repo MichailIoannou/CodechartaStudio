@@ -285,6 +285,24 @@ pub struct GitChangedFiles {
     pub totals: ChangeTotals,
 }
 
+/// How far a candidate commit is from a target: `onlyInCandidate == 0` means the candidate is an ancestor
+/// of the target, which is then `onlyInTarget` commits ahead.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCommitDistance {
+    pub sha: String,
+    pub only_in_candidate: u32,
+    pub only_in_target: u32,
+}
+
+/// Short names of the local branches and tags pointing at a commit.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct RefsAt {
+    pub branches: Vec<String>,
+    pub tags: Vec<String>,
+}
+
 method!(
     GitRepositoryInfoMethod,
     "git.repositoryInfo",

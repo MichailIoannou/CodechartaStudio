@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::process::env::{ASKPASS_ENDPOINT_VARIABLE, ASKPASS_TOKEN_VARIABLE, EnvVars};
+use crate::process::runner::MAX_OUTPUT_CEILING_BYTES;
 
 const KIBIBYTE: u64 = 1024;
 const MEBIBYTE: u64 = 1024 * KIBIBYTE;
@@ -85,6 +86,13 @@ pub const LOG_LIMITS: Limits = Limits {
 pub const DETAILS_LIMITS: Limits = Limits {
     timeout: Duration::from_secs(30),
     max_stdout_bytes: 8 * MEBIBYTE,
+};
+
+/// A streamed rev-list may walk a whole history; its output is read as it comes, so the cap is only the
+/// process runner's ceiling.
+pub const REV_LIST_LIMITS: Limits = Limits {
+    timeout: Duration::from_secs(300),
+    max_stdout_bytes: MAX_OUTPUT_CEILING_BYTES,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

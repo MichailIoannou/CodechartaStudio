@@ -27,7 +27,7 @@ git errors are `ErrorCode` values with git's text in `details.detail`; runner is
 
 - [x] 1. Log pages
 - [x] 2. Details and changed files
-- [ ] 3. Queries and stream
+- [x] 3. Queries and stream
 - [ ] 4. Caching, RPC, CLI
 
 ## Notes
@@ -94,4 +94,34 @@ Branched from `feature/studio-04-m1`.
   `tests/git_details.rs`), plus `should_list_every_file_of_a_root_commit_as_added`,
   `should_fail_parse_on_a_missing_path_or_count`, the classification test and an unknown sha in the
   unrelated-histories test.
+
+### 3. Queries and stream
+- **Stdout line streaming, as built:** plan 01's runner already streams output chunks
+  (`OutputMode::Stream(mpsc::Sender<OutputChunk>)`, UTF-8 safe), so no second runner mode was added. New:
+  `process/lines.rs` `LineSplitter` (lines split across chunks wait for the rest; `\n` / `\r\n` dropped),
+  the port method `GitProcess::stream(invocation, chunks, cancel)` (implemented by `Tools`, `FixtureGit`,
+  `RecordingGit`; a default that collects first serves the unit-test fakes), and
+  `GitCli::stream_lines(command, cancel, on_line)`: lines go to `on_line` as git prints them; `Break` cancels a
+  child token, which stops the process tree, and that stop is answered as success (a cancel of the request
+  itself stays `CANCELLED`); a non-zero exit is classified with the streamed stderr. Dropping the receiver
+  after `Break` keeps the runner's output readers from waiting.
+- `REV_LIST_LIMITS` 300 s, stdout cap = the runner's ceiling `MAX_OUTPUT_CEILING_BYTES` (256 MiB) — the
+  runner refuses "no cap", and 256 MiB is about 6 million SHA lines.
+- Api: value `Revision` (`HEAD`, a `CommitSha`, or a `FullRefName` that also passes the `check-ref-format`
+  rules: no `..`, `@{`, `//`, `~ ^ : ? * [ \ space`, no component starting with `.` or ending `.lock`, no
+  trailing `/` or `.`). **Deviation:** the plan runs `git check-ref-format`; the rules are checked while the
+  value is deserialised instead, so no process runs for validation and a bad value never reaches a handler.
+  `GitCommitDistance`, `RefsAt { branches, tags }`.
+- `git/query.rs`: `resolve_commit` (`rev-parse --verify --quiet --end-of-options <rev>^{commit}`, exit 1 =
+  `UNKNOWN_REVISION`, then `show -s -z SUMMARY_FORMAT`), `rev_list_count` (`rev-list --count A..B`),
+  `merge_base`, `is_ancestor` (0 / 1 / classified error), `measure_distances` (at most
+  `MAX_DISTANCE_CANDIDATES` = 200, else `BAD_REQUEST` before any git runs; four `rev-list --left-right
+  --count C...T` at a time; `UNKNOWN_REVISION` candidates left out, order kept, duplicates measured twice),
+  `refs_at` (`for-each-ref --points-at=<sha> --format=%(refname) refs/heads/ refs/tags/`; an annotated tag
+  counts when it peels to the commit), `rev_list` + `RevListRequest` (`rev-list --date-order [--first-parent]
+  [--max-count=n] --stdin`, stdin = includes then `^<exclude>`; batches of `REV_LIST_BATCH` = 1000; the last
+  partial batch is delivered unless the sink broke; answers the number delivered; no includes = 0 without
+  git). Matching `GitService` methods; `rev_list(folder, request, cancel, sink)`.
+- Tests (`tests/git_queries.rs`): the plan's ten cases plus `should_refuse_more_than_the_allowed_candidates`;
+  unit tests for `LineSplitter` and `Revision`.
 

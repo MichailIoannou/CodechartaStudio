@@ -2,11 +2,11 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use codecharta_core_api::methods::git::{
-    GitChangedFiles, GitCommitDetails, GitHead, GitLogPage, GitRefs, GitRepositoryInfo, GitStatus,
-    GitUpstream, OperationInProgress,
+    GitChangedFiles, GitCommitDetails, GitCommitDistance, GitCommitSummary, GitHead, GitLogPage,
+    GitRefs, GitRepositoryInfo, GitStatus, GitUpstream, OperationInProgress, RefsAt,
 };
 use codecharta_core_api::methods::projects::FolderRef;
-use codecharta_core_api::values::CommitSha;
+use codecharta_core_api::values::{CommitSha, Revision};
 use tokio_util::sync::CancellationToken;
 
 use super::changes::RepositoryChanges;
@@ -16,6 +16,7 @@ use super::locator::{Repository, locate};
 use super::log::{LogRequest, log_page};
 use super::memory::GitMemory;
 use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
+use super::query::{self, RevListRequest, ShaSink};
 use super::read::{read_refs, status_summary};
 use super::runner::{GitCli, GitProcess};
 use crate::error::CoreResult;
@@ -166,6 +167,76 @@ impl<'core> GitService<'core> {
         cancel: &CancellationToken,
     ) -> CoreResult<GitChangedFiles> {
         changed_files(&self.git, &folder.path, request, cancel).await
+    }
+
+    pub async fn resolve_commit(
+        &self,
+        folder: &GitFolder,
+        revision: &Revision,
+        cancel: &CancellationToken,
+    ) -> CoreResult<GitCommitSummary> {
+        query::resolve_commit(&self.git, &folder.path, revision, cancel).await
+    }
+
+    /// The commits reachable from `to` but not from `from`.
+    pub async fn rev_list_count(
+        &self,
+        folder: &GitFolder,
+        from: &CommitSha,
+        to: &CommitSha,
+        cancel: &CancellationToken,
+    ) -> CoreResult<u64> {
+        query::rev_list_count(&self.git, &folder.path, from, to, cancel).await
+    }
+
+    pub async fn merge_base(
+        &self,
+        folder: &GitFolder,
+        left: &CommitSha,
+        right: &CommitSha,
+        cancel: &CancellationToken,
+    ) -> CoreResult<Option<String>> {
+        query::merge_base(&self.git, &folder.path, left, right, cancel).await
+    }
+
+    pub async fn is_ancestor(
+        &self,
+        folder: &GitFolder,
+        ancestor: &CommitSha,
+        descendant: &CommitSha,
+        cancel: &CancellationToken,
+    ) -> CoreResult<bool> {
+        query::is_ancestor(&self.git, &folder.path, ancestor, descendant, cancel).await
+    }
+
+    pub async fn measure_distances(
+        &self,
+        folder: &GitFolder,
+        target: &CommitSha,
+        candidates: &[CommitSha],
+        cancel: &CancellationToken,
+    ) -> CoreResult<Vec<GitCommitDistance>> {
+        query::measure_distances(&self.git, &folder.path, target, candidates, cancel).await
+    }
+
+    pub async fn refs_at(
+        &self,
+        folder: &GitFolder,
+        sha: &CommitSha,
+        cancel: &CancellationToken,
+    ) -> CoreResult<RefsAt> {
+        query::refs_at(&self.git, &folder.path, sha, cancel).await
+    }
+
+    /// Streams the walked commits to `sink` in batches; see `query::rev_list`.
+    pub async fn rev_list(
+        &self,
+        folder: &GitFolder,
+        request: &RevListRequest,
+        cancel: &CancellationToken,
+        sink: &mut ShaSink<'_>,
+    ) -> CoreResult<u64> {
+        query::rev_list(&self.git, &folder.path, request, cancel, sink).await
     }
 
     /// `status` names the upstream briefly (`origin/main`); its full ref name comes from the branch's

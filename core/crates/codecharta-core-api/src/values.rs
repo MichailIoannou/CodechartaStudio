@@ -22,6 +22,12 @@ pub const MAX_REPO_PATH_LENGTH: usize = 1024;
 const PARENT_SEGMENT: &str = "..";
 const PATH_SEPARATORS: [char; 2] = ['/', '\\'];
 const DRIVE_SEPARATOR: char = ':';
+const HEAD_REVISION: &str = "HEAD";
+const REF_COMPONENT_SEPARATOR: char = '/';
+const REF_FORBIDDEN_SEQUENCES: [&str; 3] = ["..", "@{", "//"];
+const REF_FORBIDDEN_CHARACTERS: [char; 8] = ['~', '^', ':', '?', '*', '[', '\\', ' '];
+const REF_LOCK_SUFFIX: &str = ".lock";
+const REF_COMPONENT_DOT: char = '.';
 const PATH_SEPARATOR: char = '/';
 const LABEL_FORBIDDEN_CHARACTERS: [char; 3] = ['/', '\\', ':'];
 const LINE_BREAKS: [char; 2] = ['\n', '\r'];
@@ -134,6 +140,26 @@ fn is_repo_relative_path(value: &str) -> bool {
             .any(|segment| segment == PARENT_SEGMENT)
 }
 
+/// `HEAD`, a commit sha or a full ref name that git's `check-ref-format` would accept; never an expression
+/// such as `HEAD~1`, `A..B` or `main@{1}`.
+fn is_revision(value: &str) -> bool {
+    value == HEAD_REVISION || is_commit_sha(value) || is_well_formed_full_ref_name(value)
+}
+
+fn is_well_formed_full_ref_name(value: &str) -> bool {
+    is_full_ref_name(value)
+        && !REF_FORBIDDEN_SEQUENCES
+            .iter()
+            .any(|sequence| value.contains(sequence))
+        && !value.contains(REF_FORBIDDEN_CHARACTERS)
+        && !value.ends_with([REF_COMPONENT_SEPARATOR, REF_COMPONENT_DOT])
+        && value.split(REF_COMPONENT_SEPARATOR).all(|component| {
+            !component.is_empty()
+                && !component.starts_with(REF_COMPONENT_DOT)
+                && !component.ends_with(REF_LOCK_SUFFIX)
+        })
+}
+
 /// A text value checked while it is deserialised, so a handler never sees an invalid one. The rule text
 /// never repeats the value: it may be long or carry something the caller did not mean to log.
 macro_rules! validated_text {
@@ -244,6 +270,12 @@ validated_text!(
     RootName,
     is_root_name,
     "use 1 to 255 characters without / or control characters"
+);
+
+validated_text!(
+    Revision,
+    is_revision,
+    "use HEAD, the 40 or 64 lowercase hexadecimal digits of a commit, or a full ref name"
 );
 
 validated_text!(
@@ -428,6 +460,45 @@ mod tests {
         // Assert
         assert!(accepted.0.is_ok() && accepted.1.is_ok());
         assert!(rejected.0.is_err() && rejected.1.is_err() && rejected.2.is_err());
+    }
+
+    #[test]
+    fn should_accept_head_a_sha_and_a_full_ref_but_no_expression() {
+        // Arrange
+        let sha = "0123456789abcdef0123456789abcdef01234567";
+        let accepted = [
+            "HEAD".to_string(),
+            sha.to_string(),
+            "refs/heads/feature/x-1".to_string(),
+            "refs/tags/v1.0".to_string(),
+        ];
+        let rejected = [
+            "HEAD~1",
+            "HEAD^",
+            "refs/heads/a..b",
+            "refs/heads/main@{1}",
+            "refs/heads/a b",
+            "refs/heads/.hidden",
+            "refs/heads/x.lock",
+            "refs/heads/x/",
+            "refs/heads//x",
+            "main",
+            "-refs/heads/main",
+        ];
+
+        // Act
+        let accepted: Vec<bool> = accepted
+            .into_iter()
+            .map(|candidate| Revision::try_from(candidate).is_ok())
+            .collect();
+        let rejected: Vec<bool> = rejected
+            .into_iter()
+            .map(|candidate| Revision::try_from(candidate).is_err())
+            .collect();
+
+        // Assert
+        assert_eq!(accepted, vec![true; accepted.len()]);
+        assert_eq!(rejected, vec![true; rejected.len()]);
     }
 
     #[test]

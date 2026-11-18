@@ -11,10 +11,11 @@ use codecharta_core::git::command::GitInvocation;
 use codecharta_core::git::runner::{GIT_TIMEOUT, ProcessFuture, VersionFuture};
 use codecharta_core::git::{GitFuture, GitOutput, GitProcess, GitRunner};
 use codecharta_core::process::env::hardened_env;
-use codecharta_core::process::{ProcessRunner, RunRequest};
+use codecharta_core::process::{OutputChunk, OutputMode, ProcessRunner, RunRequest};
 use codecharta_core::tools::version::read_version;
 use codecharta_core_api::methods::tools::ToolId;
 use tempfile::TempDir;
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use super::system_git;
@@ -396,30 +397,49 @@ impl GitProcess for FixtureGit {
         })
     }
 
-    /// The fixture's variables first, so the core's own ones win where both name a variable.
     fn execute<'call>(
         &'call self,
         invocation: GitInvocation,
         cancel: &'call CancellationToken,
     ) -> ProcessFuture<'call> {
         Box::pin(async move {
-            let mut env = self.env.clone();
-            env.extend(invocation.env);
-            let request = RunRequest {
-                cwd: Some(invocation.cwd),
-                env,
-                env_remove: invocation.removed_env,
-                max_output_bytes: invocation.limits.max_stdout_bytes,
-                stdin: invocation.stdin,
-                ..RunRequest::new(
-                    ToolId::Git,
-                    self.program.clone(),
-                    invocation.args,
-                    invocation.limits.timeout,
-                )
-            };
+            let request = self.request_of(invocation, OutputMode::Collect);
             self.runner.run(request, cancel).await
         })
+    }
+
+    fn stream<'call>(
+        &'call self,
+        invocation: GitInvocation,
+        chunks: mpsc::Sender<OutputChunk>,
+        cancel: &'call CancellationToken,
+    ) -> ProcessFuture<'call> {
+        Box::pin(async move {
+            let request = self.request_of(invocation, OutputMode::Stream(chunks));
+            self.runner.run(request, cancel).await
+        })
+    }
+}
+
+impl FixtureGit {
+    /// The fixture's variables first, so the core's own ones win where both name a variable.
+    fn request_of(&self, invocation: GitInvocation, output: OutputMode) -> RunRequest {
+        let mut env = self.env.clone();
+        env.extend(invocation.env);
+        RunRequest {
+            cwd: Some(invocation.cwd),
+            env,
+            env_remove: invocation.removed_env,
+            max_output_bytes: invocation.limits.max_stdout_bytes,
+            stdin: invocation.stdin,
+            output,
+            ..RunRequest::new(
+                ToolId::Git,
+                self.program.clone(),
+                invocation.args,
+                invocation.limits.timeout,
+            )
+        }
     }
 }
 
@@ -469,5 +489,15 @@ impl GitProcess for RecordingGit {
     ) -> ProcessFuture<'call> {
         self.record(&invocation);
         self.inner.execute(invocation, cancel)
+    }
+
+    fn stream<'call>(
+        &'call self,
+        invocation: GitInvocation,
+        chunks: mpsc::Sender<OutputChunk>,
+        cancel: &'call CancellationToken,
+    ) -> ProcessFuture<'call> {
+        self.record(&invocation);
+        self.inner.stream(invocation, chunks, cancel)
     }
 }
