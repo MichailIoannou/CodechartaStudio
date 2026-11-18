@@ -3,6 +3,8 @@
         <h2 class="text-2xl font-bold mb-6">Global Configuration</h2>
 
         <div class="flex flex-col gap-6">
+            <cc-theme-picker />
+
             <cc-setting-toggle
                 [checked]="hideFlatBuildings()"
                 [label]="'Hide Flattened Buildings'"
@@ -43,7 +45,8 @@
                         'preferences.resetCameraIfNewFileIsLoaded',
                         'mapState.layoutAlgorithm',
                         'preferences.maxTreeMapFiles',
-                        'preferences.localSourceEnabled'
+                        'preferences.localSourceEnabled',
+                        'preferences.theme'
                     ]"
                     tooltip="Reset global settings to their defaults"
                     label="Reset global settings"

@@ -20,6 +20,7 @@ import {
     Sorting,
     SortingOption
 } from "./domain.model"
+import { ThemePreference } from "./theme.model"
 import { WordCloudSettings } from "./wordCloud.model"
 
 export interface DomainState extends WordCloudSettings {
@@ -72,6 +73,7 @@ export interface Preferences {
     maxTreeMapFiles: number
     screenshotToClipboardEnabled: boolean
     localSourceEnabled: boolean
+    theme: ThemePreference
     isColorMetricLinkedToHeightMetric: boolean
     sorting: Sorting
     radialFolderValue: RadialFolderValue

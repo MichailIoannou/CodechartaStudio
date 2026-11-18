@@ -14,6 +14,7 @@ import { radialFolderValueSelector } from "./radialFolderValue/radialFolderValue
 import { radialLevelsSelector } from "./radialLevels/radialLevels.selector"
 import { resetCameraIfNewFileIsLoadedSelector } from "./resetCameraIfNewFileIsLoaded/resetCameraIfNewFileIsLoaded.selector"
 import { sortingOrderAscendingSelector, sortingOrderSelector } from "./sorting/sorting.selector"
+import { themePreferenceSelector } from "./theme/theme.selector"
 
 @Injectable({
     providedIn: "root"
@@ -28,6 +29,7 @@ export class PreferencesReadWindow {
     readonly isColorMetricLinkedToHeightMetric$ = this.store.select(isColorMetricLinkedToHeightMetricSelector)
     readonly screenshotToClipboardEnabled$ = this.store.select(screenshotToClipboardEnabledSelector)
     readonly localSourceEnabled$ = this.store.select(localSourceEnabledSelector)
+    readonly theme$ = this.store.select(themePreferenceSelector)
     readonly resetCameraIfNewFileIsLoaded$ = this.store.select(resetCameraIfNewFileIsLoadedSelector)
     readonly centerMapZoom$ = this.store.select(centerMapZoomSelector)
     readonly maxTreeMapFiles$ = this.store.select(maxTreeMapFilesSelector)

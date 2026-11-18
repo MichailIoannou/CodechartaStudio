@@ -33,9 +33,9 @@ const CATEGORY_STYLES: Record<string, { header: string; icon: string; count: str
         count: "bg-error/10 text-error"
     },
     chore: {
-        header: "bg-neutral/5",
-        icon: "bg-neutral/10",
-        count: "bg-neutral/10 text-neutral"
+        header: "bg-base-content/5",
+        icon: "bg-base-content/10",
+        count: "bg-base-content/10 text-base-content"
     }
 }
 

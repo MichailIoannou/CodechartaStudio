@@ -5,7 +5,7 @@ import { ChangeDetectionStrategy, Component, Input } from "@angular/core"
     templateUrl: "./actionIcon.component.html",
     standalone: true,
     host: {
-        class: "inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-primary text-sm text-white hover:bg-secondary"
+        class: "inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-primary text-sm text-primary-content hover:bg-secondary hover:text-secondary-content"
     },
     changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -70,7 +70,8 @@ import {
     setRadialFolderValue,
     setRadialLevels,
     setResetCameraIfNewFileIsLoaded,
-    setScreenshotToClipboardEnabled
+    setScreenshotToClipboardEnabled,
+    setThemePreference
 } from "../stores/preferences/preferences.write.facade"
 import {
     setAllFocusedNodes,
@@ -141,6 +142,7 @@ export const preferencesRestoreActions: RestoreActions<Exclude<keyof Preferences
     maxTreeMapFiles: setMaxTreeMapFiles,
     screenshotToClipboardEnabled: setScreenshotToClipboardEnabled,
     localSourceEnabled: setLocalSourceEnabled,
+    theme: setThemePreference,
     isColorMetricLinkedToHeightMetric: setIsColorMetricLinkedToHeightMetricAction,
     radialFolderValue: setRadialFolderValue,
     radialFolderStyle: setRadialFolderStyle,

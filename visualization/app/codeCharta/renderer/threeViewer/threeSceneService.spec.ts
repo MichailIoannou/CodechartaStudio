@@ -511,6 +511,36 @@ describe("ThreeSceneService", () => {
         })
     })
 
+    describe("redrawFloorLabels", () => {
+        it("should draw the floor labels of the current mesh again", () => {
+            // Arrange
+            threeSceneService["notifyMapMeshChanged"] = jest.fn()
+            const drawSpy = jest.spyOn(FloorLabelDrawer.prototype, "draw").mockReturnValue([])
+            store.dispatch(setLayoutAlgorithm({ value: LayoutAlgorithm.SquarifiedTreeMap }))
+            threeSceneService.setMapMesh(TEST_NODES, new CodeMapMesh(TEST_NODES, state.getValue(), false))
+            drawSpy.mockClear()
+
+            // Act
+            threeSceneService.redrawFloorLabels()
+
+            // Assert
+            expect(drawSpy).toHaveBeenCalledTimes(1)
+        })
+
+        it("should draw nothing before there is a mesh", () => {
+            // Arrange
+            threeSceneService["mapMesh"] = undefined
+            const drawSpy = jest.spyOn(FloorLabelDrawer.prototype, "draw").mockReturnValue([])
+            drawSpy.mockClear()
+
+            // Act
+            threeSceneService.redrawFloorLabels()
+
+            // Assert
+            expect(drawSpy).not.toHaveBeenCalled()
+        })
+    })
+
     describe("Highlighting by extensioins", () => {
         beforeEach(() => {
             threeSceneService["mapMesh"] = new CodeMapMesh(

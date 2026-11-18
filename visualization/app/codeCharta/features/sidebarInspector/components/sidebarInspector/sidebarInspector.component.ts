@@ -18,13 +18,13 @@ import { InspectorMetricsListComponent } from "../inspectorMetricsList/inspector
         InspectorResizeHandleComponent
     ],
     host: {
-        class: "fixed right-0 z-[60] w-[var(--cc-inspector-width)] max-w-[90vw] bg-base-100 overflow-hidden flex flex-col shadow-[-2px_0_8px_-2px_rgba(0,0,0,0.15)] transition-transform duration-300",
+        class: "fixed right-0 z-[60] m-1.5 w-[var(--cc-inspector-width)] max-w-[90vw] rounded-[10px] bg-base-100 overflow-hidden flex flex-col shadow-lg transition-transform duration-300 [&.translate-x-full]:translate-x-[calc(100%+0.75rem)]",
         "[class.translate-x-full]": "!isVisible()",
         "[class.pointer-events-none]": "!isVisible()",
         "[attr.aria-hidden]": "!isVisible()",
         "[style.top]": "'var(--cc-bars-height, 49px)'",
         "[style.height]":
-            "'calc(100vh - var(--cc-bars-height, 49px) - var(--cc-file-extension-bar-height, 17px) - var(--cc-bottom-bar-height, 32px))'"
+            "'calc(100vh - var(--cc-bars-height, 49px) - var(--cc-file-extension-bar-height, 17px) - var(--cc-bottom-bar-height, 32px) - 0.75rem)'"
     }
 })
 export class SidebarInspectorComponent {

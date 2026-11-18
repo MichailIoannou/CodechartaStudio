@@ -3,6 +3,7 @@ import { toSignal } from "@angular/core/rxjs-interop"
 import { MapStateReadWindow } from "../../../../stores/mapState/mapState.read.facade"
 import { PreferencesReadWindow } from "../../../../stores/preferences/preferences.read.facade"
 import { canOpenFoldersHere } from "../../../localSource/facade"
+import { ThemePickerComponent } from "../../../theme/facade"
 import { GlobalSettingsWriteStore } from "../../stores/globalSettings.write.store"
 import { ExternalLinksComponent } from "./externalLinks/externalLinks.component"
 import { ResetFiltersButtonComponent } from "./resetFiltersButton/resetFiltersButton.component"
@@ -18,7 +19,8 @@ import { SettingToggleComponent } from "./settingToggle/settingToggle.component"
         ResetMapButtonComponent,
         ResetSettingsButtonComponent,
         SettingToggleComponent,
-        ExternalLinksComponent
+        ExternalLinksComponent,
+        ThemePickerComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })

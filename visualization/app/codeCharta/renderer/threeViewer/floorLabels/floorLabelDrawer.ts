@@ -2,6 +2,7 @@
 
 import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, Vector3 } from "three"
 import { Node, Scaling } from "../../../model/codeCharta.model"
+import { activeRenderPalette } from "../../../util/theme/activeTheme"
 import { getFloorLabelPadding } from "../algorithm/treeMapLayout/treeMapGenerator"
 import { FloorLabelHelper } from "./floorLabelHelper"
 
@@ -11,9 +12,6 @@ interface FittedLabel {
 }
 
 export class FloorLabelDrawer {
-    // White glyphs on a transparent canvas fade to semi-transparent gray once mipmaps average
-    // them with their transparent neighbors; a dark outline keeps the edges readable at distance.
-    private static readonly LABEL_OUTLINE_COLOR = "rgba(0, 0, 0, 0.5)"
     private static readonly LABEL_OUTLINE_WIDTH_RATIO = 1 / 16
     private static readonly MIN_LABEL_OUTLINE_WIDTH = 2
     /** Every label is rasterized at this font size whatever the map or display, so a texture holds
@@ -94,8 +92,11 @@ export class FloorLabelDrawer {
     ) {
         // Resizing a canvas resets its context, so every setting comes after the size.
         context.font = `${fitted.fontSize}px ${FloorLabelDrawer.FONT_FAMILY}`
-        context.fillStyle = "white"
-        context.strokeStyle = FloorLabelDrawer.LABEL_OUTLINE_COLOR
+        // Light glyphs on a transparent canvas fade to semi-transparent gray once mipmaps average
+        // them with their transparent neighbors; a dark outline keeps the edges readable at distance.
+        const { fill, outline } = activeRenderPalette().map.floorLabel
+        context.fillStyle = fill
+        context.strokeStyle = outline
         context.lineJoin = "round"
         context.lineWidth = outlineWidth
         context.textAlign = "center"

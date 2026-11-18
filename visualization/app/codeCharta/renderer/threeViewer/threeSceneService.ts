@@ -394,6 +394,12 @@ export class ThreeSceneService implements OnDestroy {
     /** Recompute every building's colour and repaint it, without replacing the mesh. Selection and
      *  highlighting sit on top of the default colours, so both are re-applied once the defaults are
      *  back. */
+    redrawFloorLabels() {
+        if (this.mapMesh) {
+            this.initFloorLabels(this.mapMesh.getNodes())
+        }
+    }
+
     recolorMapMesh(state: CcState) {
         if (!this.mapMesh) {
             return
