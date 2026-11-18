@@ -38,7 +38,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M3 (tests to write first a
 - [x] 3.3 Shell policy
 - [x] 3.4 Core client
 - [x] 3.5 Preload, relay, lifecycle
-- [ ] 3.6 Pickers and reveal
+- [x] 3.6 Pickers and reveal
 - [ ] 3.7 Packaging
 
 ## Notes
@@ -157,5 +157,32 @@ Known red gates that are not this milestone's:
 - Web `e2e:ci` ran with a temporary, uncommitted `BROWSER_CHANNEL = "chromium"` in `app/playwright.helper.ts`
   and Playwright's chromium installed only under `node_modules/.cache/ms-playwright`
   (`PLAYWRIGHT_BROWSERS_PATH`), since this machine has no Google Chrome; run as `CI=1 npx playwright test
-  --workers=1`.
+  --workers=1`: 149 passed (10.1 min), no retries.
+
+### 3.6
+- **Deviation (design gate):** the shell adds no titles or filter names of its own, so the picker calls take the
+  caller's options: `pickFolder({ title })`, `pickFile({ title, filters })`, **`chooseToolExecutable(tool,
+  { title, filters })`** and **`chooseStoreRoot({ title })`** (the plan's signatures had no options). The plan's
+  Windows filter `exe, cmd, bat` is therefore the renderer's job (01-M4.2), passed as `filters`; the core still
+  refuses a file that does not answer like the tool. `shellPolicy.toDialogOptions` accepts only a string title and
+  filters `{ name: string, extensions: [alphanumeric | "*"] }`; anything else opens no picker and answers `null`.
+- **Deviation (file layout):** the actions live in a new `electron/shellActions.js` (`createShellActions` with
+  injected `dialog`, `shell`, `fs`, `getWindow`, `requestCore`, `restartCore`, `dataDir`, `platform`, plus
+  `runAction` and `readShellSettings`) instead of in `main.js`, which stays composition only; it is unit tested
+  with fakes in `shellActions.test.js` and listed in `copyElectron.js`.
+- Answers: `pickFolder`/`pickFile` → `string | null`; `chooseToolExecutable`/`chooseStoreRoot` →
+  `{ ok: true, value: null }` when cancelled, else the core's answer to `tools.setPath`/`paths.setStoreRoot`;
+  `reveal(target)` → `shell.resolvePath`, then `showItemInFolder` for a file, `openPath` for a folder, and for a
+  path that does not exist yet `openPath` of its nearest existing parent (`IO` if `openPath` reports a problem);
+  `readSnapshotMap({ projectId, folderId, snapshotId })` → `shell.resolvePath` with `kind: "snapshotMap"` (the core
+  answers `NOT_FOUND` until plan 03), `paths.get` for the store root, refuses (`NOT_ALLOWED`) a path outside
+  `<userData>`/store root or not ending in `.cc.json`/`.cc.json.gz`, then the file bytes (a Node `Buffer`, which
+  arrives as `Uint8Array`); `setWindowBackground("#rrggbb")` → `win.setBackgroundColor` and
+  `<userData>/shell.json { windowBackgroundColor }` (`BAD_REQUEST` otherwise). Unknown action kinds → `BAD_REQUEST`.
+- Tests: the three planned `shellPolicy` names plus "should compare map paths case-insensitively on Windows" and
+  "should keep only well-formed picker titles and filters"; `shellActions.test.js` (9 tests). `test:electron`: 42.
+- Manual acceptance automated instead: smoke tests stub `dialog.showOpenDialog` in main through
+  `electronApp.evaluate` — "should answer null when the native picker is cancelled", "should hand a picked
+  executable to the core" (the core answers with its own error for a file that is not a tool). A real native
+  picker was not clicked through.
 

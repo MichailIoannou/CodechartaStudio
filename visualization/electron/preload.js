@@ -5,6 +5,7 @@ const CHANNELS = {
     request: "codecharta:request",
     cancel: "codecharta:cancel",
     event: "codecharta:event",
+    dialog: "codecharta:dialog",
     shell: "codecharta:shell"
 }
 const CORE_STATE_EVENT = "shell.coreState"
@@ -62,6 +63,13 @@ if (greeting) {
         request: (method, params, options) => ipcRenderer.invoke(CHANNELS.request, { method, params, operationId: options?.operationId }),
         cancel: operationId => ipcRenderer.invoke(CHANNELS.cancel, { operationId }),
         subscribe,
+        pickFolder: options => ipcRenderer.invoke(CHANNELS.dialog, { kind: "pickFolder", options }),
+        pickFile: options => ipcRenderer.invoke(CHANNELS.dialog, { kind: "pickFile", options }),
+        chooseToolExecutable: (tool, options) => ipcRenderer.invoke(CHANNELS.dialog, { kind: "chooseToolExecutable", tool, options }),
+        chooseStoreRoot: options => ipcRenderer.invoke(CHANNELS.dialog, { kind: "chooseStoreRoot", options }),
+        reveal: target => ipcRenderer.invoke(CHANNELS.shell, { kind: "reveal", target }),
+        readSnapshotMap: target => ipcRenderer.invoke(CHANNELS.shell, { kind: "readSnapshotMap", target }),
+        setWindowBackground: color => ipcRenderer.invoke(CHANNELS.shell, { kind: "setWindowBackground", color }),
         restartCore: () => ipcRenderer.invoke(CHANNELS.shell, { kind: "restartCore" })
     })
 }

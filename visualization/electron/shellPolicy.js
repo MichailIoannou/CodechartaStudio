@@ -7,6 +7,9 @@ const CORE_FILE_NAME = "codecharta-core"
 const CORE_RESTART_DELAYS_MS = [500, 1000, 2000, 4000, 8000]
 const CORE_FAILURE_WINDOW_MS = 60_000
 const MAX_OPERATION_ID_LENGTH = 64
+const MAP_FILE_ENDINGS = [".cc.json", ".cc.json.gz"]
+const WINDOW_BACKGROUND_COLOR = /^#[0-9a-fA-F]{6}$/
+const FILTER_EXTENSION = /^(\*|[A-Za-z0-9]+)$/
 
 function describeTrustedPage({ isPackaged, indexHtmlPath, devServerUrl, platform }) {
     if (!isPackaged && LOCAL_DEV_SERVER.test(devServerUrl ?? "")) {
@@ -95,13 +98,54 @@ function isValidOperationId(operationId) {
     return operationId === undefined || (typeof operationId === "string" && operationId.length <= MAX_OPERATION_ID_LENGTH)
 }
 
+function isReadableMapPath(filePath, { allowedRoots, platform }) {
+    const isWindows = platform === "win32"
+    const pathFlavour = isWindows ? path.win32 : path.posix
+    if (typeof filePath !== "string" || !pathFlavour.isAbsolute(filePath)) {
+        return false
+    }
+    const comparable = candidate => (isWindows ? pathFlavour.normalize(candidate).toLowerCase() : pathFlavour.normalize(candidate))
+    const mapPath = comparable(filePath)
+    const isInsideARoot = allowedRoots.some(root => {
+        const relativePath = pathFlavour.relative(comparable(root), mapPath)
+        return relativePath.length > 0 && !relativePath.startsWith("..") && !pathFlavour.isAbsolute(relativePath)
+    })
+    return isInsideARoot && MAP_FILE_ENDINGS.some(ending => mapPath.toLowerCase().endsWith(ending))
+}
+
+function isWindowBackgroundColor(color) {
+    return typeof color === "string" && WINDOW_BACKGROUND_COLOR.test(color)
+}
+
+function isDialogFilter(filter) {
+    return (
+        typeof filter?.name === "string" &&
+        Array.isArray(filter.extensions) &&
+        filter.extensions.every(extension => typeof extension === "string" && FILTER_EXTENSION.test(extension))
+    )
+}
+
+function toDialogOptions(options) {
+    const title = options?.title
+    const filters = options?.filters
+    const isTitleValid = title === undefined || typeof title === "string"
+    const areFiltersValid = filters === undefined || (Array.isArray(filters) && filters.every(isDialogFilter))
+    if (!isTitleValid || !areFiltersValid) {
+        return null
+    }
+    return { title, filters: filters?.map(filter => ({ name: filter.name, extensions: [...filter.extensions] })) }
+}
+
 module.exports = {
     describeTrustedPage,
+    isReadableMapPath,
     isRendererEvent,
     isRendererMethod,
     isTrustedSender,
     isValidOperationId,
+    isWindowBackgroundColor,
     judgeNavigation,
     planCoreRestart,
-    resolveCoreExecutable
+    resolveCoreExecutable,
+    toDialogOptions
 }

@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain, shell } = require("electron")
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron")
 const { spawn } = require("node:child_process")
 const fs = require("node:fs")
 const path = require("node:path")
 const contract = require("./coreMethods.generated.json")
 const { CoreClient } = require("./coreClient")
+const { createShellActions, readShellSettings, runAction } = require("./shellActions")
 const policy = require("./shellPolicy")
 
 const CHANNELS = {
@@ -11,6 +12,7 @@ const CHANNELS = {
     request: "codecharta:request",
     cancel: "codecharta:cancel",
     event: "codecharta:event",
+    dialog: "codecharta:dialog",
     shell: "codecharta:shell"
 }
 const CORE_STATE_EVENT = "shell.coreState"
@@ -18,7 +20,6 @@ const PROGRESS_EVENT = "core.progress"
 const CLIENT_NAME = "codecharta-visualization"
 const WINDOW_SIZE = { width: 1400, height: 900 }
 const DEFAULT_WINDOW_BACKGROUND = "#ffffff"
-const SHELL_SETTINGS_FILE = "shell.json"
 const CORE_LOG_FILE = "core.log"
 const PREVIOUS_CORE_LOG_FILE = "core.log.1"
 // Only Windows reads .ico; elsewhere Electron fails to decode it and the window ends up iconless.
@@ -39,14 +40,6 @@ function applyUserDataOverride() {
 
 function failure(code, message) {
     return { ok: false, error: { code, message, details: {} } }
-}
-
-function readShellSettings() {
-    try {
-        return JSON.parse(fs.readFileSync(path.join(app.getPath("userData"), SHELL_SETTINGS_FILE), "utf8"))
-    } catch {
-        return {}
-    }
 }
 
 function openCoreLog(userDataDir) {
@@ -159,12 +152,21 @@ function relayCancel(sender, { operationId }) {
     }
 }
 
-function runShellAction(_sender, action) {
-    if (action.kind === "restartCore") {
-        coreClient.restart()
-        return { ok: true, value: null }
-    }
-    return failure("BAD_REQUEST", "Unknown shell action.")
+function requestCore(method, params) {
+    return coreClient.request(method, params).promise
+}
+
+function createActions() {
+    return createShellActions({
+        dialog,
+        shell,
+        fs,
+        getWindow: () => mainWindow,
+        requestCore,
+        restartCore: () => coreClient.restart(),
+        dataDir: app.getPath("userData"),
+        platform: process.platform
+    })
 }
 
 function captureSender(event) {
@@ -196,13 +198,15 @@ function handleTrusted(channel, handler) {
 }
 
 function registerIpcHandlers() {
+    const { dialogActions, shellActions } = createActions()
     ipcMain.on(CHANNELS.hello, event => {
         const isTrustedSender = isTrusted(captureSender(event))
         event.returnValue = isTrustedSender ? { protocolVersion: contract.protocolVersion, coreState: coreClient.currentState() } : null
     })
     handleTrusted(CHANNELS.request, relayRequest)
     handleTrusted(CHANNELS.cancel, relayCancel)
-    handleTrusted(CHANNELS.shell, runShellAction)
+    handleTrusted(CHANNELS.dialog, (_sender, payload) => runAction(dialogActions, payload))
+    handleTrusted(CHANNELS.shell, (_sender, payload) => runAction(shellActions, payload))
 }
 
 function guardNavigation(webContents) {
@@ -249,7 +253,7 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         ...WINDOW_SIZE,
         icon: path.join(__dirname, "codeCharta/assets", WINDOW_ICON_FILE),
-        backgroundColor: readShellSettings().windowBackgroundColor ?? DEFAULT_WINDOW_BACKGROUND,
+        backgroundColor: readShellSettings(fs, app.getPath("userData")).windowBackgroundColor ?? DEFAULT_WINDOW_BACKGROUND,
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
             sandbox: true,

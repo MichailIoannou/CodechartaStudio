@@ -6,10 +6,13 @@ const {
     isRendererEvent,
     isRendererMethod,
     isTrustedSender,
+    isReadableMapPath,
     isValidOperationId,
+    isWindowBackgroundColor,
     judgeNavigation,
     planCoreRestart,
-    resolveCoreExecutable
+    resolveCoreExecutable,
+    toDialogOptions
 } = require("./shellPolicy")
 
 const LINUX_INDEX = "/opt/codecharta/resources/app.asar/index.html"
@@ -268,5 +271,90 @@ describe("allow-list", () => {
 
         // Assert
         assert.deepEqual(verdicts, [true, true, true, false, false, false])
+    })
+})
+
+describe("shell actions", () => {
+    const linuxRoots = { allowedRoots: ["/home/user/.config/codecharta-visualization", "/data/store"], platform: "linux" }
+
+    test("should refuse a map outside the data folder", () => {
+        // Arrange
+        const mapPaths = [
+            "/data/store/projects/p1/snapshots/f1/s1/map.cc.json.gz",
+            "/home/user/.config/codecharta-visualization/store/projects/p1/map.cc.json",
+            "/data/store/../secrets/map.cc.json.gz",
+            "/data/store-other/map.cc.json.gz",
+            "/etc/map.cc.json"
+        ]
+
+        // Act
+        const verdicts = mapPaths.map(mapPath => isReadableMapPath(mapPath, linuxRoots))
+
+        // Assert
+        assert.deepEqual(verdicts, [true, true, false, false, false])
+    })
+
+    test("should refuse a file that is not a map", () => {
+        // Arrange
+        const filePaths = [
+            "/data/store/projects/p1/project.json",
+            "/data/store/run.log",
+            "/data/store/map.cc.json.gz.exe",
+            "relative/map.cc.json"
+        ]
+
+        // Act
+        const verdicts = filePaths.map(filePath => isReadableMapPath(filePath, linuxRoots))
+
+        // Assert
+        assert.deepEqual(verdicts, [false, false, false, false])
+    })
+
+    test("should compare map paths case-insensitively on Windows", () => {
+        // Arrange
+        const windowsRoots = { allowedRoots: ["C:\\Users\\me\\AppData\\Roaming\\codecharta-visualization"], platform: "win32" }
+
+        // Act
+        const isReadable = isReadableMapPath(
+            "c:\\users\\ME\\appdata\\roaming\\codecharta-visualization\\store\\MAP.CC.JSON.GZ",
+            windowsRoots
+        )
+
+        // Assert
+        assert.equal(isReadable, true)
+    })
+
+    test("should reject a colour that is not six hex digits", () => {
+        // Arrange
+        const colours = ["#1b9cfc", "#FFFFFF", "#fff", "1b9cfc", "#1b9cfcff", "red", "#1b9cfg", 0x1b9cfc]
+
+        // Act
+        const verdicts = colours.map(isWindowBackgroundColor)
+
+        // Assert
+        assert.deepEqual(verdicts, [true, true, false, false, false, false, false, false])
+    })
+
+    test("should keep only well-formed picker titles and filters", () => {
+        // Arrange
+        const wellFormed = { title: "Pick", filters: [{ name: "Executables", extensions: ["exe", "cmd", "bat"] }] }
+
+        // Act
+        const verdicts = {
+            wellFormed: toDialogOptions(wellFormed),
+            absent: toDialogOptions(undefined),
+            numberTitle: toDialogOptions({ title: 7 }),
+            badExtension: toDialogOptions({ filters: [{ name: "All", extensions: ["../x"] }] }),
+            notAList: toDialogOptions({ filters: "exe" })
+        }
+
+        // Assert
+        assert.deepEqual(verdicts, {
+            wellFormed: { title: "Pick", filters: [{ name: "Executables", extensions: ["exe", "cmd", "bat"] }] },
+            absent: { title: undefined, filters: undefined },
+            numberTitle: null,
+            badExtension: null,
+            notAList: null
+        })
     })
 })

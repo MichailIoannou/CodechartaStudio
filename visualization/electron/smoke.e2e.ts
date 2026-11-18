@@ -8,7 +8,20 @@ import { _electron, ElectronApplication, expect, Page, test } from "@playwright/
 const BUNDLE_FOLDER = join(__dirname, "..", "dist", "bundler", "browser")
 const BOOT_TIMEOUT_MS = 60_000
 const SECOND_INSTANCE_TIMEOUT_MS = 20_000
-const BRIDGE_KEYS = ["cancel", "protocolVersion", "request", "restartCore", "subscribe"]
+const BRIDGE_KEYS = [
+    "cancel",
+    "chooseStoreRoot",
+    "chooseToolExecutable",
+    "pickFile",
+    "pickFolder",
+    "protocolVersion",
+    "readSnapshotMap",
+    "request",
+    "restartCore",
+    "reveal",
+    "setWindowBackground",
+    "subscribe"
+]
 
 let userDataDir: string
 let desktopApp: ElectronApplication
@@ -143,4 +156,38 @@ test("should show the core as unavailable when the binary is missing", async () 
     expect(observed.coreState.state).toBe("unavailable")
     expect(observed.coreState.message).toContain("codecharta-core")
     expect(observed.answer).toMatchObject({ ok: false, error: { code: "CORE_UNAVAILABLE" } })
+})
+
+test("should answer null when the native picker is cancelled", async () => {
+    // Arrange
+    const page = await bootedWindow()
+    await desktopApp.evaluate(({ dialog }) => {
+        dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] })
+    })
+
+    // Act
+    const answers = await page.evaluate(async () => {
+        const bridge = (window as any).codeChartaDesktop
+        return { folder: await bridge.pickFolder({ title: "Folder" }), tool: await bridge.chooseToolExecutable("git", {}) }
+    })
+
+    // Assert
+    expect(answers).toEqual({ folder: null, tool: { ok: true, value: null } })
+})
+
+test("should hand a picked executable to the core", async () => {
+    // Arrange
+    const page = await bootedWindow()
+    const pickedFile = join(userDataDir, "not-a-tool")
+    await desktopApp.evaluate(({ dialog }, filePath) => {
+        dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] })
+    }, pickedFile)
+
+    // Act
+    const answer = await page.evaluate(() => (window as any).codeChartaDesktop.chooseToolExecutable("git", { title: "Tool" }))
+
+    // Assert
+    expect(answer.ok).toBe(false)
+    expect(answer.error.code).not.toBe("NOT_ALLOWED")
+    expect(answer.error.details).toBeDefined()
 })
