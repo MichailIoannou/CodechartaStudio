@@ -83,7 +83,9 @@ The desktop app is three processes: this Angular bundle (the renderer), the Elec
 not presentation — projects, the managed store, git, `ccsh` runs, snapshots, comparisons — belongs in the
 core, which knows nothing about Electron or Angular. The shell only starts the core, relays between it and
 the renderer, and does what needs Electron (window, native dialogs, reveal in the file manager); it holds
-no domain logic. The renderer reaches the core only through the shell, never directly.
+no domain logic. The renderer reaches the core only through the shell, never directly: the sandboxed
+preload exposes one object, `window.codeChartaDesktop`, and the shell forwards only allow-listed methods
+and events, from the bundled page's main frame only.
 
 The contract between them is generated from the core: `model/coreApi/` (TypeScript types and the method
 map, a Kernel-tier leaf that imports only itself) and `electron/coreMethods.generated.json` (the shell's
