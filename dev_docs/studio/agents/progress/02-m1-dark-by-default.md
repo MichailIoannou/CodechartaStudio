@@ -43,7 +43,7 @@ label `color` and `border` from the `buildingLabel` palette.
 - [x] 7. Map screenshot
 - [x] 8. Preference and migration
 - [x] 9. Apply and flip to dark
-- [ ] 10. Picker
+- [x] 10. Picker
 - [ ] 11. Visual check and changelog
 
 ## Notes
@@ -161,3 +161,17 @@ Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feat
 - `tailwind.css`: `default: true` moved to `cc-dark`; `index.html`: `data-theme="cc-dark"`, boot placeholder
   uses `var(--cc-boot-*, <cc-dark token>)` for background, text, track and accent.
 - Full e2e (149) green after this task, including `app.e2e.ts` and `radialMap.e2e.ts`.
+
+### 10. Picker
+
+- `cc-theme-picker` as in `design/02-themes.md` T1 (design followed over the plan where they differ:
+  `<label for>` with `label-text` "Theme", `select select-bordered select-sm w-56`, `data-testid="theme-picker"`,
+  optgroups Dark / Light from `THEMES`, then "Follow system"; hint `text-xs text-base-content/70`
+  "Currently: <label>" only while following the system; an unknown stored id shows CodeCharta Dark).
+  The label and select sit in a two-column grid so the hint lines up under the select.
+  First row of the dialog's list; `'preferences.theme'` added to the reset button's keys.
+- No nav-bar toggle (OD10).
+- e2e `features/theme/e2e/theme.e2e.ts` with `components/themePicker/themePicker.po.ts`: the four planned
+  cases; the corner pixel is read by copying `#codeMapScene` into a 1x1 2D canvas (the renderer keeps
+  its drawing buffer).
+- Full e2e (153) green, `test:electron` 42/42, `e2e:desktop` 9/9 after this task.
