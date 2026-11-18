@@ -158,6 +158,8 @@ Status meaning is fixed across areas:
 | analysed snapshot | `fa-cube` |
 | imported snapshot | `fa-file-import` |
 | analyse | `fa-play` |
+| show in map | `fa-map` |
+| stale / nearest | `fa-clock-rotate-left` |
 | cancel running | `fa-stop` |
 | log | `fa-file-lines` |
 | compare | `fa-code-compare` |

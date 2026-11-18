@@ -21,6 +21,14 @@ answer that differs means the named file is changed, nothing else.
 5. **Where do git failures show?** *Default:* an error notice inside the History view with a
    "Details" disclosure (toasts close after 5 s and cannot hold buttons); successes stay toasts.
 
+## Area 05 — snapshots
+
+6. **Does selecting a commit in History change the map?** Plan 05 loads the nearest snapshot on every
+   selection change. *Default:* no — selection only shows the analysis status in the details pane;
+   "Show in map" (Enter / double-click) changes the map. Keeps arrow-key browsing fast with large maps.
+7. **Stale notice in History?** *Default:* the banner shows over the map views only; History shows the
+   same facts per commit in its details pane.
+
 ## From orchestration
 
 (The orchestrator appends questions here.)

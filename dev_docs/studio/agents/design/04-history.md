@@ -288,8 +288,7 @@ graph │ subject + ref labels                                          │ ▣ 
 - **Loading first page**: 8 skeleton rows (`skeleton h-4`) instead of a spinner.
 
 **Keyboard** (plan 4.7): ↑/↓ select; Shift+↑/↓ or Ctrl+click set the second selection; Home/End,
-PageUp/PageDown; Enter / double-click run the primary commit action (area 05: "Show in map", see
-area 05); Ctrl+C copies the full SHA (toast "Copied a1b2c3d"); Menu or Shift+F10 opens the context
+PageUp/PageDown; Enter / double-click run the primary commit action ("Show in map", area 05 S5); Ctrl+C copies the full SHA (toast "Copied a1b2c3d"); Menu or Shift+F10 opens the context
 menu; Ctrl+F or `/` focuses Search; F5 refreshes; Escape drops the second selection. Handled keys call
 `stopPropagation()` (principles §9).
 

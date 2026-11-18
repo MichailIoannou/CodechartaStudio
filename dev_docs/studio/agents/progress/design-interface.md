@@ -27,7 +27,7 @@ Produce the interface design for plans 01–06 under `dev_docs/studio/agents/des
 - [x] Task 1: principles
 - [x] Task 2: area 03 projects
 - [x] Task 2: area 04 history
-- [ ] Task 2: area 05 snapshots
+- [x] Task 2: area 05 snapshots
 - [ ] Task 2: area 06 compare
 - [ ] Task 2: area 02 themes
 - [ ] Task 2: area 01 desktop tools
