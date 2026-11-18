@@ -1,10 +1,12 @@
 import { TestBed } from "@angular/core/testing"
 import { Store, StoreModule } from "@ngrx/store"
-import { BoxGeometry, Group, Mesh, PerspectiveCamera, Scene } from "three"
+import { BoxGeometry, Group, LineBasicMaterial, Mesh, PerspectiveCamera, Scene } from "three"
 import { CcState, Node } from "../../../model/codeCharta.model"
 import { ThreeRendererService, ThreeSceneService } from "../../../renderer/threeViewer/threeViewer.facade"
 import { setShowMetricLabelNodeName } from "../../../stores/mapState/mapState.write.facade"
 import { appReducers, setStateMiddleware } from "../../../stores/rootStore/store"
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { resolveTheme } from "../../../util/theme/resolveTheme"
 import { StateAccessStore } from "../stores/stateAccess.store"
 import { ConnectorDrawingService, LabelLayoutInfo } from "./connectorDrawing.service"
 import { LabelCreationService } from "./labelCreation.service"
@@ -163,6 +165,26 @@ describe("ConnectorDrawingService", () => {
             // Assert — geometry should be initialized
             expect(connectorDrawingService["connectorSegments"]).not.toBeNull()
             expect(connectorDrawingService["connectorPositions"]).not.toBeNull()
+        })
+
+        it("should draw connectors in the theme's connector color", () => {
+            // Arrange
+            setActiveTheme(resolveTheme("cc-dark", "light"))
+            store.dispatch(setShowMetricLabelNodeName({ value: true }))
+            labelCreationService.addLeafLabel(sampleLeaf, 10)
+            const infos: LabelLayoutInfo[] = labelCreationService.getLabels().map(label => ({
+                label,
+                rect: { top: 0, bottom: 20, left: 0, right: 100, width: 100, height: 20, x: 0, y: 0, toJSON: () => {} } as DOMRect,
+                offset: 0,
+                hidden: false
+            }))
+
+            // Act
+            connectorDrawingService.drawConnectors(infos, null)
+
+            // Assert
+            const material = connectorDrawingService["connectorSegments"].material as LineBasicMaterial
+            expect(`#${material.color.getHexString()}`).toBe("#8a94a3")
         })
 
         it("should stop drawing a connector and request a re-render when its label is suppressed", () => {

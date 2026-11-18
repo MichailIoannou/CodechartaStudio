@@ -39,7 +39,7 @@ label `color` and `border` from the `buildingLabel` palette.
 - [x] 3. DOM stragglers
 - [x] 4. Scene background
 - [x] 5. Floors and floor labels
-- [ ] 6. Labels, connectors, view cube
+- [x] 6. Labels, connectors, view cube
 - [ ] 7. Map screenshot
 - [ ] 8. Preference and migration
 - [ ] 9. Apply and flip to dark
@@ -111,4 +111,15 @@ Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feat
 - `FolderLabelMaterials` was not touched (still looks inert; nothing in M1 depends on it).
 - Extra tests beyond the plan: `geometryGenerator.spec.ts` (floors from the theme's gradient, recolor
   takes the theme active at the time), `threeSceneService.spec.ts` (`redrawFloorLabels`).
+
+### 6. Labels, connectors, view cube
+
+- Labels: background `color-mix(base-100 85%)`, text `base-content`, border `base-300`, metric and badge
+  text `color-mix(base-content 60%)` (one named constant). The metric span was `#666`, not mentioned in
+  the plan; it gets the same faded token as the badge. New `labelElement.spec.ts` (none existed).
+- Connectors: `new Color(activeRenderPalette().map.connector)` in `initConnectors`.
+- View cube: the three material getters share one themed factory; the component keeps the `BoxHelper`,
+  and an `effect` in the constructor recolors meshes and outline and renders when `activeTheme` changes
+  (no-op before `ngOnInit` built the cube). Hover emissive from the palette; the unhover reset stays black
+  (no emission). The spec now constructs the component inside `TestBed.runInInjectionContext`.
 

@@ -1,6 +1,8 @@
 import { CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js"
 import { BASE_BADGE_FONT_PX, BASE_METRIC_FONT_PX, BASE_NAME_FONT_PX, BASE_OFFSET_PX } from "./label.constants"
 
+const SECONDARY_TEXT_COLOR = "color-mix(in srgb, var(--color-base-content) 60%, transparent)"
+
 export class LabelElement {
     readonly cssObject: CSS2DObject
     private readonly content: HTMLDivElement
@@ -22,7 +24,7 @@ export class LabelElement {
 
         if (metricText) {
             const metricSpan = document.createElement("span")
-            metricSpan.style.cssText = `display: block; font-size: ${BASE_METRIC_FONT_PX * labelSize}px; color: #666; margin-top: 1px;`
+            metricSpan.style.cssText = `display: block; font-size: ${BASE_METRIC_FONT_PX * labelSize}px; color: ${SECONDARY_TEXT_COLOR}; margin-top: 1px;`
             metricSpan.textContent = metricText
             this.content.appendChild(metricSpan)
         }
@@ -58,7 +60,7 @@ export class LabelElement {
         this.badge.textContent = `+${hiddenCount} more`
         this.badge.style.cssText = `
             font-size: ${BASE_BADGE_FONT_PX * this.labelSize}px;
-            color: #888;
+            color: ${SECONDARY_TEXT_COLOR};
             margin-top: 2px;
             text-align: center;
             pointer-events: none;
@@ -75,7 +77,8 @@ export class LabelElement {
 
     private static buildContentStyles(labelSize: number): string {
         return `
-            background: rgba(255, 255, 255, 0.85);
+            background: color-mix(in srgb, var(--color-base-100) 85%, transparent);
+            border: 1px solid var(--color-base-300);
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
             border-radius: 6px;
@@ -83,7 +86,7 @@ export class LabelElement {
             font-family: Roboto, 'Helvetica Neue', sans-serif;
             font-size: ${BASE_NAME_FONT_PX * labelSize}px;
             line-height: 1.3;
-            color: #1a1a1a;
+            color: var(--color-base-content);
             white-space: nowrap;
             pointer-events: none;
             user-select: none;
