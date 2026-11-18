@@ -49,6 +49,7 @@
     "e2e": "npx playwright test",
     "e2e:auto": "npx playwright test --ui",
     "e2e:ci": "npx playwright test --workers=1",
+    "e2e:desktop": "node script/ensureElectron.js && npx playwright test --config playwright.desktop.config.ts",
     "package": "node script/ensureElectron.js && node script/appMain.js",
     "package:local": "npm run package -- --local",
     "contract": "cd ../core && cargo run --quiet --locked -p codecharta-core-api --bin export-contract -- --ts ../visualization/app/codeCharta/model/coreApi --shell ../visualization/electron/coreMethods.generated.json && cd ../visualization && node ../node_modules/@biomejs/biome/bin/biome check --write app/codeCharta/model/coreApi electron/coreMethods.generated.json",

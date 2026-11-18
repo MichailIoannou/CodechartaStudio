@@ -34,7 +34,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M3 (tests to write first a
 
 - [x] 3.0 Electron download on npm 12
 - [x] 3.1 Copy electron files
-- [ ] 3.2 Smoke harness
+- [x] 3.2 Smoke harness
 - [ ] 3.3 Shell policy
 - [ ] 3.4 Core client
 - [ ] 3.5 Preload, relay, lifecycle
@@ -72,4 +72,17 @@ Known red gates that are not this milestone's:
 - `npm run build` green; `cmp electron/main.js dist/bundler/browser/main.js` identical. PowerShell not available
   here: the script uses only Node built-ins and `&&`, which PowerShell 7 and `cmd.exe` both accept (not run on
   Windows). README: removed the "requires unix tools" note of the build section.
+
+### 3.2
+- `@playwright/test` is 1.63.0 here; its `_electron.launch` drives Electron 44.9.1 without the CDP fallback.
+- `playwright.desktop.config.ts` (`testDir: "./electron"`, `workers: 1`, no `webServer`, `list` reporter),
+  `electron/smoke.e2e.ts`, script `e2e:desktop`. Both tests green against the unchanged 55-line `main.js`
+  (`2 passed (3.0s)`); until 3.5 that `main.js` ignores `CODECHARTA_USER_DATA_DIR`.
+- knip: the Playwright plugin already finds `playwright.desktop.config.ts` (knip called a config entry for it
+  redundant), so only `electron/**/*.e2e.ts` is listed under `entry`; the old "no entry on purpose" comment
+  is rewritten accordingly.
+- CI: job `build_visualization_desktop_smoke` in `test_visualization.yml` as planned; the workflow now also
+  triggers on `core/**`, since the smoke suite starts the core. Action references copied from the same file
+  (tag style, as in its other jobs); the Rust toolchain comes from preinstalled `rustup` like `test_core.yml`.
+  YAML parsed with PyYAML; the job itself has not run (no CI here).
 
