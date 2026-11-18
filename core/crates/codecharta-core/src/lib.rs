@@ -1,5 +1,6 @@
 pub mod config;
 pub mod error;
+pub mod folders;
 pub mod ids;
 pub mod process;
 pub mod store;
