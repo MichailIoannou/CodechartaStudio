@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::ids::{FolderId, ProjectId, SnapshotId};
-use crate::values::FullCommit;
+use crate::methods::projects::{FolderGitFacts, FolderKind, ResolvedCommit};
+use crate::values::{CommitHash, FullCommit, PickToken, ProjectName};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -38,6 +39,48 @@ pub struct SnapshotSummary {
     pub map_bytes: u64,
     pub checksum: Option<String>,
     pub profile_hash: Option<String>,
+}
+
+/// The commit a file name starts with, the way `ccsh analyse --commit` names its output.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitHint {
+    pub hash: CommitHash,
+}
+
+/// The folder an import file lies in, inspected like a picked folder; the token stands for its path.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainingFolder {
+    pub pick_token: PickToken,
+    pub path: String,
+    pub suggested_name: ProjectName,
+    pub kind: FolderKind,
+    pub git: Option<FolderGitFacts>,
+}
+
+/// A project that already has the containing folder.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ExistingTarget {
+    pub project_id: ProjectId,
+    pub project_name: String,
+    pub folder_id: FolderId,
+}
+
+/// What the shell shows after a native file pick; `importToken` stands for the file from then on.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct PickedImportFile {
+    pub import_token: PickToken,
+    pub file_name: String,
+    pub size_bytes: u64,
+    pub file_modified_at: String,
+    pub commit_hint: Option<CommitHint>,
+    pub containing_folder: ContainingFolder,
+    pub hint_commit: Option<ResolvedCommit>,
+    pub existing_target: Option<ExistingTarget>,
+    pub duplicate_of: Option<SnapshotRef>,
 }
 
 #[cfg(test)]

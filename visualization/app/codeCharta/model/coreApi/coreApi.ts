@@ -61,7 +61,8 @@ export const CORE_ERROR_CODES = [
     "DUPLICATE_LABEL",
     "FOLDER_UNAVAILABLE",
     "DIFFERENT_HISTORY",
-    "TOO_LARGE"
+    "TOO_LARGE",
+    "NOT_A_COMMIT"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {

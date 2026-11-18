@@ -22,3 +22,4 @@ export type ErrorCode =
     | "FOLDER_UNAVAILABLE"
     | "DIFFERENT_HISTORY"
     | "TOO_LARGE"
+    | "NOT_A_COMMIT"

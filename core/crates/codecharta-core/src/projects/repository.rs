@@ -181,7 +181,7 @@ impl<'deps> ProjectRepository<'deps> {
         changed
     }
 
-    fn project_ids(&self) -> CoreResult<Vec<ProjectId>> {
+    pub(crate) fn project_ids(&self) -> CoreResult<Vec<ProjectId>> {
         let projects_dir = self.store.paths().projects_dir();
         let entries = match fs::read_dir(&projects_dir) {
             Ok(entries) => entries,

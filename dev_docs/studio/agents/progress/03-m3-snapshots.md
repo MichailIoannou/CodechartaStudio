@@ -35,7 +35,7 @@ From `03-m2-projects.md`: append `NOT_A_COMMIT`; `resolve_commit` must also read
 ## Steps
 
 - [x] 1. Repository
-- [ ] 2. Import
+- [x] 2. Import
 - [ ] 3. Open file and move
 - [ ] 4. JSON-RPC
 - [ ] 5. CLI
@@ -81,4 +81,42 @@ described.
   `should_answer_the_map_location_and_not_found_for_an_unknown_snapshot`,
   `should_record_the_map_facts_the_renderer_reports`, `should_find_the_snapshots_of_a_commit`,
   `should_answer_not_found_for_a_folder_outside_the_project`.
+
+### 2. Import
+- Crates `flate2` 1.1.11 and `sha2` 0.10.9 (both MIT OR Apache-2.0). New lockfile packages: adler2, block-buffer,
+  cpufeatures, crc32fast, crypto-common, digest, flate2, generic-array, miniz_oxide, sha2, simd-adler32, typenum,
+  version_check, zlib-rs (licences MIT / Apache-2.0 / 0BSD / Zlib, all allowed by `deny.toml`; `cargo deny`
+  itself is not installed here).
+- New error code `NOT_A_COMMIT` (appended; `ErrorCode::ALL` now 22; `CoreError::NotACommit { commit }`);
+  contract regenerated (`ErrorCode.ts`, `CORE_ERROR_CODES`).
+- `folders/inspector.rs`: `SHOW_COMMIT_FORMAT` now reads `%cI` and `%P`; new `commit_details` returns
+  `CommitDetails { resolved, commit_date, parents }`; `resolve_commit` keeps its signature and the api type
+  `ResolvedCommit` is unchanged. `ProjectRepository::reachable_git_folder` (extracted from `resolve_commit`)
+  is the one `FOLDER_UNAVAILABLE` check. `ids::imported_snapshot_id`, `timestamps::of`,
+  `projects::folders::suggested_project_name` (folder name, control characters removed, at most 80, else
+  "Project"); `location_key` and `project_ids` are now `pub(crate)`.
+- Api: `CommitHint`, `ContainingFolder` (`suggestedName` is a `ProjectName`), `ExistingTarget`,
+  `PickedImportFile`.
+- **Deviation in layout:** `snapshots/content.rs` (`ImportFile`: absolute path, regular file else
+  `BAD_REQUEST`, missing `NOT_FOUND`, gzip by magic bytes, `content_sha256` streamed through
+  `MultiGzDecoder` for gzip, `copy_as_gzip`; `commit_hint_of`: the part before the first `.` must be a
+  `CommitHash`) and `snapshots/import.rs` (`inspect_import_file(tokens, path)`, `import_file(ImportRequest
+  { target, file, bind_to_commit }) -> ImportOutcome { snapshot, was_already_imported }`, `bound_git`,
+  `imported_duplicate`, `existing_target`). Plan module table corrected.
+- Rules as built: a broken gzip is `BAD_REQUEST`. The duplicate search runs before anything is written and
+  covers every folder of the target project; a hit returns that snapshot with `was_already_imported`.
+  Binding re-verifies in the folder (`FOLDER_UNAVAILABLE` unless an `ok` git folder, `NOT_A_COMMIT` unless
+  `rev-parse --verify` names exactly that commit) and records the folder's cached (credential-free) remotes.
+  `inspect_import_file` needs an absolute path, issues a folder token for the containing folder (through
+  `pick_folder`) and the file token last; `existing_target` is the most recently updated project with a
+  folder at the containing folder's path (same `location_key` as the duplicate-folder check); `duplicate_of`
+  is looked up in that project; the hint is resolved only when the containing folder is `git`.
+- Tests: hash and hint tests are unit tests in `content.rs` (plus `should_refuse_a_folder_and_a_broken_gzip_file`);
+  the rest in `tests/snapshot_import.rs` plus `should_answer_folder_unavailable_when_binding_in_a_plain_folder`,
+  `should_inspect_a_file_in_a_repository_that_is_already_a_project_folder`,
+  `should_refuse_a_relative_path_to_inspect`; unit `should_read_a_root_commit_without_parents`,
+  `should_build_imported_ids_from_the_content_hash_and_the_commit`,
+  `should_suggest_the_folder_name_as_project_name`.
+- Not done: no size limit on imports (the plan names none); hashing and copying run on the request's task,
+  not `spawn_blocking`.
 

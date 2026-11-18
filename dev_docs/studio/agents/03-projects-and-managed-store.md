@@ -158,14 +158,15 @@ Modules in `core/crates/codecharta-core/src/` (no function bodies here; signatur
 | `store/root_change.rs` | `change_store_root(current: &Path, target: &Path) -> Result<StoreRootChange, CoreError>` (adopt an existing store, copy into an empty folder without `.lock`, else `BAD_REQUEST`) |
 | `recycle.rs` | `trait Recycler { fn recycle(&self, path: &Path) -> Result<(), CoreError>; }`, `SystemRecycler` (crate candidate `trash`) |
 | `git/runner.rs` | `trait GitRunner { fn run(&self, cwd: &Path, args: &[&str]) -> GitFuture }` (boxed future of `CoreResult<GitOutput { exit_code, stdout }>`), implemented by `Tools`; `GIT_TIMEOUT` (as built in 03-M2) |
-| `folders/inspector.rs` | `async inspect_folder(git: &dyn GitRunner, path: &Path) -> FolderInspection`, `resolve_commit(git: &dyn GitRunner, folder: &Path, hash: &CommitHash) -> Result<Option<ResolvedCommit>, CoreError>` |
+| `folders/inspector.rs` | `async inspect_folder(git: &dyn GitRunner, path: &Path) -> FolderInspection`, `resolve_commit(git: &dyn GitRunner, folder: &Path, hash: &CommitHash) -> Result<Option<ResolvedCommit>, CoreError>`, `commit_details(..) -> CoreResult<Option<CommitDetails { resolved, commit_date, parents }>>` (03-M3, for binding) |
 | `folders/relationships.rs` | pure: `normalise_remote_url(url: &str) -> String`, `derive_relationships(folders: &[ProjectFolder]) -> BTreeMap<FolderId, Vec<FolderRelationship>>` |
 | `projects/repository.rs` | `ProjectRepository` (CRUD, folder operations, derived status, `resolve_folder(&FolderRef) -> Result<ResolvedFolder, CoreError>` with `path`, `kind`, `status` — offered to plans 04/05/06) |
 | `projects/tokens.rs` | `PickTokens::{issue_folder, issue_file, take_folder, take_folders, take_file, give_back, settle}` (in-memory, 32 hex, 15-minute lifetime as a named constant; taken before a use and given back when the use fails, so consumed on first successful use) |
 | `projects/{record,derived,folders,folder_operations,active,source_files}.rs` | as built in 03-M2: `ProjectRecord` (stored), derived fields, `FolderToAdd`/`attach_folder`, the folder operations, active project and `pick_folder`, `source_file_location` |
 | `snapshots/repository.rs` | `SnapshotRepository` (list, map location, delete, record facts, begin/commit/abort, find by commit) |
 | `snapshots/record.rs` | `SnapshotRecord` (the full `snapshot.json` of section 5 of the decisions file; plan 05 fills the `analysis`/`hosting` parts) |
-| `snapshots/import.rs` | `inspect_import_file`, `import_file`, `open_file`, `move_snapshot`, content hash, hint detection, gzip copy, bind to commit |
+| `snapshots/content.rs` | `ImportFile` (open a regular file, gzip detection, content hash, gzip copy), `commit_hint_of` (03-M3 split it out of `import.rs`) |
+| `snapshots/import.rs` | `inspect_import_file`, `import_file`, bind to commit, duplicate and existing-target lookup (methods of `SnapshotRepository`); `open_file` and `move_snapshot` are in `snapshots/open_file.rs` and `snapshots/move_snapshot.rs` (03-M3) |
 
 Types in `core/crates/codecharta-core-api/src/{error,store,projects,snapshots,shell}.rs`. Every type derives `Serialize, Deserialize, Clone, Debug, PartialEq` and `ts_rs::TS` (UNVERIFIED tool), uses `#[serde(rename_all = "camelCase")]`; request types add `#[serde(deny_unknown_fields)]`; unit enums serialise lowercase. Timestamps are ISO-8601 UTC strings. Validated newtypes use `#[serde(try_from = "String")]`, so an invalid value is a `BAD_REQUEST` before any handler runs.
 

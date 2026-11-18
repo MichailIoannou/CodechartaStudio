@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
-use codecharta_core_api::ids::{FolderId, ProjectId};
-use codecharta_core_api::values::{PICK_TOKEN_LENGTH, PickToken};
+use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
+use codecharta_core_api::values::{FullCommit, PICK_TOKEN_LENGTH, PickToken};
 
 use crate::error::{CoreError, CoreResult};
 
@@ -9,6 +9,9 @@ const PROJECT_ID_PREFIX: &str = "p-";
 const FOLDER_ID_PREFIX: &str = "f-";
 const RANDOM_ID_BYTES: usize = 8;
 const STAGING_SUFFIX_BYTES: usize = 4;
+const IMPORTED_MARKER: &str = "imported";
+const BOUND_IMPORT_HASH_DIGITS: usize = 8;
+const UNBOUND_IMPORT_HASH_DIGITS: usize = 16;
 const HEX_DIGITS_PER_BYTE: usize = 2;
 
 pub fn new_project_id() -> CoreResult<ProjectId> {
@@ -29,6 +32,27 @@ pub fn new_token() -> CoreResult<PickToken> {
 /// The random part of a staging directory name: 8 hex digits.
 pub fn new_staging_suffix() -> CoreResult<String> {
     random_hex("", STAGING_SUFFIX_BYTES)
+}
+
+/// `<fullSha>-imported-<8hex>` when bound to a commit, else `imported-<16hex>`; the hex digits are the
+/// first ones of the content hash.
+pub fn imported_snapshot_id(
+    content_sha256: &str,
+    commit: Option<&FullCommit>,
+) -> CoreResult<SnapshotId> {
+    let digits = if commit.is_some() {
+        BOUND_IMPORT_HASH_DIGITS
+    } else {
+        UNBOUND_IMPORT_HASH_DIGITS
+    };
+    let hash_prefix = content_sha256
+        .get(..digits)
+        .ok_or_else(|| CoreError::Internal("the content hash is too short".to_string()))?;
+    let id = match commit {
+        Some(commit) => format!("{commit}-{IMPORTED_MARKER}-{hash_prefix}"),
+        None => format!("{IMPORTED_MARKER}-{hash_prefix}"),
+    };
+    SnapshotId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
 }
 
 fn random_hex(prefix: &str, byte_count: usize) -> CoreResult<String> {
@@ -89,5 +113,23 @@ mod tests {
         // Assert
         assert_eq!(first.as_str().len(), PICK_TOKEN_LENGTH);
         assert_ne!(first, second);
+    }
+
+    #[test]
+    fn should_build_imported_ids_from_the_content_hash_and_the_commit() {
+        // Arrange
+        let content_sha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let commit = FullCommit::try_from("fedcba9876543210fedcba9876543210fedcba98").unwrap();
+
+        // Act
+        let unbound = imported_snapshot_id(content_sha256, None).unwrap();
+        let bound = imported_snapshot_id(content_sha256, Some(&commit)).unwrap();
+
+        // Assert
+        assert_eq!(unbound.as_str(), "imported-0123456789abcdef");
+        assert_eq!(
+            bound.as_str(),
+            "fedcba9876543210fedcba9876543210fedcba98-imported-01234567"
+        );
     }
 }

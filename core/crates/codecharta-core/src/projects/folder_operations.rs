@@ -137,6 +137,12 @@ impl ProjectRepository<'_> {
         target: &FolderRef,
         hash: &CommitHash,
     ) -> CoreResult<Option<ResolvedCommit>> {
+        let folder = self.reachable_git_folder(target)?;
+        resolve_commit(self.git, &folder.path, hash).await
+    }
+
+    /// `FOLDER_UNAVAILABLE` unless the folder is a git folder that is there.
+    pub fn reachable_git_folder(&self, target: &FolderRef) -> CoreResult<ResolvedFolder> {
         let folder = self.resolve_folder(target)?;
         if folder.status != FolderStatus::Ok || folder.kind != FolderKind::Git {
             return Err(CoreError::FolderUnavailable(format!(
@@ -144,7 +150,7 @@ impl ProjectRepository<'_> {
                 folder.path.display()
             )));
         }
-        resolve_commit(self.git, &folder.path, hash).await
+        Ok(folder)
     }
 
     fn discard_snapshots(&self, target: &FolderRef, permanently: bool) -> CoreResult<()> {

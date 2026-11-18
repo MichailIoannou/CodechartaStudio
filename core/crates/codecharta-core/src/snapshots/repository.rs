@@ -246,7 +246,7 @@ impl<'deps> SnapshotRepository<'deps> {
         write_json_atomic(&file, record)
     }
 
-    fn ensure_folder_exists(&self, folder: &FolderRef) -> CoreResult<()> {
+    pub(crate) fn ensure_folder_exists(&self, folder: &FolderRef) -> CoreResult<()> {
         let project = self.projects().read_record(&folder.project_id)?;
         existing_folder(&project, &folder.folder_id).map(|_| ())
     }

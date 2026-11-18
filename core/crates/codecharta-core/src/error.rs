@@ -53,6 +53,8 @@ pub enum CoreError {
     DifferentHistory { path: String },
     #[error("The file is larger than {limit_bytes} bytes.")]
     TooLarge { limit_bytes: u64 },
+    #[error("The folder has no commit {commit}.")]
+    NotACommit { commit: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;
@@ -79,6 +81,7 @@ impl CoreError {
             CoreError::FolderUnavailable(_) => ErrorCode::FolderUnavailable,
             CoreError::DifferentHistory { .. } => ErrorCode::DifferentHistory,
             CoreError::TooLarge { .. } => ErrorCode::TooLarge,
+            CoreError::NotACommit { .. } => ErrorCode::NotACommit,
         }
     }
 
@@ -194,6 +197,12 @@ mod tests {
                 ErrorCode::DifferentHistory,
             ),
             (CoreError::TooLarge { limit_bytes: 16 }, ErrorCode::TooLarge),
+            (
+                CoreError::NotACommit {
+                    commit: "0123456789abcdef0123456789abcdef01234567".into(),
+                },
+                ErrorCode::NotACommit,
+            ),
         ]
     }
 

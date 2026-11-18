@@ -22,8 +22,8 @@ const ORIGIN_HEAD: [&str; 4] = [
 ];
 const CURRENT_BRANCH: [&str; 3] = ["rev-parse", "--abbrev-ref", "HEAD"];
 const ROOT_COMMITS: [&str; 3] = ["rev-list", "--max-parents=0", "HEAD"];
-const SHOW_COMMIT_FORMAT: &str = "--format=%H%x00%h%x00%s%x00%an%x00%aI";
-const COMMIT_FIELD_COUNT: usize = 5;
+const SHOW_COMMIT_FORMAT: &str = "--format=%H%x00%h%x00%s%x00%an%x00%aI%x00%cI%x00%P";
+const COMMIT_FIELD_COUNT: usize = 7;
 const FIELD_SEPARATOR: char = '\0';
 const GIT_TRUE: &str = "true";
 const DETACHED_HEAD: &str = "HEAD";
@@ -31,6 +31,14 @@ const REMOTE_KEY_PREFIX: &str = "remote.";
 const REMOTE_KEY_SUFFIX: &str = ".url";
 const SCHEME_SEPARATOR: &str = "://";
 const WEB_SCHEMES: [&str; 2] = ["http", "https"];
+
+/// A resolved commit plus what a snapshot bound to it records.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommitDetails {
+    pub resolved: ResolvedCommit,
+    pub commit_date: String,
+    pub parents: Vec<FullCommit>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FolderInspection {
@@ -197,6 +205,16 @@ pub async fn resolve_commit(
     folder: &Path,
     hash: &CommitHash,
 ) -> CoreResult<Option<ResolvedCommit>> {
+    Ok(commit_details(git, folder, hash)
+        .await?
+        .map(|details| details.resolved))
+}
+
+pub async fn commit_details(
+    git: &dyn GitRunner,
+    folder: &Path,
+    hash: &CommitHash,
+) -> CoreResult<Option<CommitDetails>> {
     let revision = format!("{hash}^{{commit}}");
     let verified = git
         .run(folder, &["rev-parse", "--verify", "--quiet", &revision])
@@ -217,19 +235,35 @@ pub async fn resolve_commit(
     Ok(parse_commit(commit, &shown.stdout))
 }
 
-fn parse_commit(commit: FullCommit, shown: &str) -> Option<ResolvedCommit> {
+fn parse_commit(commit: FullCommit, shown: &str) -> Option<CommitDetails> {
     let fields: Vec<&str> = shown
         .trim_end_matches(['\n', '\r'])
         .split(FIELD_SEPARATOR)
         .collect();
-    let [_, short_commit, subject, author_name, author_date] =
-        <[&str; COMMIT_FIELD_COUNT]>::try_from(fields).ok()?;
-    Some(ResolvedCommit {
-        commit,
-        short_commit: short_commit.to_string(),
-        subject: subject.to_string(),
-        author_name: author_name.to_string(),
-        author_date: author_date.to_string(),
+    let [
+        _,
+        short_commit,
+        subject,
+        author_name,
+        author_date,
+        commit_date,
+        parents,
+    ] = <[&str; COMMIT_FIELD_COUNT]>::try_from(fields).ok()?;
+    let parents = parents
+        .split_whitespace()
+        .map(FullCommit::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?;
+    Some(CommitDetails {
+        resolved: ResolvedCommit {
+            commit,
+            short_commit: short_commit.to_string(),
+            subject: subject.to_string(),
+            author_name: author_name.to_string(),
+            author_date: author_date.to_string(),
+        },
+        commit_date: commit_date.to_string(),
+        parents,
     })
 }
 
@@ -298,16 +332,35 @@ mod tests {
     fn should_read_the_fields_of_a_shown_commit() {
         // Arrange
         let commit = FullCommit::try_from("0123456789abcdef0123456789abcdef01234567").unwrap();
-        let shown = "0123456789abcdef0123456789abcdef01234567\x000123456\x00Add a file\x00Ada\x002026-01-02T03:04:05+00:00\n";
+        let parent = "1111111111111111111111111111111111111111";
+        let shown = format!(
+            "{commit}\x000123456\x00Add a file\x00Ada\x002026-01-02T03:04:05+00:00\x002026-01-03T00:00:00+00:00\x00{parent}\n"
+        );
 
         // Act
-        let resolved = parse_commit(commit.clone(), shown).unwrap();
+        let details = parse_commit(commit.clone(), &shown).unwrap();
 
         // Assert
+        let resolved = &details.resolved;
         assert_eq!(resolved.commit, commit);
         assert_eq!(resolved.short_commit, "0123456");
         assert_eq!(resolved.subject, "Add a file");
         assert_eq!(resolved.author_name, "Ada");
         assert_eq!(resolved.author_date, "2026-01-02T03:04:05+00:00");
+        assert_eq!(details.commit_date, "2026-01-03T00:00:00+00:00");
+        assert_eq!(details.parents, vec![FullCommit::try_from(parent).unwrap()]);
+    }
+
+    #[test]
+    fn should_read_a_root_commit_without_parents() {
+        // Arrange
+        let commit = FullCommit::try_from("0123456789abcdef0123456789abcdef01234567").unwrap();
+        let shown = format!("{commit}\x000123456\x00Start\x00Ada\x00a\x00c\x00\n");
+
+        // Act
+        let details = parse_commit(commit, &shown).unwrap();
+
+        // Assert
+        assert!(details.parents.is_empty());
     }
 }

@@ -2,12 +2,13 @@ use std::path::{Path, PathBuf};
 
 use codecharta_core_api::ids::FolderId;
 use codecharta_core_api::methods::projects::FolderRole;
-use codecharta_core_api::values::{Label, MAX_LABEL_CHARS};
+use codecharta_core_api::values::{Label, MAX_LABEL_CHARS, MAX_PROJECT_NAME_CHARS, ProjectName};
 
 use crate::error::{CoreError, CoreResult};
 use crate::projects::record::{FolderRecord, ProjectRecord};
 
 const FALLBACK_LABEL: &str = "folder";
+const FALLBACK_PROJECT_NAME: &str = "Project";
 const LABEL_REPLACEMENT: char = '-';
 const LABEL_FORBIDDEN_CHARACTERS: [char; 3] = ['/', '\\', ':'];
 
@@ -22,11 +23,7 @@ pub struct FolderToAdd {
 
 /// The folder's own name, made into a valid label.
 pub fn suggested_label(path: &Path) -> Label {
-    let name = path
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let cleaned: String = name
+    let cleaned: String = folder_name(path)
         .chars()
         .map(|character| {
             if character.is_control() || LABEL_FORBIDDEN_CHARACTERS.contains(&character) {
@@ -38,6 +35,25 @@ pub fn suggested_label(path: &Path) -> Label {
         .take(MAX_LABEL_CHARS)
         .collect();
     Label::try_from(cleaned).unwrap_or_else(|_| fallback_label())
+}
+
+/// The folder's own name without control characters; a project opened from a file is named so.
+pub fn suggested_project_name(path: &Path) -> ProjectName {
+    let cleaned: String = folder_name(path)
+        .chars()
+        .filter(|character| !character.is_control())
+        .take(MAX_PROJECT_NAME_CHARS)
+        .collect();
+    ProjectName::try_from(cleaned).unwrap_or_else(|_| {
+        ProjectName::try_from(FALLBACK_PROJECT_NAME)
+            .unwrap_or_else(|_| unreachable!("the fallback name is valid"))
+    })
+}
+
+fn folder_name(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 fn fallback_label() -> Label {
@@ -100,7 +116,7 @@ fn others<'record>(
         .filter(move |folder| Some(&folder.id) != except)
 }
 
-fn location_key(path: &str) -> String {
+pub(crate) fn location_key(path: &str) -> String {
     let resolved = Path::new(path).canonicalize().map_or_else(
         |_| path.trim_end_matches(['/', '\\']).to_string(),
         |canonical| canonical.to_string_lossy().into_owned(),
@@ -141,5 +157,20 @@ mod tests {
 
         // Assert
         assert_eq!(labels, vec!["codecharta", "a-b", FALLBACK_LABEL]);
+    }
+
+    #[test]
+    fn should_suggest_the_folder_name_as_project_name() {
+        // Arrange
+        let paths = [PathBuf::from("/work/billing/out"), PathBuf::from("/")];
+
+        // Act
+        let names: Vec<String> = paths
+            .iter()
+            .map(|path| suggested_project_name(path).to_string())
+            .collect();
+
+        // Assert
+        assert_eq!(names, vec!["out", FALLBACK_PROJECT_NAME]);
     }
 }
