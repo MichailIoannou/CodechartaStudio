@@ -123,11 +123,7 @@ pub async fn measure_distances(
     target: &CommitSha,
     candidates: &[CommitSha],
 ) -> CoreResult<Vec<GitCommitDistance>> {
-    if candidates.len() > MAX_DISTANCE_CANDIDATES {
-        return Err(CoreError::BadRequest(format!(
-            "At most {MAX_DISTANCE_CANDIDATES} candidates can be measured at once."
-        )));
-    }
+    check_candidate_count(candidates)?;
     let mut distances = Vec::with_capacity(candidates.len());
     for group in candidates.chunks(PARALLEL_DISTANCES) {
         let measured = tokio::join!(
@@ -141,6 +137,15 @@ pub async fn measure_distances(
         }
     }
     Ok(distances)
+}
+
+pub fn check_candidate_count(candidates: &[CommitSha]) -> CoreResult<()> {
+    if candidates.len() > MAX_DISTANCE_CANDIDATES {
+        return Err(CoreError::BadRequest(format!(
+            "At most {MAX_DISTANCE_CANDIDATES} candidates can be measured at once."
+        )));
+    }
+    Ok(())
 }
 
 /// The number of `measure` calls joined in `measure_distances`.

@@ -31,6 +31,15 @@
     "git.repositoryInfo",
     "git.status",
     "git.branches",
-    "git.refsFingerprint"
+    "git.refsFingerprint",
+    "git.log",
+    "git.commitDetails",
+    "git.resolveCommit",
+    "git.revListCount",
+    "git.mergeBase",
+    "git.isAncestor",
+    "git.measureDistances",
+    "git.refsAt",
+    "git.changedFiles"
   ]
 }

@@ -68,7 +68,20 @@ pub async fn log_page(context: LogContext<'_>, request: &LogRequest) -> CoreResu
     let Some(position) = position_of(context, request).await? else {
         return Ok(empty_page());
     };
-    let mut commits = read_commits(context.at_root, &position).await?;
+    let repository_id = &context.repository.info.repository_id;
+    let page_key = (position.session_id.clone(), position.offset);
+    if let Some(page) = context.memory.page(repository_id, &page_key) {
+        return Ok(page);
+    }
+    let page = read_page(context.at_root, &position).await?;
+    context
+        .memory
+        .remember_page(repository_id, page_key, page.clone());
+    Ok(page)
+}
+
+async fn read_page(at_root: FolderGit<'_>, position: &PagePosition) -> CoreResult<GitLogPage> {
+    let mut commits = read_commits(at_root, position).await?;
     let has_more = commits.len() > PAGE_SIZE;
     commits.truncate(PAGE_SIZE);
     Ok(GitLogPage {

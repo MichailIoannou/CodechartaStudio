@@ -67,7 +67,7 @@ pub enum Command {
         #[command(subcommand)]
         command: SnapshotsCommand,
     },
-    /// Read the git status and branches of a project folder or of any folder, without the app
+    /// Read the git status, branches and history of a project folder or any folder, without the app
     Git {
         #[command(subcommand)]
         command: GitCommand,

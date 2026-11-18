@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
@@ -14,8 +15,9 @@ use super::command::{GitCommand, QUERY_LIMITS};
 use super::details::{ChangedFilesRequest, changed_files, commit_details};
 use super::locator::{Repository, locate};
 use super::log::{LogContext, LogRequest, log_page};
-use super::memory::GitMemory;
+use super::memory::{GitMemory, QueryKey, Remembered};
 use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
+use super::query::check_candidate_count;
 use super::query::{self, RevListRequest, ShaSink};
 use super::read::{read_refs, status_summary};
 use super::runner::{FolderGit, GitCli, GitProcess};
@@ -159,14 +161,22 @@ impl<'core> GitService<'core> {
         log_page(context, request).await
     }
 
-    /// The commit with its message and the files it changed against its first parent.
+    /// The commit with its message and the files it changed against its first parent; remembered per
+    /// sha, since a commit never changes.
     pub async fn commit_details(
         &self,
         folder: &GitFolder,
         sha: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<GitCommitDetails> {
-        commit_details(self.at(folder, cancel), sha).await
+        let repository_id = self.repository_id(folder, cancel).await?;
+        if let Some(details) = self.memory.details(&repository_id, sha.as_str()) {
+            return Ok(details);
+        }
+        let details = commit_details(self.at(folder, cancel), sha).await?;
+        self.memory
+            .remember_details(&repository_id, sha.to_string(), details.clone());
+        Ok(details)
     }
 
     pub async fn changed_files(
@@ -175,9 +185,16 @@ impl<'core> GitService<'core> {
         request: &ChangedFilesRequest,
         cancel: &CancellationToken,
     ) -> CoreResult<GitChangedFiles> {
-        changed_files(self.at(folder, cancel), request).await
+        let key = QueryKey::ChangedFiles {
+            from: request.from.to_string(),
+            to: request.to.to_string(),
+            mode: request.mode,
+        };
+        let ask = changed_files(self.at(folder, cancel), request);
+        self.remembered(folder, cancel, key, ask).await
     }
 
+    /// Not remembered: `HEAD` and refs move.
     pub async fn resolve_commit(
         &self,
         folder: &GitFolder,
@@ -195,7 +212,12 @@ impl<'core> GitService<'core> {
         to: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<u64> {
-        query::rev_list_count(self.at(folder, cancel), from, to).await
+        let key = QueryKey::Count {
+            from: from.to_string(),
+            to: to.to_string(),
+        };
+        let ask = query::rev_list_count(self.at(folder, cancel), from, to);
+        self.remembered(folder, cancel, key, ask).await
     }
 
     pub async fn merge_base(
@@ -205,7 +227,12 @@ impl<'core> GitService<'core> {
         right: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<Option<String>> {
-        query::merge_base(self.at(folder, cancel), left, right).await
+        let key = QueryKey::MergeBase {
+            left: left.to_string(),
+            right: right.to_string(),
+        };
+        let ask = query::merge_base(self.at(folder, cancel), left, right);
+        self.remembered(folder, cancel, key, ask).await
     }
 
     pub async fn is_ancestor(
@@ -215,9 +242,16 @@ impl<'core> GitService<'core> {
         descendant: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<bool> {
-        query::is_ancestor(self.at(folder, cancel), ancestor, descendant).await
+        let key = QueryKey::IsAncestor {
+            ancestor: ancestor.to_string(),
+            descendant: descendant.to_string(),
+        };
+        let ask = query::is_ancestor(self.at(folder, cancel), ancestor, descendant);
+        self.remembered(folder, cancel, key, ask).await
     }
 
+    /// Only candidates without a remembered distance are measured; unknown candidates are left out and
+    /// not remembered, since a fetch may bring them.
     pub async fn measure_distances(
         &self,
         folder: &GitFolder,
@@ -225,9 +259,26 @@ impl<'core> GitService<'core> {
         candidates: &[CommitSha],
         cancel: &CancellationToken,
     ) -> CoreResult<Vec<GitCommitDistance>> {
-        query::measure_distances(self.at(folder, cancel), target, candidates).await
+        check_candidate_count(candidates)?;
+        let repository_id = self.repository_id(folder, cancel).await?;
+        let mut known = self.memory.distances(&repository_id, target, candidates);
+        let missing: Vec<CommitSha> = candidates
+            .iter()
+            .filter(|candidate| !known.contains_key(candidate.as_str()))
+            .cloned()
+            .collect();
+        for distance in query::measure_distances(self.at(folder, cancel), target, &missing).await? {
+            self.memory
+                .remember_distance(&repository_id, target, distance.clone());
+            known.insert(distance.sha.clone(), distance);
+        }
+        Ok(candidates
+            .iter()
+            .filter_map(|candidate| known.get(candidate.as_str()).cloned())
+            .collect())
     }
 
+    /// Not remembered: refs move.
     pub async fn refs_at(
         &self,
         folder: &GitFolder,
@@ -246,6 +297,34 @@ impl<'core> GitService<'core> {
         sink: &mut ShaSink<'_>,
     ) -> CoreResult<u64> {
         query::rev_list(self.at(folder, cancel), request, sink).await
+    }
+
+    /// For operations that move refs or fetch: see `GitMemory::fetched` and `GitMemory::forget_logs`.
+    pub fn memory(&self) -> &GitMemory {
+        &self.memory
+    }
+
+    async fn remembered<T: Remembered + Clone>(
+        &self,
+        folder: &GitFolder,
+        cancel: &CancellationToken,
+        key: QueryKey,
+        ask: impl Future<Output = CoreResult<T>>,
+    ) -> CoreResult<T> {
+        let repository_id = self.repository_id(folder, cancel).await?;
+        self.memory.remembered(&repository_id, key, ask).await
+    }
+
+    /// Everything remembered is kept per repository, so two folders of one repository share it.
+    async fn repository_id(
+        &self,
+        folder: &GitFolder,
+        cancel: &CancellationToken,
+    ) -> CoreResult<String> {
+        Ok(locate(&self.git, &folder.path, cancel)
+            .await?
+            .info
+            .repository_id)
     }
 
     fn at<'call>(

@@ -10,7 +10,10 @@ use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
 use codecharta_core_api::methods::git::{
-    GitBranchesMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitStatusMethod,
+    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitIsAncestorMethod,
+    GitLogMethod, GitMeasureDistancesMethod, GitMergeBaseMethod, GitRefsAtMethod,
+    GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
+    GitRevListCountMethod, GitStatusMethod,
 };
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use codecharta_core_api::methods::projects::{
@@ -206,6 +209,42 @@ const ROUTES: &[Route] = &[
     Route {
         name: GitRefsFingerprintMethod::NAME,
         handler: git_routes::refs_fingerprint,
+    },
+    Route {
+        name: GitLogMethod::NAME,
+        handler: git_routes::log,
+    },
+    Route {
+        name: GitCommitDetailsMethod::NAME,
+        handler: git_routes::commit_details,
+    },
+    Route {
+        name: GitResolveCommitMethod::NAME,
+        handler: git_routes::resolve_commit,
+    },
+    Route {
+        name: GitRevListCountMethod::NAME,
+        handler: git_routes::rev_list_count,
+    },
+    Route {
+        name: GitMergeBaseMethod::NAME,
+        handler: git_routes::merge_base,
+    },
+    Route {
+        name: GitIsAncestorMethod::NAME,
+        handler: git_routes::is_ancestor,
+    },
+    Route {
+        name: GitMeasureDistancesMethod::NAME,
+        handler: git_routes::measure_distances,
+    },
+    Route {
+        name: GitRefsAtMethod::NAME,
+        handler: git_routes::refs_at,
+    },
+    Route {
+        name: GitChangedFilesMethod::NAME,
+        handler: git_routes::changed_files,
     },
 ];
 

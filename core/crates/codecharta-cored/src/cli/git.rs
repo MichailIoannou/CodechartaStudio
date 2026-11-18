@@ -1,15 +1,21 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::time::{Duration, UNIX_EPOCH};
 
 use clap::{Args, Subcommand};
 use codecharta_core::git::GitFolder;
+use codecharta_core::git::log::LogRequest;
 use codecharta_core::projects::ProjectRepository;
 use codecharta_core::recycle::SystemRecycler;
 use codecharta_core::store::Store;
+use codecharta_core::timestamps;
 use codecharta_core::{Core, CoreError, CoreResult};
 use codecharta_core_api::ids::{FolderId, ProjectId};
-use codecharta_core_api::methods::git::{GitHead, GitRefs, GitStatus, GitUpstream};
+use codecharta_core_api::methods::git::{
+    GitCommitSummary, GitHead, GitLogScope, GitRefs, GitStatus, GitUpstream,
+};
 use codecharta_core_api::methods::projects::FolderRef;
+use codecharta_core_api::values::{FullRefName, LogCursor};
 use tokio_util::sync::CancellationToken;
 
 use super::arguments::{parse_folder_id, parse_project_id};
@@ -18,6 +24,10 @@ use super::output::{exit_code_of, print_json};
 const SHORT_SHA_LENGTH: usize = 7;
 const CURRENT_MARK: &str = "*";
 const OTHER_MARK: &str = " ";
+const DEFAULT_LOG_LIMIT: usize = 50;
+const BRANCHES_PREFIX: &str = "refs/heads/";
+/// `YYYY-MM-DD` at the start of an RFC 3339 timestamp.
+const DATE_LENGTH: usize = 10;
 
 #[derive(Debug, Subcommand)]
 pub enum GitCommand {
@@ -34,6 +44,20 @@ pub enum GitCommand {
         #[command(flatten)]
         target: GitTarget,
         /// Print the refs as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Print the newest commits, children before parents: short sha, date, author and subject
+    Log {
+        #[command(flatten)]
+        target: GitTarget,
+        /// How many commits to print
+        #[arg(long, default_value_t = DEFAULT_LOG_LIMIT)]
+        limit: usize,
+        /// Only the history of this local branch, instead of every branch, remote branch and tag
+        #[arg(long)]
+        branch: Option<String>,
+        /// Print the commits as JSON
         #[arg(long)]
         json: bool,
     },
@@ -59,6 +83,14 @@ pub fn run_git(core: &Core, runtime: &tokio::runtime::Runtime, command: GitComma
         GitCommand::Branches { target, json } => runtime
             .block_on(branches(core, &target))
             .and_then(|refs| print_branches(&refs, json)),
+        GitCommand::Log {
+            target,
+            limit,
+            branch,
+            json,
+        } => scope_of(branch.as_deref())
+            .and_then(|scope| runtime.block_on(log(core, &target, scope, limit)))
+            .and_then(|commits| print_log(&commits, json)),
     };
     exit_code_of(printed)
 }
@@ -71,6 +103,77 @@ async fn status(core: &Core, target: &GitTarget) -> CoreResult<GitStatus> {
 async fn branches(core: &Core, target: &GitTarget) -> CoreResult<GitRefs> {
     let folder = git_folder(core, target)?;
     core.git()?.refs(&folder, &CancellationToken::new()).await
+}
+
+fn scope_of(branch: Option<&str>) -> CoreResult<GitLogScope> {
+    let Some(branch) = branch else {
+        return Ok(GitLogScope::All);
+    };
+    let ref_name = FullRefName::try_from(format!("{BRANCHES_PREFIX}{branch}"))
+        .map_err(|error| CoreError::BadRequest(error.to_string()))?;
+    Ok(GitLogScope::Refs {
+        ref_names: vec![ref_name],
+    })
+}
+
+/// Pages through the log until `limit` commits are read or the history ends.
+async fn log(
+    core: &Core,
+    target: &GitTarget,
+    scope: GitLogScope,
+    limit: usize,
+) -> CoreResult<Vec<GitCommitSummary>> {
+    let folder = git_folder(core, target)?;
+    let git = core.git()?;
+    let mut request = LogRequest {
+        scope,
+        filter: None,
+        cursor: None,
+    };
+    let mut commits = Vec::new();
+    while commits.len() < limit {
+        let page = git
+            .log(&folder, &request, &CancellationToken::new())
+            .await?;
+        commits.extend(page.commits);
+        let Some(cursor) = page.next_cursor else {
+            break;
+        };
+        request.cursor = Some(next_cursor(cursor)?);
+    }
+    commits.truncate(limit);
+    Ok(commits)
+}
+
+fn next_cursor(cursor: String) -> CoreResult<LogCursor> {
+    LogCursor::try_from(cursor).map_err(|error| CoreError::Internal(error.to_string()))
+}
+
+fn print_log(commits: &[GitCommitSummary], json: bool) -> CoreResult<()> {
+    if json {
+        return print_json(&commits);
+    }
+    for commit in commits {
+        println!("{}", log_line(commit));
+    }
+    Ok(())
+}
+
+/// `1a2b3c4 2023-11-14 Ada Author Subject`, dated by the committer.
+fn log_line(commit: &GitCommitSummary) -> String {
+    format!(
+        "{} {} {} {}",
+        short(&commit.sha),
+        date_of(commit.committed_at),
+        commit.author_name,
+        commit.subject
+    )
+}
+
+fn date_of(unix_seconds: i64) -> String {
+    let seconds = u64::try_from(unix_seconds).unwrap_or_default();
+    let timestamp = timestamps::of(UNIX_EPOCH + Duration::from_secs(seconds));
+    timestamp.chars().take(DATE_LENGTH).collect()
 }
 
 /// A project folder is looked up in a read-only store, so this works while the app runs.
@@ -216,6 +319,39 @@ mod tests {
 
         // Assert
         assert_eq!(line, "main ↑1 ↓0 · 2 staged, 1 unstaged, 0 untracked");
+    }
+
+    #[test]
+    fn should_write_a_log_line_with_short_sha_date_author_and_subject() {
+        // Arrange
+        let commit = GitCommitSummary {
+            sha: COMMIT.to_string(),
+            parents: Vec::new(),
+            author_name: "Ada Author".to_string(),
+            author_email: "ada@example.test".to_string(),
+            authored_at: 1_700_000_000,
+            committed_at: 1_700_000_000,
+            subject: "Add a".to_string(),
+        };
+
+        // Act
+        let line = log_line(&commit);
+
+        // Assert
+        assert_eq!(line, "0123456 2023-11-14 Ada Author Add a");
+    }
+
+    #[test]
+    fn should_refuse_a_branch_name_that_makes_no_ref_name() {
+        // Arrange
+        let branch = "bad\nname";
+
+        // Act
+        let scope = scope_of(Some(branch));
+
+        // Assert
+        assert!(matches!(scope, Err(CoreError::BadRequest(_))));
+        assert_eq!(scope_of(None).unwrap(), GitLogScope::All);
     }
 
     #[test]

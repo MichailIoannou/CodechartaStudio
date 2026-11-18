@@ -1,6 +1,6 @@
 ---
 name: 04-M2 core - log, details, queries, changed files, rev-list stream
-state: progress
+state: complete
 version: 1
 ---
 
@@ -28,7 +28,7 @@ git errors are `ErrorCode` values with git's text in `details.detail`; runner is
 - [x] 1. Log pages
 - [x] 2. Details and changed files
 - [x] 3. Queries and stream
-- [ ] 4. Caching, RPC, CLI
+- [x] 4. Caching, RPC, CLI
 
 ## Notes
 
@@ -124,4 +124,97 @@ Branched from `feature/studio-04-m1`.
   git). Matching `GitService` methods; `rev_list(folder, request, cancel, sink)`.
 - Tests (`tests/git_queries.rs`): the plan's ten cases plus `should_refuse_more_than_the_allowed_candidates`;
   unit tests for `LineSplitter` and `Revision`.
+
+### 4. Caching, RPC, CLI
+- Structural commits first: `refactor(core): share the folder resolution of the git routes` (`folder_route!`
+  macro in `serve/git_routes.rs`) and `refactor(core): pass git, folder and cancellation of a read together`
+  (`git::FolderGit { git, folder, cancel }` with `read` / `run` / `run_raw`, so no internal read takes more
+  than four parameters; `LogContext { at_root, memory, repository }` for the log).
+- `git/memory.rs` `GitMemory` per repository id: sessions (LRU 8), pages (LRU 50, keyed by session id and
+  offset), details (LRU 200, keyed by the requested sha), answers (LRU 2000: `rev_list_count`, `merge_base`,
+  `is_ancestor`, per-candidate distances and `changed_files`, through `GitMemory::remembered` and the
+  `Remembered` trait). Failures are not remembered; an unknown candidate is not remembered (a fetch may
+  bring it). Not remembered at all: `resolve_commit` and `refs_at` (refs move), `rev_list` (a stream).
+  Clear rules: `forget_logs` (sessions and pages; for the end of every mutating operation, M7+),
+  `forget_answers`, `fetched(repository_id, is_shallow)` (always the logs; in a shallow clone also details
+  and answers — deepening changes a boundary commit's parents, merge bases and counts),
+  `forget_repository`. Nothing calls `fetched` yet: fetch arrives in M8, which must call it.
+  `GitService::memory()` exposes it. Every cached service read runs `locate` (one `rev-parse`) for the
+  repository id, so two folders of one repository share the memory.
+- `measure_distances` measures only candidates without a remembered distance; the 200-candidate limit is
+  checked first in the service and, in the route, before the store is read.
+- Api: params `GitCommitParams { repo, sha }` (`git.commitDetails`, `git.refsAt`), `GitResolveCommitParams`,
+  `GitRevListCountParams`, `GitMergeBaseParams`, `GitIsAncestorParams`, `GitMeasureDistancesParams`,
+  `GitChangedFilesParams` (all `deny_unknown_fields`); methods (all **renderer**): `git.log`,
+  `git.commitDetails`, `git.resolveCommit`, `git.revListCount` (number), `git.mergeBase` (string | null),
+  `git.isAncestor` (boolean), `git.measureDistances`, `git.refsAt`, `git.changedFiles`. Contract regenerated.
+  **Deviation:** `git.measureDistances` answers `GitCommitDistances { distances }` instead of a bare
+  `Vec<GitCommitDistance>`: the contract generator exports only named result types (an array result left
+  `GitCommitDistance` unexported and unimported), and every existing list result is wrapped the same way.
+- Routes in `serve/git_routes.rs` via `folder_route!` (`measure_distances` hand-written for the early limit).
+- CLI `codecharta-core git log (--project <id> --folder <id> | --path <dir>) [--limit <n, default 50>]
+  [--branch <local branch>] [--json]`: pages until `limit`; text `<7-char sha> <YYYY-MM-DD committer date,
+  UTC> <author> <subject>`; `--json` prints the `GitCommitSummary[]` (a cursor would be useless after the
+  process ends); `--branch x` is the scope `refs/heads/x` (`BAD_REQUEST` if that is no valid ref name).
+- Tests: `tests/git_cache.rs` (`should_run_git_once_for_two_identical_detail_requests_and_again_after_clearing`,
+  `should_clear_the_query_cache_after_a_fetch_in_a_shallow_repository` — a depth-1 clone with two branches,
+  merge base null, `fetch --unshallow`, still null from memory, `fetched(…, true)`, then the root —,
+  `should_serve_a_page_read_before_from_memory`, `should_measure_only_candidates_without_a_remembered_distance`);
+  `git/memory.rs` unit tests; `codecharta-cored/tests/git_protocol.rs`: `should_page_through_git_log_over_stdio`,
+  `should_answer_history_queries_over_stdio`, `should_reject_malformed_history_params_without_running_git`
+  (15 malformed params over the nine methods, empty `PATH`, all `BAD_REQUEST`),
+  `should_print_three_log_lines_from_cli_with_limit`; CLI unit tests for the log line and the branch scope.
+
+### Acceptance timing (2026-11-19)
+Repository built with `git fast-import` in a scratch folder: 100 006 commits (main with a five-commit side
+branch merged back every 1 000 commits, a tag every 10 000), 28.8 MiB pack, **no commit-graph file**.
+`codecharta-core` release build, `serve` over stdio driven by a script (`projects.inspectFolder`,
+`projects.create`, then `git.log` page by page), 16-core Linux, git 2.56:
+
+| scope | offset 0 | 500 … 4500 | offset 5000 | offset 5000 again (page cache) |
+|---|---|---|---|---|
+| `all` | 435 ms | 417–448 ms | 418 ms | 3.4 ms |
+| `head` | 451 ms | ≈ 441 ms | 419 ms | 3.4 ms |
+
+Every page is well under 2 s (the risk table's 5 s `--topo-order` fallback is not needed). The cost is the
+`--date-order` walk of the whole history, so it is flat over the offset; a commit-graph would cut it further.
+
+### Gates at the end of M2 (Linux)
+- `core/`: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test
+  --all-features` (413 passed) green; `npm run contract` leaves no diff; root `npm run format:check` green;
+  `visualization/`: `npm run lint`, `npx tsc --noEmit -p tsconfig.json`, `npm test` (636 suites, 4861 passed,
+  2 todo; coverage 96.71 / 90.1 / 95.33 / 96.62) green. Only generated `model/coreApi/` files and
+  `electron/coreMethods.generated.json` changed in `visualization/`. No changelog entry: nothing user-visible
+  until the History UI. Not run on Windows; the git 2.31 spike of M1 is still open.
+
+### For the History UI (04-M3..M6) and plan 05
+- Methods (params always carry `repo: { projectId, folderId }`):
+  `git.log { repo, scope: {kind:"all"} | {kind:"head"} | {kind:"refs", refNames: string[]}, filter?: { text?,
+  author?, path? }, cursor? }` → `GitLogPage { commits: GitCommitSummary[], nextCursor, isGraphAvailable }`.
+  Paging: omit `cursor` for page 1 (500 commits); pass the previous `nextCursor` (opaque,
+  `<sessionId>_<offset>`) for the next; `nextCursor: null` = last page. With a cursor, scope and filter of page
+  1 apply. Pages of one session are stable while branches move; to see new commits start a new log (no
+  cursor) — e.g. on `repository.changed`. Up to 8 sessions per repository are kept; an evicted one answers
+  `LOG_SESSION_EXPIRED` → restart from page 1. `isGraphAvailable` false with any filter.
+  `git.commitDetails { repo, sha }` → `GitCommitDetails` (summary fields flattened, `committerName/Email`,
+  `message`, `comparedToParent`, `files` ≤ 5000, `areFilesTruncated`, `totals`).
+  `git.resolveCommit { repo, revision: "HEAD" | sha | "refs/…" }` → `GitCommitSummary`.
+  `git.revListCount { repo, from, to }` → number; `git.mergeBase { repo, left, right }` → string | null;
+  `git.isAncestor { repo, ancestor, descendant }` → boolean; `git.measureDistances { repo, target,
+  candidates (≤ 200) }` → `{ distances: GitCommitDistance[] }` (unknown candidates left out; `onlyInCandidate
+  == 0` = ancestor, target "stale by `onlyInTarget`"); `git.refsAt { repo, sha }` → `{ branches, tags }` (short
+  names); `git.changedFiles { repo, from, to, mode: "direct" | "sinceMergeBase" }` → `GitChangedFiles` (`from`
+  = the merge base in `sinceMergeBase`).
+- Error codes: new `LOG_SESSION_EXPIRED`, `UNKNOWN_REVISION` (unknown sha/ref, `HEAD` without commits, no
+  common history for `sinceMergeBase`); plus M1's (`NOT_A_REPOSITORY`, `PARSE_FAILED`, `COMMAND_FAILED`, …)
+  and `BAD_REQUEST` for every malformed param (sha not 40/64 lower-case hex, revision expression, cursor,
+  filter path with `..`/`:`/control characters, > 200 candidates, unknown fields).
+- Cache invalidation: commit answers are immutable and stay; logs are per session. M7+ mutating operations
+  must call `GitMemory::forget_logs(repository_id)`; M8's fetch must call `GitMemory::fetched(repository_id,
+  is_shallow)`. The renderer needs no invalidation besides starting a new log after `repository.changed`.
+- Plan 05 in-core: `GitService::rev_list(&folder, &RevListRequest { include, exclude, first_parent, max_count },
+  &cancel, &mut |batch: &[CommitSha]| ControlFlow)` (batches of 1000, `Break` stops git, answers the count
+  delivered); `measure_distances`, `is_ancestor`, `merge_base`, `changed_files(&folder,
+  &ChangedFilesRequest)` all take a resolved `GitFolder` and the request's cancellation token.
+- Not done here: the fake-bridge `git` seed (renderer, waits for 01-M4.1 as noted in M1).
 

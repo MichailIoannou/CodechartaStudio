@@ -6,8 +6,10 @@ use ts_rs::{Config, ExportError, TS};
 use crate::events::CoreProgress;
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
 use crate::methods::git::{
-    GitBranchesMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitStatusMethod,
-    RepositoryChangedEvent,
+    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitIsAncestorMethod,
+    GitLogMethod, GitMeasureDistancesMethod, GitMergeBaseMethod, GitRefsAtMethod,
+    GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
+    GitRevListCountMethod, GitStatusMethod, RepositoryChangedEvent,
 };
 use crate::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use crate::methods::projects::{
@@ -158,6 +160,15 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<GitStatusMethod>(),
     MethodSpec::of::<GitBranchesMethod>(),
     MethodSpec::of::<GitRefsFingerprintMethod>(),
+    MethodSpec::of::<GitLogMethod>(),
+    MethodSpec::of::<GitCommitDetailsMethod>(),
+    MethodSpec::of::<GitResolveCommitMethod>(),
+    MethodSpec::of::<GitRevListCountMethod>(),
+    MethodSpec::of::<GitMergeBaseMethod>(),
+    MethodSpec::of::<GitIsAncestorMethod>(),
+    MethodSpec::of::<GitMeasureDistancesMethod>(),
+    MethodSpec::of::<GitRefsAtMethod>(),
+    MethodSpec::of::<GitChangedFilesMethod>(),
 ];
 
 pub const EVENTS: &[EventSpec] = &[

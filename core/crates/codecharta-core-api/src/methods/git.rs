@@ -3,7 +3,7 @@ use ts_rs::TS;
 
 use crate::methods::projects::{FolderRef, GitRemote};
 use crate::registry::{Audience, Event, method};
-use crate::values::{FullRefName, LogCursor, LogFilterText, RepoRelativePath};
+use crate::values::{CommitSha, FullRefName, LogCursor, LogFilterText, RepoRelativePath, Revision};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -143,6 +143,64 @@ pub enum ChangedPart {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GitRepoParams {
     pub repo: FolderRef,
+}
+
+/// One commit of a project folder's repository: `git.commitDetails`, `git.refsAt`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitCommitParams {
+    pub repo: FolderRef,
+    pub sha: CommitSha,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitResolveCommitParams {
+    pub repo: FolderRef,
+    pub revision: Revision,
+}
+
+/// Counts the commits reachable from `to` but not from `from`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitRevListCountParams {
+    pub repo: FolderRef,
+    pub from: CommitSha,
+    pub to: CommitSha,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitMergeBaseParams {
+    pub repo: FolderRef,
+    pub left: CommitSha,
+    pub right: CommitSha,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitIsAncestorParams {
+    pub repo: FolderRef,
+    pub ancestor: CommitSha,
+    pub descendant: CommitSha,
+}
+
+/// At most 200 candidates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitMeasureDistancesParams {
+    pub repo: FolderRef,
+    pub target: CommitSha,
+    pub candidates: Vec<CommitSha>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitChangedFilesParams {
+    pub repo: FolderRef,
+    pub from: CommitSha,
+    pub to: CommitSha,
+    pub mode: ChangedFilesMode,
 }
 
 /// The core saw a repository change: a read found a new refs fingerprint.
@@ -295,6 +353,13 @@ pub struct GitCommitDistance {
     pub only_in_target: u32,
 }
 
+/// The distances of the candidates the repository contains, in the order they were asked for.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCommitDistances {
+    pub distances: Vec<GitCommitDistance>,
+}
+
 /// Short names of the local branches and tags pointing at a commit.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -330,6 +395,64 @@ method!(
     Renderer,
     GitRepoParams,
     String
+);
+
+method!(GitLogMethod, "git.log", Renderer, GitLogParams, GitLogPage);
+method!(
+    GitCommitDetailsMethod,
+    "git.commitDetails",
+    Renderer,
+    GitCommitParams,
+    GitCommitDetails
+);
+method!(
+    GitResolveCommitMethod,
+    "git.resolveCommit",
+    Renderer,
+    GitResolveCommitParams,
+    GitCommitSummary
+);
+method!(
+    GitRevListCountMethod,
+    "git.revListCount",
+    Renderer,
+    GitRevListCountParams,
+    u64
+);
+method!(
+    GitMergeBaseMethod,
+    "git.mergeBase",
+    Renderer,
+    GitMergeBaseParams,
+    Option<String>
+);
+method!(
+    GitIsAncestorMethod,
+    "git.isAncestor",
+    Renderer,
+    GitIsAncestorParams,
+    bool
+);
+method!(
+    GitMeasureDistancesMethod,
+    "git.measureDistances",
+    Renderer,
+    GitMeasureDistancesParams,
+    GitCommitDistances
+);
+method!(
+    GitRefsAtMethod,
+    "git.refsAt",
+    Renderer,
+    GitCommitParams,
+    RefsAt
+);
+method!(
+    GitChangedFilesMethod,
+    "git.changedFiles",
+    Renderer,
+    GitChangedFilesParams,
+    GitChangedFiles
 );
 
 pub struct RepositoryChangedEvent;

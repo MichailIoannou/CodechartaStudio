@@ -1,7 +1,12 @@
+use codecharta_core::git::details::ChangedFilesRequest;
+use codecharta_core::git::log::LogRequest;
+use codecharta_core::git::query::check_candidate_count;
 use codecharta_core::{Core, CoreResult};
 use codecharta_core_api::methods::git::{
-    GitBranchesMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitStatusMethod,
-    RepositoryChanged, RepositoryChangedEvent,
+    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitDistances,
+    GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod, GitMergeBaseMethod,
+    GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
+    GitRevListCountMethod, GitStatusMethod, RepositoryChanged, RepositoryChangedEvent,
 };
 use codecharta_core_api::registry::{Event, Method};
 use serde_json::Value;
@@ -55,6 +60,81 @@ folder_route!(
     refs_fingerprint,
     GitRefsFingerprintMethod,
     |git, folder, _params, cancel| git.refs_fingerprint(&folder, cancel)
+);
+
+folder_route!(log, GitLogMethod, |git, folder, params, cancel| git.log(
+    &folder,
+    &LogRequest::from(params.clone()),
+    cancel
+));
+
+folder_route!(
+    commit_details,
+    GitCommitDetailsMethod,
+    |git, folder, params, cancel| git.commit_details(&folder, &params.sha, cancel)
+);
+
+folder_route!(
+    resolve_commit,
+    GitResolveCommitMethod,
+    |git, folder, params, cancel| git.resolve_commit(&folder, &params.revision, cancel)
+);
+
+folder_route!(
+    rev_list_count,
+    GitRevListCountMethod,
+    |git, folder, params, cancel| git.rev_list_count(&folder, &params.from, &params.to, cancel)
+);
+
+folder_route!(
+    merge_base,
+    GitMergeBaseMethod,
+    |git, folder, params, cancel| git.merge_base(&folder, &params.left, &params.right, cancel)
+);
+
+folder_route!(
+    is_ancestor,
+    GitIsAncestorMethod,
+    |git, folder, params, cancel| git.is_ancestor(
+        &folder,
+        &params.ancestor,
+        &params.descendant,
+        cancel
+    )
+);
+
+/// Too many candidates are refused before the store is read.
+pub fn measure_distances(core: &Core, context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<GitMeasureDistancesMethod>(params)?;
+        let distances = async {
+            check_candidate_count(&params.candidates)?;
+            let folder = core.git_folder(&params.repo)?;
+            let git = core.git()?;
+            let distances = git
+                .measure_distances(&folder, &params.target, &params.candidates, &context.cancel)
+                .await?;
+            Ok(GitCommitDistances { distances })
+        };
+        answer::<GitMeasureDistancesMethod>(distances.await)
+    })
+}
+
+folder_route!(refs_at, GitRefsAtMethod, |git, folder, params, cancel| git
+    .refs_at(&folder, &params.sha, cancel));
+
+folder_route!(
+    changed_files,
+    GitChangedFilesMethod,
+    |git, folder, params, cancel| git.changed_files(
+        &folder,
+        &ChangedFilesRequest {
+            from: params.from.clone(),
+            to: params.to.clone(),
+            mode: params.mode,
+        },
+        cancel
+    )
 );
 
 /// Sends every repository change the core announces as a `repository.changed` notification.

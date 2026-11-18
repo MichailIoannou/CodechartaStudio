@@ -283,7 +283,7 @@ Every `repo` param is a `FolderRef`. Methods marked **(op)** take `operationId: 
 | `git.revListCount` | `{ repo, from, to }` | `u64` (reachable from `to`, not from `from`) |
 | `git.mergeBase` | `{ repo, left, right }` | `Option<String>` |
 | `git.isAncestor` | `{ repo, ancestor, descendant }` | `bool` |
-| `git.measureDistances` | `{ repo, target, candidates }` | `Vec<GitCommitDistance>` |
+| `git.measureDistances` | `{ repo, target, candidates }` | `GitCommitDistances { distances: Vec<GitCommitDistance> }` (as built in M2: the contract generator exports only named result types) |
 | `git.refsAt` | `{ repo, sha }` | `{ branches: Vec<String>, tags: Vec<String> }` |
 | `git.changedFiles` | `{ repo, from, to, mode: ChangedFilesMode }` | `GitChangedFiles` |
 | `git.workingTree` | `{ repo }` | `GitWorkingTree` |
@@ -336,7 +336,7 @@ NETWORK env   = MUTATING env + askpass env (section 4.6); GCM_INTERACTIVE remove
 cwd           = the core data directory (the repository goes in through -C)
 ```
 
-Reads use `LC_ALL=C` (parsers rely on `-z`, `core.quotepath=off` and explicit formats; stderr stays English for classification). Mutating commands run hooks and gpg, so they keep the user's locale and set only `LC_MESSAGES=C` (UNVERIFIED that this gives English messages when the user has `LC_ALL` set — M7 task 1; otherwise classification falls back to `commandFailed`, and git's verbatim text is always shown). `--literal-pathspecs` makes path arguments literal; M2 task 1 checks it does not conflict with the log filter's explicit `:(top,literal)` magic and drops the magic if it does.
+Reads use `LC_ALL=C` (parsers rely on `-z`, `core.quotepath=off` and explicit formats; stderr stays English for classification). Mutating commands run hooks and gpg, so they keep the user's locale and set only `LC_MESSAGES=C` (UNVERIFIED that this gives English messages when the user has `LC_ALL` set — M7 task 1; otherwise classification falls back to `commandFailed`, and git's verbatim text is always shown). `--literal-pathspecs` makes path arguments literal; it also disables the `:(top,literal)` magic (verified in M2 task 1), so the log filter's path goes without magic and the log runs with `-C <repository root>`.
 
 ```rust
 pub struct GitRunner { /* runner handle, git path, data dir */ }
@@ -929,3 +929,12 @@ Reconciled with plans 01 and 03 as implemented (04-M1 task 1, 2026-11-18):
   resolved `GitFolder` and the request's `CancellationToken`, git error codes are appended `ErrorCode` values
   (SCREAMING_SNAKE_CASE) with git's text in `details.detail`, `CommitSha` / `FullRefName` are api `values.rs`
   types. Details and the open git 2.31 spike: `progress/04-M1-core-status-refs.md`.
+- As built in M2 (details: `progress/04-M2-core-log-details.md`): runner stdin is `RunRequest.stdin`;
+  stdout line streaming is `GitCli::stream_lines` over plan 01's existing chunk stream plus
+  `process::lines::LineSplitter` and the port method `GitProcess::stream`. Log in `git/log.rs`
+  (`LogRequest`, `log_page`), details and changed files in `git/details.rs` (`ChangedFilesRequest`), queries
+  and the stream in `git/query.rs` (`RevListRequest`, `ShaSink`), caches in `git/memory.rs` (`GitMemory`,
+  held by `Core`; `fetched(repository_id, is_shallow)`, `forget_logs`, `forget_answers`). Service reads
+  take `(&GitFolder, …, &CancellationToken)`; internal reads take a `FolderGit { git, folder, cancel }`.
+  New api values `Revision`, `LogCursor`, `LogFilterText`, `RepoRelativePath`; error codes
+  `LOG_SESSION_EXPIRED`, `UNKNOWN_REVISION`. `git.measureDistances` answers `GitCommitDistances`.

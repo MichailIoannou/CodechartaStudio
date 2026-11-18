@@ -12,9 +12,22 @@ import type { EmptyParams } from "./EmptyParams"
 import type { ErrorCode } from "./ErrorCode"
 import type { FolderPath } from "./FolderPath"
 import type { FolderRef } from "./FolderRef"
+import type { GitChangedFiles } from "./GitChangedFiles"
+import type { GitChangedFilesParams } from "./GitChangedFilesParams"
+import type { GitCommitDetails } from "./GitCommitDetails"
+import type { GitCommitDistances } from "./GitCommitDistances"
+import type { GitCommitParams } from "./GitCommitParams"
+import type { GitCommitSummary } from "./GitCommitSummary"
+import type { GitIsAncestorParams } from "./GitIsAncestorParams"
+import type { GitLogPage } from "./GitLogPage"
+import type { GitLogParams } from "./GitLogParams"
+import type { GitMeasureDistancesParams } from "./GitMeasureDistancesParams"
+import type { GitMergeBaseParams } from "./GitMergeBaseParams"
 import type { GitRefs } from "./GitRefs"
 import type { GitRepoParams } from "./GitRepoParams"
 import type { GitRepositoryInfo } from "./GitRepositoryInfo"
+import type { GitResolveCommitParams } from "./GitResolveCommitParams"
+import type { GitRevListCountParams } from "./GitRevListCountParams"
 import type { GitStatus } from "./GitStatus"
 import type { HelloParams } from "./HelloParams"
 import type { HelloResult } from "./HelloResult"
@@ -34,6 +47,7 @@ import type { Project } from "./Project"
 import type { ProjectIdParams } from "./ProjectIdParams"
 import type { ProjectList } from "./ProjectList"
 import type { RecordMapFactsParams } from "./RecordMapFactsParams"
+import type { RefsAt } from "./RefsAt"
 import type { RelinkFolderParams } from "./RelinkFolderParams"
 import type { RemoveFolderParams } from "./RemoveFolderParams"
 import type { RepositoryChanged } from "./RepositoryChanged"
@@ -132,6 +146,15 @@ export type CoreMethods = {
     "git.status": { params: GitRepoParams; result: GitStatus }
     "git.branches": { params: GitRepoParams; result: GitRefs }
     "git.refsFingerprint": { params: GitRepoParams; result: string }
+    "git.log": { params: GitLogParams; result: GitLogPage }
+    "git.commitDetails": { params: GitCommitParams; result: GitCommitDetails }
+    "git.resolveCommit": { params: GitResolveCommitParams; result: GitCommitSummary }
+    "git.revListCount": { params: GitRevListCountParams; result: number }
+    "git.mergeBase": { params: GitMergeBaseParams; result: string | null }
+    "git.isAncestor": { params: GitIsAncestorParams; result: boolean }
+    "git.measureDistances": { params: GitMeasureDistancesParams; result: GitCommitDistances }
+    "git.refsAt": { params: GitCommitParams; result: RefsAt }
+    "git.changedFiles": { params: GitChangedFilesParams; result: GitChangedFiles }
 }
 
 export type CoreEvents = {
@@ -173,7 +196,16 @@ export const RENDERER_METHODS = [
     "git.repositoryInfo",
     "git.status",
     "git.branches",
-    "git.refsFingerprint"
+    "git.refsFingerprint",
+    "git.log",
+    "git.commitDetails",
+    "git.resolveCommit",
+    "git.revListCount",
+    "git.mergeBase",
+    "git.isAncestor",
+    "git.measureDistances",
+    "git.refsAt",
+    "git.changedFiles"
 ] as const satisfies ReadonlyArray<keyof CoreMethods>
 
 export type RendererMethod = (typeof RENDERER_METHODS)[number]
