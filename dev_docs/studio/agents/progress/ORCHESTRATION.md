@@ -22,13 +22,13 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 
 | Milestone | Kind | State | Blocked on | Branch | Last verified commit |
 |---|---|---|---|---|---|
-| 01-M0 Spikes | spike | in progress | — | feature/studio-01-m0 (throwaway, progress file only) | — |
-| 01-M1 Core skeleton, protocol, contract, CI | core | todo | 01-M0 | feature/studio-01-m1 | — |
+| 01-M0 Spikes | spike | done (Linux); Windows/macOS items open for owner | owner hardware for S1/S2/S3/S4/S5 remainder | feature/studio-01-m0 | 977074f72 |
+| 01-M1 Core skeleton, protocol, contract, CI | core | in progress | — | feature/studio-01-m1 | — |
 | 01-M2 Process runner, tools, settings, doctor | core | todo | 01-M1 | feature/studio-01-m2 | — |
 | 01-M3 Electron shell | shell | todo | 01-M2 | feature/studio-01-m3 | — |
 | 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | todo | 01-M3 | feature/studio-01-m4 | — |
 | 01-M4.2 Desktop tools panel | UI | blocked | design 01-desktop-tools; 01-M4.1 | — | — |
-| 02-M0 Spike | spike | todo | — | throwaway | — |
+| 02-M0 Spike | spike | in progress | — | feature/studio-02-m0 (throwaway, progress file only) | — |
 | 02-M1 Dark by default | UI | blocked | design 02-themes | — | — |
 | 02-M2 No-flash boot | UI | blocked | design 02-themes; 02-M1 | — | — |
 | 02-M3 Radial map and word cloud | UI | blocked | design 02-themes; 02-M2 | — | — |
@@ -76,8 +76,14 @@ the milestone is started.
 
 ## Deviations from the plans
 
-None yet.
+- 01-M0 (see `01-m0-spikes.md`): contract generator is ts-rs 12 with `with_large_int("number")` and
+  `biome check --write` on the output. For M3: the relay reads `event.senderFrame` synchronously before
+  any `await`; the CSP gains `frame-src 'none'`. darwin core binary built on a macOS runner.
+- Pre-M3 fix needed: with npm 12 `script/ensureElectron.js` reports success but the allowScripts gate
+  blocks the Electron download; `npm start` / packaging need `install.js` called directly. To be done
+  as task 0 of 01-M3.
 
 ## Session log
 
+- 2026-11-18: 01-M0 verified (format check green, notes read); 01-M1 and 02-M0 started.
 - 2026-11-18: file created; no design folder yet, so all UI work is blocked on design.
