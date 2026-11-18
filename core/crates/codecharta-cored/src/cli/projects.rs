@@ -11,6 +11,7 @@ use codecharta_core_api::ids::ProjectId;
 use codecharta_core_api::methods::projects::{FolderRole, Project, ProjectSummary};
 use codecharta_core_api::values::{Description, Label, ProjectName};
 
+use super::arguments::parse_project_id;
 use super::output::{exit_code_of, print_json};
 
 const LABEL_SEPARATOR: char = '=';
@@ -201,10 +202,6 @@ fn parse_description(value: &str) -> Result<Description, String> {
 
 fn parse_label(value: &str) -> Result<Label, String> {
     Label::try_from(value).map_err(|error| error.to_string())
-}
-
-fn parse_project_id(value: &str) -> Result<ProjectId, String> {
-    ProjectId::try_from(value).map_err(|error| error.to_string())
 }
 
 fn parse_role(value: &str) -> Result<FolderRole, String> {

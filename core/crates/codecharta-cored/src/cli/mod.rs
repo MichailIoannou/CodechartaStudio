@@ -1,3 +1,4 @@
+mod arguments;
 mod doctor;
 mod output;
 mod projects;
