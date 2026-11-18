@@ -114,6 +114,11 @@ npm run e2e:ci
 # Run e2e tests in watch mode
 npm run e2e:auto
 
+# Desktop shell (electron/): unit tests with node --test, and the Playwright smoke suite against the
+# built app and core/target/debug (requires `cargo build` in core/ and `npm run build` first)
+npm run test:electron
+npm run e2e:desktop
+
 # Start desktop client (requires build first)
 npm run start
 
@@ -314,6 +319,7 @@ npm run format:check
 npm test                            # unit tests with the coverage gate
 npm run lint                        # dependency-cruiser, component styles, knip
 npx tsc --noEmit -p tsconfig.json   # neither Jest nor the build type-checks spec files
+npm run test:electron               # when electron/ changed; plus `npm run build && npm run e2e:desktop`
 
 # analysis/, when Kotlin changed
 ./gradlew ktlintCheck test
