@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::path::Path;
 use std::pin::Pin;
 
 use codecharta_core::{CORE_VERSION, Core, CoreError, path_to_wire};
@@ -8,6 +9,9 @@ use codecharta_core_api::events::{CoreProgress, ProgressParams};
 use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
+use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
+use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 use codecharta_core_api::protocol::{
     INVALID_PARAMS, METHOD_NOT_FOUND, Notification, RequestId, ResponseError,
 };
@@ -17,6 +21,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
+use super::tools_routes;
 
 pub type DispatchResult = Result<Value, ResponseError>;
 pub type HandlerFuture<'core> = Pin<Box<dyn Future<Output = DispatchResult> + Send + 'core>>;
@@ -39,6 +44,34 @@ const ROUTES: &[Route] = &[
     Route {
         name: CoreShutdown::NAME,
         handler: shutdown,
+    },
+    Route {
+        name: PathsGet::NAME,
+        handler: paths_get,
+    },
+    Route {
+        name: PathsSetStoreRoot::NAME,
+        handler: paths_set_store_root,
+    },
+    Route {
+        name: PathsResetStoreRoot::NAME,
+        handler: paths_reset_store_root,
+    },
+    Route {
+        name: ToolsDoctor::NAME,
+        handler: tools_routes::doctor,
+    },
+    Route {
+        name: ToolsSetPath::NAME,
+        handler: tools_routes::set_path,
+    },
+    Route {
+        name: ToolsClearPath::NAME,
+        handler: tools_routes::clear_path,
+    },
+    Route {
+        name: ShellResolvePath::NAME,
+        handler: shell_resolve_path,
     },
 ];
 
@@ -170,10 +203,45 @@ fn shutdown(_core: &Core, _context: RequestContext, params: Value) -> HandlerFut
     })
 }
 
+fn paths_get(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        read_params::<PathsGet>(params)?;
+        write_result::<PathsGet>(core.paths().info().map_err(domain_error)?)
+    })
+}
+
+fn paths_set_store_root(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<PathsSetStoreRoot>(params)?;
+        let info = core.paths().set_store_root(Path::new(&params.path)).await;
+        write_result::<PathsSetStoreRoot>(info.map_err(domain_error)?)
+    })
+}
+
+fn paths_reset_store_root(
+    core: &Core,
+    _context: RequestContext,
+    params: Value,
+) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        read_params::<PathsResetStoreRoot>(params)?;
+        let info = core.paths().reset_store_root().await;
+        write_result::<PathsResetStoreRoot>(info.map_err(domain_error)?)
+    })
+}
+
+fn shell_resolve_path(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<ShellResolvePath>(params)?;
+        let resolved = core.paths().resolve(&params.target).map_err(domain_error)?;
+        let path = path_to_wire(&resolved).map_err(domain_error)?;
+        write_result::<ShellResolvePath>(ResolvePathResult { path })
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
-    use std::path::PathBuf;
 
     use codecharta_core::CoreConfig;
     use codecharta_core_api::registry::METHODS;
@@ -181,9 +249,12 @@ mod tests {
     use super::*;
 
     fn test_core() -> Core {
-        Core::new(CoreConfig {
-            data_dir: PathBuf::from("/data"),
+        let missing_data_dir =
+            std::env::temp_dir().join("codecharta-core-dispatch-test-never-written");
+        Core::open(CoreConfig {
+            data_dir: missing_data_dir,
         })
+        .unwrap()
     }
 
     fn test_context() -> RequestContext {

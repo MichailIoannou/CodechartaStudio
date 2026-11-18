@@ -26,7 +26,22 @@ cargo build                                   # target/debug/codecharta-core, wh
 cargo build --release                         # target/release/codecharta-core, packaged next to the app
 cargo run -p codecharta-cored -- --version
 cargo run -p codecharta-cored -- --data-dir /tmp/cc-data serve   # JSON-RPC on stdin/stdout, log on stderr
+cargo run -p codecharta-cored -- doctor [--json]                 # tools report; exit 0 = ready, 1 = a required tool is not usable
 ```
+
+The data folder (settings file `core-settings.json`, default store `store/`, `logs/`) is `--data-dir`, else
+`CODECHARTA_DATA_DIR`, else `codecharta-visualization` in the user's configuration folder (`%APPDATA%`,
+`~/Library/Application Support`, `$XDG_CONFIG_HOME` or `~/.config`) — the same folder Electron uses as the
+app's `userData`. The desktop shell always passes `--data-dir`.
+
+## Child processes
+
+Only `codecharta-core`'s `process` module starts child processes, and domain code goes through
+`Tools::run` (`tools` module), which finds the tool, sets `JAVA_HOME` for ccsh when needed and applies the
+hardened environment (no terminal prompts, no pager, no colour), a timeout, an output cap, cancellation
+and process-tree kill. Tests use the `cc-fake-tool` binary (modes chosen by its first argument) and
+`tests/support` (`fake_tool`, `install_fake_command`, `TempRepo` with a temporary `HOME` and
+`GIT_CONFIG_NOSYSTEM=1`).
 
 ## Gates
 

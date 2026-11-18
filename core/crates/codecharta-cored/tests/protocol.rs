@@ -1,5 +1,4 @@
 use std::io::{BufRead, BufReader, Write};
-use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
@@ -17,15 +16,21 @@ struct ServingCore {
     child: Child,
     stdin: Option<ChildStdin>,
     stdout_lines: Receiver<String>,
-    data_dir: PathBuf,
+    data_dir: tempfile::TempDir,
 }
 
 impl ServingCore {
     fn start() -> Self {
-        let data_dir = std::env::temp_dir().join("codecharta-core-protocol-test");
-        let mut child = Command::new(CORE_EXECUTABLE)
+        Self::start_with(|_| {})
+    }
+
+    fn start_with(configure: impl FnOnce(&mut Command)) -> Self {
+        let data_dir = tempfile::tempdir().expect("a temporary data folder");
+        let mut command = Command::new(CORE_EXECUTABLE);
+        configure(&mut command);
+        let mut child = command
             .args(["--log-level", "debug", "--data-dir"])
-            .arg(&data_dir)
+            .arg(data_dir.path())
             .arg("serve")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -141,7 +146,10 @@ fn should_answer_hello_with_versions() {
     assert_eq!(result["coreVersion"], json!(env!("CARGO_PKG_VERSION")));
     assert_eq!(result["protocolVersion"], json!(PROTOCOL_VERSION));
     assert!(["win32", "darwin", "linux"].contains(&result["platform"].as_str().unwrap()));
-    assert_eq!(result["dataDir"], json!(core.data_dir.to_str().unwrap()));
+    assert_eq!(
+        result["dataDir"],
+        json!(core.data_dir.path().to_str().unwrap())
+    );
 }
 
 #[test]
@@ -308,4 +316,97 @@ fn should_write_nothing_but_json_to_stdout() {
         let message: Value = serde_json::from_str(&line).unwrap();
         assert_eq!(message["jsonrpc"], json!("2.0"), "{line}");
     }
+}
+
+#[test]
+fn should_answer_paths_inside_the_data_dir() {
+    // Arrange
+    let mut core = ServingCore::started_and_greeted();
+
+    // Act
+    let answer = core.request(1, "paths.get", json!({}));
+
+    // Assert
+    let store_root = core.data_dir.path().join("store");
+    assert_eq!(
+        answer["result"]["storeRoot"],
+        json!(store_root.to_str().unwrap())
+    );
+    assert_eq!(answer["result"]["isDefaultStoreRoot"], json!(true));
+}
+
+#[test]
+fn should_keep_a_chosen_store_root_in_the_settings_file() {
+    // Arrange
+    let mut core = ServingCore::started_and_greeted();
+    let chosen = tempfile::tempdir().unwrap();
+    let path = chosen.path().to_str().unwrap();
+
+    // Act
+    let answer = core.request(1, "paths.setStoreRoot", json!({ "path": path }));
+
+    // Assert
+    assert_eq!(answer["result"]["storeRoot"], json!(path));
+    let settings_file = core.data_dir.path().join("core-settings.json");
+    assert!(
+        std::fs::read_to_string(settings_file)
+            .unwrap()
+            .contains(path)
+    );
+}
+
+#[test]
+fn should_emit_progress_during_doctor() {
+    // Arrange
+    let empty_folder = tempfile::tempdir().unwrap();
+    let mut core = ServingCore::start_with(|command| {
+        command
+            .env("PATH", empty_folder.path())
+            .env("HOME", empty_folder.path())
+            .env_remove("JAVA_HOME");
+    });
+    core.request(0, "core.hello", hello_params(PROTOCOL_VERSION));
+
+    // Act
+    core.send(json!({ "jsonrpc": "2.0", "id": 1, "method": "tools.doctor", "params": { "refresh": true } }));
+    let mut progress = Vec::new();
+    let answer = loop {
+        let message = core.receive();
+        if message.get("id") == Some(&json!(1)) {
+            break message;
+        }
+        progress.push(message);
+    };
+
+    // Assert
+    assert_eq!(answer["result"]["tools"].as_array().unwrap().len(), 5);
+    let counts: Vec<(&Value, &Value)> = progress
+        .iter()
+        .filter(|message| message["method"] == json!("core.progress"))
+        .filter(|message| message["params"]["requestId"] == json!(1))
+        .map(|message| (&message["params"]["done"], &message["params"]["total"]))
+        .collect();
+    assert_eq!(counts.len(), 5);
+    assert!(counts.iter().all(|(_, total)| **total == json!(5)));
+}
+
+#[test]
+fn should_resolve_shell_path_targets() {
+    // Arrange
+    let mut core = ServingCore::started_and_greeted();
+    let snapshot_map =
+        json!({ "kind": "snapshotMap", "projectId": "p", "folderId": "f", "snapshotId": "s" });
+
+    // Act
+    let logs = core.request(
+        1,
+        "shell.resolvePath",
+        json!({ "target": { "kind": "logsFolder" } }),
+    );
+    let map = core.request(2, "shell.resolvePath", json!({ "target": snapshot_map }));
+
+    // Assert
+    let logs_dir = core.data_dir.path().join("logs");
+    assert_eq!(logs["result"]["path"], json!(logs_dir.to_str().unwrap()));
+    assert_eq!(error_data_code(&map), &json!("NOT_FOUND"));
 }

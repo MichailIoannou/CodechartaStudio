@@ -3,6 +3,7 @@ pub mod framing;
 pub mod output;
 pub mod session;
 mod test_methods;
+mod tools_routes;
 
 use std::sync::Arc;
 
@@ -19,7 +20,7 @@ where
     Output: AsyncWrite + Unpin + Send + 'static,
 {
     let (lines, writer) = spawn_writer(output);
-    let mut session = Session::new(core, lines);
+    let mut session = Session::new(Arc::clone(&core), lines);
     let mut reader = LineReader::new(input, MAX_LINE_BYTES);
     loop {
         let frame = match reader.next_frame().await {
@@ -35,6 +36,7 @@ where
         }
     }
     session.finish().await;
+    core.shutdown().await;
     match tokio::time::timeout(SHUTDOWN_GRACE, writer).await {
         Ok(Ok(())) => {}
         Ok(Err(error)) => tracing::error!("the output writer failed: {error}"),
