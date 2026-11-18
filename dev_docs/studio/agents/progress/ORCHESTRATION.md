@@ -26,7 +26,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 01-M0 Spikes | spike | done (Linux); Windows/macOS items open for owner | owner hardware for S1/S2/S3/S4/S5 remainder | feature/studio-01-m0 | 977074f72 |
 | 01-M1 Core skeleton, protocol, contract, CI | core | done | — | feature/studio-01-m1 | c6b3d9a7f (merged 8688edb53) |
 | 01-M2 Process runner, tools, settings, doctor | core | done (Windows-only tests not yet run) | — | feature/studio-01-m2 | 5169e28c9 (merged a57c8e7e9) |
-| 01-M3 Electron shell | shell | in progress | — | feature/studio-01-m3 | — |
+| 01-M3 Electron shell | shell | done (Windows/macOS and CI not run) | — | feature/studio-01-m3 | d8cdbfdfd (merged 1ce44fc54) |
 | 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | todo | 01-M3 | feature/studio-01-m4 | — |
 | 01-M4.2 Desktop tools panel | UI | blocked | design 01-desktop-tools; 01-M4.1 | — | — |
 | 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
@@ -110,6 +110,16 @@ the milestone is started.
   code `Io`; only `ProjectId`/`FolderId`/`SnapshotId` newtypes so far; the leftover sweep removes only
   `.tmp-*` files and `.incoming-*` folders in the store's own folders. Plan 03 text corrected by the
   agent (names from plan 01, module table, error codes, crate list).
+- 01-M3 (see `01-m3-electron-shell.md`): `chooseToolExecutable(tool, { title, filters })` and
+  `chooseStoreRoot({ title })` take the caller's options (no shell wording; the Windows `exe, cmd, bat`
+  filter moves to the renderer); picker/shell actions in `electron/shellActions.js`; extra internal
+  channel `codecharta:hello`; one reusable `build_core.yml` instead of two build matrices;
+  `script/appCheckCoreModes.js`. `pickFolder`/`pickFile` return a path string — plan 03's pick tokens
+  are reconciled in 03-M2 part B. Unverified: Windows/macOS, CI runner labels (`ubuntu-24.04-arm`,
+  `windows-latest` → arm64, `macos-latest` both darwin targets), a real native picker click.
+- Local e2e on this machine: `app/playwright.helper.ts` picks `channel: "chrome"`, which is not
+  installed; verification uses a temporary, never-committed `chromium` override with Playwright's
+  browser under `node_modules/.cache/ms-playwright`.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -139,6 +149,7 @@ Design questions are in `design/open-questions.md`; none are left here.
 
 ## Session log
 
+- 2026-11-18: 01-M3 verified on the merged integration branch (format, lint, tsc, contract drift, npm test 636/636, test:electron 42/42, ensureElectron download on npm 12, build, e2e:desktop 9/9, web e2e:ci 149/149) and merged.
 - 2026-11-18: 03-M1 verified on the merged integration branch (cargo fmt/clippy/test 164, contract drift, format, lint, tsc, npm test 636/636, coverage 96.71/90.1/95.33/96.62) and merged; 03-M2 part A started.
 - 2026-11-18: 03-M1 started in the core lane (plan 01 core done; 03-M0 store items answered on Linux).
 - 2026-11-18: design files appeared (all areas blocked for owner review); format check now fails on the mock-up (O1). 03-M0 part A verified (notes read) and recorded.
