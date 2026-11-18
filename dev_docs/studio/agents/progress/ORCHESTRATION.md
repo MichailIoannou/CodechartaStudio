@@ -28,8 +28,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 01-M1 Core skeleton, protocol, contract, CI | core | done | — | feature/studio-01-m1 | c6b3d9a7f (merged 8688edb53) |
 | 01-M2 Process runner, tools, settings, doctor | core | done (Windows-only tests not yet run) | — | feature/studio-01-m2 | 5169e28c9 (merged a57c8e7e9) |
 | 01-M3 Electron shell | shell | done (Windows/macOS and CI not run) | — | feature/studio-01-m3 | d8cdbfdfd (merged 1ce44fc54) |
-| 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | in progress | — | feature/studio-01-m4 | — |
-| 01-M4.2 Desktop tools panel | UI | todo | 01-M4.1 | — | — |
+| 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | done | — | feature/studio-01-m4 | bf7736960 (merged 7a539b1a8) |
+| 01-M4.2 Desktop tools panel | UI | in progress | — | feature/studio-01-m4-2 | — |
 | 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
 | 02-M1 Dark by default | UI | done | — | feature/studio-02-m1 | 5fadc0ca3 (merged db5d2dc60) |
 | 02-M2 No-flash boot | UI | todo | 02-M1 | — | — |
@@ -148,6 +148,11 @@ the milestone is started.
   `DB_VERSION` is 37 (renumber at merge if another plan takes it). Design items T4 (metrics bar refresh,
   OD6) and T5 (blended file extension bar, OD7) are outside M1 and still to schedule. Changelog says the
   Domain/Dependencies charts and radial layouts follow later (M3/M4).
+- 01-M4.1 (see `01-m4-1-renderer-seam.md`): `createFakeDesktopBridge` carries `/* istanbul ignore next */`
+  because coverage counters break the "rebuilt from its own source text" test (the fake is injected into
+  Playwright pages as source). First coverage exclusion in `visualization/app` — owner question 1.
+  `shell.coreState` is typed locally (not in the generated contract). The fake's body must stay
+  self-contained (no imports, no outer helpers, no async/await).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -173,10 +178,15 @@ the milestone is started.
 
 ## Open questions for the owner
 
-Design questions are in `design/open-questions.md`; none are left here.
+1. `/* istanbul ignore next */` on `createFakeDesktopBridge` (test fake, `util/desktop/desktopBridge.mocks.ts`):
+   accept it, or exclude `*.mocks.ts` in `jestUnit.config.json`, or require another way to inject the fake?
+   CLAUDE.md says never suppress warnings; this is a coverage exclusion on test code, not a threshold.
+
+Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 01-M4.1 verified on the merged integration branch (format, lint, tsc, npm test 654/654, coverage 96.87/90.26/95.44/96.8) and merged; 01-M4.2 started.
 - 2026-11-19: 02-M1 verified on the merged integration branch (format, lint, tsc, npm test 649/649 with 43 snapshots unchanged, coverage 96.84/90.24/95.43/96.77, build, test:electron 42/42, e2e:desktop 9/9, web e2e:ci 153/153) and merged. After the usage reset (3%): 01-M4.1 and 04-M2 started.
 - 2026-11-19: 04-M1 verified on a scratch merge of integration + 04-M1 (cargo fmt/clippy/test 354, cargo-deny, contract drift, format, lint, tsc, test:electron 42/42, npm test 636/636). Merge pending, as for 03-M2.
 - 2026-11-18 23:50: 04-M1 started in the core lane at the owner's request (5-hour usage 87%, reset at 00:10).
