@@ -3,6 +3,8 @@ use std::collections::BTreeMap;
 use codecharta_core_api::error::{ErrorCode, ErrorPayload};
 use codecharta_core_api::methods::tools::ToolId;
 
+use crate::git::error::GitError;
+
 const INTERNAL_MESSAGE: &str = "An internal error occurred; see the core log for details.";
 
 #[derive(Debug, thiserror::Error)]
@@ -55,6 +57,8 @@ pub enum CoreError {
     TooLarge { limit_bytes: u64 },
     #[error("The folder has no commit {commit}.")]
     NotACommit { commit: String },
+    #[error("{}", .0.message)]
+    Git(GitError),
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;
@@ -82,6 +86,7 @@ impl CoreError {
             CoreError::DifferentHistory { .. } => ErrorCode::DifferentHistory,
             CoreError::TooLarge { .. } => ErrorCode::TooLarge,
             CoreError::NotACommit { .. } => ErrorCode::NotACommit,
+            CoreError::Git(error) => error.code,
         }
     }
 
@@ -102,6 +107,9 @@ impl CoreError {
     }
 
     fn details(&self) -> BTreeMap<String, serde_json::Value> {
+        if let CoreError::Git(error) = self {
+            return git_details(error);
+        }
         let detail = match self {
             CoreError::ToolNotFound { tool } | CoreError::ToolFailed { tool, .. } => {
                 Some(("tool", serde_json::json!(tool)))
@@ -117,6 +125,16 @@ impl CoreError {
             .map(|(key, value)| (key.to_string(), value))
             .collect()
     }
+}
+
+fn git_details(error: &GitError) -> BTreeMap<String, serde_json::Value> {
+    [
+        ("detail", error.detail.as_ref()),
+        ("repositoryPath", error.repository_path.as_ref()),
+    ]
+    .into_iter()
+    .filter_map(|(key, value)| Some((key.to_string(), serde_json::json!(value?))))
+    .collect()
 }
 
 #[cfg(test)]
@@ -203,6 +221,10 @@ mod tests {
                 },
                 ErrorCode::NotACommit,
             ),
+            (
+                CoreError::Git(GitError::new(ErrorCode::NotARepository, "not here")),
+                ErrorCode::NotARepository,
+            ),
         ]
     }
 
@@ -241,6 +263,31 @@ mod tests {
         assert!(!messages.iter().any(
             |message| message.contains("disk on fire") || message.contains("broken invariant")
         ));
+    }
+
+    #[test]
+    fn should_carry_git_text_and_repository_path_in_the_details() {
+        // Arrange
+        let error = CoreError::Git(
+            GitError::new(ErrorCode::DubiousOwnership, "Not trusted.")
+                .with_detail("fatal: detected dubious ownership\n")
+                .with_repository_path("/srv/repo".to_string()),
+        );
+
+        // Act
+        let payload = error.to_payload();
+
+        // Assert
+        assert_eq!(payload.code, ErrorCode::DubiousOwnership);
+        assert_eq!(payload.message, "Not trusted.");
+        assert_eq!(
+            payload.details.get("detail"),
+            Some(&serde_json::json!("fatal: detected dubious ownership"))
+        );
+        assert_eq!(
+            payload.details.get("repositoryPath"),
+            Some(&serde_json::json!("/srv/repo"))
+        );
     }
 
     #[test]

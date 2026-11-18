@@ -33,7 +33,7 @@ record it as open for the owner. Task 7's fake-bridge `git` seed lives in the re
 
 - [x] 1. Reconcile and fixtures
 - [x] 2. Contract and helpers
-- [ ] 3. Runner and failures
+- [x] 3. Runner and failures
 - [ ] 4. Repository
 - [ ] 5. Status
 - [ ] 6. Refs and remotes
@@ -102,3 +102,30 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0. Bra
   multiple), `git/cache.rs` (`LruCache`, linear lookups, most recent first).
 - Tests: the plan's six names (the error code one renamed as above) plus
   `should_tag_heads_by_kind_with_camel_case_fields`, `should_replace_the_value_of_a_known_key`.
+
+### 3. Runner and failures
+- Plan 01 runner change (test first, in `process/env.rs`): `RunRequest.env_remove` / `ToolRunOptions.env_remove`;
+  `child_env(base, removed, overrides, askpass)` drops `removed` from the base before the overrides and the
+  askpass variables (so a removal never takes the askpass helper away). `ASKPASS_TOKEN_VARIABLE` constant
+  added next to the endpoint one. Test `should_remove_listed_variables_before_adding_askpass_ones`.
+- `git/command.rs`: `GLOBAL_ARGS`, `READ_ARGS` (`--no-optional-locks -c core.fsmonitor=false`), base / read /
+  mutating environments, removed variables, `Limits { timeout, max_stdout_bytes }` with
+  `REPOSITORY_LIMITS` / `STATUS_LIMITS` / `REFS_LIMITS` / `QUERY_LIMITS` (the others with their milestone),
+  `CommandKind { Read, Mutating }` (`Network` comes with askpass in M7), `GitCommand::read`,
+  `invocation_of(command, data_dir) -> GitInvocation`.
+- **Naming deviation:** plan 03 already owns `git::GitRunner` (the simple `run(cwd, args)` trait of the folder
+  inspector), so the plan's `GitRunner` struct is `git::GitCli` (`run` = must succeed, classified error
+  otherwise; `run_raw` = exit code is the caller's; `version`). It runs through the port
+  `git::GitProcess { version(), execute(GitInvocation, &cancel) }`, implemented by `Tools` (real; `version`
+  answers a too-old version too, so the locator can say `GIT_TOO_OLD`) and by the fixture's `FixtureGit`
+  (system git with the hermetic variables underneath the core's). Output stays `String` (the runner decodes
+  UTF-8 lossily), not bytes. `OperationContext` / progress / `stream_lines` arrive with M2 / M7.
+- `git/error.rs`: `GitError { code: ErrorCode, message, detail, repository_path }`, `with_detail` (trimmed,
+  at most 2000 characters, empty = none), `command_failed(&RunOutput)`, `parse_failed(what)`;
+  `CoreError::Git(GitError)` whose payload carries `details.detail` and `details.repositoryPath`.
+  `git/failure.rs` `classify(stderr) -> ErrorCode` with the read-relevant rules: dubious ownership, not a git
+  repository, index.lock, else `COMMAND_FAILED`. Runner errors (`TOOL_NOT_FOUND`, `TIMEOUT`, `CANCELLED`,
+  `OUTPUT_TOO_LARGE`) pass through unchanged.
+- Tests: the plan's names (unit tests in `git/runner.rs` over a recording `GitProcess`; one per rule in
+  `git/failure.rs`, two from captured stderr), plus `should_classify_a_non_zero_exit`,
+  `should_carry_git_text_and_repository_path_in_the_details`.

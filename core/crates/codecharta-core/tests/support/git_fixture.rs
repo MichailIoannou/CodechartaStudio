@@ -5,10 +5,13 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use codecharta_core::git::runner::GIT_TIMEOUT;
-use codecharta_core::git::{GitFuture, GitOutput, GitRunner};
+use codecharta_core::CoreError;
+use codecharta_core::git::command::GitInvocation;
+use codecharta_core::git::runner::{GIT_TIMEOUT, ProcessFuture, VersionFuture};
+use codecharta_core::git::{GitFuture, GitOutput, GitProcess, GitRunner};
 use codecharta_core::process::env::hardened_env;
 use codecharta_core::process::{ProcessRunner, RunRequest};
+use codecharta_core::tools::version::read_version;
 use codecharta_core_api::methods::tools::ToolId;
 use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
@@ -368,6 +371,47 @@ impl GitRunner for FixtureGit {
                 exit_code: output.exit_code,
                 stdout: output.stdout,
             })
+        })
+    }
+}
+
+impl GitProcess for FixtureGit {
+    fn version(&self) -> VersionFuture<'_> {
+        Box::pin(async move {
+            let request = RunRequest::new(
+                ToolId::Git,
+                self.program.clone(),
+                vec![OsString::from("--version")],
+                GIT_TIMEOUT,
+            );
+            let output = self.runner.run(request, &CancellationToken::new()).await?;
+            read_version(ToolId::Git, &output.stdout, &output.stderr)
+                .ok_or_else(|| CoreError::Internal("git answered no version".to_string()))
+        })
+    }
+
+    /// The fixture's variables first, so the core's own ones win where both name a variable.
+    fn execute<'call>(
+        &'call self,
+        invocation: GitInvocation,
+        cancel: &'call CancellationToken,
+    ) -> ProcessFuture<'call> {
+        Box::pin(async move {
+            let mut env = self.env.clone();
+            env.extend(invocation.env);
+            let request = RunRequest {
+                cwd: Some(invocation.cwd),
+                env,
+                env_remove: invocation.removed_env,
+                max_output_bytes: invocation.limits.max_stdout_bytes,
+                ..RunRequest::new(
+                    ToolId::Git,
+                    self.program.clone(),
+                    invocation.args,
+                    invocation.limits.timeout,
+                )
+            };
+            self.runner.run(request, cancel).await
         })
     }
 }

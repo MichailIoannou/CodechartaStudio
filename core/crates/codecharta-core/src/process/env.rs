@@ -27,6 +27,7 @@ const FIXED_VARIABLES: [(&str, &str); 9] = [
 
 const PATH_VARIABLE: &str = "PATH";
 pub const ASKPASS_ENDPOINT_VARIABLE: &str = "CODECHARTA_ASKPASS_ENDPOINT";
+pub const ASKPASS_TOKEN_VARIABLE: &str = "CODECHARTA_ASKPASS_TOKEN";
 const SSH_ASKPASS_REQUIRE_FORCE: &str = "force";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,9 +69,16 @@ pub fn askpass_env(setup: &AskpassSetup) -> [(OsString, OsString); 4] {
     ]
 }
 
-/// The askpass variables come last so that nothing a caller passes can replace the helper.
-pub fn child_env(base: &EnvVars, overrides: &EnvVars, askpass: Option<&AskpassSetup>) -> EnvVars {
+/// `removed` names leave the base first; the askpass variables come last so that nothing a caller passes
+/// can replace the helper.
+pub fn child_env(
+    base: &EnvVars,
+    removed: &[OsString],
+    overrides: &EnvVars,
+    askpass: Option<&AskpassSetup>,
+) -> EnvVars {
     let mut env = base.clone();
+    env.retain(|(name, _)| !removed.iter().any(|gone| is_same_name(name, gone)));
     for (name, value) in overrides {
         set_variable(&mut env, name.clone(), value.clone());
     }
@@ -206,7 +214,7 @@ mod tests {
         let overrides = vec![(OsString::from("GIT_ASKPASS"), OsString::from("/tmp/evil"))];
 
         // Act
-        let env = child_env(&base, &overrides, Some(&askpass_setup()));
+        let env = child_env(&base, &[], &overrides, Some(&askpass_setup()));
 
         // Assert
         let last_names: Vec<String> = env[env.len() - 4..]
@@ -228,12 +236,40 @@ mod tests {
     }
 
     #[test]
+    fn should_remove_listed_variables_before_adding_askpass_ones() {
+        // Arrange
+        let base = hardened_env(
+            parent(&[
+                (ASKPASS_ENDPOINT_VARIABLE, "inherited"),
+                ("LC_ALL", "de_DE"),
+            ]),
+            &[],
+        );
+        let removed = [
+            OsString::from(ASKPASS_ENDPOINT_VARIABLE),
+            OsString::from("LC_ALL"),
+        ];
+
+        // Act
+        let without_askpass = child_env(&base, &removed, &Vec::new(), None);
+        let with_askpass = child_env(&base, &removed, &Vec::new(), Some(&askpass_setup()));
+
+        // Assert
+        assert_eq!(value_of(&without_askpass, ASKPASS_ENDPOINT_VARIABLE), None);
+        assert_eq!(value_of(&without_askpass, "LC_ALL"), None);
+        assert_eq!(
+            value_of(&with_askpass, ASKPASS_ENDPOINT_VARIABLE).as_deref(),
+            Some("endpoint-1")
+        );
+    }
+
+    #[test]
     fn should_keep_terminal_prompt_off_with_askpass() {
         // Arrange
         let base = hardened_env(parent(&[]), &[]);
 
         // Act
-        let env = child_env(&base, &Vec::new(), Some(&askpass_setup()));
+        let env = child_env(&base, &[], &Vec::new(), Some(&askpass_setup()));
 
         // Assert
         assert_eq!(value_of(&env, "GIT_TERMINAL_PROMPT").as_deref(), Some("0"));

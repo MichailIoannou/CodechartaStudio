@@ -31,6 +31,8 @@ pub struct RunRequest {
     pub args: Vec<OsString>,
     pub cwd: Option<PathBuf>,
     pub env: EnvVars,
+    /// Variables of the base environment the child must not inherit.
+    pub env_remove: Vec<OsString>,
     pub timeout: Duration,
     pub max_output_bytes: u64,
     pub askpass: Option<AskpassSetup>,
@@ -45,6 +47,7 @@ impl RunRequest {
             args,
             cwd: None,
             env: Vec::new(),
+            env_remove: Vec::new(),
             timeout,
             max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES,
             askpass: None,
@@ -116,6 +119,7 @@ impl ProcessRunner {
             .env_clear()
             .envs(child_env(
                 &self.base_env,
+                &request.env_remove,
                 &request.env,
                 request.askpass.as_ref(),
             ))
