@@ -43,6 +43,7 @@ describe("FileExtensionBarSegment", () => {
             maxTreeMapFiles: 100,
             screenshotToClipboardEnabled: false,
             localSourceEnabled: false,
+            theme: "cc-dark",
             isColorMetricLinkedToHeightMetric: false,
             sorting: { option: SortingOption.NAME, orderAscending: true },
             radialFolderValue: RadialFolderValue.Max,

@@ -2,6 +2,7 @@ export type ColorScheme = "light" | "dark"
 /** A registry id such as "cc-dark"; deliberately a string so a new theme needs no type change. */
 export type ThemeId = string
 export const SYSTEM_THEME = "system"
+export type ThemePreference = typeof SYSTEM_THEME | ThemeId
 
 /** The daisyUI color tokens of a theme as hex, mirroring its block in app/tailwind.css. */
 export interface ChromeTokens {

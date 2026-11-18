@@ -15,4 +15,4 @@ export { setRadialFolderValue } from "./store/radialFolderValue/radialFolderValu
 export { setRadialLevels } from "./store/radialLevels/radialLevels.actions"
 export { setResetCameraIfNewFileIsLoaded } from "./store/resetCameraIfNewFileIsLoaded/resetCameraIfNewFileIsLoaded.actions"
 export { setSortingOption, toggleSortingOrderAscending } from "./store/sorting/sorting.actions"
-export { activeThemeChanged } from "./store/theme/theme.actions"
+export { activeThemeChanged, setThemePreference } from "./store/theme/theme.actions"

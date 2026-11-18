@@ -18,6 +18,7 @@ import {
     resetCameraIfNewFileIsLoaded
 } from "./resetCameraIfNewFileIsLoaded/resetCameraIfNewFileIsLoaded.reducer"
 import { defaultSorting, sorting } from "./sorting/sorting.reducer"
+import { defaultTheme, theme } from "./theme/theme.reducer"
 
 export const preferences = combineReducers({
     isPresentationMode,
@@ -26,6 +27,7 @@ export const preferences = combineReducers({
     maxTreeMapFiles,
     screenshotToClipboardEnabled,
     localSourceEnabled,
+    theme,
     isColorMetricLinkedToHeightMetric,
     sorting,
     radialFolderValue,
@@ -42,6 +44,7 @@ export const defaultPreferences = {
     maxTreeMapFiles: defaultMaxTreeMapFiles,
     screenshotToClipboardEnabled: defaultScreenshotToClipboardEnabled,
     localSourceEnabled: defaultLocalSourceEnabled,
+    theme: defaultTheme,
     isColorMetricLinkedToHeightMetric: defaultIsColorMetricLinkedToHeightMetric,
     sorting: defaultSorting,
     radialFolderValue: defaultRadialFolderValue,
