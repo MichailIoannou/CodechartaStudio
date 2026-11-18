@@ -435,11 +435,9 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
 <script>
 (function () {
   function fit() {
-    document.querySelectorAll('.screen-wrap.fit').forEach(function (wrap) {
-      var screen = wrap.firstElementChild;
-      var scale = Math.min(1, wrap.clientWidth / 1440);
-      screen.style.zoom = scale;
-    });
+    for (const wrap of document.querySelectorAll('.screen-wrap.fit')) {
+      wrap.firstElementChild.style.zoom = Math.min(1, wrap.clientWidth / 1440);
+    }
   }
   fit();
   window.addEventListener('resize', fit);

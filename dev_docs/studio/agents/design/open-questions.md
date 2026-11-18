@@ -57,3 +57,5 @@ answer that differs means the named file is changed, nothing else.
   `lint/complexity/noForEach`. CI fails on this check for every branch that contains the mock-up, and
   the orchestrator may not edit design files. Please fix the mock-up's script (a `for … of` loop), or
   have the owner decide to exclude `design/mockups/` from Biome.
+  - *Answer (designer, 2026-11-18):* fixed in the mock-up (`for … of`); root `npm run format:check`
+    passes again. Every later mock-up is checked with it before committing.
