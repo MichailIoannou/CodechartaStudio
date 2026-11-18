@@ -29,6 +29,12 @@ answer that differs means the named file is changed, nothing else.
 7. **Stale notice in History?** *Default:* the banner shows over the map views only; History shows the
    same facts per commit in its details pane.
 
+## Area 06 — compare
+
+8. **A "Compare" button in the nav bar?** Plan 06 adds one. *Default:* no; the existing Compare tab in
+   the metric view's mode bar opens the compare dialog in project mode, and History offers compare on
+   commits and branches. Add the button only if the hover mode bar proves too hidden.
+
 ## From orchestration
 
 (The orchestrator appends questions here.)
