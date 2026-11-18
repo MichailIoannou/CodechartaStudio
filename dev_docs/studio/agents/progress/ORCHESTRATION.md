@@ -14,8 +14,9 @@ orchestrator after every change of state. Another machine continues from this fi
 ## Design gate
 
 `dev_docs/studio/agents/design/STATUS.md` exists since 2026-11-18 (committed by the designer directly on
-`feature/studio-integration`). Checked 2026-11-18: **every area is "blocked" pending owner review**
-(01-desktop-tools, 02-themes, 03-projects, 04-history, 05-snapshots, 06-compare). No UI milestone may start.
+`feature/studio-integration`). Checked 2026-11-18 22:40: **every area is "ready"** (handed over in
+5935e1ed6, last design commit 95606737e). UI milestones may start; the design files override the plans'
+UI descriptions.
 
 ## Milestones
 
@@ -30,7 +31,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | todo (next) | — | feature/studio-01-m4 | — |
 | 01-M4.2 Desktop tools panel | UI | blocked | design 01-desktop-tools; 01-M4.1 | — | — |
 | 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
-| 02-M1 Dark by default | UI | blocked | design 02-themes | — | — |
+| 02-M1 Dark by default | UI | in progress | — | feature/studio-02-m1 | — |
 | 02-M2 No-flash boot | UI | blocked | design 02-themes; 02-M1 | — | — |
 | 02-M3 Radial map and word cloud | UI | blocked | design 02-themes; 02-M2 | — | — |
 | 02-M4 Dependency graph, color-range diagram | UI | blocked | design 02-themes; 02-M3 | — | — |
@@ -39,7 +40,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | part A (tasks 1–7) verified, **merge pending**; part B todo | merge: uncommitted owner/designer edits to plan 03 in the main checkout; part B (tasks 8–9): 01-M4.1 | feature/studio-03-m2 | 168d4fa21 (verified, not merged) |
-| 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | todo | 03-M2 | — | — |
+| 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | in progress (part A: tasks 1–5, branched from feature/studio-03-m2) | part B (task 6): 03-M2 merge, 01-M4.1 | feature/studio-03-m3 | — |
 | 03-M4 Renderer load path | renderer | todo | 03-M3; check for visible parts first | — | — |
 | 03-M5 Projects UI | UI | blocked | design 03-projects | — | — |
 | 03-M6 Import and store settings | UI | blocked | design 03-projects | — | — |
@@ -158,6 +159,7 @@ Design questions are in `design/open-questions.md`; none are left here.
 
 ## Session log
 
+- 2026-11-18 22:40: design ready for all areas. 02-M1 started (visualization lane) and 03-M3 part A started (core lane, from feature/studio-03-m2). 03-M2 merge still pending on the uncommitted plan 03 edit.
 - 2026-11-18, end of session: 03-M2 part A verified on a scratch merge of `feature/studio-integration` +
   `feature/studio-03-m2` (cargo fmt/clippy/test 230, cargo-deny, contract drift, format, lint, tsc,
   npm test 636/636, test:electron 42/42). Real merge refused: the main checkout has uncommitted edits to
