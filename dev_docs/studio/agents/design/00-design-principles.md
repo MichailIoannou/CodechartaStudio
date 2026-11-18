@@ -41,7 +41,7 @@ Enhance the existing interface; do not redesign it.
 | Panel header | `explorerHeader` | `text-xs font-semibold uppercase tracking-wide`, collapse button `btn btn-ghost btn-xs btn-square` |
 | Segmented control | `explorerModeToggle` | `join` of `btn btn-sm join-item`, `btn-active` + `aria-pressed` |
 | Inline banner inside a panel | `explorerFocusBanner`, `clusterExplorer` alert | `rounded-md bg-secondary/10 text-secondary text-xs`; `alert alert-warning px-2 py-1 text-xs` |
-| Transient message | `ToastService.show(text, severity)` | top-right, 5 s, no actions |
+| Transient message | `ToastService.show(text, severity)` | top right, just below the nav bar (OD8), 5 s, no actions |
 | Explorer mode | `EXPLORER_CONDITIONAL_MODES` (`provideClustersExplorerMode`) | mode in the explorer's join toggle, body projected as `[modeBody]` |
 | Resizable side pane | `ccColumnResizeHandle` | as the explorer and inspector |
 | Settings row | `cc-setting-toggle` | label + daisyUI `toggle` |
@@ -95,6 +95,15 @@ never JavaScript measuring:
   `min-w-0`, so a trigger shortens its text with "…" instead of running under `navbar-center`; the view
   switcher never shrinks.
 - Text inside every trigger is `truncate`; the full text is always in `title`.
+
+**Toasts (owner decision OD8).** All toasts stack at the top right of the window, directly below the
+nav bar: `features/shared/components/toast/toast.component.html` keeps `toast toast-top toast-end
+z-[2000]` and adds `top-[var(--cc-bars-height,49px)]`, so daisyUI's own 1 rem margin puts the first
+toast 1 rem under the nav bar and 1 rem from the right edge. Today the same classes place it at the
+very top, over the nav bar's right end (theme toggle, Settings). Newest toast on top; each
+`alert shadow-lg max-w-sm` with the text wrapping; nothing else changes (5 s, dismiss button,
+`aria-live="polite"`). Toasts sit above the inspector (`z-[60]`) and may cover its header for those
+5 s; the stale notice (05 S2) stays centred under the nav bar, so the two never overlap.
 
 ## 4. Z-index layers in use
 

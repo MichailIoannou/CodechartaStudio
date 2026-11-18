@@ -114,7 +114,13 @@ specs and e2e page objects that locate the tabs and the legend button change.
 
 ## OD7 — Blended edges in the file extension bar (2026-11-18)
 
-The bar showing each language's share blends neighbouring colours over a short distance (12 px per
-boundary, centred on it) instead of a hard edge with a white gap; shares stay readable as exact
+The bar showing each language's share blends neighbouring colours over a short distance (24 px per
+boundary, centred on it; doubled from 12 px at the owner's request) instead of a hard edge with a white gap; shares stay readable as exact
 percentages. Design: `02-themes.md` T5. Plan impact: small change in `features/fileExtensionBar`
 (segment inputs for the neighbouring colours, container `gap-px` removed); can ship with OD6.
+
+## OD8 — Toasts at the top right (2026-11-18)
+
+Every toast appears at the top right of the window, just below the nav bar (today it sits at the very
+top, covering the nav bar's right end). Design: `00-design-principles.md` §3 "Toasts". Plan impact: one
+class on `features/shared/components/toast/toast.component.html`; shared by every plan.

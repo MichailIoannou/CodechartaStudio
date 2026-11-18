@@ -164,20 +164,25 @@ distance, so the shares still read as exact proportions.
 
 ```
 today:   [   kt 42.25%   |   scss 28.17%   |   ts 25.35%   |html]
-Studio:  [   kt 42.25%  ░▒▓  scss 28.17%  ░▒▓  ts 25.35%  ░▒▓html]   ← 12 px blend centred on each boundary
+Studio:  [   kt 42.25% ░░▒▒▓▓ scss 28.17% ░░▒▒▓▓ ts 25.35% ░░▒▒▓▓html]   ← 24 px blend centred on each boundary
 ```
 
 - **Mechanism (per segment, so it stays correct whatever width flex gives each segment):** the
   container drops `gap-px`; each `cc-file-extension-bar-segment` paints
-  `background: linear-gradient(to right, <mixPrev> 0, <own> 6px, <own> calc(100% - 6px), <mixNext> 100%)`
+  `background: linear-gradient(in oklab to right, <mixPrev> 0, <own> 12px, <own> calc(100% - 12px), <mixNext> 100%)`
   where `<mixPrev>` = `color-mix(in oklab, <previous colour> 50%, <own colour>)` and `<mixNext>` the same
   with the next colour. Both sides of a boundary end on the same 50 % mix, so the blend is seamless and
   exactly centred on the true share boundary. The first segment has no left blend, the last none on
   the right. The segment component gets `previousColor` / `nextColor` inputs from the visible list
   (`fileExtensionBar.component.html` already iterates it in order).
-- **Width:** 6 px on each side (12 px per boundary). Segments narrower than 24 px blend over a third of
-  their width per side instead, so a tiny share never turns into pure mix colour.
-- **Labels** unchanged (`text-[10px]`, centred); because a label never sits in the outer 6 px, the blend
+- **Colour space:** OKLab (`in oklab` on both the gradient and the mix). It only blends the two
+  neighbouring colours, so no third colour appears. OKLCH was tried in the mock-up and rejected: it
+  goes round the hue circle and paints a pink band between blue and orange, which reads like another
+  language. Complementary neighbours therefore pass through a short, slightly muted middle; at 24 px
+  that reads as a soft edge, not a separate segment.
+- **Width:** 12 px on each side (24 px per boundary; owner: "double the blend length"). Segments
+  narrower than 48 px blend over a third of their width per side instead, so a tiny share never turns into pure mix colour.
+- **Labels** unchanged (`text-[10px]`, centred); because a label keeps 10 px padding and the blend is half its own colour at the outer edge, the blend
   never lowers its contrast. Hovered segment: unchanged highlight, blend kept.
 - **Themes:** segment colours are map data (not themed, plan 02 decision 5); the blend uses only those
   colours, so it looks the same in every theme. Screenshots include the blend.
