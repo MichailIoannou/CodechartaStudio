@@ -103,7 +103,7 @@ text fit, never the element's size. Icons sit in a fixed-size slot so a spinner 
 the text. Running work is animated only there: History, the project overview and the commit list show
 it as static text. Design: `05-snapshots.md` W1, `04-history.md` H5, `00-design-principles.md` §5.
 
-## OD5 — Modernised metrics bar (2026-11-18)
+## OD6 — Modernised metrics bar (2026-11-18)
 
 The metrics bar keeps all its controls, recoloured by the theme, as one rounded rectangle with nothing
 protruding: the Layout tab and the view-tools tab move inside the bar, the link button becomes a

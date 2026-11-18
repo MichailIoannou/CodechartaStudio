@@ -89,7 +89,7 @@ Every new element of areas 01 and 03â€“06 already uses tokens only (principles Â
 theme without per-theme work. Graph lane colours (area 04) and status badges are checked in each of
 the eight themes by the plan's smoke test (M5 step 2) plus an eyeball pass of the History view.
 
-## T4 Metrics bar, refreshed (owner decision OD5)
+## T4 Metrics bar, refreshed (owner decision OD6)
 
 The floating metrics bar keeps **every control it has today**, in the same order and with the same
 popovers; it is recoloured by the theme and its shape is modernised: one rounded rectangle, and
@@ -166,12 +166,12 @@ Studio (dark, one rounded rectangle, nothing protrudes):
 3. **Toggle position** as the plan says, before Settings (the analyses indicator that once sat there
    is now part of the workspace status element, area 05 W1).
 
-4. **Metrics bar refresh (T4)** is an owner request (OD5), not part of plan 02; it can ship with plan
+4. **Metrics bar refresh (T4)** is an owner request (OD6), not part of plan 02; it can ship with plan
    02 M1 (dark by default) or as its own milestone.
 
 ## Proposed changes to existing UI (not assumed approved)
 
-Approved by the owner (OD5): the metrics bar shape, the Layout and view-tools tabs moving into the
+Approved by the owner (OD6): the metrics bar shape, the Layout and view-tools tabs moving into the
 bar, the link button becoming a square, and the LEGEND edge tab becoming a tool in the bar (T4).
 
 
