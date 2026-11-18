@@ -35,7 +35,7 @@ record it as open for the owner. Task 7's fake-bridge `git` seed lives in the re
 - [x] 2. Contract and helpers
 - [x] 3. Runner and failures
 - [x] 4. Repository
-- [ ] 5. Status
+- [x] 5. Status
 - [ ] 6. Refs and remotes
 - [ ] 7. RPC and CLI
 - [ ] Fake-bridge git seed (after 01-M4.1)
@@ -149,3 +149,19 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0. Bra
   `tests/git_repository.rs`; `should_reject_git_below_2_31` and the Windows normalisation as unit tests), plus
   `should_report_a_bare_repository`, `should_recognise_a_bare_repository_from_the_partial_answer`,
   `should_keep_case_and_separators_on_unix`, `should_turn_a_verbatim_unc_path_into_a_share_path`.
+
+### 5. Status
+- `git/parse/status.rs`: `STATUS_ARGS`, `parse_status -> StatusSummary { head, upstream: StatusUpstream { name,
+  ahead_behind }, counts }` over the NUL tokens (`1` / `2` count `X != .` staged and `Y != .` unstaged, `2`
+  consumes the original path, `u` conflicted, `?` untracked, `!` ignored, other `# ` headers skipped, any
+  other entry `PARSE_FAILED`; detached without an oid is `PARSE_FAILED`), `operation_in_progress(has_marker)`
+  in the plan's order.
+- `GitService::status(&GitFolder, &cancel)`: locate (for the worktree git dir), status, and — only when there is
+  an upstream on a branch — `for-each-ref --format=%(upstream) refs/heads/<branch>` for the upstream's full ref
+  name. **Deviation:** porcelain v2 names the upstream only briefly (`origin/main`), which cannot tell a local
+  upstream from a remote one, so `GitUpstream.refName` costs this one extra read; without a configured value
+  it falls back to `refs/remotes/<name>`. A gone upstream has `ahead` / `behind` null and `isGone`.
+- Tests: the plan's captured cases (branch / upstream / ahead-behind, gone upstream, detached, no commits,
+  counts of all four kinds, rename original path) and fixture cases (`tests/git_status.rs`: clean after
+  commit, merge in progress), plus `should_report_the_upstream_with_its_full_ref_name`,
+  `should_fail_on_an_unknown_entry`, `should_find_a_rebase_before_a_merge`.

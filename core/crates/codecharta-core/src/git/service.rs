@@ -1,12 +1,21 @@
 use std::path::{Path, PathBuf};
 
-use codecharta_core_api::methods::git::GitRepositoryInfo;
+use codecharta_core_api::methods::git::{
+    GitHead, GitRepositoryInfo, GitStatus, GitUpstream, OperationInProgress,
+};
 use codecharta_core_api::methods::projects::FolderRef;
 use tokio_util::sync::CancellationToken;
 
-use super::locator::locate;
+use super::command::{GitCommand, QUERY_LIMITS, STATUS_LIMITS};
+use super::locator::{Repository, locate};
+use super::parse::status::{
+    STATUS_ARGS, StatusSummary, StatusUpstream, operation_in_progress, parse_status,
+};
 use super::runner::{GitCli, GitProcess};
 use crate::error::CoreResult;
+
+const REMOTE_BRANCHES_PREFIX: &str = "refs/remotes/";
+const LOCAL_BRANCHES_PREFIX: &str = "refs/heads/";
 
 /// A folder git runs in. `repo` names the project folder it came from; a folder given by path alone (the
 /// command line) has none.
@@ -44,4 +53,75 @@ impl<'core> GitService<'core> {
     ) -> CoreResult<GitRepositoryInfo> {
         Ok(locate(&self.git, &folder.path, cancel).await?.info)
     }
+
+    pub async fn status(
+        &self,
+        folder: &GitFolder,
+        cancel: &CancellationToken,
+    ) -> CoreResult<GitStatus> {
+        let repository = locate(&self.git, &folder.path, cancel).await?;
+        let summary = self.status_summary(&folder.path, cancel).await?;
+        let upstream = match &summary.upstream {
+            Some(upstream) => Some(self.upstream_of(folder, &summary, upstream, cancel).await?),
+            None => None,
+        };
+        Ok(GitStatus {
+            head: summary.head,
+            upstream,
+            counts: summary.counts,
+            operation_in_progress: in_progress(&repository),
+        })
+    }
+
+    async fn status_summary(
+        &self,
+        folder: &Path,
+        cancel: &CancellationToken,
+    ) -> CoreResult<StatusSummary> {
+        let command = GitCommand::read(folder, &STATUS_ARGS, STATUS_LIMITS);
+        parse_status(&self.git.run(&command, cancel).await?)
+    }
+
+    /// `status` names the upstream briefly (`origin/main`); its full ref name comes from the branch's
+    /// configuration, which also tells a local upstream from a remote one.
+    async fn upstream_of(
+        &self,
+        folder: &GitFolder,
+        summary: &StatusSummary,
+        upstream: &StatusUpstream,
+        cancel: &CancellationToken,
+    ) -> CoreResult<GitUpstream> {
+        let configured = match &summary.head {
+            GitHead::Branch { name, .. } => self.upstream_ref_name(folder, name, cancel).await?,
+            GitHead::Detached { .. } => String::new(),
+        };
+        let ref_name = if configured.is_empty() {
+            format!("{REMOTE_BRANCHES_PREFIX}{}", upstream.name)
+        } else {
+            configured
+        };
+        Ok(GitUpstream {
+            ref_name,
+            name: upstream.name.clone(),
+            ahead: upstream.ahead_behind.map(|(ahead, _)| ahead),
+            behind: upstream.ahead_behind.map(|(_, behind)| behind),
+            is_gone: upstream.ahead_behind.is_none(),
+        })
+    }
+
+    async fn upstream_ref_name(
+        &self,
+        folder: &GitFolder,
+        branch: &str,
+        cancel: &CancellationToken,
+    ) -> CoreResult<String> {
+        let branch_ref = format!("{LOCAL_BRANCHES_PREFIX}{branch}");
+        let args = ["for-each-ref", "--format=%(upstream)", branch_ref.as_str()];
+        let command = GitCommand::read(&folder.path, &args, QUERY_LIMITS);
+        Ok(self.git.run(&command, cancel).await?.trim().to_string())
+    }
+}
+
+fn in_progress(repository: &Repository) -> Option<OperationInProgress> {
+    operation_in_progress(|marker| repository.git_dir.join(marker).exists())
 }
