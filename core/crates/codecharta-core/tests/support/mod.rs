@@ -1,0 +1,50 @@
+#![allow(
+    dead_code,
+    reason = "each integration test binary compiles this module and uses a different part of it"
+)]
+
+pub mod git_fixture;
+
+pub use git_fixture::TempRepo;
+
+use std::ffi::OsString;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+const FAKE_TOOL: &str = env!("CARGO_BIN_EXE_cc-fake-tool");
+
+pub fn fake_tool() -> PathBuf {
+    PathBuf::from(FAKE_TOOL)
+}
+
+/// Copies the fake tool into `folder` as `name` (plus `.exe` on Windows) and returns its path.
+pub fn install_fake_tool(folder: &Path, name: &str) -> PathBuf {
+    fs::create_dir_all(folder).expect("the tool folder can be created");
+    let installed = folder.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
+    fs::copy(fake_tool(), &installed).expect("the fake tool can be copied");
+    installed
+}
+
+/// What an installed fake tool prints when it is asked for its version.
+pub fn answer_version_with(installed: &Path, stdout: &str, stderr: &str) {
+    let stem = installed
+        .file_stem()
+        .expect("the tool has a file name")
+        .to_string_lossy();
+    fs::write(installed.with_file_name(format!("{stem}.stdout")), stdout).expect("sidecar written");
+    fs::write(installed.with_file_name(format!("{stem}.stderr")), stderr).expect("sidecar written");
+}
+
+/// The git on the test machine's `PATH`, found without starting a process.
+pub fn system_git() -> PathBuf {
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    let file_name = format!("git{}", std::env::consts::EXE_SUFFIX);
+    std::env::split_paths(&path)
+        .map(|folder| folder.join(&file_name))
+        .find(|candidate| candidate.is_file())
+        .expect("git is installed on the test machine")
+}
+
+pub fn args(values: &[&str]) -> Vec<OsString> {
+    values.iter().map(OsString::from).collect()
+}

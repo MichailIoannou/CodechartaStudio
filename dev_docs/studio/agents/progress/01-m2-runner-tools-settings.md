@@ -26,7 +26,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M2 (tests to write first a
 
 - [x] 2.1 Data dir and settings
 - [x] 2.2 Child environment and batch guard
-- [ ] 2.3 Fake tool and temp repo helpers
+- [x] 2.3 Fake tool and temp repo helpers
 - [ ] 2.4 Runner and tree kill
 - [ ] 2.5 Tools and doctor
 - [ ] 2.6 shell.resolvePath
@@ -66,7 +66,6 @@ The `x86_64-pc-windows-gnu` std is installed here, so every task also ran
   `should_keep_a_chosen_store_root_in_the_settings_file`. The protocol tests now use a fresh temp data dir
   per test instead of one shared folder in the system temp dir.
 
-
 ### 2.2
 - `process/env.rs`: `hardened_env`, `askpass_env` as planned, plus `child_env(base, overrides, askpass)` (the
   merge the runner does: request variables over the base, askpass variables last, a later name replaces an
@@ -77,3 +76,19 @@ The `x86_64-pc-windows-gnu` std is installed here, so every task also ran
   program). The refusal names the 1-based argument number and the character, never the argument (it may
   carry credentials). Extra tests: `should_accept_spaces_and_other_metacharacters_for_batch_files`,
   `should_refuse_nul_for_every_program`.
+
+### 2.3
+- `cc-fake-tool` (`codecharta-core/src/bin/cc-fake-tool.rs`) has the plan's modes plus two: asked with
+  `--version` / `-version` it prints the sidecar files `<own stem>.stdout` / `<own stem>.stderr` next to
+  itself (so a copy named `git` or `java` answers what the test wrote, without env variables that would race
+  between parallel tests), and `print-env <name>` (for the `JAVA_HOME` test of 2.5). `echo-args` prints the
+  arguments as one JSON array line. `version <text>` prints the text.
+- `tests/support/mod.rs`: `fake_tool()`, `install_fake_tool(folder, name)`, `answer_version_with(tool,
+  stdout, stderr)`, `system_git()` (scans `PATH`, no child process), `args(&[..])`; re-exports `TempRepo`
+  from `tests/support/git_fixture.rs` (overview section 10 name). `TempRepo` runs git with a temp
+  `HOME`/`XDG_CONFIG_HOME`, `GIT_CONFIG_NOSYSTEM=1`, fixed author/committer names, emails and dates and
+  without inherited `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE`; `env()` hands the same variables to the
+  runner. `mod.rs` carries `#![allow(dead_code, reason = ...)]` because every integration test binary
+  compiles the module and uses a different part of it (the usual shared-test-support pattern).
+- Checked with a throwaway test (init + commit in a `TempRepo`, fake `git --version` from sidecars); not
+  committed, the 2.4 tests use the helpers.
