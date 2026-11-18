@@ -1,7 +1,8 @@
 use std::fmt::Write;
 
 use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
-use codecharta_core_api::values::{FullCommit, PICK_TOKEN_LENGTH, PickToken};
+use codecharta_core_api::secret::Secret;
+use codecharta_core_api::values::{FullCommit, PICK_TOKEN_LENGTH, PickToken, PromptId};
 
 use crate::error::{CoreError, CoreResult};
 
@@ -13,6 +14,8 @@ const IMPORTED_MARKER: &str = "imported";
 const BOUND_IMPORT_HASH_DIGITS: usize = 8;
 const UNBOUND_IMPORT_HASH_DIGITS: usize = 16;
 const HEX_DIGITS_PER_BYTE: usize = 2;
+const ASKPASS_TOKEN_BYTES: usize = 32;
+const PROMPT_ID_BYTES: usize = 16;
 
 pub fn new_project_id() -> CoreResult<ProjectId> {
     let id = random_hex(PROJECT_ID_PREFIX, RANDOM_ID_BYTES)?;
@@ -31,6 +34,22 @@ pub fn new_token() -> CoreResult<PickToken> {
 
 /// Names a log session in its page cursors: 16 hex digits.
 pub fn new_log_session_id() -> CoreResult<String> {
+    random_hex("", RANDOM_ID_BYTES)
+}
+
+/// The secret an askpass helper proves it was started for one operation: 64 hex digits.
+pub fn new_askpass_token() -> CoreResult<Secret> {
+    random_hex("", ASKPASS_TOKEN_BYTES).map(Secret::new)
+}
+
+/// 32 hex digits, unguessable so another renderer frame cannot answer a prompt it never saw.
+pub fn new_prompt_id() -> CoreResult<PromptId> {
+    let id = random_hex("", PROMPT_ID_BYTES)?;
+    PromptId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
+}
+
+/// Names the askpass socket or pipe of one serving core: 16 hex digits.
+pub fn new_endpoint_suffix() -> CoreResult<String> {
     random_hex("", RANDOM_ID_BYTES)
 }
 

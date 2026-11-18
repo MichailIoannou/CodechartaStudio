@@ -37,15 +37,38 @@ impl ServingCore {
     }
 
     pub fn launch(data_dir: tempfile::TempDir, configure: impl FnOnce(&mut Command)) -> Self {
+        Self::spawn(data_dir, Stdio::null(), configure)
+    }
+
+    /// The core's log goes to `log` at the most detailed level.
+    pub fn launch_logging_to(
+        data_dir: tempfile::TempDir,
+        log: std::fs::File,
+        configure: impl FnOnce(&mut Command),
+    ) -> Self {
+        Self::spawn(data_dir, Stdio::from(log), |command| {
+            configure(command);
+            command.args(["--log-level", "trace"]);
+        })
+    }
+
+    fn spawn(
+        data_dir: tempfile::TempDir,
+        stderr: Stdio,
+        configure: impl FnOnce(&mut Command),
+    ) -> Self {
         let mut command = Command::new(CORE_EXECUTABLE);
         configure(&mut command);
+        if !command.get_args().any(|arg| arg == "--log-level") {
+            command.args(["--log-level", "debug"]);
+        }
         let mut child = command
-            .args(["--log-level", "debug", "--data-dir"])
+            .arg("--data-dir")
             .arg(data_dir.path())
             .arg("serve")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(stderr)
             .spawn()
             .expect("the core binary starts");
         let stdin = child.stdin.take();

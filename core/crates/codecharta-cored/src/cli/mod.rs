@@ -14,6 +14,7 @@ use clap::{Parser, Subcommand};
 use codecharta_core::{Core, CoreConfig};
 use tracing_subscriber::filter::LevelFilter;
 
+use crate::askpass::run_askpass;
 use crate::serve::serve;
 use doctor::{DoctorOptions, run_doctor};
 use git::{GitCommand, run_git};
@@ -72,24 +73,32 @@ pub enum Command {
         #[command(subcommand)]
         command: GitCommand,
     },
+    /// Ask the running app for a credential git or ssh needs and print the answer; git and ssh call the
+    /// binary with the prompt alone, which does the same
+    Askpass { prompt: String },
 }
 
+/// The askpass helper logs nothing: git would show its stderr to the user.
 pub fn run(cli: Cli) -> ExitCode {
-    init_logging(cli.log_level);
+    let data_dir = cli.data_dir;
+    if !matches!(cli.command, Command::Askpass { .. }) {
+        init_logging(cli.log_level);
+    }
     match cli.command {
-        Command::Serve => run_serve(cli.data_dir),
+        Command::Askpass { prompt } => run_askpass(&prompt, &|name| std::env::var_os(name)),
+        Command::Serve => run_serve(data_dir),
         Command::Doctor { json, refresh } => {
-            run_doctor_command(cli.data_dir, &DoctorOptions { json, refresh })
+            run_doctor_command(data_dir, &DoctorOptions { json, refresh })
         }
-        Command::Projects { command } => run_store_command(cli.data_dir, |core, runtime| {
+        Command::Projects { command } => run_store_command(data_dir, |core, runtime| {
             run_projects(core, runtime, command)
         }),
-        Command::Snapshots { command } => run_store_command(cli.data_dir, |core, runtime| {
+        Command::Snapshots { command } => run_store_command(data_dir, |core, runtime| {
             run_snapshots(core, runtime, command)
         }),
-        Command::Git { command } => run_store_command(cli.data_dir, |core, runtime| {
-            run_git(core, runtime, command)
-        }),
+        Command::Git { command } => {
+            run_store_command(data_dir, |core, runtime| run_git(core, runtime, command))
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 {
   "protocolVersion": 1,
-  "rendererEvents": ["core.progress", "repository.changed"],
+  "rendererEvents": ["core.progress", "repository.changed", "prompt.requested", "prompt.closed"],
   "rendererMethods": [
     "core.ping",
     "paths.get",
@@ -40,6 +40,8 @@
     "git.isAncestor",
     "git.measureDistances",
     "git.refsAt",
-    "git.changedFiles"
+    "git.changedFiles",
+    "prompt.answer",
+    "prompt.cancel"
   ]
 }

@@ -5,6 +5,7 @@ pub mod git;
 pub mod ids;
 pub mod process;
 pub mod projects;
+pub mod prompt;
 pub mod recycle;
 pub mod snapshots;
 pub mod store;
@@ -36,6 +37,7 @@ use process::ProcessRunner;
 use process::env::hardened_env;
 use projects::ProjectRepository;
 use projects::tokens::PickTokens;
+use prompt::PromptBroker;
 use recycle::SystemRecycler;
 use snapshots::SnapshotRepository;
 use store::Store;
@@ -55,6 +57,7 @@ pub struct Core {
     git_memory: GitMemory,
     user_environment: UserEnvironment,
     operation_queue: OperationQueue,
+    prompts: Arc<PromptBroker>,
 }
 
 impl Core {
@@ -84,6 +87,7 @@ impl Core {
             git_memory: GitMemory::default(),
             user_environment: UserEnvironment::read(&|name| std::env::var_os(name)),
             operation_queue: OperationQueue::default(),
+            prompts: Arc::default(),
         })
     }
 
@@ -138,6 +142,11 @@ impl Core {
     /// Every mutating git command of the core waits its turn here (plans 04–06).
     pub fn operation_queue(&self) -> &OperationQueue {
         &self.operation_queue
+    }
+
+    /// Network git operations open a prompt session here; `serve` starts the askpass server for it.
+    pub fn prompts(&self) -> &Arc<PromptBroker> {
+        &self.prompts
     }
 
     pub fn subscribe_repository_changes(

@@ -17,6 +17,7 @@ pub const MAX_EXCLUDE_PATTERN_CHARS: usize = 200;
 pub const MAX_MAP_CHECKSUM_LENGTH: usize = 128;
 pub const MAX_ROOT_NAME_CHARS: usize = 255;
 pub const MAX_LOG_CURSOR_LENGTH: usize = 128;
+pub const MAX_PROMPT_ID_LENGTH: usize = 64;
 pub const MAX_LOG_FILTER_CHARS: usize = 200;
 pub const MAX_REPO_PATH_LENGTH: usize = 1024;
 const PARENT_SEGMENT: &str = "..";
@@ -118,11 +119,19 @@ fn is_root_name(value: &str) -> bool {
             .any(|character| character.is_control() || character == PATH_SEPARATOR)
 }
 
-fn is_log_cursor(value: &str) -> bool {
-    (1..=MAX_LOG_CURSOR_LENGTH).contains(&value.len())
+fn is_token_text(value: &str, max_length: usize) -> bool {
+    (1..=max_length).contains(&value.len())
         && value
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+}
+
+fn is_log_cursor(value: &str) -> bool {
+    is_token_text(value, MAX_LOG_CURSOR_LENGTH)
+}
+
+fn is_prompt_id(value: &str) -> bool {
+    is_token_text(value, MAX_PROMPT_ID_LENGTH)
 }
 
 fn is_log_filter_text(value: &str) -> bool {
@@ -282,6 +291,12 @@ validated_text!(
     LogCursor,
     is_log_cursor,
     "use the cursor of the previous page: 1 to 128 ASCII letters, digits, _ or -"
+);
+
+validated_text!(
+    PromptId,
+    is_prompt_id,
+    "use the id of an open prompt: 1 to 64 ASCII letters, digits, _ or -"
 );
 
 validated_text!(

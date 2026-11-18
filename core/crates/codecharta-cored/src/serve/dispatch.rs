@@ -22,6 +22,7 @@ use codecharta_core_api::methods::projects::{
     ProjectsRelinkFolder, ProjectsRemoveFolder, ProjectsResolveCommit, ProjectsSetActive,
     ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
 };
+use codecharta_core_api::methods::prompt::{PromptAnswerMethod, PromptCancelMethod};
 use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
 use codecharta_core_api::methods::snapshots::{
     SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
@@ -38,7 +39,9 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
-use super::{git_routes, projects_routes, snapshots_routes, store_routes, tools_routes};
+use super::{
+    git_routes, projects_routes, prompt_routes, snapshots_routes, store_routes, tools_routes,
+};
 
 pub type DispatchResult = Result<Value, ResponseError>;
 pub type HandlerFuture<'core> = Pin<Box<dyn Future<Output = DispatchResult> + Send + 'core>>;
@@ -245,6 +248,14 @@ const ROUTES: &[Route] = &[
     Route {
         name: GitChangedFilesMethod::NAME,
         handler: git_routes::changed_files,
+    },
+    Route {
+        name: PromptAnswerMethod::NAME,
+        handler: prompt_routes::answer,
+    },
+    Route {
+        name: PromptCancelMethod::NAME,
+        handler: prompt_routes::cancel,
     },
 ];
 

@@ -46,6 +46,10 @@ import type { ProgressParams } from "./ProgressParams"
 import type { Project } from "./Project"
 import type { ProjectIdParams } from "./ProjectIdParams"
 import type { ProjectList } from "./ProjectList"
+import type { PromptAnswerParams } from "./PromptAnswerParams"
+import type { PromptCancelParams } from "./PromptCancelParams"
+import type { PromptClosed } from "./PromptClosed"
+import type { PromptRequested } from "./PromptRequested"
 import type { RecordMapFactsParams } from "./RecordMapFactsParams"
 import type { RefsAt } from "./RefsAt"
 import type { RelinkFolderParams } from "./RelinkFolderParams"
@@ -102,7 +106,8 @@ export const CORE_ERROR_CODES = [
     "PARSE_FAILED",
     "COMMAND_FAILED",
     "LOG_SESSION_EXPIRED",
-    "UNKNOWN_REVISION"
+    "UNKNOWN_REVISION",
+    "AUTHENTICATION_CANCELLED"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {
@@ -155,11 +160,15 @@ export type CoreMethods = {
     "git.measureDistances": { params: GitMeasureDistancesParams; result: GitCommitDistances }
     "git.refsAt": { params: GitCommitParams; result: RefsAt }
     "git.changedFiles": { params: GitChangedFilesParams; result: GitChangedFiles }
+    "prompt.answer": { params: PromptAnswerParams; result: null }
+    "prompt.cancel": { params: PromptCancelParams; result: null }
 }
 
 export type CoreEvents = {
     "core.progress": ProgressParams
     "repository.changed": RepositoryChanged
+    "prompt.requested": PromptRequested
+    "prompt.closed": PromptClosed
 }
 
 export type CoreClientNotifications = {
@@ -205,11 +214,18 @@ export const RENDERER_METHODS = [
     "git.isAncestor",
     "git.measureDistances",
     "git.refsAt",
-    "git.changedFiles"
+    "git.changedFiles",
+    "prompt.answer",
+    "prompt.cancel"
 ] as const satisfies ReadonlyArray<keyof CoreMethods>
 
 export type RendererMethod = (typeof RENDERER_METHODS)[number]
 
-export const RENDERER_EVENTS = ["core.progress", "repository.changed"] as const satisfies ReadonlyArray<keyof CoreEvents>
+export const RENDERER_EVENTS = [
+    "core.progress",
+    "repository.changed",
+    "prompt.requested",
+    "prompt.closed"
+] as const satisfies ReadonlyArray<keyof CoreEvents>
 
 export type RendererEvent = (typeof RENDERER_EVENTS)[number]

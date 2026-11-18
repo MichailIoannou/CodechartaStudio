@@ -18,6 +18,9 @@ use crate::methods::projects::{
     ProjectsRelinkFolder, ProjectsRemoveFolder, ProjectsResolveCommit, ProjectsSetActive,
     ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
 };
+use crate::methods::prompt::{
+    PromptAnswerMethod, PromptCancelMethod, PromptClosedEvent, PromptRequestedEvent,
+};
 use crate::methods::shell::ShellResolvePath;
 use crate::methods::snapshots::{
     SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
@@ -169,11 +172,15 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<GitMeasureDistancesMethod>(),
     MethodSpec::of::<GitRefsAtMethod>(),
     MethodSpec::of::<GitChangedFilesMethod>(),
+    MethodSpec::of::<PromptAnswerMethod>(),
+    MethodSpec::of::<PromptCancelMethod>(),
 ];
 
 pub const EVENTS: &[EventSpec] = &[
     EventSpec::of::<CoreProgress>(),
     EventSpec::of::<RepositoryChangedEvent>(),
+    EventSpec::of::<PromptRequestedEvent>(),
+    EventSpec::of::<PromptClosedEvent>(),
 ];
 
 pub const CLIENT_NOTIFICATIONS: &[EventSpec] = &[EventSpec::of::<CoreCancel>()];

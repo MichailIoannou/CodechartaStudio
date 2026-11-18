@@ -32,3 +32,4 @@ export type ErrorCode =
     | "COMMAND_FAILED"
     | "LOG_SESSION_EXPIRED"
     | "UNKNOWN_REVISION"
+    | "AUTHENTICATION_CANCELLED"

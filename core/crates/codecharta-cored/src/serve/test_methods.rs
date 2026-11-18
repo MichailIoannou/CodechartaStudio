@@ -10,6 +10,9 @@ pub use enabled::ROUTES;
 mod enabled {
     use std::time::Duration;
 
+    use codecharta_core::git::GitCli;
+    use codecharta_core::git::command::{GitCommand, Limits};
+    use codecharta_core::prompt::SessionRequest;
     use codecharta_core::{Core, CoreError};
     use codecharta_core_api::events::ProgressParams;
     use serde::Deserialize;
@@ -17,10 +20,47 @@ mod enabled {
 
     use super::super::dispatch::{HandlerFuture, RequestContext, Route, domain_error};
 
-    pub const ROUTES: &[Route] = &[Route {
-        name: "core.sleep",
-        handler: sleep,
-    }];
+    pub const ROUTES: &[Route] = &[
+        Route {
+            name: "core.sleep",
+            handler: sleep,
+        },
+        Route {
+            name: "core.credentialFill",
+            handler: credential_fill,
+        },
+    ];
+
+    const CREDENTIAL_LIMITS: Limits = Limits {
+        timeout: Duration::from_secs(60),
+        max_stdout_bytes: 64 * 1024,
+    };
+    const CREDENTIAL_ARGS: [&str; 4] = ["-c", "credential.helper=", "credential", "fill"];
+    const CREDENTIAL_REQUEST: &str = "protocol=https\nhost=example.test\n\n";
+
+    /// A network git command that asks for a user name and a password through the core's prompts, without
+    /// any network: what fetch, pull and push will do from M8 on.
+    fn credential_fill(core: &Core, context: RequestContext, _params: Value) -> HandlerFuture<'_> {
+        Box::pin(async move {
+            let request = SessionRequest {
+                request_id: Some(context.id.clone()),
+                repository_label: Some("credential test".to_string()),
+            };
+            let session = core.prompts().open_session(request).map_err(domain_error)?;
+            let command = GitCommand::network(
+                core.data_dir(),
+                &CREDENTIAL_ARGS,
+                CREDENTIAL_LIMITS,
+                session.askpass().cloned(),
+            )
+            .with_stdin(CREDENTIAL_REQUEST.to_string());
+            let filled = GitCli::new(core.tools(), core.data_dir())
+                .run(&command, &context.cancel)
+                .await;
+            let filled = session.settle(filled).map_err(domain_error)?;
+            Ok(Value::String(filled))
+        })
+    }
 
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase", deny_unknown_fields)]

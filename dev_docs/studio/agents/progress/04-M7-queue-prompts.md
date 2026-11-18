@@ -34,7 +34,7 @@ spaces in the helper path work on Linux; non-zero exit is a clean cancel. Window
 - [x] 1. Spike (Linux) — (b), (d), (g) open, need Windows (procedures below)
 - [x] 2. Runner environment
 - [x] 3. Queue and progress
-- [ ] 4. Prompt broker
+- [x] 4. Prompt broker
 - [ ] 5. Renderer dialog (later)
 
 ## Notes
@@ -151,4 +151,103 @@ small launcher with `CREATE_NO_WINDOW` and closed stdin, as in S5):
 - Not done here (M8 builds it on these pieces): the operation wrapper that runs inside the queue, opens the
   prompt session, re-reads inside the queue, calls `GitMemory::forget_logs` / `fetched`, and emits
   `repository.changed` at the end.
+
+### 4. Prompt broker, server, helper
+- Api first: `methods/prompt.rs` (`PromptKind` secret | text | confirm, `PromptRequested { promptId, requestId,
+  repositoryLabel, kind, message }`, `PromptClosed { promptId }`, `PromptAnswerParams { promptId, answer:
+  Secret }`, `PromptCancelParams { promptId }`, both `deny_unknown_fields`; `MAX_PROMPT_MESSAGE_CHARS` /
+  `MAX_PROMPT_ANSWER_CHARS` 4096); value `PromptId` (1–64 of `[A-Za-z0-9_-]`, generated as 32 hex digits);
+  error code appended: `AUTHENTICATION_CANCELLED`. Methods `prompt.answer` and `prompt.cancel` are the only
+  new **renderer** methods (result `null`); events `prompt.requested` / `prompt.closed` (renderer). Nothing
+  that opens sessions, reveals the endpoint or the token is callable. Contract regenerated.
+- **Deviation — `requestId`, not `operationId`:** the core knows only the JSON-RPC request id of the request
+  that runs git; the shell maps it back to the renderer's `operationId` exactly as plan 01 specifies for
+  `core.progress`. The relay (01-M3) must apply that mapping to `prompt.requested` too.
+- `codecharta-core/src/prompt/`: `kind.rs` `classify`; `broker.rs` `PromptBroker` (in `Core`, `Arc`,
+  `core.prompts()`): `attach` / `detach` (by the server), `open_session(SessionRequest { request_id,
+  repository_label }) -> PromptSession` (guard; `askpass()`, `is_cancelled_by_user()`, `settle(result)`;
+  dropping it closes the session and its prompts), `ask(token, message)` (server side), `answer`, `cancel`,
+  `subscribe() -> broadcast::Receiver<PromptEvent>`. Token check: every session compared with an XOR fold over
+  equal-length tokens, no early exit, result through `std::hint::black_box`; tokens 64 hex digits from
+  `getrandom`. `server.rs` `AskpassServer::start(broker, helpers)` (wire types `AskpassRequest { token: Secret,
+  prompt }`, `AskpassReply` `{"answer":…}` / `{"cancel":true}`); `helper.rs` `ask_broker(endpoint, token,
+  prompt) -> HelperOutcome` (blocking std I/O on a thread with the 30-minute timeout; named pipe opened as a
+  file on Windows, retried while `ERROR_PIPE_BUSY`).
+- **Only the current user can reach the endpoint**: Linux/macOS — the socket lives in
+  `<temp>/cc-askpass-<16 hex>/` created with mode `0700` *before* the socket is bound (no window), the socket
+  is then `chmod 0600`; on macOS `temp_dir()` is already per user. Tested
+  (`should_make_the_socket_reachable_only_by_the_current_user`). Windows — `first_pipe_instance(true)` (fails
+  if anyone pre-created the name), `reject_remote_clients(true)`; the default named-pipe DACL grants full
+  access to the creator owner, SYSTEM and administrators and *read* access to Everyone, so another local user
+  can open the pipe read-only but cannot write a token and gets nothing; the token still has to match.
+  Untested on Windows (type-checked only); an explicit owner-only DACL would need more `unsafe` and is not done.
+- cored: `askpass.rs` (`askpass_prompt` = the dispatch rule of overview section 10; `run_askpass` prints the
+  answer and `\n`, exit 0, else exit 1, nothing on stderr; logging is never initialised in this mode), `main.rs`
+  checks it before clap; explicit `codecharta-core askpass <prompt>` subcommand. `serve` starts the
+  `AskpassServer` (helpers from `current_exe()` via `askpass_helpers`) and forwards broker events as
+  notifications (`serve/prompt_routes.rs`); a server that cannot start only logs a warning. The session's
+  request trace logs method names only (unchanged), so `prompt.answer` params never reach the log.
+- Test-only method (feature `test-methods`, not in the contract): `core.credentialFill` runs `git -c
+  credential.helper= credential fill` as a network command with a prompt session — the first real
+  end-to-end path over stdio, and the template for M8's operations.
+- Tests (unit, `prompt/*.rs`): `should_classify_yes_no_as_confirm_username_as_text_else_secret`,
+  `should_refuse_a_wrong_token_and_send_nothing`, `should_refuse_a_token_of_a_closed_session`,
+  `should_answer_each_prompt_once`, `should_close_pending_prompts_when_the_operation_ends`,
+  `should_fail_with_authentication_cancelled_after_the_user_cancelled`,
+  `should_refuse_an_answer_with_a_line_break_without_repeating_it`, `should_refuse_an_overlong_prompt`,
+  `should_offer_no_askpass_without_a_listening_server`, `should_give_every_session_its_own_token`,
+  `should_match_only_the_same_token`, server wire and socket-mode tests; `Secret` Debug in the api (task 2).
+  `tests/prompt_roundtrip.rs`: answer reaches the helper; cancel, end of operation and a wrong token give no
+  answer; no listening after the server is dropped. `codecharta-cored/tests/askpass_mode.rs` (real binary):
+  prints exactly answer + newline, exit 0, empty stderr; exit 1 and no output on cancel and on a wrong token;
+  the explicit subcommand; **real git** `credential fill` asks Username (text) then Password (secret) and gets
+  both verbatim (`"`, `%`, `&`, space, `ü`); **ssh-keygen -y** on an encrypted key gets the passphrase
+  (unix); over stdio (`test-methods`): two `prompt.requested` with `requestId`, two `prompt.answer`, two
+  `prompt.closed`, git's output, and the core's trace-level log contains neither answer; `prompt.cancel` over
+  stdio → `AUTHENTICATION_CANCELLED`; unknown / malformed answers → `NOT_FOUND` / `BAD_REQUEST` without the
+  answer in the reply. SSH host-key and remote password prompts stay manual (section 6, checks 7, 8, 13).
+
+### Gates at the end of tasks 1–4 (Linux)
+- `core/`: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings` (also with
+  `--target x86_64-pc-windows-gnu`, type-check only), `cargo test --all-features` (475 passed) green;
+  `npm run contract` leaves no diff; root `npm run format:check` green; `visualization/`: `npm run lint`,
+  `npx tsc --noEmit -p tsconfig.json`, `npm test` (636 suites, 4861 passed, 2 todo; coverage 96.71 / 90.1 /
+  95.33 / 96.62) green. Only generated `model/coreApi/` files and `electron/coreMethods.generated.json`
+  changed in `visualization/`. No changelog entry: nothing user-visible until task 5. Not run on Windows.
+
+### Prompt protocol for task 5 (renderer)
+- Subscribe to `prompt.requested` (`PromptRequested`) and `prompt.closed` (`PromptClosed`) in a root service.
+  `requestId` arrives already mapped to the `operationId` the renderer passed to `bridge.request` (shell
+  relay, 01-M3) — or `null` for a prompt outside a request (none exist yet).
+- `kind`: `secret` → masked input; `text` → visible input; `confirm` → Yes / No buttons that answer the
+  literal `yes` / `no` (ssh also accepts a fingerprint; not offered). Show `message` verbatim
+  (interpolation, multi-line, may be cut by ssh); never parse paths out of it.
+- Answer: `bridge.request("prompt.answer", { promptId, answer })`; cancel (button, Escape):
+  `bridge.request("prompt.cancel", { promptId })`. Both answer `null`; `NOT_FOUND` means the prompt already
+  closed (ignore); `BAD_REQUEST` for an answer with a line break or over 4096 characters (validate first).
+- Close the dialog on `prompt.closed` for its `promptId` (it follows every answer and cancel, and arrives for
+  every pending prompt when the operation ends). Queue a second `prompt.requested` behind the open one.
+- Clear the input after answering; keep nothing (no signal holding the answer after the request).
+- The operation then answers normally, or fails with `AUTHENTICATION_CANCELLED` after a cancel (say
+  "cancelled", not an error). Progress: `core.progress` with the same `requestId`. Cancelling the whole
+  operation: `bridge.cancel(operationId)` (→ `core.cancel`), which also closes its prompts.
+
+### For M8–M11 (mutating operations)
+- Run every mutating command inside `core.operation_queue().run_exclusive(&repository_id, &context.cancel,
+  async { … })` (repository id from `locate`); re-read status / refs / listings inside it.
+- Network commands: open `core.prompts().open_session(SessionRequest { request_id: Some(context.id.clone()),
+  repository_label })` inside the queue (so a waiting operation has no session), build
+  `GitCommand::network(root, args, limits, session.askpass().cloned())`, run it with
+  `GitCli::run_reporting(&command, &context.cancel, &progress_sink)` (sink → `core.progress`), classify a
+  non-zero exit with `command_failed`, then `session.settle(result)`; the session drops at the end of the
+  operation, closing its prompts. Long timeouts (1800 s) because a person may be answering.
+- Mutating (non-network) commands: `GitCommand { kind: CommandKind::Mutating, .. }` (keeps hooks' locale,
+  English git messages even under `LC_ALL`).
+- Afterwards always: `GitMemory::forget_logs` (fetch: `fetched(repository_id, is_shallow)`), fresh status /
+  refs, `repository.changed`.
+- Classification rules for authentication / network texts (`authenticationRequired`, `networkUnavailable`)
+  and their error codes are not added yet (M8/M11, append-only). A missing ssh helper (Windows, no space-free
+  path) leaves ssh without askpass; M11 should map its failure to the documented "load the key into
+  ssh-agent / Pageant" message.
+
 
