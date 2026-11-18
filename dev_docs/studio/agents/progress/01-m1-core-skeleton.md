@@ -27,7 +27,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M1 (the test names to writ
 
 ## Steps
 
-- [ ] 1.1 Commit scope, gitignore, toolchain pin
+- [x] 1.1 Commit scope, gitignore, toolchain pin
 - [ ] 1.2 Cargo workspace and crates
 - [ ] 1.3 Protocol envelopes and error codes
 - [ ] 1.4 serve over stdio
@@ -37,4 +37,18 @@ Copied from `01-core-and-desktop-shell.md` section 4, M1 (the test names to writ
 - [ ] 1.8 Licences
 
 ## Notes
+
+Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0 (rustup 1.29.2, toolchain `stable`),
+node 26.13.0, npm 12.2.2. No `mise`, `cargo-deny` or `cargo-cyclonedx` installed.
+
+### 1.1
+- Verified: `commitlint.config.js` `scope-enum` as the plan says; `mise.toml` pins `java`/`node`, no Rust;
+  `.gitignore` had no Rust entries.
+- **Deviation (toolchain pin):** `rust-toolchain.toml` with `channel = "1.95.0"` makes rustup refuse to
+  run here (`toolchain '1.95.0-x86_64-unknown-linux-gnu' is not installed`; it would download it) because
+  this machine has the same version only under the name `stable`. Per the milestone instructions the
+  channel is pinned to `stable`, and the workspace declares `rust-version = "1.95"` so an older compiler
+  fails clearly. `mise.toml` gets `rust = "stable"` to match (mise's tool name is `rust`; mise is not
+  installed here, so not run). Owner: switch both to an exact version (e.g. `1.95.0`) once every machine
+  and CI may download it.
 
