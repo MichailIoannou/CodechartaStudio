@@ -1,6 +1,7 @@
 pub mod atomic;
 pub mod lock;
 pub mod paths;
+pub mod session;
 mod sweep;
 
 use std::path::Path;
@@ -13,6 +14,7 @@ use crate::error::{CoreError, CoreResult};
 use atomic::{ProjectLocks, read_json_if_exists, write_json_atomic};
 use lock::StoreLock;
 use paths::StorePaths;
+use session::SessionRepository;
 
 pub const STORE_SCHEMA_VERSION: u32 = 1;
 const SCHEMA_VERSION_FIELD: &str = "schemaVersion";
@@ -87,6 +89,19 @@ impl Store {
 
     pub fn is_writable(&self) -> bool {
         self.lock.is_some()
+    }
+
+    pub fn ensure_writable(&self) -> CoreResult<()> {
+        if self.is_writable() {
+            return Ok(());
+        }
+        Err(CoreError::NotAllowed(
+            "The store is open for reading only.".to_string(),
+        ))
+    }
+
+    pub fn session(&self) -> SessionRepository<'_> {
+        SessionRepository::new(self)
     }
 
     pub fn paths(&self) -> &StorePaths {

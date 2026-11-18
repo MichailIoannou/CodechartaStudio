@@ -31,7 +31,7 @@ codes need an `ErrorCode` variant, `ErrorCode::ALL`, a `CoreError` variant and i
 - [x] 2. Atomic writes
 - [x] 3. Open, migrations, sweep
 - [x] 4. Lock
-- [ ] 5. Session
+- [x] 5. Session
 - [ ] 6. store.status and degraded serve
 
 ## Notes
@@ -104,4 +104,13 @@ compiles the `cfg(windows)` code; nothing ran on Windows.
 - Two-process tests in `codecharta-core/tests/store_lock.rs`: the second process is `cc-fake-tool
   hold-store-lock <root>` (new mode: takes `StoreLock`, prints `locked`, holds until stdin closes).
   Linux uses `flock`; Windows (`LockFileEx`) is not verified here.
+
+### 5. Session
+- `store/session.rs`: `SessionRepository<'store>` (from `Store::session()`) with `active_project() ->
+  CoreResult<Option<ProjectId>>` and `set_active_project(Option<&ProjectId>)`; `session.json` is
+  `{ "activeProjectId": "p-..." | null }`, written atomically. A missing file is no active project; an
+  unreadable one (bad JSON or an invalid id) is logged and also reads as none, so a damaged file never
+  blocks start-up. Writes need a writable store (`Store::ensure_writable`, `NOT_ALLOWED` otherwise).
+- Not here: checking that the project exists (`projects.setActive` in M2 must do it, and clear a stale id
+  when a project is deleted), and the RPC methods `projects.getActive` / `projects.setActive` (M2).
 
