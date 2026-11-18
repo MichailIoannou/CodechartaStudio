@@ -38,7 +38,7 @@ Dark
 Light
   CodeCharta Light
   VS Light
-  IntelliJ Light
+  Rider Day
 ──
   Follow system
 ```
@@ -192,10 +192,10 @@ Studio:  [   kt 42.25% ░░▒▒▓▓ scss 28.17% ░░▒▒▓▓ ts 25.3
 
 ## Deviations from the plan
 
-1. **Theme label "IntelliJ Light" vs "Rider Light".** The owner decisions in `README.md` name "Rider
-   Light"; plan 02 registers `intellij-light` "IntelliJ Light" and says labels name the palette
-   descriptively. The design follows the plan's label (the palette is JetBrains' IntelliJ Light, which
-   Rider uses) and asks the owner (open question 9).
+1. **Theme label "Rider Day"** (owner, open question 9): the official JetBrains name of Rider's light
+   theme, instead of plan 02's "IntelliJ Light" and the README's "Rider Light". Plan 02 M5 checks the
+   palette against the installed Rider (Rider 2026.x may default to the "Islands" look) before
+   finalising the token values; the label is "Rider Day" either way.
 2. **Toggle titles name the destination theme** ("Switch to light theme (CodeCharta Light)"), so a user
    on Nord is not surprised to land on CodeCharta Light.
 3. **Toggle position** as the plan says, before Settings (the analyses indicator that once sat there
@@ -215,5 +215,8 @@ bar, the link button becoming a square, and the LEGEND edge tab becoming a tool 
    disappears on a dark map. Proposed: add `border-r border-base-300` (explorer) / `border-l
    border-base-300` (inspector), visible in every theme. Without it the panels still work but read as
    floating on the map.
+   *Owner (open question 10):* "look at how Zed or Rider do it and copy that". For the first
+   implementation the `base-300` border line ships; plan 02 M5's eyeball pass compares the installed
+   Zed and Rider (Islands look: rounded, gapped panels) and adjusts this edge if they differ.
 2. **Hard-coded colours in T3** are replaced by tokens as plan 02 M1 step 3 already intends; listed so
    the implementer has the full set.

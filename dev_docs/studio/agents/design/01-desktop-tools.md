@@ -95,26 +95,44 @@ Second line = purpose + problem:
 - **Data folder** `<dataDir>` + `btn btn-ghost btn-xs` "Show" (`fa-regular fa-folder-open`, title
   "Show in file manager") → `showDataFolder()`.
 - **Store folder** (plan 03 M6): path + "Show" + "Change…"; "Use default" only when custom.
-  - "Change…" first asks (yes/no `ConfirmDialogComponent`, title "Change Store Folder"): "Choose an
-    empty folder, or one that already holds a CodeCharta store. CodeCharta copies your projects and
-    analyses there and restarts; the old folder stays where it is. Continue?" → Yes → native picker
-    (`store.chooseRoot`).
-  - While copying: the button is `loading`, text beside it "Copying the store — CodeCharta restarts
-    when it is done." All other D1 controls disabled.
+  - "Change…" goes straight to the native folder picker (`store.chooseRoot`), with no confirmation
+    (owner decision OD5). Cancelled: nothing changes.
+  - While the core copies and reopens the store: the button is `loading`, text beside it "Copying the
+    store…". All other D1 controls disabled. The app does **not** restart: when the core answers, the
+    rows show the new path, a toast (success) says "Analyses are now kept in '<path>'.", and the
+    renderer reloads projects, working folder and the shown analysis from the new store (plan impact in
+    `owner-decisions.md` OD5).
   - Refusals (`store.changeRoot` errors) as toast (error): non-empty folder without a store "'<path>'
     is not empty and holds no CodeCharta store. Choose an empty folder."; I/O error "The store could
     not be copied: <message>". Nothing changes.
-  - "Use default": yes/no "Use the default store folder '<path>'? CodeCharta restarts." →
-    `paths.resetStoreRoot` then relaunch.
+  - "Use default": no confirmation; `paths.resetStoreRoot`, same loading, toast and reload as above,
+    no restart.
 
-## D4 Core state
+## D4 Core state (app-wide, owner decision OD5)
 
-Above the tool rows, replacing them while the core is not ready (`DesktopEnvironment.coreState()`):
+The app never closes or restarts because the core stops; it shows that the core is away and recovers
+by itself when the core is back (plan 01's shell respawns it with backoff).
+
+**Everywhere — the workspace status element** (`05-snapshots.md` W1) is the app-wide indicator:
+
+| `coreState()` | W1 trigger | W1 dropdown |
+|---|---|---|
+| `starting` / `restarting` | icon `fa-plug` with the indeterminate sweep, text "Connecting to the core…" | "The CodeCharta core is starting." |
+| `unavailable` (gave up after repeated failures) | icon `fa-plug-circle-xmark text-error`, text "Core offline", `bg-error/15` | "The CodeCharta core is not running. What is on screen stays; projects, git and analyses are paused." + `btn btn-sm` "Restart core" + "Open desktop tools" |
+| back to `ready` after an outage | green flash (as "finished"), toast (success) "Reconnected to the CodeCharta core." | normal content, reloaded |
+
+**What other areas do meanwhile:** keep showing their last data (the map, History lists, the project
+overview); every action that needs the core is disabled with `title` "The CodeCharta core is offline";
+open dialogs stay open, their submit buttons disabled the same way. Requests that fail with
+`CORE_UNAVAILABLE` are not shown as error toasts one by one. On reconnect, every core-backed service
+reloads its data (projects, working folder, git status and refs, snapshots, jobs).
+
+**In this section** (above the tool rows, replacing them while the core is not ready):
 
 | State | Look |
 |---|---|
 | starting | `alert alert-info text-sm` with `loading-spinner loading-xs` "Starting the CodeCharta core…" |
-| stopped / crashed | `alert alert-error text-sm` "The CodeCharta core is not running. Projects, git and analyses are unavailable." + `btn btn-sm` "Restart core" |
+| stopped / crashed / unavailable | `alert alert-error text-sm` "The CodeCharta core is not running. Projects, git and analyses are paused until it is back." + `btn btn-sm` "Restart core" |
 | restarting | as starting, "Restarting the CodeCharta core…" |
 
 ## States of the whole section
@@ -140,9 +158,9 @@ buttons. Icon-only buttons have `aria-label` = `title`.
 ## Deviations from the plan
 
 1. **Summary line** (D1) is an addition: five rows do not tell at a glance whether analyses can run.
-2. **Confirm before changing the store folder** (D3): the shell's flow goes straight from the picker
-   to copying and relaunching; a restart the user did not expect loses nothing but surprises, so the
-   design asks first, before the picker.
+2. **No restart and no confirmation when the store folder changes; app-wide offline state** (owner
+   decision OD5): plan 03's `app.relaunch()` after `store.chooseRoot` / `paths.resetStoreRoot` is
+   dropped, and the core-state display moves from this panel alone to the workspace status element.
 3. **Worktree temp folder.** Plan 05's `worktree-failed` hint says "set a short worktree temp folder in
    Tools settings", but no such setting exists in plan 01's `CoreSettings` or here. Until a plan adds
    it, the hint keeps only the `core.longpaths` command (area 05 S6 already does).

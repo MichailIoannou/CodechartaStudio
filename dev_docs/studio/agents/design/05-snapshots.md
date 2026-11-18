@@ -177,7 +177,7 @@ ACTIVITY                                              [Clear finished]
 | project, working folder without analyses | `⎇ main (not analysed)` | MAP: "No analysis yet." + "Analyse current checkout" (`btn-primary`) |
 | git unavailable | icon `fa-triangle-exclamation text-warning`, folder label instead of branch | GIT: the area 04 problem sentence + "Open desktop tools" |
 | loading git status | branch replaced by `skeleton h-3 w-24` | GIT section skeleton |
-| core not running | icon `fa-plug-circle-xmark text-error`, "Core not running" | only "Restart core" (area 01 D4) |
+| core starting / offline | as `01-desktop-tools.md` D4 ("Connecting to the core…" / "Core offline") | as D4: "Restart core", "Open desktop tools"; last data stays on screen |
 
 **Keyboard.** As the map selector: Enter / Space / ArrowDown open; Tab moves through the section
 buttons; Escape closes and refocuses the trigger. While open, the ref picker popover traps nothing:
