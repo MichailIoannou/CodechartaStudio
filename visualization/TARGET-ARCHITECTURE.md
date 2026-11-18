@@ -76,6 +76,20 @@ The split that makes an engine movable: keep option/geometry construction **pure
 cloud's `wordCloudOption.builder.ts`, the map's `geometryGenerator`) and keep the component a
 thin host that owns only the canvas, the resize observer and the render debounce.
 
+## Desktop shell and core
+
+The desktop app is three processes: this Angular bundle (the renderer), the Electron main process in
+`electron/` (the shell) and the headless Rust core in `core/` at the repository root. Everything that is
+not presentation — projects, the managed store, git, `ccsh` runs, snapshots, comparisons — belongs in the
+core, which knows nothing about Electron or Angular. The shell only starts the core, relays between it and
+the renderer, and does what needs Electron (window, native dialogs, reveal in the file manager); it holds
+no domain logic. The renderer reaches the core only through the shell, never directly.
+
+The contract between them is generated from the core: `model/coreApi/` (TypeScript types and the method
+map, a Kernel-tier leaf that imports only itself) and `electron/coreMethods.generated.json` (the shell's
+allow-list of methods the renderer may call). Both are regenerated with `npm run contract` and never edited
+by hand. The web build does not use any of it and must keep working without a core.
+
 ## Open questions
 
 - `features/shared/` is reached directly by sibling features (`publishesHeight`), which

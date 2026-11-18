@@ -5,6 +5,8 @@
 [tools]
 java = "zulu-25"
 node = "24"
+# same channel as core/rust-toolchain.toml
+rust = "stable"
 
 [tasks.install]
 description = "Install all dependencies (root, visualization, analysis)"

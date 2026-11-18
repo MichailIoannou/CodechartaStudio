@@ -1,0 +1,151 @@
+name: Core Tests
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'core/**'
+      - 'visualization/app/codeCharta/model/coreApi/**'
+      - 'visualization/electron/coreMethods.generated.json'
+      - '.github/workflows/test_core.yml'
+      - 'license_policy.json'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'core/**'
+      - 'visualization/app/codeCharta/model/coreApi/**'
+      - 'visualization/electron/coreMethods.generated.json'
+      - '.github/workflows/test_core.yml'
+      - 'license_policy.json'
+
+permissions:
+  contents: read
+
+jobs:
+  core_checks:
+    name: Core checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ./core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # rustup is preinstalled on the hosted runners; without arguments it installs the toolchain and
+      # components that core/rust-toolchain.toml names
+      - name: Install the Rust toolchain
+        run: |
+          rustup toolchain install
+          rustc --version
+
+      - name: Cache cargo registry and build output
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            core/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('core/Cargo.lock', 'core/rust-toolchain.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo fmt --check
+
+      - name: Lint
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+
+      - name: Test
+        run: cargo test --locked --all-features
+
+  contract_drift:
+    name: Contract drift
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '24'
+
+      - name: Install the Rust toolchain
+        working-directory: ./core
+        run: rustup toolchain install
+
+      - name: Cache cargo registry and build output
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            core/target
+          key: ${{ runner.os }}-cargo-contract-${{ hashFiles('core/Cargo.lock', 'core/rust-toolchain.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-contract-
+
+      # npm run contract formats its output with the root's Biome; the visualization's own packages are not needed
+      - name: Install root node modules
+        run: npm ci
+
+      - name: Regenerate the contract
+        working-directory: ./visualization
+        run: npm run contract
+
+      # git status instead of git diff, so a newly generated file that was never committed fails too
+      - name: Fail when the committed contract differs
+        run: |
+          changes=$(git status --porcelain -- visualization/app/codeCharta/model/coreApi visualization/electron/coreMethods.generated.json)
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            git diff -- visualization/app/codeCharta/model/coreApi visualization/electron/coreMethods.generated.json
+            echo "::error::The generated contract is out of date. Run 'npm run contract' in visualization/ and commit the result."
+            exit 1
+          fi
+
+  core_licences:
+    name: Core licences
+    runs-on: ubuntu-latest
+    env:
+      CARGO_DENY_VERSION: '0.21.0'
+    defaults:
+      run:
+        working-directory: ./core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install the Rust toolchain
+        run: rustup toolchain install
+
+      - name: Cache cargo-deny
+        id: cache-cargo-deny
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-deny
+          key: ${{ runner.os }}-cargo-deny-${{ env.CARGO_DENY_VERSION }}
+
+      - name: Install cargo-deny
+        if: steps.cache-cargo-deny.outputs.cache-hit != 'true'
+        run: cargo install cargo-deny --version "$CARGO_DENY_VERSION" --locked
+
+      # deny.toml allows exactly the licences license_policy.json allows; crates.io is the only source
+      - name: Check licences and sources of the core dependencies
+        run: cargo deny check licenses sources
