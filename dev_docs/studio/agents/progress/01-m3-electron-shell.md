@@ -37,7 +37,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M3 (tests to write first a
 - [x] 3.2 Smoke harness
 - [x] 3.3 Shell policy
 - [x] 3.4 Core client
-- [ ] 3.5 Preload, relay, lifecycle
+- [x] 3.5 Preload, relay, lifecycle
 - [ ] 3.6 Pickers and reveal
 - [ ] 3.7 Packaging
 
@@ -120,4 +120,42 @@ Known red gates that are not this milestone's:
 - Tests: the seven plan names plus "should report unavailable with the path when the core is missing", "should
   send core.cancel for a running request", "should write the core log to the log stream", "should start again
   from unavailable when restarted". `test:electron`: 28 green.
+
+### 3.5
+- `electron/preload.js` (one CommonJS file, `require("electron")` only). At load it asks main once with
+  `ipcRenderer.sendSync("codecharta:hello")` → `{ protocolVersion, coreState }` (an extra internal channel next
+  to the planned five; the sandboxed preload cannot read `coreMethods.generated.json`). If main refuses the
+  sender (answer `null`), **nothing is exposed**. Exposed in this task: `protocolVersion`, `request`, `cancel`,
+  `subscribe`, `restartCore`; 3.6 adds the pickers and shell actions.
+- `subscribe("shell.coreState", handler)` also delivers the **current** core state once, asynchronously
+  (microtask), right after subscribing, then every change — so a renderer that subscribes after boot never
+  misses the state. Other events are delivered only as they arrive. Handler exceptions are swallowed.
+- `main.js`: order `CODECHARTA_USER_DATA_DIR` (absolute only) → `requestSingleInstanceLock()` (else `app.quit()`)
+  → `second-instance` restores/focuses → `app.enableSandbox()` → IPC handlers → `whenReady` → start core → window.
+  `webPreferences` as planned; `backgroundColor` from `<userData>/shell.json` or `#ffffff`.
+- Sender check: every handler captures `{ hasFrame, isMainFrame: senderFrame.parent === null, frameUrl,
+  webContentsId }` synchronously at entry, before anything async (S1), and rejects with `Error("Forbidden")`
+  otherwise. A method outside `rendererMethods` answers `{ ok: false, error: { code: "NOT_ALLOWED" } }` (data,
+  not a rejection); a bad `operationId` answers `BAD_REQUEST`.
+- Operations: `operationId → wire id` per webContents; `core.progress.requestId` is rewritten to the
+  `operationId` before forwarding, and progress of requests without one is dropped. Main-frame cross-document
+  navigation (`did-start-navigation`), `render-process-gone` and window `closed` send `core.cancel` for every
+  in-flight request of that webContents.
+- Navigation: `will-navigate` keeps internal, opens external with `shell.openExternal`, blocks the rest;
+  `setWindowOpenHandler` always denies and opens only external; `will-attach-webview` prevented. Dev server via
+  `CODECHARTA_DEV_SERVER_URL` (unpackaged, localhost only) → `loadURL`.
+- Core: `codecharta-core serve --data-dir <userData>`; stderr to `<userData>/logs/core.log`, previous run renamed
+  to `core.log.1`; state changes go to the page as `{ event: "shell.coreState", payload: { state, message } }`
+  on `codecharta:event`; `before-quit` waits for `CoreClient.stop()` (EOF, kill after 5 s) once, then quits.
+- CSP: `frame-src 'none'` added to `app/index.html` (S1). Web e2e stays green with it (html2canvas' clone
+  iframe is `about:blank` and not blocked).
+- CHANGELOG (Changed): the planned "One desktop window" line, nothing else.
+- Smoke: the five planned tests green (7 in total). Extra manual check with a scratch Playwright script (not
+  committed): `SIGKILL` of the core → states `ready, restarting, starting, ready`, `core.ping` works again;
+  `tools.doctor { refresh: true }` with `operationId: "op-1"` delivered 5 `core.progress` events carrying
+  `requestId: "op-1"`; after `close()` no `codecharta-core` process was left and `logs/core.log` existed.
+- Web `e2e:ci` ran with a temporary, uncommitted `BROWSER_CHANNEL = "chromium"` in `app/playwright.helper.ts`
+  and Playwright's chromium installed only under `node_modules/.cache/ms-playwright`
+  (`PLAYWRIGHT_BROWSERS_PATH`), since this machine has no Google Chrome; run as `CI=1 npx playwright test
+  --workers=1`.
 

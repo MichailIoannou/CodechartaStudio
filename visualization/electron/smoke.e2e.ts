@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process"
+import { once } from "node:events"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -5,20 +7,30 @@ import { _electron, ElectronApplication, expect, Page, test } from "@playwright/
 
 const BUNDLE_FOLDER = join(__dirname, "..", "dist", "bundler", "browser")
 const BOOT_TIMEOUT_MS = 60_000
+const SECOND_INSTANCE_TIMEOUT_MS = 20_000
+const BRIDGE_KEYS = ["cancel", "protocolVersion", "request", "restartCore", "subscribe"]
 
 let userDataDir: string
 let desktopApp: ElectronApplication
 
+function desktopEnv(extraEnv: Record<string, string> = {}) {
+    return { ...process.env, CODECHARTA_USER_DATA_DIR: userDataDir, ...extraEnv }
+}
+
 async function launchDesktopApp(extraEnv: Record<string, string> = {}) {
-    return _electron.launch({
-        args: [BUNDLE_FOLDER],
-        env: { ...process.env, CODECHARTA_USER_DATA_DIR: userDataDir, ...extraEnv }
-    })
+    return _electron.launch({ args: [BUNDLE_FOLDER], env: desktopEnv(extraEnv) })
 }
 
 async function waitForBoot(page: Page) {
     await page.locator("cc-code-charta > *").first().waitFor({ state: "attached", timeout: BOOT_TIMEOUT_MS })
     await page.locator("#loading-gif-file").waitFor({ state: "hidden", timeout: BOOT_TIMEOUT_MS })
+}
+
+async function bootedWindow(extraEnv: Record<string, string> = {}) {
+    desktopApp = await launchDesktopApp(extraEnv)
+    const page = await desktopApp.firstWindow()
+    await waitForBoot(page)
+    return page
 }
 
 test.beforeEach(async () => {
@@ -45,9 +57,7 @@ test("should open one window that boots the app", async () => {
 
 test("should keep Node out of the page", async () => {
     // Arrange
-    desktopApp = await launchDesktopApp()
-    const page = await desktopApp.firstWindow()
-    await waitForBoot(page)
+    const page = await bootedWindow()
 
     // Act
     const nodeGlobals = await page.evaluate(() => ({
@@ -58,4 +68,79 @@ test("should keep Node out of the page", async () => {
 
     // Assert
     expect(nodeGlobals).toEqual({ require: "undefined", process: "undefined", module: "undefined" })
+})
+
+test("should answer core.ping through the bridge", async () => {
+    // Arrange
+    const page = await bootedWindow()
+
+    // Act
+    const answer = await page.evaluate(() => (window as any).codeChartaDesktop.request("core.ping", {}))
+
+    // Assert
+    expect(answer.ok).toBe(true)
+    expect(typeof answer.value.coreVersion).toBe("string")
+})
+
+test("should expose nothing but the bridge", async () => {
+    // Arrange
+    const page = await bootedWindow()
+
+    // Act
+    const exposed = await page.evaluate(() => ({
+        bridgeKeys: Object.keys((window as any).codeChartaDesktop).sort(),
+        ipcRenderer: typeof (window as any).ipcRenderer,
+        electron: typeof (window as any).electron
+    }))
+
+    // Assert
+    expect(exposed).toEqual({ bridgeKeys: BRIDGE_KEYS, ipcRenderer: "undefined", electron: "undefined" })
+})
+
+test("should refuse a method outside the allow-list", async () => {
+    // Arrange
+    const page = await bootedWindow()
+
+    // Act
+    const answer = await page.evaluate(() =>
+        (window as any).codeChartaDesktop.request("tools.setPath", { tool: "git", path: "/usr/bin/false" })
+    )
+
+    // Assert
+    expect(answer).toMatchObject({ ok: false, error: { code: "NOT_ALLOWED" } })
+})
+
+test("should refuse a second instance on the same data folder", async () => {
+    // Arrange
+    await bootedWindow()
+    const electronExecutable = await desktopApp.evaluate(() => process.execPath)
+
+    // Act
+    const secondInstance = spawn(electronExecutable, [BUNDLE_FOLDER], { env: desktopEnv(), stdio: "ignore" })
+    const [exitCode] = await Promise.race([
+        once(secondInstance, "exit"),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("second instance kept running")), SECOND_INSTANCE_TIMEOUT_MS))
+    ])
+
+    // Assert
+    expect(exitCode).toBe(0)
+    expect(desktopApp.windows()).toHaveLength(1)
+})
+
+test("should show the core as unavailable when the binary is missing", async () => {
+    // Arrange
+    const page = await bootedWindow({ CODECHARTA_CORE_PATH: join(userDataDir, "missing", "codecharta-core") })
+
+    // Act
+    const observed = await page.evaluate(async () => {
+        const bridge = (window as any).codeChartaDesktop
+        const coreState = await new Promise<any>(resolve => bridge.subscribe("shell.coreState", resolve))
+        const answer = await bridge.request("core.ping", {})
+        return { coreState, answer }
+    })
+
+    // Assert
+    expect(observed.coreState.state).toBe("unavailable")
+    expect(observed.coreState.message).toContain("codecharta-core")
+    expect(observed.answer).toMatchObject({ ok: false, error: { code: "CORE_UNAVAILABLE" } })
 })
