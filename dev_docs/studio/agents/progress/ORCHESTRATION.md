@@ -13,8 +13,9 @@ orchestrator after every change of state. Another machine continues from this fi
 
 ## Design gate
 
-`dev_docs/studio/agents/design/STATUS.md` **does not exist** (checked 2026-11-18). Every area
-(01-desktop-tools, 02-themes, 03-projects, 04-history, 05-snapshots, 06-compare) counts as not ready.
+`dev_docs/studio/agents/design/STATUS.md` exists since 2026-11-18 (committed by the designer directly on
+`feature/studio-integration`). Checked 2026-11-18: **every area is "blocked" pending owner review**
+(01-desktop-tools, 02-themes, 03-projects, 04-history, 05-snapshots, 06-compare). No UI milestone may start.
 
 ## Milestones
 
@@ -35,7 +36,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M4 Dependency graph, color-range diagram | UI | blocked | design 02-themes; 02-M3 | — | — |
 | 02-M5 Editor schemes and quick toggle | UI | blocked | design 02-themes; 02-M4 | — | — |
 | 02-M6 Native window appearance | UI | blocked | design 02-themes; plan 01 | — | — |
-| 03-M0 Spikes | spike | in progress (items 0, 3 now; 1, 2, 4 after 01-M3) | 01-M3 for items 1, 2, 4 | feature/studio-03-m0a | — |
+| 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | todo | plan 01 core | — | — |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | todo | 03-M1 | — | — |
 | 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | todo | 03-M2 | — | — |
@@ -95,6 +96,12 @@ the milestone is started.
   `ToolSource` gains `javaHome`; doctor CLI exit codes 0 ready / 1 not ready / 2 check failed.
   Windows-only `.cmd` and job-object tests are `#[cfg(windows)]` and first run on the `windows-latest`
   CI job; the job-object assignment race (S4) stays open.
+- 03-M0 part A (see `03-m0-spikes.md`): for 03-M1 use std `File::try_lock` (drop `fs4`), lock only
+  `.lock`; no `directories` crate; `trash` 5.4.0 is fine. Plan 01 as built lacks a `GitRunner` trait
+  (03-M2 adds an async one over `Tools::run`); there is no `--store-root` / `CODECHARTA_STORE_ROOT`
+  (`--data-dir` already isolates the store); `paths.setStoreRoot` overlaps plan 03's `store.changeRoot`.
+  To check after 01-M3: `pickFolder` returns a path to the renderer vs plan 03's pick-token rule;
+  `readSnapshotMap` reads whole files vs plan 03's chunks; bridge call shape.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -112,10 +119,14 @@ the milestone is started.
    of `license_policy.json`; `deny.toml` has a one-crate exception for now.
 3. `actions/cache@v5` in `test_core.yml` is pinned by tag, not SHA; please confirm a SHA.
 4. Exact Rust toolchain pin (instead of `stable`) once machines and CI may download it.
+6. Root `npm run format:check` fails on the design mock-up (`design/mockups/studio-screens.html:438`,
+   Biome `noForEach`). Logged as O1 in `design/open-questions.md`; until fixed, every branch with the
+   mock-up fails this CI check. Milestone verification records it as the only format failure.
 5. Node 26 failure of `urlExtractor.spec.ts` (see above): fix the spec, or require Node 24 locally?
 
 ## Session log
 
+- 2026-11-18: design files appeared (all areas blocked for owner review); format check now fails on the mock-up (O1). 03-M0 part A verified (notes read) and recorded.
 - 2026-11-18: 03-M0 part A (reconciliation + core-only spike item 3) started in parallel with 01-M3.
 - 2026-11-18: 01-M2 verified (same gates, same Node 26 caveat) and merged; 01-M3 started (no visible UI: picker titles come from callers, core state is only an event).
 

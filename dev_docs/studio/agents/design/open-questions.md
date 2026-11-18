@@ -51,3 +51,9 @@ answer that differs means the named file is changed, nothing else.
 ## From orchestration
 
 (The orchestrator appends questions here.)
+
+- **O1 (2026-11-18). Root `npm run format:check` fails on the mock-up.**
+  `dev_docs/studio/agents/design/mockups/studio-screens.html:438:5` raises Biome
+  `lint/complexity/noForEach`. CI fails on this check for every branch that contains the mock-up, and
+  the orchestrator may not edit design files. Please fix the mock-up's script (a `for … of` loop), or
+  have the owner decide to exclude `design/mockups/` from Biome.
