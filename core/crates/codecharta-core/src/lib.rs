@@ -15,10 +15,13 @@ pub use config::paths::{CoreConfig, Paths};
 pub use config::settings::{CoreSettings, SettingsStore};
 pub use error::{CoreError, CoreResult};
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
+use codecharta_core_api::ids::InvalidStoreId;
 use codecharta_core_api::methods::core::Platform;
+use codecharta_core_api::methods::shell::ShellPathTarget;
+use codecharta_core_api::methods::snapshots::SnapshotRef;
 use codecharta_core_api::methods::store::StoreStatus;
 
 use config::settings::SETTINGS_FILE_NAME;
@@ -97,6 +100,24 @@ impl Core {
         ))
     }
 
+    /// A snapshot map is found through the store; every other target through the paths alone.
+    pub fn resolve_path(&self, target: &ShellPathTarget) -> CoreResult<PathBuf> {
+        let ShellPathTarget::SnapshotMap {
+            project_id,
+            folder_id,
+            snapshot_id,
+        } = target
+        else {
+            return self.paths.resolve(target);
+        };
+        let snapshot = SnapshotRef {
+            project_id: store_id(project_id)?,
+            folder_id: store_id(folder_id)?,
+            snapshot_id: store_id(snapshot_id)?,
+        };
+        self.snapshots()?.map_location(&snapshot)
+    }
+
     pub fn pick_tokens(&self) -> &PickTokens {
         &self.pick_tokens
     }
@@ -139,6 +160,10 @@ fn platform_of(operating_system: &str) -> Platform {
         "macos" => Platform::Darwin,
         _ => Platform::Linux,
     }
+}
+
+fn store_id<Id: TryFrom<String, Error = InvalidStoreId>>(value: &str) -> CoreResult<Id> {
+    Id::try_from(value.to_string()).map_err(|error| CoreError::BadRequest(error.to_string()))
 }
 
 pub fn path_to_wire(path: &Path) -> CoreResult<String> {

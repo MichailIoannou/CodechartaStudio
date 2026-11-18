@@ -17,6 +17,10 @@ use codecharta_core_api::methods::projects::{
     ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
 };
 use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
+use codecharta_core_api::methods::snapshots::{
+    SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
+    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsRecordMapFacts,
+};
 use codecharta_core_api::methods::store::StoreGetStatus;
 use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 use codecharta_core_api::protocol::{
@@ -28,7 +32,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
-use super::{projects_routes, store_routes, tools_routes};
+use super::{projects_routes, snapshots_routes, store_routes, tools_routes};
 
 pub type DispatchResult = Result<Value, ResponseError>;
 pub type HandlerFuture<'core> = Pin<Box<dyn Future<Output = DispatchResult> + Send + 'core>>;
@@ -151,6 +155,38 @@ const ROUTES: &[Route] = &[
     Route {
         name: ProjectsSourceFileLocation::NAME,
         handler: projects_routes::source_file_location,
+    },
+    Route {
+        name: SnapshotsList::NAME,
+        handler: snapshots_routes::list,
+    },
+    Route {
+        name: SnapshotsMapLocation::NAME,
+        handler: snapshots_routes::map_location,
+    },
+    Route {
+        name: SnapshotsRecordMapFacts::NAME,
+        handler: snapshots_routes::record_map_facts,
+    },
+    Route {
+        name: SnapshotsInspectImportFile::NAME,
+        handler: snapshots_routes::inspect_import_file,
+    },
+    Route {
+        name: SnapshotsOpenFile::NAME,
+        handler: snapshots_routes::open_file,
+    },
+    Route {
+        name: SnapshotsImport::NAME,
+        handler: snapshots_routes::import,
+    },
+    Route {
+        name: SnapshotsMove::NAME,
+        handler: snapshots_routes::move_snapshot,
+    },
+    Route {
+        name: SnapshotsDelete::NAME,
+        handler: snapshots_routes::delete,
     },
 ];
 
@@ -312,7 +348,7 @@ fn paths_reset_store_root(
 fn shell_resolve_path(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
     Box::pin(async move {
         let params = read_params::<ShellResolvePath>(params)?;
-        let resolved = core.paths().resolve(&params.target).map_err(domain_error)?;
+        let resolved = core.resolve_path(&params.target).map_err(domain_error)?;
         let path = path_to_wire(&resolved).map_err(domain_error)?;
         write_result::<ShellResolvePath>(ResolvePathResult { path })
     })

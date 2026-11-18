@@ -37,7 +37,7 @@ From `03-m2-projects.md`: append `NOT_A_COMMIT`; `resolve_commit` must also read
 - [x] 1. Repository
 - [x] 2. Import
 - [x] 3. Open file and move
-- [ ] 4. JSON-RPC
+- [x] 4. JSON-RPC
 - [ ] 5. CLI
 - [ ] 6. Shell (part B)
 
@@ -146,4 +146,35 @@ described.
   `should_answer_not_a_commit_when_binding_to_a_commit_the_target_does_not_have`,
   `should_bind_a_snapshot_later_in_its_own_folder`, `should_remove_the_new_project_when_the_file_cannot_be_imported`;
   unit `store::tests::should_finish_a_snapshot_move_that_a_crash_interrupted`.
+
+### 4. JSON-RPC
+- Structural commit first: the `method!` macro moved from `methods/projects.rs` to `registry.rs`
+  (`refactor(core): share the method declaration macro of the core api`), so `methods/snapshots.rs` uses it
+  too.
+- Api (`methods/snapshots.rs`): params `RecordMapFactsParams`, `InspectImportFileParams`, `OpenFileParams
+  { importToken, target: FolderRef | null, bindToCommit: FullCommit | null }`, `ImportSnapshotParams`,
+  `MoveSnapshotParams { …SnapshotRef, toFolderId, bindToCommit }`, `DeleteSnapshotParams { …, permanently }`
+  (all `deny_unknown_fields`, written out flat as in 03-M2); results `SnapshotList { snapshots }` (**named
+  wrapper instead of the plan's `SnapshotSummary[]`**, same reason as `ProjectList`; plan text corrected),
+  `MapLocation { path }`. `bindToCommit` and `target` are required-nullable in TypeScript; serde also accepts
+  them missing.
+- Methods (8): renderer `snapshots.list`, `snapshots.recordMapFacts`, `snapshots.openFile`,
+  `snapshots.import` (answers `SnapshotSummary`; a duplicate answers the existing snapshot),
+  `snapshots.move`, `snapshots.delete`; **shell-only** (`Audience::Shell`, absent from `rendererMethods`)
+  `snapshots.mapLocation`, `snapshots.inspectImportFile`. The shell-composed `snapshots.pickImportFile` and
+  `snapshots.readMapChunk` are not core methods (as for `projects.pickFolder` in 03-M2); they are task 6.
+- Routes: `codecharta-cored/src/serve/snapshots_routes.rs` (plan's `rpc/snapshots.rs` corrected). Token
+  routes take the import token, run the library call and `settle` it (a failed open or import leaves the
+  token usable).
+- `ShellPathTarget::SnapshotMap`: new `Core::resolve_path(&ShellPathTarget)` answers it through
+  `SnapshotRepository::map_location` (ids parsed as store ids, else `BAD_REQUEST`; unknown `NOT_FOUND`);
+  `shell.resolvePath` now calls it. `Paths::resolve` keeps its `NOT_FOUND` arm for callers without a store.
+  The target's fields stay `string` in the contract (changing them to id types would change the contract
+  for no gain; they are validated in the core).
+- Contract regenerated: 18 new type files, `coreApi.ts`, `coreMethods.generated.json`.
+- Tests (`codecharta-cored/tests/snapshots_protocol.rs`): the plan's two plus
+  `should_report_a_file_opened_again_as_already_imported_and_list_it_once`,
+  `should_answer_token_expired_for_a_used_import_token`,
+  `should_answer_bad_request_for_a_snapshot_map_target_that_is_not_an_id`,
+  `should_move_and_delete_a_snapshot_over_json_rpc`.
 

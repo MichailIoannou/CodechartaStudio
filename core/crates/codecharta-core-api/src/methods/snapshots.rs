@@ -2,8 +2,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::ids::{FolderId, ProjectId, SnapshotId};
-use crate::methods::projects::{FolderGitFacts, FolderKind, Project, ResolvedCommit};
-use crate::values::{CommitHash, FullCommit, PickToken, ProjectName};
+use crate::methods::projects::{FolderGitFacts, FolderKind, FolderRef, Project, ResolvedCommit};
+use crate::registry::method;
+use crate::values::{CommitHash, FullCommit, MapChecksum, PickToken, ProjectName, RootName};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -92,6 +93,131 @@ pub struct OpenedFile {
     pub created_project: bool,
     pub was_already_imported: bool,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SnapshotList {
+    pub snapshots: Vec<SnapshotSummary>,
+}
+
+/// Where the gzip map of a snapshot is; only the shell gets it, and reads it after checking that it lies
+/// inside the store root.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct MapLocation {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RecordMapFactsParams {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub snapshot_id: SnapshotId,
+    pub checksum: MapChecksum,
+    pub root_name: RootName,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InspectImportFileParams {
+    pub path: String,
+}
+
+/// `target: null` lets the file's folder decide the project (overview D12).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OpenFileParams {
+    pub import_token: PickToken,
+    pub target: Option<FolderRef>,
+    pub bind_to_commit: Option<FullCommit>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ImportSnapshotParams {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub import_token: PickToken,
+    pub bind_to_commit: Option<FullCommit>,
+}
+
+/// `toFolderId` equal to the snapshot's own folder with a `bindToCommit` binds it later.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MoveSnapshotParams {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub snapshot_id: SnapshotId,
+    pub to_folder_id: FolderId,
+    pub bind_to_commit: Option<FullCommit>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeleteSnapshotParams {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub snapshot_id: SnapshotId,
+    pub permanently: bool,
+}
+
+method!(
+    SnapshotsList,
+    "snapshots.list",
+    Renderer,
+    FolderRef,
+    SnapshotList
+);
+method!(
+    SnapshotsMapLocation,
+    "snapshots.mapLocation",
+    Shell,
+    SnapshotRef,
+    MapLocation
+);
+method!(
+    SnapshotsRecordMapFacts,
+    "snapshots.recordMapFacts",
+    Renderer,
+    RecordMapFactsParams,
+    ()
+);
+method!(
+    SnapshotsInspectImportFile,
+    "snapshots.inspectImportFile",
+    Shell,
+    InspectImportFileParams,
+    PickedImportFile
+);
+method!(
+    SnapshotsOpenFile,
+    "snapshots.openFile",
+    Renderer,
+    OpenFileParams,
+    OpenedFile
+);
+method!(
+    SnapshotsImport,
+    "snapshots.import",
+    Renderer,
+    ImportSnapshotParams,
+    SnapshotSummary
+);
+method!(
+    SnapshotsMove,
+    "snapshots.move",
+    Renderer,
+    MoveSnapshotParams,
+    SnapshotSummary
+);
+method!(
+    SnapshotsDelete,
+    "snapshots.delete",
+    Renderer,
+    DeleteSnapshotParams,
+    ()
+);
 
 #[cfg(test)]
 mod tests {

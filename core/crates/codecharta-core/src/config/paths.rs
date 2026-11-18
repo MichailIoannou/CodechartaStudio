@@ -141,7 +141,7 @@ impl Paths {
         self.info()
     }
 
-    /// Snapshot maps live in the store, which arrives with plan 03; until then none can be found.
+    /// Snapshot maps live in the store, which `Core::resolve_path` asks; the paths alone know none.
     pub fn resolve(&self, target: &ShellPathTarget) -> CoreResult<PathBuf> {
         match target {
             ShellPathTarget::DataFolder => Ok(self.data_dir.clone()),

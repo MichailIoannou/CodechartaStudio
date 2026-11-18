@@ -6,6 +6,7 @@ import type { CancelParams } from "./CancelParams"
 import type { ClearToolPathParams } from "./ClearToolPathParams"
 import type { CreateProjectParams } from "./CreateProjectParams"
 import type { DeleteProjectParams } from "./DeleteProjectParams"
+import type { DeleteSnapshotParams } from "./DeleteSnapshotParams"
 import type { DoctorParams } from "./DoctorParams"
 import type { EmptyParams } from "./EmptyParams"
 import type { ErrorCode } from "./ErrorCode"
@@ -13,14 +14,22 @@ import type { FolderPath } from "./FolderPath"
 import type { FolderRef } from "./FolderRef"
 import type { HelloParams } from "./HelloParams"
 import type { HelloResult } from "./HelloResult"
+import type { ImportSnapshotParams } from "./ImportSnapshotParams"
 import type { InspectFolderParams } from "./InspectFolderParams"
+import type { InspectImportFileParams } from "./InspectImportFileParams"
+import type { MapLocation } from "./MapLocation"
+import type { MoveSnapshotParams } from "./MoveSnapshotParams"
+import type { OpenedFile } from "./OpenedFile"
+import type { OpenFileParams } from "./OpenFileParams"
 import type { PathsInfo } from "./PathsInfo"
 import type { PickedFolder } from "./PickedFolder"
+import type { PickedImportFile } from "./PickedImportFile"
 import type { PingResult } from "./PingResult"
 import type { ProgressParams } from "./ProgressParams"
 import type { Project } from "./Project"
 import type { ProjectIdParams } from "./ProjectIdParams"
 import type { ProjectList } from "./ProjectList"
+import type { RecordMapFactsParams } from "./RecordMapFactsParams"
 import type { RelinkFolderParams } from "./RelinkFolderParams"
 import type { RemoveFolderParams } from "./RemoveFolderParams"
 import type { ResolveCommitParams } from "./ResolveCommitParams"
@@ -31,6 +40,9 @@ import type { SetActiveProjectParams } from "./SetActiveProjectParams"
 import type { SetStoreRootParams } from "./SetStoreRootParams"
 import type { SetToolPathParams } from "./SetToolPathParams"
 import type { SetViewParams } from "./SetViewParams"
+import type { SnapshotList } from "./SnapshotList"
+import type { SnapshotRef } from "./SnapshotRef"
+import type { SnapshotSummary } from "./SnapshotSummary"
 import type { SourceFileLookup } from "./SourceFileLookup"
 import type { SourceFileParams } from "./SourceFileParams"
 import type { StoreStatus } from "./StoreStatus"
@@ -94,6 +106,14 @@ export type CoreMethods = {
     "projects.resolveCommit": { params: ResolveCommitParams; result: ResolveCommitResult }
     "projects.folderPath": { params: FolderRef; result: FolderPath }
     "projects.sourceFileLocation": { params: SourceFileParams; result: SourceFileLookup }
+    "snapshots.list": { params: FolderRef; result: SnapshotList }
+    "snapshots.mapLocation": { params: SnapshotRef; result: MapLocation }
+    "snapshots.recordMapFacts": { params: RecordMapFactsParams; result: null }
+    "snapshots.inspectImportFile": { params: InspectImportFileParams; result: PickedImportFile }
+    "snapshots.openFile": { params: OpenFileParams; result: OpenedFile }
+    "snapshots.import": { params: ImportSnapshotParams; result: SnapshotSummary }
+    "snapshots.move": { params: MoveSnapshotParams; result: SnapshotSummary }
+    "snapshots.delete": { params: DeleteSnapshotParams; result: null }
 }
 
 export type CoreEvents = {
@@ -124,7 +144,13 @@ export const RENDERER_METHODS = [
     "projects.getActive",
     "projects.setActive",
     "projects.setView",
-    "projects.resolveCommit"
+    "projects.resolveCommit",
+    "snapshots.list",
+    "snapshots.recordMapFacts",
+    "snapshots.openFile",
+    "snapshots.import",
+    "snapshots.move",
+    "snapshots.delete"
 ] as const satisfies ReadonlyArray<keyof CoreMethods>
 
 export type RendererMethod = (typeof RENDERER_METHODS)[number]

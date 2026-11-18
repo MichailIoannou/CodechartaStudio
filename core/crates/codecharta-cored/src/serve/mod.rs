@@ -3,6 +3,7 @@ pub mod framing;
 pub mod output;
 mod projects_routes;
 pub mod session;
+mod snapshots_routes;
 mod store_routes;
 mod test_methods;
 mod tools_routes;

@@ -13,6 +13,10 @@ use crate::methods::projects::{
     ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
 };
 use crate::methods::shell::ShellResolvePath;
+use crate::methods::snapshots::{
+    SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
+    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsRecordMapFacts,
+};
 use crate::methods::store::StoreGetStatus;
 use crate::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 
@@ -138,6 +142,14 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<ProjectsResolveCommit>(),
     MethodSpec::of::<ProjectsFolderPath>(),
     MethodSpec::of::<ProjectsSourceFileLocation>(),
+    MethodSpec::of::<SnapshotsList>(),
+    MethodSpec::of::<SnapshotsMapLocation>(),
+    MethodSpec::of::<SnapshotsRecordMapFacts>(),
+    MethodSpec::of::<SnapshotsInspectImportFile>(),
+    MethodSpec::of::<SnapshotsOpenFile>(),
+    MethodSpec::of::<SnapshotsImport>(),
+    MethodSpec::of::<SnapshotsMove>(),
+    MethodSpec::of::<SnapshotsDelete>(),
 ];
 
 pub const EVENTS: &[EventSpec] = &[EventSpec::of::<CoreProgress>()];

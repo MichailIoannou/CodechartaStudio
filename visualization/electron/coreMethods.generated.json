@@ -21,6 +21,12 @@
     "projects.getActive",
     "projects.setActive",
     "projects.setView",
-    "projects.resolveCommit"
+    "projects.resolveCommit",
+    "snapshots.list",
+    "snapshots.recordMapFacts",
+    "snapshots.openFile",
+    "snapshots.import",
+    "snapshots.move",
+    "snapshots.delete"
   ]
 }
