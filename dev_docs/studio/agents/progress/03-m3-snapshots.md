@@ -38,7 +38,7 @@ From `03-m2-projects.md`: append `NOT_A_COMMIT`; `resolve_commit` must also read
 - [x] 2. Import
 - [x] 3. Open file and move
 - [x] 4. JSON-RPC
-- [ ] 5. CLI
+- [x] 5. CLI
 - [ ] 6. Shell (part B)
 
 ## Notes
@@ -177,4 +177,70 @@ described.
   `should_answer_token_expired_for_a_used_import_token`,
   `should_answer_bad_request_for_a_snapshot_map_target_that_is_not_an_id`,
   `should_move_and_delete_a_snapshot_over_json_rpc`.
+
+### 5. CLI
+- Structural commit first: `cli/output.rs` (`exit_code_of`, `print_json`) taken out of `cli/projects.rs`
+  (`refactor(core): share the output helpers of the command line`).
+- `codecharta-cored/src/cli/snapshots.rs`: `codecharta-core [--data-dir D] snapshots list --project <id>
+  --folder <id> [--json]` and `snapshots import --project <id> --folder <id> --file <path> [--bind-to-commit
+  <40 hex>] [--json]` (`--data-dir`, not `--store-root`; `--json` per command as for `projects`). Ids and
+  the commit are parsed by clap over the api newtypes (usage error, exit 2). `list` opens the store
+  read-only (no lock, no repair); `import` takes the store lock (`STORE_LOCKED` while the app runs) and
+  accepts a relative `--file`. Text output: `list` one line per snapshot `<id>  <source>  <createdAt>
+  <shortCommit|->  <originalFileName|->`; `import` prints the snapshot id, also for content imported before
+  (then "This content was imported before; nothing was copied." on stderr); `--json` prints the summaries /
+  `{ snapshot, wasAlreadyImported }`.
+- **Behaviour change for both command groups:** a refusal prints `<ERROR_CODE>: <message>` on stderr (the
+  plan's "exit 1 with the error code"); `projects` printed only the message before. `cli/mod.rs` runs both
+  through one `run_store_command`.
+- Tests (`codecharta-cored/tests/cli_snapshots.rs`): the plan's three plus
+  `should_print_the_listed_snapshots_as_json`.
+- Acceptance (checked): with `--data-dir <tmp>`, `projects create --name assets --folder
+  visualization/app/codeCharta/assets`, then `snapshots import … --file …/assets/sample1.cc.json` printed
+  `imported-e6d77d5a1d36d041` and created `store/projects/<p>/snapshots/<f>/imported-e6d77d5a1d36d041/
+  {snapshot.json,map.cc.json.gz}` (the gzip unpacks to the identical file; `analysis: null`, `git: null`,
+  `imported.at` = `createdAt`, `fileModifiedAt` the file's date); a second import printed the same id with
+  the stderr note; `snapshots list` showed one line. The in-app half (`pickImportFile` → `openFile` creates
+  project "assets"; second `openFile` answers `wasAlreadyImported: true`) needs task 6; the same flow is
+  covered at protocol level by `should_answer_a_map_location_inside_the_store_root` and
+  `should_report_a_file_opened_again_as_already_imported_and_list_it_once`.
+- Docs: `core/README.md` and the root `CLAUDE.md` core command list.
+
+### State at the end of part A
+- Tasks 1-5 done; task 6 (shell, fake bridge) waits for the 03-M2 merge and 01-M4.1, so `state` stays
+  `progress`. No changelog entry: nothing user-visible ships until the shell and UI exist.
+- Gates (final run, Linux): `core/`: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D
+  warnings` (also `--target x86_64-pc-windows-gnu`), `cargo test --all-features` green; `npm run contract`
+  leaves no diff; root `npm run format:check` green; `visualization/`: `npm run lint`, `npx tsc --noEmit -p
+  tsconfig.json`, `npm test` (636 suites, 4861 passed, 2 todo) green. Only generated `model/coreApi/` files
+  and `electron/coreMethods.generated.json` changed in `visualization/`.
+- Not verified: anything on Windows (directory rename of a snapshot while a scanner holds a file in it,
+  `trash` for snapshots, case-insensitive containing-folder match); `cargo deny` is not installed here.
+
+### For task 6 (shell) and 03-M4 (renderer load path)
+- Renderer methods: `snapshots.list { projectId, folderId } -> { snapshots: SnapshotSummary[] }`,
+  `snapshots.openFile { importToken, target: FolderRef | null, bindToCommit: FullCommit | null } ->
+  OpenedFile`, `snapshots.import { projectId, folderId, importToken, bindToCommit } -> SnapshotSummary`,
+  `snapshots.move { projectId, folderId, snapshotId, toFolderId, bindToCommit } -> SnapshotSummary`,
+  `snapshots.delete { …SnapshotRef, permanently }`, `snapshots.recordMapFacts { …SnapshotRef, checksum,
+  rootName }`. `SnapshotSummary.ref` is the `SnapshotRef` to pass back.
+- Shell-only (never relay from the renderer; not in `rendererMethods`): `snapshots.inspectImportFile
+  { path } -> PickedImportFile` and `snapshots.mapLocation SnapshotRef -> { path }`; `shell.resolvePath`
+  with `{ kind: "snapshotMap", projectId, folderId, snapshotId }` answers the same path.
+- Import tokens: `snapshots.pickImportFile()` is composed in the main process: native open-file dialog
+  (`*.cc.json`, `*.cc.json.gz`, `*.json`, `*.gz`), cancelled -> `null`, else `snapshots.inspectImportFile`
+  with the absolute path; the `PickedImportFile` goes to the renderer as it is (`containingFolder.path` is for
+  display). `importToken` (kind file) and `containingFolder.pickToken` (kind folder, usable with
+  `projects.create` / `addFolder`) follow the 03-M2 token rules: 32 hex, 15 minutes, one successful use, a
+  failed use leaves it usable, `TOKEN_EXPIRED` otherwise.
+- Map location and chunks: `mapLocation.path` is `<storeRoot>/projects/<p>/snapshots/<f>/<s>/map.cc.json.gz`,
+  always gzip (plain imports are compressed, gzip imports copied unchanged). The core does not canonicalise it:
+  the shell should compare canonical paths (`fs.realpath`) of the map and of `paths.get`'s store root before
+  reading, then serve `snapshots.readMapChunk(ref, offset, length)` (length at most 32 MiB; the renderer
+  allocates one `Uint8Array(totalBytes)` after the first chunk and fills it with 16 MiB chunks) and
+  decompress in the renderer. `SnapshotSummary.mapBytes` is the gzip size.
+- Imported snapshots: `analysis` null, `source: "imported"`, `fileModifiedAt` is a file date, never an
+  analysis time; `checksum`/`rootName` stay null until the renderer calls `snapshots.recordMapFacts` once
+  after parsing. `openFile` neither sets the active project nor the view; the renderer calls
+  `projects.setActive` / `projects.setView` (section 6 step 7).
 

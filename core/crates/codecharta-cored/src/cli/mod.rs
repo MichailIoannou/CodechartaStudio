@@ -1,6 +1,7 @@
 mod doctor;
 mod output;
 mod projects;
+mod snapshots;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -14,6 +15,7 @@ use tracing_subscriber::filter::LevelFilter;
 use crate::serve::serve;
 use doctor::{DoctorOptions, run_doctor};
 use projects::{ProjectsCommand, run_projects};
+use snapshots::{SnapshotsCommand, run_snapshots};
 
 /// The stdin reader blocks a runtime thread until the client closes the pipe; after a `core.shutdown`
 /// request that may never happen, so the runtime does not wait for it.
@@ -57,6 +59,11 @@ pub enum Command {
         #[command(subcommand)]
         command: ProjectsCommand,
     },
+    /// List the snapshots of a project folder and import cc.json files, without the app
+    Snapshots {
+        #[command(subcommand)]
+        command: SnapshotsCommand,
+    },
 }
 
 pub fn run(cli: Cli) -> ExitCode {
@@ -66,7 +73,12 @@ pub fn run(cli: Cli) -> ExitCode {
         Command::Doctor { json, refresh } => {
             run_doctor_command(cli.data_dir, &DoctorOptions { json, refresh })
         }
-        Command::Projects { command } => run_projects_command(cli.data_dir, command),
+        Command::Projects { command } => run_store_command(cli.data_dir, |core, runtime| {
+            run_projects(core, runtime, command)
+        }),
+        Command::Snapshots { command } => run_store_command(cli.data_dir, |core, runtime| {
+            run_snapshots(core, runtime, command)
+        }),
     }
 }
 
@@ -101,11 +113,14 @@ fn run_doctor_command(data_dir: Option<PathBuf>, options: &DoctorOptions) -> Exi
     exit_code
 }
 
-fn run_projects_command(data_dir: Option<PathBuf>, command: ProjectsCommand) -> ExitCode {
+fn run_store_command(
+    data_dir: Option<PathBuf>,
+    command: impl FnOnce(&Core, &tokio::runtime::Runtime) -> ExitCode,
+) -> ExitCode {
     let (Some(core), Some(runtime)) = (open_core(data_dir), start_runtime()) else {
         return ExitCode::FAILURE;
     };
-    let exit_code = run_projects(&core, &runtime, command);
+    let exit_code = command(&core, &runtime);
     runtime.block_on(core.shutdown());
     exit_code
 }
