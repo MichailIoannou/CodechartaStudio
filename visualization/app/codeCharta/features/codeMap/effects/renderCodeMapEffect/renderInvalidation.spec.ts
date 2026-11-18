@@ -1,4 +1,5 @@
 import { setAreaMetric, setColorMetric, setLabelSize, setScaling } from "../../../../stores/mapState/mapState.write.facade"
+import { activeThemeChanged } from "../../../../stores/preferences/preferences.write.facade"
 import { focusNode } from "../../../../stores/sharedView/sharedView.write.facade"
 import { actionsRequiringRerender } from "./actionsRequiringRerender"
 import { FULL_INVALIDATION, invalidationForAction, mergeInvalidations, propagate } from "./renderInvalidation"
@@ -13,7 +14,7 @@ describe("renderInvalidation", () => {
             const invalidation = invalidationForAction(action)
 
             // Assert
-            expect(invalidation).toEqual({ geometry: false, colors: false, labels: true, arrows: false })
+            expect(invalidation).toEqual({ geometry: false, colors: false, labels: true, arrows: false, floorLabels: false })
         })
 
         it("should invalidate colors and labels when the color metric changes", () => {
@@ -24,7 +25,7 @@ describe("renderInvalidation", () => {
             const invalidation = invalidationForAction(action)
 
             // Assert
-            expect(invalidation).toEqual({ geometry: false, colors: true, labels: true, arrows: false })
+            expect(invalidation).toEqual({ geometry: false, colors: true, labels: true, arrows: false, floorLabels: false })
         })
 
         it("should invalidate everything when the area metric changes", () => {
@@ -57,7 +58,18 @@ describe("renderInvalidation", () => {
             const invalidation = invalidationForAction(action)
 
             // Assert
-            expect(invalidation).toEqual({ geometry: false, colors: false, labels: true, arrows: true })
+            expect(invalidation).toEqual({ geometry: false, colors: false, labels: true, arrows: true, floorLabels: false })
+        })
+
+        it("should recolor and redraw the floor labels when the theme changes", () => {
+            // Arrange
+            const action = activeThemeChanged({ themeId: "cc-dark" })
+
+            // Act
+            const invalidation = invalidationForAction(action)
+
+            // Assert
+            expect(invalidation).toEqual({ geometry: false, colors: true, labels: true, arrows: false, floorLabels: true })
         })
 
         it("should invalidate everything for an action it does not know", () => {
@@ -118,6 +130,30 @@ describe("renderInvalidation", () => {
         })
     })
 
+    describe("floor labels", () => {
+        it("should redraw the floor labels with the geometry", () => {
+            // Arrange
+            const geometryOnly = { geometry: true }
+
+            // Act
+            const invalidation = propagate(geometryOnly)
+
+            // Assert
+            expect(invalidation.floorLabels).toBe(true)
+        })
+
+        it("should keep the floor labels of a merge when one invalidation asks for them", () => {
+            // Arrange
+            const invalidations = [propagate({ labels: true }), propagate({ colors: true, floorLabels: true })]
+
+            // Act
+            const merged = mergeInvalidations(invalidations)
+
+            // Assert
+            expect(merged.floorLabels).toBe(true)
+        })
+    })
+
     describe("mergeInvalidations", () => {
         it("should combine the stages of every invalidation it is given", () => {
             // Arrange
@@ -130,7 +166,7 @@ describe("renderInvalidation", () => {
             const merged = mergeInvalidations(invalidations)
 
             // Assert
-            expect(merged).toEqual({ geometry: false, colors: true, labels: true, arrows: false })
+            expect(merged).toEqual({ geometry: false, colors: true, labels: true, arrows: false, floorLabels: false })
         })
     })
 })

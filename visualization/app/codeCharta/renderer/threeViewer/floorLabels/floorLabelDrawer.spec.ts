@@ -1,5 +1,7 @@
 import { MeshBasicMaterial, Vector3 } from "three"
 import { Node } from "../../../model/codeCharta.model"
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { resolveTheme } from "../../../util/theme/resolveTheme"
 import { FloorLabelDrawer } from "./floorLabelDrawer"
 
 describe("FloorLabelDrawer", () => {
@@ -120,6 +122,22 @@ describe("FloorLabelDrawer", () => {
             expect(canvasContextMock.strokeText.mock.invocationCallOrder[0]).toBeLessThan(
                 canvasContextMock.fillText.mock.invocationCallOrder[0]
             )
+        })
+
+        it("should write labels in the theme's label color", () => {
+            // Arrange
+            const dark = resolveTheme("cc-dark", "light")
+            const floorLabel = { fill: "#123456", outline: "#654321" }
+            setActiveTheme({ ...dark, render: { ...dark.render, map: { ...dark.render.map, floorLabel } } })
+            const nodes = [createFakeNode("root", 500, 500, false, 0)]
+            const canvasContextMock = createCanvasMock()
+
+            // Act
+            new FloorLabelDrawer(nodes, mapSize, scaling).draw()
+
+            // Assert
+            expect(canvasContextMock.fillStyle).toBe("#123456")
+            expect(canvasContextMock.strokeStyle).toBe("#654321")
         })
 
         it("should apply the given anisotropy to the label textures", () => {

@@ -30,7 +30,7 @@ import {
     setShowOnlyBuildingsWithEdges,
     setShowOutgoingEdges
 } from "../../../../stores/mapState/mapState.write.facade"
-import { setMaxTreeMapFiles } from "../../../../stores/preferences/preferences.write.facade"
+import { activeThemeChanged, setMaxTreeMapFiles } from "../../../../stores/preferences/preferences.write.facade"
 import { setState } from "../../../../stores/rootStore/state.actions"
 import {
     addExcludedNodes,
@@ -53,6 +53,7 @@ import {
 } from "../../../../stores/sharedView/sharedView.write.facade"
 
 export const actionsRequiringRerender = [
+    activeThemeChanged,
     // The node rules used to reach the map only because they rebuilt the decorated tree. Flattening
     // no longer does, so the actions have to ask for the re-render themselves.
     setExcludedNodes,

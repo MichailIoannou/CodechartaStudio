@@ -38,7 +38,7 @@ label `color` and `border` from the `buildingLabel` palette.
 - [x] 2. Themes registered in CSS
 - [x] 3. DOM stragglers
 - [x] 4. Scene background
-- [ ] 5. Floors and floor labels
+- [x] 5. Floors and floor labels
 - [ ] 6. Labels, connectors, view cube
 - [ ] 7. Map screenshot
 - [ ] 8. Preference and migration
@@ -99,4 +99,16 @@ Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feat
   at the end of `initGL` and at the top of every animation frame and calls `setClearColor` only when
   the wanted color differs. `clearColor` is now the hex string (or `null` before the first sync); nothing
   outside the service read it.
+
+### 5. Floors and floor labels
+
+- As designed (`floorGradientFor`, palette `floorLabel`, `floorLabels` invalidation flag, `redrawFloorLabels`,
+  `activeThemeChanged` in `actionsRequiringRerender`). `CodeMapRenderService.render` delegates the
+  non-geometry branch to a new private `refreshBuildings` (recolor, then floor labels).
+- **Order change:** `activeThemeChanged` is needed here already, so `stores/preferences/store/theme/theme.actions.ts`
+  is created in this task with that one action (exported from `preferences.write.facade.ts`); task 8
+  adds `setThemePreference` to the same file.
+- `FolderLabelMaterials` was not touched (still looks inert; nothing in M1 depends on it).
+- Extra tests beyond the plan: `geometryGenerator.spec.ts` (floors from the theme's gradient, recolor
+  takes the theme active at the time), `threeSceneService.spec.ts` (`redrawFloorLabels`).
 
