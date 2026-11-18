@@ -28,7 +28,7 @@ codes need an `ErrorCode` variant, `ErrorCode::ALL`, a `CoreError` variant and i
 ## Steps
 
 - [x] 1. Paths and ids
-- [ ] 2. Atomic writes
+- [x] 2. Atomic writes
 - [ ] 3. Open, migrations, sweep
 - [ ] 4. Lock
 - [ ] 5. Session
@@ -57,4 +57,16 @@ compiles the `cfg(windows)` code; nothing ran on Windows.
   missing file is `NOT_FOUND`, a canonical path outside the canonical folder is `NOT_ALLOWED`. The
   symlink test is `cfg(unix)`; no `dunce`: both sides are canonicalised the same way, so a `\\?\` prefix
   on Windows is on both (not verified on Windows).
+
+### 2. Atomic writes
+- `store/atomic.rs`: `read_json`, `read_json_if_exists` (missing file is `None`; bad JSON is `IO` with
+  `InvalidData`), `write_json_atomic` (pretty JSON + newline, temporary file `.tmp-<random>` in the same
+  folder via `tempfile::Builder`, `sync_all`, rename with retries, then `TempPath::keep`; the temporary file
+  is removed when anything fails), `ProjectLocks` (`lock(&ProjectId) -> OwnedMutexGuard`, tokio mutex per
+  project so a guard may be held across an `await` in M2).
+- Retry: 5 retries after the first attempt, 20 ms doubling (named constants). Transient = `PermissionDenied`,
+  plus raw OS errors 32/33 (sharing/lock violation) on Windows only. The retry test injects the failure
+  through a private `write_json_atomic_with(path, value, rename)` seam; the real Windows failure is not
+  reproducible on Linux (03-M0 item 3.3) and stays unverified. Extra tests: `should_give_up_after_the_last_retry`,
+  `should_replace_the_file_with_the_new_content`, `should_answer_none_for_a_missing_file_and_io_for_bad_json`.
 
