@@ -5,29 +5,29 @@ answer that differs means the named file is changed, nothing else.
 
 ## Area 03 — projects
 
-1. **One nav-bar control for folders and snapshot status?** Plans 03 and 05 each add a nav-bar control
-   naming the shown snapshot. *Default:* one control (`03-projects.md` P2) carrying the staleness
-   badge; the snapshots dialog opens from its "Snapshots…" button.
-2. **Explicit active folder.** History, "Analyse" and the stale notice act on one folder. *Default:*
-   the user picks it ("Make active" in P2, the folder select in History); it is remembered per
-   project. Alternative: always the first shown folder (plan 03's rule), which hides History for
-   folders without analyses.
-3. **How many folders side by side?** (plan 03 open question 2) *Default:* no limit, no warning.
+1. ~~One nav-bar control for folders and snapshot status?~~ **Decided by the owner (OD1, OD2):** one
+   working folder at a time, chosen in the project menu; the workspace status element replaces the
+   map selector, branch chip and analyses indicator.
+2. ~~Explicit active folder?~~ **Decided (OD1):** the working folder, chosen in the project menu.
+3. ~~How many folders side by side?~~ **Moot (OD1):** one.
 
 ## Area 04 — history
 
-4. **Confirm a branch switch?** Plan 04 words a confirmation for every switch. *Default:* only when
-   the working tree has changes; a clean switch happens at once, as in Rider and VS Code.
-5. **Where do git failures show?** *Default:* an error notice inside the History view with a
-   "Details" disclosure (toasts close after 5 s and cannot hold buttons); successes stay toasts.
+4. ~~Confirm a branch switch?~~ **Decided by the owner (2026-11-18):** the default stands. Confirm only
+   when the working tree has changes; a clean switch happens at once, as in Rider and VS Code.
+5. ~~Where do git failures show?~~ **Decided by the owner (2026-11-18), differs from the default:** every
+   git failure shows as a toast, like successes. `04-history.md` (and any area quoting the in-view error
+   notice) must change; the designer has to reconsider how a toast carries the failure details, since
+   toasts close after 5 s and cannot hold buttons.
 
 ## Area 05 — snapshots
 
-6. **Does selecting a commit in History change the map?** Plan 05 loads the nearest snapshot on every
-   selection change. *Default:* no — selection only shows the analysis status in the details pane;
-   "Show in map" (Enter / double-click) changes the map. Keeps arrow-key browsing fast with large maps.
-7. **Stale notice in History?** *Default:* the banner shows over the map views only; History shows the
-   same facts per commit in its details pane.
+6. ~~Does selecting a commit in History change the map?~~ **Decided by the owner (2026-11-18):** the
+   default stands. Selection only shows the analysis status in the details pane; "Show in map"
+   (Enter / double-click) changes the map. Plan 05's load-on-every-selection is superseded.
+7. ~~Stale notice in History?~~ **Decided by the owner (2026-11-18):** follow the UI design, which is the
+   default: the banner shows over the map views only; History shows the same facts per commit in its
+   details pane.
 
 ## Area 06 — compare
 

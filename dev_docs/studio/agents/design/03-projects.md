@@ -7,231 +7,215 @@ Principles: `00-design-principles.md`. Desktop only unless a section says otherw
 
 | # | Element | Selector | Lives in | Modelled on |
 |---|---|---|---|---|
-| P1 | Project switcher | `cc-project-switcher` | nav bar, `navbar-start` | `cc-map-selector` dropdown |
-| P2 | Folder selector (active folder, shown folders, snapshot status) | `cc-project-folder-selector` | nav bar map slot | `cc-map-selector` dropdown |
-| P3 | Project home | `cc-project-home` | `views/codeCharta.component.html` instead of `<router-outlet>` | `scenarioListDialog` lists, page layout new |
+| P1 | Project menu (projects, folders, working folder) | `cc-project-switcher` | nav bar, `navbar-start` | `cc-map-selector` dropdown |
+| P2 | (removed by OD1; its place holds `05-snapshots.md` W1) | — | — | — |
+| P3 | Project overview page | `cc-project-overview` | route `#/project` | `cc-sidebar-inspector` label/value rows, `scenarioListDialog` lists |
 | P4 | Create project dialog | `cc-create-project-dialog` | hosted by P1 | `saveScenarioDialog` |
 | P5 | Folder list editor | `cc-folder-list-editor` | inside P4 and P6 | `mapSelector` rows |
 | P6 | Manage project dialog | `cc-manage-project-dialog` | hosted by P1 | `globalConfigurationDialog` + `explorerModeToggle` |
 | P7 | Delete project confirmation | inside P6 | — | `deleteConfirmDialog` |
 | P8 | Open / import cc.json dialog | `cc-open-file-dialog` | hosted by P1 and P3 | `saveScenarioDialog` |
 | P9 | Move / bind snapshot dialog | `cc-move-snapshot-dialog` | hosted by the snapshots dialog (area 05) | `saveScenarioDialog` |
-| P10 | Imported-snapshot label | text pattern | P2, P3, P8, area 05 lists, chip tooltips | — |
+| P10 | Imported-snapshot label | text pattern | W1, P3, P8, area 05 lists | — |
 | P11 | Drop target (optional, M6.5) | host listeners on `views/codeCharta.component.ts` | full window overlay | loading overlay geometry |
 
 Store location ("Change…", "Use default") is designed in area 01 (desktop tools panel), as plan 03 asks.
 
 ---
 
-## P1 Project switcher
+## P1 Project menu
 
 **Where.** `navBar.component.html`, `navbar-start`, after the divider, in place of
 `<cc-nav-bar-folder-button>` when `isDesktop()`. The web build keeps the folder button (D1).
+Owner decision OD1: a project groups folders, and the user works in one of them at a time, the
+**working folder**. This menu is where both are chosen.
 
-**Trigger.** `btn btn-ghost btn-sm justify-between min-w-0` (widths per principles §3) with
-`fa-solid fa-layer-group`, the project name (`truncate`), `fa fa-caret-down ml-2`.
-`title`: "Project: <name> — switch, create or manage projects". No project: label "No project"
-(`text-base-content/60`).
+**Trigger.** `btn btn-ghost btn-sm justify-between min-w-0` (widths per principles §3):
+`fa-solid fa-layer-group`, project name `text-base-content/60`, a `/` separator, working-folder label
+`font-medium`, `fa fa-caret-down`. Both names `truncate`, the folder name keeps priority (the project
+name shrinks first: `shrink` on it, `shrink-0` up to `max-w-32` on the folder). Below 1280 px only the
+folder label shows. `title`: "Project 'billing', working folder 'billing-api' (C:\work\billing-api) —
+switch folder or project". No project: "No project" in `text-base-content/60`.
 
 ```
-[▣ billing                 ▾]
-┌──────────────────────────────────────────────┐
-│ PROJECTS                                     │   text-xs uppercase tracking-wide opacity-60
-│ ✓ billing                     3 folders      │   current: fa-check, font-semibold
-│   codecharta                  2 folders  ⚠   │   ⚠ = missingFolderCount > 0
-│   dotfiles                    1 folder       │
-│ ──────────────────────────────────────────── │
-│ ＋ New project…                              │
-│ 📂 Open cc.json…                     Ctrl+O  │   shortcut hint text-xs opacity-60
-│ ⚙ Manage project…                           │   disabled without an active project
-│ ✕ Close project                             │   disabled without an active project
-└──────────────────────────────────────────────┘
+[▣ billing / billing-api ▾]
+┌──────────────────────────────────────────────────────────┐
+│ BILLING                                [ⓘ Overview]     │  current project header + overview link
+│ ● billing-api     primary  ⎇ main          C:\work\…     │  working folder: filled dot, bg-primary/20
+│ ○ billing-web     fork     ⎇ feature/x                   │
+│ ○ out             helper   plain folder                  │
+│ ──────────────────────────────────────────────────────── │
+│ OTHER PROJECTS                                           │
+│ ▸ codecharta              2 folders                      │  collapsed project row
+│ ▾ dotfiles                1 folder                       │  expanded: its folders below
+│     ○ dotfiles   primary  ⎇ main                         │
+│ ──────────────────────────────────────────────────────── │
+│ ＋ New project…   📂 Open cc.json…  Ctrl+O              │
+│ ⚙ Manage project…   ✕ Close project                    │
+└──────────────────────────────────────────────────────────┘
 ```
 
-- Dropdown content: map-selector classes (`z-[70]`, `min-w-[14rem] w-max max-w-[32rem] p-2`). Project
-  list `max-h-72 overflow-y-auto`, rows `button` `rounded-md px-2 py-1 hover:bg-base-200 w-full`,
-  name `truncate`, folder count `text-xs text-base-content/60 tabular-nums`.
-- Warning icon `fa-triangle-exclamation text-warning`, `title` "1 folder of this project is missing".
-  A project whose summary has `problem` shows `fa-triangle-exclamation text-error` and the problem
-  text in `title`; it can still be chosen (the home then shows the problem).
-- Action rows are `cc-context-menu-item`-styled buttons inside the dropdown (`text-sm`, icon `w-4`).
+- Dropdown content: map-selector classes (`z-[70]`, `w-[26rem] max-w-[32rem] p-2`), body
+  `max-h-[70vh] overflow-y-auto`; headers in the explorer header style.
+- **Current project section.** Header: project name (`text-xs font-semibold uppercase tracking-wide`)
+  and `btn btn-ghost btn-xs` "Overview" (`fa-circle-info`) opening the project overview (P3). One row per
+  folder, `role="menuitemradio"`, `aria-checked` on the working folder: radio dot (`fa-circle
+  text-primary` filled / `fa-regular fa-circle`), label `font-medium truncate`, role `badge badge-ghost
+  badge-xs` (primary / fork / helper), current branch `text-xs text-base-content/60` with
+  `fa-code-branch` ("plain folder" for non-git, "missing" `text-warning` + `fa-triangle-exclamation`
+  for missing folders), path `font-mono text-xs truncate max-w-40` (full in `title`). The working-folder
+  row has `bg-primary/20`.
+- **Other projects.** One row per project (`collapse`-like disclosure: `fa-caret-right/down`, name,
+  "n folders" `text-xs text-base-content/60`, `fa-triangle-exclamation text-warning` when a folder is
+  missing). Expanding shows its folders as rows like above, indented `pl-6`. Sorted by name;
+  expansion state is not remembered.
+- **Choosing a folder** (in any project) switches to it: `ProjectsService.openProject(projectId)` when
+  the project changes, then `setWorkingFolder(folderId)`, which loads that folder's last shown analysis
+  (or the project overview when it has none). The menu closes. Choosing the current working folder only
+  closes the menu.
+- Footer actions as `cc-context-menu-item`-styled buttons in two rows: "New project…", "Open cc.json…"
+  (with `kbd`-less hint "Ctrl+O" `text-xs opacity-60`), "Manage project…", "Close project" (the last two
+  disabled without an active project).
 
 **States.**
 
 | State | Look |
 |---|---|
-| no projects | list replaced by `text-xs text-base-content/60 px-2 py-1` "No projects yet." |
-| loading (`isBusy()` during `openProject`) | trigger shows `loading loading-spinner loading-xs` before the name; rows disabled |
-| many projects | list scrolls (`max-h-72`); projects sorted by name, case-insensitive |
-| long name | `truncate` everywhere, full name in `title` |
-| bridge error on open | dropdown closes; toast (error) "Could not open the project '<name>': <message>"; signals keep the last good value |
-| narrow window | trigger widths per principles §3 |
+| no project open | current-project section replaced by `text-xs text-base-content/60 px-2` "No project open."; "OTHER PROJECTS" becomes "PROJECTS" |
+| no projects at all | "No projects yet." and the footer only |
+| loading after a choice | the chosen row shows `loading loading-spinner loading-xs`; other rows disabled; the views' loading overlay shows as today |
+| many projects / folders | body scrolls at `max-h-[70vh]` |
+| long names | `truncate`, full text in `title` |
+| error | menu closes; toast (error) "Could not open 'billing-web': <message>"; the previous folder stays |
 
-**Keyboard.** Trigger `aria-haspopup="menu"`, `aria-expanded`. ArrowDown opens and focuses the first
-row; ArrowUp/Down move; Enter activates; Escape closes and refocuses the trigger. `Ctrl+O`
-(`Cmd+O` on macOS) runs "Open cc.json…" from anywhere in the desktop app, except while a modal dialog
-is open or focus is in an `input`/`textarea`.
+**Keyboard.** Trigger `aria-haspopup="menu"`, `aria-expanded`. ArrowDown opens and focuses the working
+folder; ↑/↓ move over folder rows, project rows and actions; → expands a project row, ← collapses
+it (or moves to its project row from a folder); Enter chooses; Escape closes and refocuses the trigger.
+`Ctrl+O` (`Cmd+O` on macOS) runs "Open cc.json…" from anywhere in the desktop app, except while a modal
+dialog is open or focus is in an `input`/`textarea`.
 
-**Data.** `ProjectsService.projects()`, `activeProject()`, `isBusy()`; `openProject(id)`;
-`openProject(null)` for Close; "Open cc.json…" → `snapshots.pickImportFile()` then P8.
+**Data.** `ProjectsService.projects()` (with each summary's folders: label, role, kind, status; see
+Deviations 3), `activeProject()`, `workingFolder()`, `isBusy()`; `openProject(id)`, `openProject(null)`
+for Close, `setWorkingFolder(folderId)`; branch per folder from `GitRepositoryService.branchOf(folderRef)`
+(cached `git.status` heads, fetched when the menu opens, shown as "…" until known).
 
----
+## P2 (removed)
 
-## P2 Folder selector
+The multi-folder selector of plan 03 is gone (owner decision OD1). Its nav-bar place holds the
+**workspace status** element, `05-snapshots.md` W1, which shows what the map shows for the working
+folder, its branch and git state, and any running analysis or git operation.
 
-**Where.** Nav bar map slot (principles §3) while a project is active and a project map is shown.
-Merges plan 03's folder selector with plan 05's snapshot chip (see Deviations): one trigger, one
-dropdown.
+## P3 Project overview
 
-**Trigger.**
+**Where.** A page under the nav bar, route `#/project` (`routePaths.project = "project"`), lazy
+component `cc-project-overview`; no view-switcher tab is active while it shows. It is also what the app
+shows when no map can be shown (no project, or a working folder without analyses), replacing plan 03's
+`@if (showsProjectHome())` switch with a redirect to this route. Opened from the project menu's
+"Overview", from the workspace status menu ("Project overview"), and by the boot flow. Host
+`block min-h-[calc(100vh-var(--cc-bars-height))] bg-base-100 overflow-y-auto`; content `max-w-5xl
+mx-auto px-4 py-6 flex flex-col gap-6`. Leaving it: any view tab, or "Show map".
 
-```
-one folder shown:      [⎇ codecharta @ a1b2c3d                     ▾]
-                       [⎇ codecharta @ a1b2c3d  stale by 4         ▾]   ← badge added by area 05
-imported, unbound:     [📥 billing · imported                       ▾]
-several folders:       [⎇ codecharta @ a1b2c3d  +1 folder           ▾]
-```
-
-`btn btn-ghost btn-sm justify-between min-w-0` (widths per principles §3); icon `fa-code-branch`
-(git folder) / `fa-folder` (plain) / `fa-file-import` (imported unbound); text = display name of the
-active folder's shown snapshot (`snapshotDisplayName`, D7) with the short SHA in `font-mono`; `+n
-folder(s)` in `text-base-content/60` when more than one folder is shown. `title`:
-"<folder label> — <path>\nShowing <short> <subject>\nAnalysed <date>" (imported: "Imported snapshot —
-analysis time unknown\nFile date: <date>").
-
-**Dropdown.**
+**(a) Project open — overview**
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│ All · None · Invert                                                │  cc-selection-shortcuts (as today)
-│ ☑ ● codecharta   primary              a1b2c3d  Fix layout     ✓    │  ● = active folder
-│ ☑   codecharta-fork  fork · fork of codecharta  9f8e7d6 …     ✓    │
-│ ☐   devops       helper               no analysis yet           (disabled)
-│ ☐   old-share    helper  ⚠ missing    3c4d5e6 …          Re-link…  │
-│ ──────────────────────────────────────────────────────────────────  │
-│ [Snapshots…]                                          [ Apply ]     │
-└────────────────────────────────────────────────────────────────────┘
+billing                                                    [⚙ Manage project…]
+Invoicing services and their deployment scripts.            (description, text-base-content/70)
+
+┌ WORKING FOLDER ──────────────────────────────┐ ┌ ANALYSES ────────────────────────────────┐
+│ ⎇ billing-api   primary                       │ │ In the map   9f8e7d6 Release 2.4.0        │
+│ C:\work\billing-api            [Show in files]│ │              stale by 4 (current checkout │
+│                                                │ │              a1b2c3d)                     │
+│ Branch     feature/invoice-rounding           │ │ Latest       9f8e7d6 · 28 Oct, 1 min 12 s │
+│ Upstream   origin/feature/invoice-rounding    │ │ Analyses     12 · 61.2 MB                 │
+│            ↑2 to push · ↓1 to pull  [↓ Pull 1 ▾]│ │ Running      a1b2c3d 42 % [██████░░]     │
+│ Changes    3 uncommitted (1 staged)            │ │                                           │
+│ Last commit a1b2c3d Fix invoice rounding       │ │ [▦ Show map] [▶ Analyse current checkout] │
+│            Mia Chen · 2 hours ago              │ │ [Snapshots…]                              │
+│ Remotes    origin github.com/acme/billing-api │ └───────────────────────────────────────────┘
+│ [Open History]                                 │
+└────────────────────────────────────────────────┘
+RECENT COMMITS                                            [Open History]
+ ◉ a1b2c3d  Fix invoice rounding                 Mia Chen  2 hours ago   42 %
+ ● 7c8d9e0  Merge branch 'main' into feature/x   Mia Chen  2 days ago
+ ● 4f5a6b7  Add currency table                   Mia Chen  3 days ago
+ ● 9f8e7d6  Release 2.4.0                        Jo Park   5 days ago    in map
+ ● 2b3c4d5  Start the invoice module             Jo Park   1 week ago    analysed
+
+FOLDERS OF THIS PROJECT                                   [＋ Add folder…]
+ ● billing-api   primary  ⎇ feature/invoice-rounding  12 analyses   (working)
+ ○ billing-web   fork     ⎇ main                       3 analyses    [Work here]
+ ○ out           helper   plain folder                 1 imported    [Work here]
+   Imported maps only. Add the repository folder and move the snapshot to it.
 ```
 
-- Row: `checkbox checkbox-xs`, active marker, label (`font-medium truncate`), role
-  `badge badge-ghost badge-xs` ("primary", "fork", "helper"), relationship hint
-  `text-xs text-base-content/60` ("fork of codecharta", "shares history with codecharta", "same remote
-  as codecharta"), shown snapshot `font-mono text-xs` + subject `truncate max-w-48`, status icon
-  (`fa-check text-success` ok, `fa-triangle-exclamation text-warning` missing, title "Folder not found
-  on disk — its analyses still open").
-- **Active folder.** The filled dot `fa-circle text-primary text-[8px]` marks the folder History and
-  "Analyse" act on. Every other git row shows, on hover/focus, a `btn btn-ghost btn-xs` "Make active"
-  (`aria-label` "Make <label> the active folder"). Plain folders can be active too (analyses run on
-  their working tree; History is unavailable for them). Changing it takes effect at once, no Apply.
-- Folder without snapshots: checkbox disabled, text "no analysis yet" `italic text-base-content/50`;
-  area 05 adds a row button "Analyse" there.
-- Missing folder: row keeps its checkbox (snapshots still load) and offers "Re-link…" (opens P6 on
-  the Folders tab with the row focused).
-- Footer: left `btn btn-ghost btn-sm` "Snapshots…" (opens the snapshots dialog of area 05, which
-  plan 03 already needs for move/bind — see Deviations); right `btn btn-primary btn-sm` "Apply",
-  disabled when the checked set equals the shown set or is empty (tooltip, as the map selector:
-  "Select at least one folder" / "Nothing changed").
+- Title `text-2xl font-bold`, description `text-base-content/70`, "Manage project…" `btn btn-sm`.
+- Two cards side by side (`grid md:grid-cols-2 gap-4`; stacked below 768 px), `rounded-box border
+  border-base-300 p-4`, header in the explorer header style. Label/value rows
+  `grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm`, labels `text-base-content/60`.
+- **Working folder card**: label + role badge; path `font-mono text-xs` + "Show in files"
+  (`fa-regular fa-folder-open`, reveal); Branch (detached: "detached at a1b2c3d"); Upstream with
+  ahead/behind sentence ("in sync" / "no upstream" / "upstream gone") and the contextual sync button
+  (`04-history.md` H5, same component); Changes ("clean" / "3 uncommitted (1 staged)" / "merge in
+  progress — 2 conflicts" `text-warning`); Last commit (short SHA, subject, author, relative date);
+  Remotes (name + host/path, never credentials); "Open History" `btn btn-sm`. Plain folder: rows Branch,
+  Upstream, Changes, Last commit, Remotes are replaced by "Plain folder — no git history." Missing folder:
+  `alert alert-warning text-sm` "This folder was not found on disk. Its analyses still open." +
+  "Re-link…".
+- **Analyses card**: In the map (display name + the staleness sentence of `noticeText`, or "nothing
+  shown"); Latest (short SHA, date, duration); Analyses (count, store size); Running (job + progress
+  bar, only while one runs); buttons "Show map" (→ metrics view, disabled with title "No analysis yet"
+  when there is none), "Analyse current checkout", "Snapshots…". No analyses: "No analysis yet. Analyse
+  the current checkout to see its map." with "Analyse current checkout" as `btn-primary`.
+- **Recent commits**: the 10 newest commits of the current branch, as History rows without the graph
+  (`04-history.md` H8 badges and analysis column), HEAD marked with the ring; clicking a row opens
+  History with that commit selected; "Open History" in the header. Absent for plain folders.
+- **Folders of this project**: one row per folder with radio dot, label, role, branch / kind, analysis
+  count, "Work here" `btn btn-xs` (= choosing it in P1; the working folder shows "(working)"
+  `text-base-content/60`), "Import cc.json…" in the row's overflow, "Re-link…" for missing ones, the
+  plain-folder hint (plan 03 §6.3). "Add folder…" in the header (`projects.addFolder`).
+- Refresh: data re-reads on opening the page and on window focus (throttled as History, plan 04 G5).
 
-**States.** Loading after Apply: trigger spinner as P1, list disabled; the file-loading overlay of the
-views shows as today. Load error: toast "The analysis of '<label>' could not be read" and the next
-newest snapshot is shown (plan 03); if none is left, P3 state (c). One folder in the project: no
-selection shortcuts, no checkbox column, no Apply; the dropdown is only status + "Snapshots…". Many
-folders: list scrolls at `max-h-72`.
-
-**Keyboard.** As the map selector: Tab through checkboxes and buttons; Space toggles; Enter on Apply.
-Escape closes.
-
-**Data.** `ProjectsService.visibleFolders()`, `activeProject().folders`, `snapshotsByFolder()`,
-`shownSnapshots()`, `activeFolder()`; `showFolders(ids)`; **new** `setActiveFolder(folderId)` (see
-Deviations); `util/folderRelationshipLabel.ts`, `util/snapshotDisplayName.ts`.
-
----
-
-## P3 Project home
-
-**Where.** `views/codeCharta.component.html`: `@if (showsProjectHome()) { <cc-project-home /> } @else
-{ <router-outlet /> }`, below the nav bar. Host `block min-h-[calc(100vh-var(--cc-bars-height))]
-bg-base-100 overflow-y-auto`; content `max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6`. While it
-shows, the nav bar has no view switcher (plan 03) and no map slot.
-
-**(b) No project open**
+**(b) No project open** (boot without an active project, or after "Close project")
 
 ```
                  CodeCharta
    Open a project to see its code as a city.
-
    [ ＋ New project… ]  [ 📂 Open cc.json… ]  [ Show sample maps ]
-     btn-primary          btn                   btn btn-ghost
 
-   RECENT PROJECTS                                              (panel header style)
-   ┌──────────────────────────────────────────────────────────────┐
-   │ ▣ billing          3 folders · 41 snapshots      ⚠ 1 missing │  row = button, hover:bg-base-200
-   │ ▣ codecharta       2 folders · 12 snapshots                  │
-   └──────────────────────────────────────────────────────────────┘
+   PROJECTS
+   ▣ billing        3 folders · 41 analyses        ⚠ 1 folder missing   ▸
+   ▣ codecharta     2 folders · 12 analyses                              ▸
 ```
 
-- Title `text-2xl font-bold`, sentence `text-base-content/70`.
-- Projects list: `rounded-box border border-base-300 divide-y divide-base-300`; rows as
-  `scenarioItem` (`px-4 py-2`, name `font-medium`, meta `text-xs text-base-content/60`). Sorted by
-  `updatedAt` newest first (this is "recent", unlike P1's alphabetical list).
-- Empty list: section hidden; instead `text-sm text-base-content/60` "No projects yet. A project
-  groups the folders of one codebase — the repository, forks, helper folders."
-- Enter/click opens the project.
+- Project rows (`rounded-box border border-base-300 divide-y divide-base-300`, rows `px-4 py-2
+  hover:bg-base-200`, sorted by last update) open the project with its stored working folder. Empty:
+  "No projects yet. A project groups the folders of one codebase — the repository, forks, helper
+  folders."
 
-**(c) Project open, nothing to show**
+**(c) Store problem** (`storeProblem() !== null`; replaces (a)/(b))
 
-```
-   billing                                                   [⚙ Manage project…]
-   No analysis to show yet.
-
-   FOLDERS
-   ┌──────────────────────────────────────────────────────────────────────────┐
-   │ ⎇ billing-api   primary   C:\work\billing-api        git   ok    0 analyses │
-   │                                     [Import cc.json…]  [▶ Analyse]  ← area 05│
-   │ 📁 out          helper    C:\work\billing\out        plain ok    0 analyses │
-   │   Imported maps only. Add the repository folder and move the snapshot to it. │
-   │ ⎇ billing-web   fork      D:\old\billing-web         git ⚠ missing           │
-   │                                                    [Re-link…]               │
-   └──────────────────────────────────────────────────────────────────────────┘
-   [＋ Add folder…]
-```
-
-- Columns: icon, label (`font-medium`), role badge, path (`font-mono text-xs truncate`, full path in
-  `title`), kind badge (`badge badge-ghost badge-xs` "git" / "plain"), status (`badge-success`
-  "ok" / `badge-warning` "missing"), snapshot count. Actions right-aligned, `btn btn-sm`.
-- Plain-folder hint (plan 03 §6.3) `text-xs text-base-content/60` under the row, shown when the folder
-  is `plain` and holds only imported snapshots.
-- "Add folder…" runs the P5 add flow and saves at once (`projects.addFolder`).
-
-**(a) Store problem** (`storeProblem() !== null`; replaces (b)/(c))
-
-```
-   ⚠  The analysis store cannot be used.
-      <sentence per code>
-      [Open store folder]  [Choose another location…]
-```
-
-`alert alert-error` inside the content column. Sentences:
+`alert alert-error` in the content column, "The analysis store cannot be used." and one sentence:
 
 | Code | Sentence |
 |---|---|
-| `STORE_LOCKED` | "Another CodeCharta window is using the store. Close it and try again." + button "Try again" |
+| `STORE_LOCKED` | "Another CodeCharta window is using the store. Close it and try again." + "Try again" |
 | `STORE_NEWER_SCHEMA` | "The store was written by a newer version of CodeCharta. Update the app, or choose another location." |
 | `IO_ERROR` | "The store folder could not be read or written: <message>" |
 
-"Open store folder" → reveal (plan 01 `reveal({ kind: "storeRoot" })`); "Choose another location…" →
-`store.chooseRoot` (area 01 row's behaviour, relaunch on success).
+Buttons "Open store folder" (reveal `storeRoot`) and "Choose another location…" (`store.chooseRoot`,
+area 01 D3 flow).
 
-**States.** Loading during `initialise()`: the existing `cc-boot-loading-indicator` covers it (no
-new spinner). Bridge error listing projects: (b) with an `alert alert-warning` "Projects could not be
-listed: <message>" and a "Try again" button. Narrow window: content column is `max-w-3xl` with `px-4`,
-folder rows wrap their actions onto a second line (`flex-wrap`).
+**States.** Loading: skeleton rows inside each card (cards keep their size). Git data failing: the
+working-folder card shows the area 04 problem sentence for the code in place of the git rows. Long
+values truncate with `title`. Narrow: cards stack; folder rows wrap their buttons.
 
-**Keyboard.** Natural Tab order: primary buttons, then project rows (buttons), or folder row actions.
-Initial focus: none (page, not dialog).
+**Keyboard.** Page, not dialog: natural Tab order header → working-folder card → analyses card →
+recent commits (rows are buttons) → folders.
 
-**Data.** `ProjectsService.projects()`, `activeProject()`, `snapshotsByFolder()`, `storeProblem()`;
-`openProject`, `addFolder`, `relinkFolder`; `showSampleFiles()`; `snapshots.pickImportFile()`.
+**Data.** `ProjectsService.activeProject()`, `workingFolder()`, `snapshotsByFolder()`,
+`storeProblem()`; `GitRepositoryService.status()`, `refs()` (upstream, remotes), `git.log` first page
+of `Head` scope (10 rows) through `GitLogService` or one direct call; `SnapshotViewService.state()`,
+`noticeText`; `AnalysisJobsService.jobs()`; `snapshots.usage`; `projects.folderPath` (reveal).
 
 ---
 
@@ -259,7 +243,7 @@ max-w-2xl`.
 - Name is prefilled from the first added folder's suggested label while the user has not typed one.
 - Validation: name empty → "Create project" disabled, `label-text-alt text-error` "A name is
   required." shown after the field was touched (as `saveScenarioDialog`).
-- A project with no folders is allowed (it opens on P3 (c) with "Add folder…").
+- A project with no folders is allowed (it opens on the project overview, P3 (a), with "Add folder…").
 - Create: button `loading` while `projects.create` runs; error → `alert alert-error text-sm` above the
   footer with the message, dialog stays open. Success → closes, `openProject(id)`.
 
@@ -314,7 +298,7 @@ not share history with the analyses of '<label>'. Link it anyway?" → retries w
 ## P6 Manage project dialog
 
 **Where.** Native `<dialog class="modal">`, `modal-box max-w-2xl`, hosted by P1 ("Manage project…")
-and P3 (c). Sections switched by a segmented control (`explorerModeToggle` pattern, `join` of
+and P3 (a). Sections switched by a segmented control (`explorerModeToggle` pattern, `join` of
 `btn btn-sm join-item`, `aria-pressed`): **General · Folders · Analysis profile**.
 
 ```
@@ -346,7 +330,7 @@ and P3 (c). Sections switched by a segmented control (`explorerModeToggle` patte
 
 **P7 Delete project** (deleteConfirmDialog pattern): title "Delete Project"; "Move the project
 'billing' and its 41 analyses to the recycle bin? Your folders are not touched." Cancel / **Delete
-project** (`btn-error`). Deleting the active project closes it (`setActive(null)`, home (b)).
+project** (`btn-error`). Deleting the active project closes it (`setActive(null)`, overview (b)).
 
 **States.** Saving: the section's Save button `loading`; errors: `alert alert-error text-sm` at the
 top of the section. Long names/paths truncate with `title`. Many folders: section scrolls inside the
@@ -364,7 +348,7 @@ modal-box (`max-h-[60vh] overflow-y-auto`).
 
 **Where.** Native `<dialog class="modal">`, `modal-box max-w-xl`, opened after
 `snapshots.pickImportFile()` returns a `PickedImportFile` (`null` = cancelled, nothing shown). Two
-modes from plan 03: **Open** (P1, P3 (b), Ctrl+O, drop) and **Import** (P3 (c) per folder, target
+modes from plan 03: **Open** (P1, P3 (b), Ctrl+O, drop) and **Import** (P3 (a) folder row overflow, target
 fixed).
 
 ```
@@ -401,8 +385,8 @@ fixed).
 - **Duplicate** (`duplicateOf`): `alert alert-info text-sm` "This file was already imported into
   'billing'." Primary button becomes "Show existing snapshot".
 - Primary: "Open" / "Import" (`btn btn-primary`), `loading` while `openFile` runs. Error: `alert
-  alert-error text-sm` above the footer, dialog stays. Success: closes; the snapshot is shown (P2's
-  trigger then reads "out · imported" or "out @ a1b2c3d").
+  alert-error text-sm` above the footer, dialog stays. Success: closes; the target folder becomes the working
+  folder and the snapshot is shown (W1 then reads "imported · analysis time unknown" or "@ a1b2c3d").
 
 **States.** Very large file: size shown as is; the loading overlay of the views shows while bytes
 stream. Long paths: `break-all` in the target sentence. Picked file vanished before confirm: error
@@ -447,8 +431,8 @@ Everywhere an imported snapshot appears, the analysis time is unknown and says s
 | Place | Text |
 |---|---|
 | P8 file line | "Imported snapshot — analysis time unknown" |
-| P2 trigger (unbound) | "<folder> · imported" (badge-ghost "imported" when bound: "<folder> @ a1b2c3d  imported") |
-| P2 `title` | "Imported snapshot — analysis time unknown\nFile date: <date>\nImported <date>" |
+| W1 trigger (unbound) | "imported · analysis time unknown" (bound: "@ a1b2c3d" + badge-ghost "imported") |
+| W1 `title` | "Imported snapshot — analysis time unknown\nFile date: <date>\nImported <date>" |
 | snapshot lists (area 05) | analysed-at column "unknown (imported <date>)" |
 | sort tooltip of lists | "Imported snapshots are sorted by the time they were imported." |
 | commit unknown | "commit unknown" (`italic text-base-content/50`) |
@@ -467,12 +451,9 @@ toast (warning) "Only .cc.json and .cc.json.gz files can be opened." Absent in t
 
 ## Deviations from the plan
 
-1. **Folder selector and snapshot chip are one control (P2).** Plan 03 puts `cc-project-folder-selector`
-   in the map slot and plan 05 adds `cc-snapshot-chip` right after it; both name the shown snapshot.
-   Two adjacent triggers for the same thing crowd `navbar-start` (which also gets the project
-   switcher) and break at 1280 px. Resolution: P2's trigger carries the staleness
-   badge of area 05, and its "Snapshots…" button is the chip's click. Area 05 designs the badge and the
-   dialog; it does not add a second nav-bar element.
+1. **One working folder at a time (owner decision OD1).** Plan 03's folder selector, `showFolders`,
+   `visibleFolderIds` and side-by-side display of several folders are dropped; the project menu (P1)
+   chooses the working folder. Plan impact is listed in `owner-decisions.md`.
 2. **Manage dialog has no "Snapshots" tab.** Plan 03 lists snapshots (delete, move, bind) in the
    manage dialog; plan 05 has `cc-snapshots-dialog` listing the same snapshots per folder. One list:
    the snapshots dialog (area 05) is built in plan 03 M6 with the columns plan 03 needs (commit,
@@ -480,14 +461,12 @@ toast (warning) "Only .cc.json and .cc.json.gz files can be opened." Absent in t
    M4 (analysed at, profile, analyse actions, clean-up). It lives in `features/snapshots`, and the nav
    bar hosts it (nav bar → projects, nav bar → snapshots, snapshots → projects; no cycle). P6 links to
    it with "Snapshots…". "Delete project" moves from a tab to the bottom of "General".
-3. **Active folder is chosen explicitly.** Plan 03 defines `activeFolder = visibleFolders()[0]`, and
-   plan 04's History toolbar has its own folder select (`GitRepositoryService.selectFolder`). With two
-   sources, History and the stale notice can disagree, and a folder without snapshots (not visible)
-   could never be active, so History could not show it. Resolution: one source of truth,
-   `ProjectsService.activeFolder()`, persisted in the project view (core: `ProjectView.activeFolderId`,
-   set through `projects.setView`); new method `ProjectsService.setActiveFolder(folderId)`. Default when
-   unset: the first visible folder, else the primary folder. P2's "Make active" and the History
-   toolbar select both call it; `GitRepositoryService.selectFolder` delegates to it.
+3. **Project summaries carry their folders.** The project menu lists every project's folders, so
+   `projects.list` returns, per `ProjectSummary`, the folders' `id`, `label`, `role`, `kind` and
+   `status` (no git facts; branches are read lazily when the menu opens). Without it the menu would
+   call `projects.get` once per project.
+5. **Project home becomes the project overview page (owner decision OD4)**, a route that can be opened
+   at any time, instead of a placeholder shown only when nothing is loaded.
 4. **Project list order.** Plan 03 does not say; P1 sorts by name (finding), P3 by last update
    (resuming).
 5. **Name prefill** from the first folder in P4 is an addition (saves typing; never overwrites a typed

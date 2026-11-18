@@ -42,3 +42,6 @@ Produce the interface design for plans 01–06 under `dev_docs/studio/agents/des
   filters, graph, worded badges, icon alignment; added `design/journeys.md` and
   `mockups/studio-screens.html` (replaces `mockups/history.html`). All areas held "blocked" until
   the owner finishes reviewing.
+- 2026-11-18 owner review 2: one working folder per project (OD1), workspace status element with
+  progress fill (OD2), contextual sync button after Zed (OD3), project overview page (OD4); recorded
+  in `design/owner-decisions.md` and the README. Fixed the mock-up's Biome failure (orchestration O1).

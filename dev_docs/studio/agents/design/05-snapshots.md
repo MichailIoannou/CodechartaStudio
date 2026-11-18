@@ -1,22 +1,22 @@
 # 05 — Analyses and snapshots: interface design
 
 Plan: `05-commit-analysis-and-snapshots.md` ("Renderer: state and flow", "Notice wording", "UI
-placement", "Badge provider", M4–M7). Builds on `03-projects.md` (P2 folder selector, P3 home).
+placement", "Badge provider", M4–M7). Builds on `03-projects.md` (P1 project menu, P3 overview) and `owner-decisions.md` (OD1, OD2).
 Principles: `00-design-principles.md`. Desktop only.
 
 ## Elements
 
 | # | Element | Selector | Lives in | Modelled on |
 |---|---|---|---|---|
-| S1 | Snapshot status on the folder selector (replaces the separate chip) | part of `cc-project-folder-selector` | nav bar map slot | `badge` on a ghost button |
+| W1 | Workspace status: branch, map status, analyses and git activity, progress fill | `cc-workspace-status` | nav bar map slot | `cc-map-selector` trigger and dropdown |
 | S2 | Stale notice | `cc-snapshot-notice` | `views/codeCharta.component.html`, under the nav bar | `alert` (toast look, but persistent) |
-| S3 | Analysis jobs indicator and list | `cc-analysis-jobs-indicator` | `navbar-end`, first child | `cc-settings-button` + `cc-settings-popover-shell` |
+| S3 | (merged into W1) | — | — | — |
 | S4 | Snapshots dialog | `cc-snapshots-dialog` | hosted by the nav bar | `scenarioListDialog` |
-| S5 | Analyse actions | buttons and menu items | History, P2, P3, S2, S4 | `cc-context-menu-item`, `btn btn-sm` |
+| S5 | Analyse actions | buttons and menu items | History, W1, P3, S2, S4 | `cc-context-menu-item`, `btn btn-sm` |
 | S6 | Preflight problems | inline list | S2 or the dialog that started the run | cluster-explorer `alert` |
 | S7 | Batch analysis dialog | `cc-batch-analysis-dialog` | hosted by S4 / History | `saveScenarioDialog` |
 | S8 | Clean-up dialog | `cc-cleanup-dialog` | hosted by S4 | `scenarioListDialog` + `deleteConfirmDialog` |
-| S9 | Analysis log dialog | `cc-analysis-log-dialog` | hosted by S3 / S4 | `cc-source-viewer` text |
+| S9 | Analysis log dialog | `cc-analysis-log-dialog` | hosted by W1 / S4 | `cc-source-viewer` text |
 | S10 | History markers and commit actions | `ANALYSED_COMMITS`, `COMMIT_ACTIONS` providers | area 04 H8, H9, H10 | — |
 
 ## What the map follows (target)
@@ -28,67 +28,160 @@ selection changes (see Deviations 1):
 |---|---|---|
 | opens a project | the commit of the restored shown snapshot (plan 03), or "current checkout" when the folder has no remembered snapshot | restored snapshot; no notice unless the target has none |
 | uses "Show in map" on a commit (History details, primary commit action, Enter / double-click) | that commit | its exact or nearest snapshot; navigates to the metrics view |
-| picks a commit with "Show commit…" (S1) on the map screen | that commit | as "Show in map", without leaving the map |
-| uses "Show in map" on "Uncommitted changes", or "Show current checkout" (S1) | current checkout (working tree) | its snapshot, else nearest of HEAD |
+| picks a commit with "Show commit…" (W1) on the map screen | that commit | as "Show in map", without leaving the map |
+| uses "Show in map" on "Uncommitted changes", or "Show current checkout" (W1) | current checkout (working tree) | its snapshot, else nearest of HEAD |
 | clicks Open on a snapshot (S4) | that snapshot's commit (or the snapshot itself for imports and working-tree snapshots) | that snapshot exactly |
 | switches branch, commits, pulls (History) | unchanged; if it is "current checkout" it re-resolves against the new HEAD | nearest for the new HEAD, never analysed automatically |
 | selects commits in the History list | unchanged | unchanged; the details pane shows what *would* be shown (S10) |
 
 ---
 
-## S1 Snapshot status on the folder selector
+## W1 Workspace status
 
-Area 03 P2 is the single nav-bar control for the shown snapshot (area 03 deviation 1). Area 05 adds:
+One nav-bar element for the working folder (owner decisions OD1, OD2). It replaces plan 03's folder
+selector, plan 04's branch chip, plan 05's snapshot chip and plan 05's analyses indicator. It looks
+like today's map selector (a ghost dropdown trigger) and lives in a new feature
+`features/workspaceStatus` (depends on `projects`, `snapshots`, `gitHistory`; nothing depends on it
+except `navBar`).
 
-**Trigger badge** after the display name, `badge badge-sm` + text, from `noticeText(state).chip`:
+**Where.** Nav bar map slot, right after the project menu (principles §3). During a project
+comparison the comparison chip (area 06 C2) takes the slot and W1 shrinks to its icon-only form in
+front of it, so activity and progress stay visible.
 
-| Chip | Badge |
-|---|---|
-| `stale by N` | `badge-warning` "stale by 4" |
-| `ahead by N` | `badge-warning` "ahead by 2" |
-| `diverged N↓ M↑` | `badge-warning` "diverged 3↓ 1↑" (with `fa-arrow-down`/`fa-arrow-up` icons, not Unicode) |
-| `dirty` | `badge-warning` "uncommitted" |
-| `imported` | `badge-ghost` "imported" |
-| `not analysed` | `badge-ghost` "not analysed" |
-| `analysing…` | `badge-info` with `loading loading-spinner loading-xs` "analysing" |
-| `failed` | `badge-error` "analysis failed" |
-| `·profile` suffix | `badge-ghost` "other profile" added as a second badge |
-| none | no badge |
-
-The badge never hides when the banner (S2) is dismissed. Below 1280 px the badge keeps only its
-icon form: stale/ahead/diverged → `fa-clock-rotate-left`, failed → `fa-triangle-exclamation`, with the
-full text in `title`.
-
-**Target line** at the top of the P2 dropdown, above the folder rows:
+### Trigger
 
 ```
-Showing   9f8e7d6  Release 2.4.0                     stale by 4
-For       a1b2c3d  Fix invoice rounding   (current checkout)
-          [Show commit…]  [Show current checkout]  [▶ Analyse a1b2c3d]
-──────────────────────────────────────────────────────────────
-(folder rows as area 03 P2)
+idle, analysed:        [⎇ feature/invoice-rounding  @ 9f8e7d6                      ▾]
+idle, stale:           [⎇ feature/invoice-rounding  @ 9f8e7d6  (stale by 4)        ▾]
+ahead/behind (≥1536):  [⎇ feature/invoice-rounding ↑2 ↓1  @ 9f8e7d6               ▾]
+analysing, 42 %:       [◌ feature/invoice-rounding  Analysing · 42 %               ▾]   fill 42 %
+analysing, no %:       [◌ feature/invoice-rounding  Analysing…                     ▾]   sweeping band
+pulling:               [↓ feature/invoice-rounding  Pulling · 45 %                 ▾]   fill 45 %
+just finished:         [✓ feature/invoice-rounding  @ a1b2c3d                      ▾]   success tint, 1.5 s
+failed:                [⚠ feature/invoice-rounding  Analysis failed               ▾]   error tint until opened
+plain folder:          [📁 out  snapshot from 3 Nov                                ▾]
+imported, unbound:     [📥 out  imported · analysis time unknown                    ▾]
+not analysed:          [⎇ main  (not analysed)                                     ▾]
+detached HEAD:         [⎇ detached at a1b2c3d  @ 9f8e7d6                           ▾]
 ```
 
-- `text-xs`, labels `text-base-content/60 w-16`, SHAs `font-mono`, subjects `truncate`.
-- **"Show commit…"** (`btn btn-ghost btn-xs`, `fa-code-branch`) is how the map screen picks a commit
-  without visiting History: it opens the ref picker (area 06 C4, owned by `features/gitHistory`) in a
-  popover under the dropdown. Branches, tags and commits are listed with their analysis state; picking
-  one sets the target exactly as "Show in map" in History does (exact snapshot, or nearest + S2
-  notice with "Analyse"). Placeholder "Branch, tag or commit"; `aria-label` "Show a commit in the map".
-  Absent for plain (non-git) folders, where "Snapshots…" lists the analyses instead.
-- "Show current checkout" (`btn btn-ghost btn-xs`) only when the target is not already the current
-  checkout. "Analyse <short>" (`btn btn-primary btn-xs`) only when the target has no exact snapshot;
-  while a job runs it becomes the S2 progress row in small.
-- Folder rows without snapshots get `btn btn-xs` "Analyse" (`fa-play`), title "Analyse the current
-  checkout of <label>".
+- `btn btn-ghost btn-sm justify-between min-w-0 relative overflow-hidden isolate` (widths per
+  principles §3). Children, all `relative z-10` above the fill:
+  1. **Activity icon** (`w-4 shrink-0`, centred): idle `fa-code-branch` (git) / `fa-folder` (plain) /
+     `fa-file-import` (imported unbound); analysing `loading loading-spinner loading-xs`; fetching
+     `fa-cloud-arrow-down`, pulling `fa-arrow-down`, pushing `fa-arrow-up`, each with
+     `motion-safe:animate-pulse`; finished `fa-check text-success`; failed `fa-triangle-exclamation
+     text-error`.
+  2. **Branch** `font-medium truncate` (keeps priority over the rest); ahead/behind `text-xs
+     tabular-nums` with `fa-arrow-up`/`fa-arrow-down` icons only at ≥ 1536 px; a dirty dot
+     (`size-2 rounded-full bg-warning`, `title` "3 uncommitted changes") after the branch.
+  3. **Map part** `text-base-content/70 truncate`: `@ <short>` (`font-mono`) of the analysis in the map,
+     or the activity text while something runs, kept short so the branch stays readable ("Analysing ·
+     42 %", "Fetching…", "Pulling · 45 %", "Pushing…", "Analysis failed", "Pull failed"); which commit
+     is being analysed is in the `title` and the dropdown.
+  4. **Status badge** (one, highest priority first): failed (`badge-error` "failed"), stale / ahead /
+     diverged / uncommitted-analysis (`badge-warning`, texts as `noticeText().chip`), imported
+     (`badge-ghost`), not analysed (`badge-ghost`), other profile (`badge-ghost` "other profile"). Badges
+     follow the never-cut-off rule (principles §5).
+  5. `fa fa-caret-down`.
+- **Progress fill** (OD2): a `span` `absolute inset-y-0 left-0 z-0 pointer-events-none
+  bg-primary/20 transition-[width] duration-300 ease-out` whose `width` is the progress percent.
+  - Determinate: from `analysis.progress` `Determinate { percent }` or `git.operationProgress`
+    `done/total` (×100).
+  - Indeterminate (no percent reported, or `Indeterminate`): a band `w-1/3 bg-primary/20` sweeping
+    left→right, `motion-safe:animate-progress-sweep` (new token in `app/tailwind.css` `@theme`:
+    `--animate-progress-sweep: progress-sweep 1.4s ease-in-out infinite`, keyframes
+    `translateX(-100%) → translateX(300%)`). With `prefers-reduced-motion` the band is a static full-
+    width `bg-primary/10`.
+  - Finished: the fill runs to 100 %, the background turns `bg-success/15` for 1.5 s, then clears.
+  - Failed: background `bg-error/15` until the user opens the dropdown.
+  - Two things at once (an analysis and a git operation): the trigger shows the git operation (the
+    user is waiting for it); a `badge badge-ghost badge-xs` "+1" says something else runs.
+- **Accessibility.** The trigger keeps `aria-haspopup="menu"` and an `aria-label` built from its parts
+  ("Branch feature/invoice-rounding, map shows 9f8e7d6, stale by 4 commits, analysing a1b2c3d 42
+  percent"). A visually hidden `role="progressbar"` with `aria-valuenow` (omitted when indeterminate)
+  and `aria-label` "Analysis of a1b2c3d" sits inside; the trigger does not announce every percent
+  (`aria-live` stays on the toast and S2 only).
+- `title` (multi-line): "Working folder billing-api (C:\work\billing-api)\nBranch feature/x, 2 to
+  push, 1 to pull, 3 uncommitted\nMap shows 9f8e7d6 Release 2.4.0, 4 commits behind the current
+  checkout\nAnalysing a1b2c3d — 42 %".
+- Narrow: at 1024–1279 the branch hides first (icon, map part, badge stay; the branch is in the title).
 
-**Data.** `SnapshotViewService.state()` (`target`, `resolution`, `shown`, `pendingJob`, `status`),
-`noticeText(state)`, `analyseSelected()`.
+### Dropdown
+
+Map-selector content classes, `w-[28rem] max-w-[32rem] p-2`, three sections in the explorer header
+style:
+
+```
+MAP
+Showing    9f8e7d6  Release 2.4.0                      stale by 4
+Asked for  a1b2c3d  Fix invoice rounding  (current checkout)
+           [Show commit…] [Show current checkout] [▶ Analyse a1b2c3d] [Snapshots…]
+────────────────────────────────────────────────────────────
+GIT · billing-api
+⎇ feature/invoice-rounding → origin/feature/invoice-rounding     ↑2 ↓1
+3 uncommitted changes (1 staged)
+[↓ Pull 1 | ▾]                                      [Open History]
+────────────────────────────────────────────────────────────
+ACTIVITY                                              [Clear finished]
+◌ Analysing a1b2c3d  Fix invoice rounding          42 %   [■]
+   [██████░░░░░░░░]
+… Queued: working tree                                    [■]
+✓ Analysed 9f8e7d6 · 1 min 12 s                       [Open]
+✖ Analysis of 3c4d5e6 failed: Java 21 is too old.   [Show log] [Retry]
+── batch: last 20 commits of main (7 of 20 done)        [Cancel batch]
+────────────────────────────────────────────────────────────
+[ⓘ Project overview]
+```
+
+- **MAP**: the target lines and buttons (labels `text-base-content/60 w-20`, SHAs `font-mono`,
+  subjects `truncate`):
+  - **"Show commit…"** (`btn btn-ghost btn-xs`, `fa-code-branch`) picks a commit without visiting
+    History: it opens the ref picker (area 06 C4, owned by `features/gitHistory`) in a popover beside
+    the dropdown. Branches, tags and commits are listed with their analysis state; picking one sets the
+    target exactly as "Show in map" in History does. Placeholder "Branch, tag or commit"; `aria-label`
+    "Show a commit in the map". Absent for plain folders.
+  - "Show current checkout" only when the target is not already the current checkout.
+  - "Analyse <short>" (`btn btn-primary btn-xs`) only when the target has no exact snapshot; while its
+    job runs it is replaced by the job's ACTIVITY row.
+  - "Snapshots…" opens S4.
+- **GIT** (git folders only; plain folder: "Plain folder — no git history."): branch → upstream with
+  ahead/behind, uncommitted summary, the contextual sync button (`04-history.md` H5, same component),
+  "Open History" `btn btn-ghost btn-xs`. Problems (git missing, not a repository) show the area 04
+  sentence instead.
+- **ACTIVITY** (only when jobs or a git operation exist; was plan 05's jobs popover): one row per git
+  operation and analysis job — icon, text, state at the right (percent `tabular-nums`, "queued",
+  duration, or error `text-error text-xs` with the hint below in `text-base-content/60`), a
+  `progress progress-primary` bar under running rows, buttons Cancel (`fa-stop`, "Cancel this
+  analysis" / "Cancel the pull"), Open, Show log (S9), Retry. Batches group under a collapsible line
+  with "7 of 20 done" and "Cancel batch". "Clear finished" in the header. Many rows: section
+  `max-h-60 overflow-y-auto`.
+- Footer: `btn btn-ghost btn-sm` "Project overview" (`fa-circle-info`) → area 03 P3.
+
+**States.**
+
+| State | Trigger | Dropdown |
+|---|---|---|
+| no project | element absent | — |
+| project, working folder without analyses | `⎇ main (not analysed)` | MAP: "No analysis yet." + "Analyse current checkout" (`btn-primary`) |
+| git unavailable | icon `fa-triangle-exclamation text-warning`, folder label instead of branch | GIT: the area 04 problem sentence + "Open desktop tools" |
+| loading git status | branch replaced by `skeleton h-3 w-24` | GIT section skeleton |
+| core not running | icon `fa-plug-circle-xmark text-error`, "Core not running" | only "Restart core" (area 01 D4) |
+
+**Keyboard.** As the map selector: Enter / Space / ArrowDown open; Tab moves through the section
+buttons; Escape closes and refocuses the trigger. While open, the ref picker popover traps nothing:
+Escape closes it first, a second Escape the dropdown.
+
+**Data.** `ProjectsService.workingFolder()`; `GitRepositoryService.status()` (head, upstream,
+counts, operationInProgress), `refs()`; `GitOperationService` (running operation, last
+`git.operationProgress`); `SnapshotViewService.state()` and `noticeText`; `AnalysisJobsService.jobs()`
+and `analysis.progress`; `analysis.cancel`, `analysis.cancelBatch`, `analysis.clearFinished`,
+`analysis.enqueue`, `core.cancel`.
 
 ## S2 Stale notice
 
 **Where.** `views/codeCharta.component.html`, after `<cc-nav-bar>`, rendered only while a map view
-(metrics, domain, dependencies) is active — not on the project home, not in History (see Deviations 2).
+(metrics, domain, dependencies) is active — not on the project overview, not in History (see Deviations 2).
 Host `fixed left-1/2 -translate-x-1/2 top-[calc(var(--cc-bars-height)+1.75rem)] z-[65] w-max
 max-w-[min(48rem,calc(100vw-2rem))]`: below the mode-bar handle (which sits at `top-full` of the nav
 bar), above the side panels (`z-[60]`), under the opened mode bar (`z-[70]`).
@@ -128,49 +221,15 @@ failed:
   finished" with no switch.
 - Keyboard: the notice is not focus-trapping; Tab reaches its buttons after the nav bar. No shortcut.
 
-## S3 Analysis jobs indicator
+## S3 (merged into W1)
 
-**Where.** `navbar-end`, first child, before the theme toggle. Absent without jobs.
-
-```
-[⟳ 2]        running or queued (loading-spinner loading-xs + count)
-[✓]          only finished jobs left (fa-check text-success), until "Clear finished"
-[✖ 1]        a failed job not yet cleared (fa-circle-xmark text-error)
-```
-
-`btn btn-ghost btn-sm`, `title`/`aria-label` "2 analyses running" / "1 analysis failed" /
-"Analyses finished". Opens a popover (`cc-settings-popover-shell`, anchored under the button,
-`w-96`):
-
-```
-ANALYSES                                              [Clear finished]
-⟳ billing-api  a1b2c3d  Fix invoice rounding    42 %  [■]
-   [██████░░░░░░░░]
-… billing-api  working tree                  queued   [■]
-✓ billing-web  9f8e7d6  Release 2.4.0     1 min 12 s  [Open]
-✖ billing-api  3c4d5e6  Old commit                     [Show log] [Retry]
-   Java 21 is too old. CodeCharta needs Java 22 or newer.
-── batch: last 20 commits of main (7 of 20 done)      [Cancel batch]
-```
-
-- Rows `py-1 border-b border-base-300`, folder label `font-medium`, target (`font-mono` short SHA
-  or "working tree"), subject `truncate`, state at the right: percentage `tabular-nums`, "queued",
-  duration, or the error message (`text-error text-xs`, hint below `text-base-content/60`).
-- Icon buttons `btn btn-ghost btn-xs btn-square`: Cancel `fa-stop` ("Cancel this analysis"), with
-  labels for Open / Show log / Retry.
-- Batches group their jobs under a collapsible line (`collapse collapse-arrow`) with progress "7 of
-  20 done" and "Cancel batch".
-- Empty after clearing: popover closes and the button disappears.
-- Many jobs: list `max-h-96 overflow-y-auto`.
-- Keyboard: Enter/Space on the button toggles the popover; Escape closes it (native popover).
-
-**Data.** `AnalysisJobsService.jobs()`; `analysis.cancel`, `analysis.cancelBatch`,
-`analysis.clearFinished`, `analysis.enqueue` (Retry), `SnapshotViewService.open(ref)`.
+The analyses indicator and its jobs list are W1's activity icon, progress fill and ACTIVITY
+section (owner decision OD2).
 
 ## S4 Snapshots dialog
 
 **Where.** Native `<dialog class="modal">`, `modal-box max-w-3xl`, hosted by `navBar.component.html`
-next to the export dialog host. Opened from P2 "Snapshots…" and P6 "Snapshots…" (area 03). Built in plan
+next to the export dialog host. Opened from W1 "Snapshots…", P3 "Snapshots…" and P6 "Snapshots…" (area 03). Built in plan
 03 M6 with the columns marked *(03)*, extended in plan 05 M4 (area 03 deviation 2).
 
 ```
@@ -238,22 +297,21 @@ next to the export dialog host. Opened from P2 "Snapshots…" and P6 "Snapshots�
 | History commit menu | Analyse the Last Commits from Here… | `fa-layer-group` | "Analyse several commits of this line" | S7 prefilled with this commit as tip |
 | History "Uncommitted changes" menu | Analyse Working Tree | `fa-play` | "Analyse the files as they are on disk now" | enqueue working tree |
 | History details (H9) | "Show in map" (primary), "Analyse this commit" | `fa-map`, `fa-play` | — | see "What the map follows" |
-| P2 target line | "Analyse <short>" | `fa-play` | "Analyse the commit the map should show" | `analyseSelected()` |
-| P2 folder row without snapshots | "Analyse" | `fa-play` | "Analyse the current checkout of <label>" | enqueue working tree |
-| P3 folder table | "Analyse" | `fa-play` | as above | enqueue working tree |
+| W1 MAP section | "Analyse <short>" | `fa-play` | "Analyse the commit the map should show" | `analyseSelected()` |
+| P3 analyses card | "Analyse current checkout" | `fa-play` | "Analyse the files of <label> as they are now" | enqueue working tree |
 | S2 | "Analyse <short> now" / "Analyse current checkout" / "Analyse now" | `fa-play` | — | `analyseSelected()` |
 | S4 header | as listed in S4 | `fa-play` | — | enqueue |
 
 Every analyse action: on `AlreadyQueued` toast (info) "This analysis is already queued."; on
 `AlreadyAnalysed` toast (info) "Already analysed" and the snapshot opens if it is the target; on
-`Queued` the S3 indicator appears; on `Rejected` S6.
+`Queued` W1's icon and fill start; on `Rejected` S6.
 
 The primary commit action (Enter / double-click in H8) is "Show in map".
 
 ## S6 Preflight problems
 
 Shown in the surface that started the run (S2 for the target, otherwise an `alert` at the top of the
-dialog, or — for context-menu starts — inside the S3 popover, opened automatically). Layout:
+dialog, or — for context-menu starts — inside W1's ACTIVITY section, opened automatically). Layout:
 
 ```
 ✖ The analysis cannot start:
@@ -288,7 +346,7 @@ About 14 minutes (based on earlier analyses of this folder).
   estimate yet — this folder has no earlier analyses."
 - Primary button names the count; disabled at 0 ("Nothing to analyse — all commits are analysed.").
 - Preflight problems: S6 inside the dialog.
-- After confirm: dialog closes, S3 opens its popover showing the batch.
+- After confirm: dialog closes, W1 opens its dropdown showing the batch in ACTIVITY.
 
 ## S8 Clean-up dialog
 
@@ -347,9 +405,11 @@ H9 details pane, one commit selected, adds under the SHA line a resolution line 
    The owner rule "selecting an unanalysed commit never starts an analysis" still holds. See "What the
    map follows".
 2. **The notice shows over the map views only.** Plan mounts it in the shell for every route; over
-   History it would cover the toolbar, and on the project home there is no map to be stale.
-3. **No separate snapshot chip** (`cc-snapshot-chip`): its content is S1 on the folder selector (area
-   03 deviation 1). Clicking the chip opened the snapshots dialog; that is P2's "Snapshots…".
+   History it would cover the toolbar, and on the project overview the analyses card says the same.
+3. **One workspace status element (owner decision OD2).** Plan 05's `cc-snapshot-chip` and
+   `cc-analysis-jobs-indicator` and plan 04's `cc-current-branch-chip` are one element, W1, with the
+   activity in its icon and progress as its background fill. The snapshots dialog opens from its
+   "Snapshots…".
 4. **Log of a failed job.** `snapshots.readLog` takes a `SnapshotRef`, but a failed job has no
    snapshot. Data need: `analysis.readLog { jobId }` reading `.failed-<jobId>/run.log` (the plan
    already keeps that file). Until it exists, "Show log" is offered only for snapshots.

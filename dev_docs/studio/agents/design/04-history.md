@@ -9,10 +9,10 @@ Principles: `00-design-principles.md`. Desktop only. Mock-up: `mockups/studio-sc
 | # | Element | Selector | Lives in | Modelled on |
 |---|---|---|---|---|
 | H1 | History tab | entry in `VIEW_TABS` | nav bar centre | the three existing tabs |
-| H2 | Branch chip | `cc-current-branch-chip` | nav bar, start of `navbar-end` | `cc-settings-button` (ghost button) |
+| H2 | (branch chip merged into `05-snapshots.md` W1) | — | — | — |
 | H3 | History view frame | `cc-history-view` → `cc-git-history-panel` | new route `history` | metrics view (explorer left, inspector right) |
 | H4 | Toolbar | `cc-history-toolbar` | top of H3 | explorer search bar, `cc-mode-toggle` |
-| H5 | Sync buttons and operation progress | `cc-sync-buttons` | right end of H4 | ghost buttons, `loading` |
+| H5 | Contextual sync button | `cc-sync-button` | H4, W1, P3 | `join` split button, after Zed |
 | H6 | Problem and operation banners | `cc-git-problem-notice`, operation-state banner | under H4 | `explorerFocusBanner`, cluster explorer alert |
 | H7 | Branches tree | `cc-branches-tree` | Log tab, left pane | `cc-sidebar-explorer` header and tree rows |
 | H8 | Commit list with graph | `cc-commit-list`, `cc-commit-row`, `cc-commit-graph-cell` | Log tab, centre | explorer rows, map-selector rows |
@@ -42,32 +42,11 @@ Principles: `00-design-principles.md`. Desktop only. Mock-up: `mockups/studio-sc
   `text-base-content/70` "Commit history is available in the desktop app." and a `btn btn-sm`
   "Show the map" (→ metrics).
 
-## H2 Branch chip
+## H2 Branch chip (merged into W1)
 
-**Where.** First child of `navbar-end`, before the analysis jobs indicator (principles §3). Rendered only when the active folder is
-a git repository and `GitRepositoryService.status()` is ready.
-
-```
-[⎇ feature/invoice-rounding  ↑2 ↓1  ●]      ● = dirty dot (badge badge-warning badge-xs)
-[⎇ detached at a1b2c3d]
-[⎇ main  ⟳]                                  ⟳ = operation running (loading-spinner loading-xs)
-[⎇ main  merging]                            badge badge-warning badge-xs "merging" / "rebasing"
-```
-
-- `<a class="btn btn-ghost btn-sm gap-1 max-w-56">` → `routeLinks.history`. Branch name `truncate`;
-  `↑n` / `↓n` `text-xs tabular-nums` (omitted when 0 or no upstream; `↑2` uses `fa-arrow-up` icons
-  with numbers, not Unicode arrows).
-- `title` (multi-line): "Branch 'feature/x' of 'billing-api'\n2 commits to push, 1 to pull
-  (origin/feature/x)\n3 changed files\nOpen the history". Detached: "Detached HEAD at a1b2c3d".
-  No upstream: "No upstream branch". Gone upstream: "Upstream origin/feature/x no longer exists".
-- `aria-label` = the first line of the title.
-- Narrow: widths per principles §3 (name `max-w-56` / `max-w-32` / hidden).
-- Loading / error: chip absent (never a stale branch name). `gitNotFound`: absent; History says why.
-
-**Data.** `GitRepositoryService.status()` (`head`, `upstream.ahead/behind/isGone`, `counts`,
-`operationInProgress`), `activeRepository()`, `GitOperationService` running state.
-
----
+The branch, ahead/behind, dirty state and running git operations show in the workspace status
+element, `05-snapshots.md` W1 (owner decision OD2). Its dropdown's "Open History" and the History tab
+lead here. No separate `cc-current-branch-chip`.
 
 ## H3 History view frame
 
@@ -76,7 +55,7 @@ metrics bar, no legend). Layout, all in-flow (not fixed panes):
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ H4: Repository [billing-api ▾]  on ⎇ feature/invoice-rounding  [⇣ Fetch ▾] [↓ Pull 1] [↑ Push 2]     Log | Changes 3   [⟳] │
+│ H4: Repository billing-api  on ⎇ feature/invoice-rounding  [↓ Pull ↓1 ↑2 | ▾]                    Log | Changes 3   [⟳] │
 ├────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ H6 banners (only when needed)                                                                       │
 ├──────────────────┬───────────────────────────────────────────────────────────┬─────────────────────┤
@@ -115,45 +94,65 @@ Left to right, the toolbar answers "which repository, which branch, in sync?"; i
 
 | Control | Look | Behaviour |
 |---|---|---|
-| Repository | caption `text-xs text-base-content/60` "Repository", then `select select-sm select-bordered w-auto min-w-36 max-w-56` (`aria-label` "Repository folder"). The native select keeps its arrow on the same line at every width. With one git folder: the folder label as plain `font-medium` text, no select. | A **repository** is a project folder that is a git clone (project 'billing' has folders 'billing-api', 'billing-web'). It is *not* a branch or a commit. Changing it sets the active folder (`ProjectsService.setActiveFolder`, area 03 deviation 3); `title` "Folder C:\work\billing-api of project 'billing'". |
+| Repository | caption `text-xs text-base-content/60` "Repository", then the working folder's label `font-medium` with `fa-code-branch`, as plain text (no select). | A **repository** is the working folder of the project when it is a git clone (project 'billing' has folders 'billing-api', 'billing-web'); it is *not* a branch or a commit. It is chosen in the project menu (`03-projects.md` P1), not here; `title` "Folder C:\work\billing-api of project 'billing' — change it in the project menu". |
 | Current branch | `text-sm` "on" + `fa-code-branch` + branch name `font-medium truncate max-w-56` (+ `badge badge-warning badge-xs` "merging" / "rebasing"); detached: "at `a1b2c3d` (detached)" | read-only; click scopes the commit list to that branch (as clicking it in H7) |
-| Sync | H5, directly after the branch | — |
+| Sync | H5, one contextual split button directly after the branch | — |
 | Tabs | `ml-auto`, `role="tablist"`, two `btn btn-ghost btn-sm` with `cc-current-underline` (as `cc-mode-toggle`): "Log", "Changes" + `badge badge-sm` count of changed files (hidden at 0; `badge-warning` when conflicts) | tab per project in `codeChartaHistoryTab.<projectId>` |
 | Refresh | `btn btn-ghost btn-sm btn-square fa-rotate`, `title`/`aria-label` "Refresh (F5)" | spins (`fa-spin`) while refreshing |
 
 Narrow (< 1280 px): the "Repository" caption and the word "on" hide; the branch name shrinks to
-`max-w-32`; sync buttons drop their words and keep icon + count (titles unchanged).
+`max-w-32`; the sync button drops its label and keeps icon + counts (title unchanged).
 
-## H5 Sync buttons and operation progress
+## H5 Sync button (contextual, after Zed)
 
-Placed right after the current branch, because they act on it.
+One split button `cc-sync-button` replaces three buttons (owner decision OD3). It is modelled on Zed's
+git sync button: the main part does the one thing the branch needs now, the caret lists the rest.
+The same component appears in the History toolbar (after the current branch), in W1's GIT section and
+on the project overview's working-folder card. Commit is not part of it; it stays in the Changes tab
+(H11, H12).
 
 ```
-idle:        [⇣ Fetch ▾] [↓ Pull 1] [↑ Push 2]
-no upstream: [⇣ Fetch ▾] [↓ Pull] [↑ Publish branch]
-running:     (spinner) Receiving objects: 45% (2034/4520)  [██████░░]  [■ Cancel]
+nothing to do:   [ ⟳ Fetch        | ▾ ]
+behind:          [ ↓ Pull    ↓3   | ▾ ]
+ahead:           [ ↑ Push    ↑2   | ▾ ]
+diverged:        [ ↓ Pull  ↓1 ↑2  | ▾ ]     pull first; a push would be rejected
+no upstream:     [ ☁ Publish      | ▾ ]
+running:         [ ◌ Pulling 45 % | ■ ]     progress fill as W1; caret becomes Cancel
 ```
 
-- Buttons `btn btn-ghost btn-sm gap-1.5` with `fa-fw` icon + text (principles §5 "Icon buttons");
-  counts as `badge badge-sm` (`behind` on Pull, `ahead` on Push). Titles: "Fetch from all remotes",
-  "Pull 1 commit from origin/main (fast-forward only)", "Push 2 commits to origin/main", "Publish
-  'feature/x' to origin and track it".
-- Fetch caret opens a small dropdown (map-selector style): `checkbox checkbox-xs` "Remove branches
-  deleted on the remote (prune)", remembered per project.
-- Push without anything to push: disabled, title "Nothing to push". Pull with no upstream: disabled,
-  title "No upstream branch — set one in the branch menu".
-- Detached HEAD: Pull and Push disabled, title "Not on a branch".
-- **Running** (any mutating operation of this repository): the three buttons are replaced by
-  `loading loading-spinner loading-xs`, the last `git.operationProgress.message` (`text-xs truncate
-  max-w-80`, with `done/total` as a `progress progress-primary w-24` when present), and
-  `btn btn-ghost btn-xs` "Cancel" (`fa-stop`) for network operations. Every other mutating control of
-  the repository is disabled with title "Waiting for the previous git operation…".
-- **Results** of network operations: toast (success) "Fetched 3 updated refs", "Already up to date",
-  "Pulled 4 commits", "Pushed 2 commits to origin/feature/x", "Published 'feature/x' to origin".
-  Failures go to the operation banner (H6), not a toast.
+- `join`: main `btn btn-sm btn-outline border-base-300 join-item gap-1.5 font-normal` with `fa-fw`
+  icon, label, counts (`text-xs tabular-nums`, arrows as `fa-arrow-down`/`fa-arrow-up`); caret
+  `btn btn-sm btn-outline border-base-300 join-item btn-square` (`fa-caret-down`, `aria-label` "More
+  sync actions").
+- **Main action**, first match wins:
 
-**Data.** `GitOperationService` (running operation, last progress), `git.fetch|pull|push`,
-`core.cancel` with the operation id.
+| Branch state (`GitStatus`) | Label | Icon | `title` |
+|---|---|---|---|
+| detached HEAD | Fetch | `fa-rotate` | "Fetch from all remotes" |
+| no upstream | Publish | `fa-cloud-arrow-up` | "Publish 'feature/x' to origin and track it" |
+| upstream gone | Fetch | `fa-rotate` | "origin/feature/x no longer exists — set another upstream in the menu" |
+| behind > 0 (also when ahead) | Pull | `fa-arrow-down` | "Pull 3 commits from origin/feature/x (fast-forward only)"; diverged: "The branch has diverged: pull first, then push" |
+| ahead > 0 | Push | `fa-arrow-up` | "Push 2 commits to origin/feature/x" |
+| otherwise | Fetch | `fa-rotate` | "Fetch from all remotes (last fetched 12 min ago)" |
+
+- **Caret menu** (floating menu, `cc-context-menu-item` rows; items that cannot run are disabled with
+  the reason in `title`): Fetch · Fetch and Remove Deleted Branches · Pull · Push · Publish Branch (no
+  upstream only) · Force Push (with Lease)… · Set Upstream…. Pull on diverged branches opens the pull
+  choice (H15).
+- **Running** (any mutating operation of this repository): the main part shows `loading
+  loading-spinner loading-xs` and "Fetching…" / "Pulling 45 %" / "Pushing…", with the W1 progress fill
+  behind it (shared `ccProgressFill` directive, determinate from `git.operationProgress done/total`,
+  else the sweeping band); the caret becomes **Cancel** (`fa-stop`, `aria-label` "Cancel the pull",
+  network operations only). Every other mutating control of the repository is disabled with title
+  "Waiting for the previous git operation…".
+- **Results**: toast (success) "Fetched 3 updated refs", "Already up to date", "Pulled 3 commits",
+  "Pushed 2 commits to origin/feature/x", "Published 'feature/x' to origin"; the button relabels from the
+  new status. Failures go to the operation banner (H6) in History, or to W1's ACTIVITY row when started
+  elsewhere.
+- Narrow (< 1280 px): the label hides, icon and counts stay; the title is unchanged.
+
+**Data.** `GitRepositoryService.status()` (`head`, `upstream.ahead/behind/isGone`), `refs()`;
+`GitOperationService` (running operation, last progress); `git.fetch|pull|push`, `core.cancel`.
 
 ## H6 Banners
 
@@ -578,8 +577,9 @@ the files, then commit. The stash is kept."
    project has at least one git folder; a History tab that can only say "not a repository" is noise.
 2. **No mode bar for History** is plan text; the design adds that the handle under the view switcher
    is not drawn while History is active (otherwise it opens an empty bar).
-3. **Folder select = active folder.** The toolbar select calls `ProjectsService.setActiveFolder`
-   (area 03 deviation 3) instead of a History-only `GitRepositoryService.selectFolder` state.
+3. **No folder select in History.** The working folder is chosen in the project menu (OD1); the
+   toolbar names it, and `GitRepositoryService` follows `ProjectsService.workingFolder()` instead of
+   keeping its own `selectFolder` state.
 4. **Mutating failures go to a banner, not a toast.** Plan: "toast with the sentence and Details".
    `ToastService` has no actions and closes after 5 s, so "Details" and buttons like "Pull" cannot
    live there. Failures show as an error notice in H6 (dismissible, with Details); successes stay
@@ -606,8 +606,9 @@ the files, then commit. The stash is kept."
     ("modified", "analysed", "in map"), plus a graph legend behind "(?)".
 12. **The repository select is always visible** (as plain text with one git folder), labelled
     "Repository", so it is never mistaken for a branch or commit picker.
-13. **Branch chip in `navbar-end`.** Plan 4.7 puts it at the end of `navbar-start`; with the project
-    switcher and the map slot there, the left half has no room for it (principles §3).
+13. **No branch chip; one sync button (owner decisions OD2, OD3).** Plan 4.7's `cc-current-branch-chip`
+    is part of the workspace status element (`05-snapshots.md` W1); Fetch, Pull, Push and Publish are
+    one contextual split button (H5) instead of three buttons.
 
 ## Proposed changes to existing UI (not assumed approved)
 

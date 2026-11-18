@@ -103,9 +103,9 @@ section { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .inp.focus { border-color: var(--app-primary); color: var(--app-fg); }
 .select { border: 1px solid var(--app-300); border-radius: 6px; height: 28px; padding: 0 8px 0 10px; display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; flex-shrink: 0; font-weight: 500; }
 
-/* mock-ups are drawn at a 1440 px window and zoomed to fit the column */
+/* mock-ups are drawn at a 1600 px window and zoomed to fit the column */
 .screen-wrap.fit { overflow: hidden; }
-.screen-wrap.fit > .screen { width: 1440px; min-width: 0; }
+.screen-wrap.fit > .screen { width: 1600px; min-width: 0; }
 /* history */
 .toolbar { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--app-300); white-space: nowrap; }
 .hist { display: grid; grid-template-columns: 230px minmax(0,1fr) 330px; height: 390px; }
@@ -152,37 +152,70 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
 .q .def { font-size: .92rem; } .q .def b { color: var(--ok); font-weight: 600; }
 .q .area-l { font-size: .75rem; color: var(--muted); }
 @media (max-width: 640px) { .dev, .q { grid-template-columns: 1fr; } .q .n { grid-row: auto; } }
+
+/* workspace status (W1), sync split button, project menu, overview */
+.ws { position: relative; overflow: hidden; isolation: isolate; border: 1px solid var(--app-300); border-radius: 6px; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; min-width: 0; }
+.ws > * { position: relative; z-index: 1; }
+.ws .fill { position: absolute; z-index: 0; inset: 0 auto 0 0; background: color-mix(in oklab, var(--app-primary) 26%, transparent); transition: width .3s ease-out; }
+.ws .sweep { position: absolute; z-index: 0; top: 0; bottom: 0; left: 0; width: 33%; background: color-mix(in oklab, var(--app-primary) 26%, transparent); animation: sweep 1.4s ease-in-out infinite; }
+.ws.tint-ok { background: color-mix(in oklab, var(--app-ok) 18%, transparent); border-color: color-mix(in oklab, var(--app-ok) 50%, transparent); }
+.ws.tint-err { background: color-mix(in oklab, var(--app-err) 16%, transparent); border-color: color-mix(in oklab, var(--app-err) 50%, transparent); }
+.ws .br { font-weight: 600; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ws .mp { color: color-mix(in oklab, var(--app-fg) 72%, transparent); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ws .ic { width: 1.1em; display: inline-flex; justify-content: center; flex-shrink: 0; }
+.pulse { animation: pulse 1.2s ease-in-out infinite; }
+.spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid color-mix(in oklab, var(--app-primary) 30%, transparent); border-top-color: var(--app-primary); animation: spin .8s linear infinite; display: inline-block; }
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+@keyframes pulse { 50% { opacity: .35; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ws .sweep { animation: none; width: 100%; opacity: .45; } .pulse, .spin { animation: none; } }
+.states { display: grid; grid-template-columns: 13rem 1fr; gap: 10px 16px; align-items: center; padding: 16px; }
+.states .lab { font-size: 12px; color: var(--app-mute); }
+.split { display: inline-flex; border: 1px solid var(--app-300); border-radius: 6px; overflow: hidden; height: 28px; position: relative; isolation: isolate; }
+.split > span { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; white-space: nowrap; position: relative; z-index: 1; font-size: 12.5px; }
+.split > span + span { border-left: 1px solid var(--app-300); padding: 0 8px; }
+.split .cnt { font-size: 11px; color: var(--app-mute); display: inline-flex; gap: 3px; align-items: center; }
+.split .fill, .split .sweep { position: absolute; z-index: 0; top: 0; bottom: 0; left: 0; background: color-mix(in oklab, var(--app-primary) 26%, transparent); }
+.split .sweep { width: 33%; animation: sweep 1.4s ease-in-out infinite; }
+.pm .fold { display: grid; grid-template-columns: 14px minmax(0,1fr) auto auto; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 6px; white-space: nowrap; }
+.pm .fold .t { overflow: hidden; text-overflow: ellipsis; }
+.pm .fold.on { background: color-mix(in oklab, var(--app-primary) 22%, transparent); }
+.pm .proj { display: flex; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 6px; }
+.ovp { max-width: 1060px; margin: 0 auto; padding: 22px 20px 28px; display: flex; flex-direction: column; gap: 18px; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.card { border: 1px solid var(--app-300); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.kv { display: grid; grid-template-columns: 6.5rem minmax(0,1fr); gap: 4px 12px; font-size: 12.5px; }
+.kv > span:nth-child(odd) { color: var(--app-mute); }
+.rowlist { border: 1px solid var(--app-300); border-radius: 10px; overflow: hidden; }
+.rowlist > div { display: grid; align-items: center; gap: 10px; padding: 6px 12px; border-top: 1px solid var(--app-300); white-space: nowrap; }
+.rowlist > div:first-child { border-top: 0; }
 </style>
 
 <div class="wrap">
 
 <header style="display:flex;flex-direction:column;gap:14px">
-  <span class="eyebrow">CodeCharta Studio · design review · revision 2 · 18 Nov 2026</span>
+  <span class="eyebrow">CodeCharta Studio · design review · revision 3 · 18 Nov 2026</span>
   <h1>Studio Interface Design</h1>
-  <p class="lede">How the existing CodeCharta screen changes in the desktop app: how you pick a project, see which commit the map shows, move to another commit, use git in History, and compare. Revised after your first review.</p>
+  <p class="lede">How the CodeCharta screen changes in the desktop app. This revision follows your decision: a project groups folders, you work in one folder at a time, and one status element shows branch, map and running work.</p>
   <div class="status">
     <span class="pill warn">All areas held as "blocked" for your review</span>
-    <span class="pill">11 owner questions, defaults applied</span>
+    <span class="pill">Your folder decision is recorded for the orchestrator and planner</span>
     <span class="pill">Local commits only, nothing pushed</span>
   </div>
 </header>
 
 <section>
-  <span class="eyebrow">Your review, point by point</span>
-  <h2>What changed in this revision</h2>
+  <span class="eyebrow">Your feedback, revision 3</span>
+  <h2>What changed</h2>
   <div class="tbl"><table>
-    <thead><tr><th>Your point</th><th>Change</th></tr></thead>
+    <thead><tr><th>You asked</th><th>Now</th></tr></thead>
     <tbody>
-      <tr><td>Nav bar text overlapping</td><td>The left half of the nav bar was given three controls that cannot fit beside the centred view tabs (the bar splits into equal halves). The branch chip moved to the right half, next to Settings. Widths per window size are recalculated so nothing truncates to a stub, and every control shortens its text with "…".</td></tr>
-      <tr><td>"billing-api" wraps; is it a branch or a commit?</td><td>It's the <b>repository</b>, the project folder whose git history is shown. Now labelled "Repository" and always visible, with the branch shown next to it as "on ⎇ feature/…". The select keeps its arrow on one line.</td></tr>
-      <tr><td>Branch pill cut off flat</td><td>Badges keep both rounded ends; the name ends in "…" inside the pill, with the full name on hover. This is now a rule for every badge.</td></tr>
-      <tr><td>Graph lines look wrong</td><td>The mock-up is redrawn as a real history: a merge from main, a fork point, HEAD drawn as a double ring, and uncommitted changes as a dashed circle on top of HEAD. A "How to read" legend is added.</td></tr>
-      <tr><td>Fetch / Pull / Push further left</td><td>Moved directly after the repository and branch they act on.</td></tr>
-      <tr><td>What do the filters filter?</td><td>Search, Author and Path moved into the COMMITS pane header. They filter only the commit list. The branch list keeps its own filter, and a chip shows which branches the list is limited to.</td></tr>
-      <tr><td>Circle and square beside commits</td><td>That was the analysis state. It is now a column headed "Analysis" with words: analysed, in map, queued, 42 %, failed.</td></tr>
-      <tr><td>Coloured letter next to file names</td><td>That was the git change type (M = modified, A = added, …). Now a word in a fixed-width badge: modified, added, deleted, renamed.</td></tr>
-      <tr><td>Show in map / Analyse icons off-centre</td><td>Real Font Awesome icons with a fixed width, centred by the button. Now a rule for every icon button.</td></tr>
-      <tr><td>How does the main screen show and switch projects and commits?</td><td>New sections below: today's screen, the same screen in Studio, "Show commit…" to pick a commit from the map without opening History, the project home, and eight journeys. In the repository: <code>design/journeys.md</code>.</td></tr>
+      <tr><td>Folders only group things under a project; no combined view</td><td>One <b>working folder</b> at a time. The project menu lists this project's folders at the top. Below are the other projects, each expanding to its folders. Choosing a folder switches project and folder in one step. The multi-folder selector is gone.</td></tr>
+      <tr><td>Map selector changes; branch chip and analyses indicator become one element that looks like the map selector</td><td>The <b>workspace status</b> element shows the branch, the commit the map shows, and one status badge. Its dropdown has three sections: Map, Git and Activity.</td></tr>
+      <tr><td>Branch icon turns into the activity; background as a loading bar</td><td>The icon becomes a spinner while analysing and an arrow while pulling or pushing. The background fills with the reported percentage, or shows a moving band when no percentage is known. It flashes green when done and stays red after a failure. The core already reports progress for both analyses and git, so no core change is needed.</td></tr>
+      <tr><td>Project home you can open any time, with working-folder and git info</td><td>The <b>project overview</b> page shows the working folder's git state, its analyses, recent commits and the project's folders. Open it from the project menu's "Overview" or the status element's "Project overview".</td></tr>
+      <tr><td>Fetch / Pull / Push like Zed</td><td>One split button whose main action follows the branch: Publish without an upstream, Pull when behind, Push when ahead, otherwise Fetch. The caret lists the rest. Commit is not part of it.</td></tr>
+      <tr><td>Tell the orchestrator and planner</td><td>Recorded in <code>design/owner-decisions.md</code>, including the impact on each plan, and added to the README's owner decisions. It matters now: 03-M1 is writing the project file's folder-view fields.</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -194,27 +227,21 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
   <p class="cap">CodeCharta 2.11.0 with its sample maps, from the public web build. A map is just a file: 📂 loads <code>.cc.json</code> files and "sample1 +1" chooses which loaded files are shown. Nothing here knows about projects, git or commits. The web build keeps this screen exactly as it is.</p>
 </section>
 
+
 <section>
   <span class="eyebrow">The same screen in Studio (desktop)</span>
-  <h2>What the nav bar tells you, and where you click</h2>
-  <p>Two controls on the left replace today's 📂 and map dropdown; the branch and analysis status sit on the right, where there is room. The view tabs stay centred. The explorer, inspector, metrics bar, legend and bottom bar stay as they are.</p>
-  <div class="screen-wrap fit" role="img" aria-label="Studio main screen with numbered callouts on the project switcher, folder selector, branch chip, History tab, jobs indicator and stale notice">
+  <h2>Two controls replace the 📂 button and the map dropdown</h2>
+  <p>On the left: the project menu (project and working folder), then the workspace status (branch, what the map shows, running work). The view tabs stay centred. On the right, only the theme toggle is new.</p>
+  <div class="screen-wrap fit" role="img" aria-label="Studio main screen with callouts on the project menu, the workspace status element, the History tab and the stale notice">
     <div class="screen">
       <div class="nav">
-        <div class="start">
-          <b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span>
-          <span class="btn outline co" style="max-width:9rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t">billing</span><i class="fa-solid fa-caret-down caret"></i><span class="callout">1</span></span>
-          <span class="btn outline co" style="max-width:15rem"><i class="fa-solid fa-code-branch fa-fw"></i><span class="t">billing-api @ <span class="sha">9f8e7d6</span></span><span class="badge b-warn"><span>stale by 4</span></span><i class="fa-solid fa-caret-down caret"></i><span class="callout">2</span></span>
-        </div>
-        <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn co">History<span class="callout">4</span></span></div>
-        <div class="end"><span class="btn co" style="max-width:12rem"><i class="fa-solid fa-code-branch fa-fw"></i><span class="t">feature/invoice-rounding</span><span class="mute" style="font-size:11px;flex-shrink:0"><i class="fa-solid fa-arrow-up"></i>2</span><span class="dot" title="uncommitted changes"></span><span class="callout">3</span></span><span class="btn co"><i class="fa-solid fa-spinner fa-spin fa-fw"></i>1<span class="callout">5</span></span><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
+        <div class="start"><b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span><span class="btn outline co" style="max-width:13rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="mute">billing /</span> <b style="font-weight:600">billing-api</b></span><i class="fa-solid fa-caret-down caret"></i><span class="callout">1</span></span><span class="ws co " style="max-width:22rem;"><span class="fill" style="width:42%"></span><span class="ic"><span class="spin"></span></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">Analysing · 42 %</span><i class="fa-solid fa-caret-down caret"></i><span class="callout">2</span></span></div>
+        <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn co">History<span class="callout">3</span></span></div>
+        <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
       </div>
       <div class="stage">
-        <div class="explorer"><span class="ph">Explorer</span><div class="seg"><span class="on"><i class="fa-solid fa-folder-tree"></i>Files</span></div><span class="inp"><i class="fa-solid fa-magnifying-glass"></i>*.js, **/app/*</span><span class="mute" style="font-size:12px"><i class="fa-solid fa-folder"></i> root</span></div>
-        <div class="city"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        <span class="handle"></span>
-        <div class="notice co" style="left:calc(50% + 110px);position:absolute"><span class="callout">6</span><i class="fa-solid fa-triangle-exclamation"></i><span>No analysis for <span class="sha">a1b2c3d</span> — showing <span class="sha">9f8e7d6</span> (Release 2.4.0), stale by 4 commits.</span><span class="btn prim"><i class="fa-solid fa-play fa-fw"></i>Analyse a1b2c3d now</span><i class="fa-solid fa-xmark"></i></div>
-        
+        <div class="explorer"><span class="ph">Explorer</span><div class="seg"><span class="on"><i class="fa-solid fa-folder-tree"></i>Files</span></div><span class="inp"><i class="fa-solid fa-magnifying-glass"></i>*.js, **/app/*</span><span class="mute" style="font-size:12px"><i class="fa-solid fa-folder"></i> root</span></div><div class="city"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="handle"></span>
+        <div class="notice co" style="left:calc(50% + 110px);position:absolute"><span class="callout">4</span><i class="fa-solid fa-triangle-exclamation"></i><span>No analysis for <span class="sha">a1b2c3d</span> — showing <span class="sha">9f8e7d6</span> (Release 2.4.0), stale by 4 commits.</span><span class="btn prim"><i class="fa-solid fa-play fa-fw"></i>Analyse a1b2c3d now</span><i class="fa-solid fa-xmark"></i></div>
         <div class="mbar"><span><b>LAYOUT</b>Squarified TreeMap</span><span><b>AREA</b>rloc</span><span><b>HEIGHT</b>complexity</span><span><b>COLOR</b>complexity</span><span><b>LABELS</b>…</span></div>
       </div>
     </div>
@@ -222,77 +249,137 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
   <div class="tbl"><table>
     <thead><tr><th></th><th>Control</th><th>Tells you</th><th>Click it to</th></tr></thead>
     <tbody>
-      <tr><td><span class="tag">1</span></td><td><b>Project switcher</b><br><span class="cap">replaces 📂</span></td><td>Which project you're in</td><td>Switch project, New project…, Open cc.json…, Manage project…, Close project</td></tr>
-      <tr><td><span class="tag">2</span></td><td><b>Map selector</b><br><span class="cap">replaces "sample1 +1"</span></td><td>Which folder and which commit the map shows (<code>billing-api @ 9f8e7d6</code>), and whether that's behind what you asked for ("stale by 4")</td><td><b>Show commit…</b> to pick another commit, Show current checkout, Analyse, choose shown folders, Snapshots… (all analyses)</td></tr>
-      <tr><td><span class="tag">3</span></td><td><b>Branch chip</b><br><span class="cap">right side, next to Settings</span></td><td>The branch checked out in that folder, commits to push (↑2), uncommitted changes (dot)</td><td>Open History</td></tr>
-      <tr><td><span class="tag">4</span></td><td><b>History tab</b><br><span class="cap">new 4th view</span></td><td>—</td><td>Branches, commit graph, commit, pull, push</td></tr>
-      <tr><td><span class="tag">5</span></td><td><b>Analyses indicator</b><br><span class="cap">only while something runs</span></td><td>An analysis is running or waiting</td><td>See progress, cancel, open results, read the log</td></tr>
-      <tr><td><span class="tag">6</span></td><td><b>Stale notice</b></td><td>The commit you asked for has no analysis, so a nearby one is shown</td><td>Analyse that commit; the map switches when it's done. Dismissable, but the badge on 2 stays.</td></tr>
+      <tr><td><span class="tag">1</span></td><td><b>Project menu</b><br><span class="cap">replaces 📂</span></td><td>Project and working folder: <code>billing / billing-api</code></td><td>Switch folder, switch project, Overview, New project…, Open cc.json…, Manage project…</td></tr>
+      <tr><td><span class="tag">2</span></td><td><b>Workspace status</b><br><span class="cap">replaces the map dropdown, branch chip and analyses indicator</span></td><td>Branch; which commit the map shows and whether it's current; anything running, with its progress as the background</td><td>Show commit…, Show current checkout, Analyse, Snapshots…, Pull/Push, Open History, cancel running work, Project overview</td></tr>
+      <tr><td><span class="tag">3</span></td><td><b>History tab</b></td><td>—</td><td>Branches, commit graph, commit, sync</td></tr>
+      <tr><td><span class="tag">4</span></td><td><b>Stale notice</b></td><td>The commit you asked for has no analysis, so a nearby one is shown</td><td>Analyse it; the map switches when done</td></tr>
     </tbody>
+  </table></div>
+  <p class="cap">Mock-ups are drawn at a 1600 px wide window, where the bar shows project and folder names in full; the narrower forms are in the "every state" section. The screen shows an analysis running at 42 %: the spinner replaces the branch icon and the button's background is 42 % filled.</p>
+</section>
+
+<section>
+  <span class="eyebrow">Choosing folder and project</span>
+  <h2>The project menu</h2>
+  <p>This project's folders come first, with the working folder highlighted. Each row shows the folder's branch and role. Other projects follow, collapsed; open one to choose one of its folders.</p>
+  <div class="screen-wrap fit" role="img" aria-label="Project menu open: folders of the current project, other projects expandable">
+    <div class="screen" style="height:470px">
+      <div class="nav">
+        <div class="start"><b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span><span class="btn outline co" style="max-width:13rem;background:var(--app-200)"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="mute">billing /</span> <b style="font-weight:600">billing-api</b></span><i class="fa-solid fa-caret-up caret"></i></span><span class="ws co " style="max-width:22rem;"><span class="ic"><i class="fa-solid fa-code-branch"></i></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">@ <span class="sha">9f8e7d6</span></span><span class="badge b-warn"><span>stale by 4</span></span><i class="fa-solid fa-caret-down caret"></i></span></div>
+        <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
+        <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
+      </div>
+      <div class="menu pm" style="left:150px;top:52px;width:440px">
+        <div style="display:flex;align-items:center"><span class="ph">Billing</span><span class="btn sm outline" style="margin-left:auto"><i class="fa-solid fa-circle-info fa-fw"></i>Overview</span></div>
+        <div class="fold on"><i class="fa-solid fa-circle" style="color:var(--app-primary);font-size:9px"></i><span class="t"><b>billing-api</b> <span class="mute">C:\work\billing-api</span></span><span class="badge b-ghost"><span>primary</span></span><span class="mute" style="font-size:12px"><i class="fa-solid fa-code-branch"></i> feature/invoice-rounding</span></div>
+        <div class="fold"><i class="fa-regular fa-circle mute" style="font-size:9px"></i><span class="t"><b>billing-web</b> <span class="mute">D:\forks\billing-web</span></span><span class="badge b-ghost"><span>fork</span></span><span class="mute" style="font-size:12px"><i class="fa-solid fa-code-branch"></i> main</span></div>
+        <div class="fold"><i class="fa-regular fa-circle mute" style="font-size:9px"></i><span class="t"><b>out</b> <span class="mute">C:\work\billing\out</span></span><span class="badge b-ghost"><span>helper</span></span><span class="mute" style="font-size:12px"><i class="fa-solid fa-folder"></i> plain folder</span></div>
+        <hr>
+        <span class="ph" style="padding:2px 8px">Other projects</span>
+        <div class="proj"><i class="fa-solid fa-caret-right mute"></i><i class="fa-solid fa-layer-group mute"></i><b>codecharta</b><span class="mute" style="font-size:12px">2 folders</span></div>
+        <div class="proj"><i class="fa-solid fa-caret-down mute"></i><i class="fa-solid fa-layer-group mute"></i><b>dotfiles</b><span class="mute" style="font-size:12px">2 folders</span></div>
+        <div class="fold" style="padding-left:30px"><i class="fa-regular fa-circle mute" style="font-size:9px"></i><span class="t"><b>dotfiles</b></span><span class="badge b-ghost"><span>primary</span></span><span class="mute" style="font-size:12px"><i class="fa-solid fa-code-branch"></i> main</span></div>
+        <div class="fold" style="padding-left:30px"><i class="fa-regular fa-circle mute" style="font-size:9px"></i><span class="t"><b>dotfiles-work</b></span><span class="badge b-ghost"><span>fork</span></span><span class="mute" style="font-size:12px;color:var(--app-warn)"><i class="fa-solid fa-triangle-exclamation"></i> missing</span></div>
+        <hr>
+        <div style="display:flex;gap:4px;flex-wrap:wrap"><span class="btn sm"><i class="fa-solid fa-plus fa-fw"></i>New project…</span><span class="btn sm"><i class="fa-solid fa-folder-open fa-fw"></i>Open cc.json… <span class="mute" style="font-size:11px">Ctrl+O</span></span><span class="btn sm"><i class="fa-solid fa-gear fa-fw"></i>Manage project…</span><span class="btn sm"><i class="fa-solid fa-xmark fa-fw"></i>Close project</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Workspace status · every state</span>
+  <h2>The icon shows the activity, the background shows progress</h2>
+  <p>A dropdown trigger shaped like today's map selector. The branch icon turns into the activity, and the background fills with progress reported by the core. When the core reports no percentage, a band sweeps across instead (static if you've asked your system for reduced motion).</p>
+  <div class="screen-wrap"><div class="screen states" style="min-width:0"><span class="lab">Idle, map is current</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="ic"><i class="fa-solid fa-code-branch"></i></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">@ <span class="sha">a1b2c3d</span></span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Map is older than the checkout</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="ic"><i class="fa-solid fa-code-branch"></i></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">@ <span class="sha">9f8e7d6</span></span><span class="badge b-warn"><span>stale by 4</span></span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Analysing, 42 % reported</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="fill" style="width:42%"></span><span class="ic"><span class="spin"></span></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">Analysing · 42 %</span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Analysing, no percentage</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="sweep"></span><span class="ic"><span class="spin"></span></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">Analysing…</span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Pulling, 75 % reported</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="fill" style="width:75%"></span><span class="ic"><span class="pulse"><i class="fa-solid fa-arrow-down"></i></span></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">Pulling · 75 %</span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Pushing, no percentage</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="sweep"></span><span class="ic"><span class="pulse"><i class="fa-solid fa-arrow-up"></i></span></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">Pushing…</span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Just finished (1.5 s)</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws tint-ok" style="max-width:22rem;"><span class="ic"><i class="fa-solid fa-check" style="color:var(--app-ok)"></i></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">@ <span class="sha">a1b2c3d</span></span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Failed, until opened</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws tint-err" style="max-width:22rem;"><span class="ic"><i class="fa-solid fa-triangle-exclamation" style="color:var(--app-err)"></i></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">Analysis failed</span><span class="badge s-err"><span>failed</span></span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Two things running</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="fill" style="width:30%"></span><span class="ic"><span class="pulse"><i class="fa-solid fa-arrow-down"></i></span></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">Pulling · 30 %</span><span class="badge b-ghost"><span>+1</span></span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Not analysed yet</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="ic"><i class="fa-solid fa-code-branch"></i></span><span class="br" style="max-width:8.5rem">main</span><span class="badge b-ghost"><span>not analysed</span></span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Plain folder (no git)</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="ic"><i class="fa-solid fa-folder"></i></span><span class="br" style="max-width:8.5rem">out</span><span class="mp">snapshot from 3 Nov</span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Imported, no commit</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="ic"><i class="fa-solid fa-file-import"></i></span><span class="br" style="max-width:8.5rem">out</span><span class="mp">imported · analysis time unknown</span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">Detached HEAD</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:22rem;"><span class="ic"><i class="fa-solid fa-code-branch"></i></span><span class="br" style="max-width:8.5rem">detached at <span class="sha">a1b2c3d</span></span><span class="mp">@ <span class="sha">9f8e7d6</span></span><i class="fa-solid fa-caret-down caret"></i></span></span><span class="lab">During a comparison</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:3rem;padding:0 8px"><span class="fill" style="width:60%"></span><span class="ic"><span class="pulse"><i class="fa-solid fa-arrow-down"></i></span></span><i class="fa-solid fa-caret-down caret"></i></span> <span class="btn outline" style="font-size:12px"><span class="mute">base</span> <span class="sha">9f8e7d6</span> main <i class="fa-solid fa-arrows-left-right mute"></i> <span class="mute">head</span> <span class="sha">a1b2c3d</span> feature/x</span></span><span class="lab">1024–1279 px window</span><span style="display:flex;gap:8px;align-items:center;min-width:0"><span class="ws " style="max-width:10rem;"><span class="ic"><i class="fa-solid fa-code-branch"></i></span><span class="mp">@ <span class="sha">9f8e7d6</span></span><span class="badge b-warn"><span><i class="fa-solid fa-clock-rotate-left"></i></span></span><i class="fa-solid fa-caret-down caret"></i></span></span></div></div>
+</section>
+
+<section>
+  <span class="eyebrow">Workspace status · opened</span>
+  <h2>Map, Git, Activity</h2>
+  <p>Everything about the working folder in one dropdown. <b>Show commit…</b> picks a commit from the map screen. The contextual sync button and "Open History" sit under Git. Running and finished analyses and git operations sit under Activity.</p>
+  <div class="screen-wrap fit" role="img" aria-label="Workspace status dropdown with Map, Git and Activity sections, and the commit picker">
+    <div class="screen" style="height:560px">
+      <div class="nav">
+        <div class="start"><b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span><span class="btn outline co" style="max-width:13rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="mute">billing /</span> <b style="font-weight:600">billing-api</b></span><i class="fa-solid fa-caret-down caret"></i></span><span class="ws co " style="max-width:22rem;background:var(--app-200)"><span class="fill" style="width:42%"></span><span class="ic"><span class="spin"></span></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">Analysing · 42 %</span><i class="fa-solid fa-caret-down caret"></i></span></div>
+        <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
+        <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
+      </div>
+      <div class="menu" style="left:318px;top:52px;width:500px">
+        <span class="ph">Map</span>
+        <div class="tline" style="grid-template-columns:70px minmax(0,1fr) auto"><span class="mute">Showing</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="sha">9f8e7d6</span> Release 2.4.0</span><span class="badge b-warn"><span>stale by 4</span></span></div>
+        <div class="tline" style="grid-template-columns:70px minmax(0,1fr) auto"><span class="mute">Asked for</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="sha">a1b2c3d</span> Fix invoice rounding <span class="mute">(current checkout)</span></span><span></span></div>
+        <div style="display:flex;gap:6px;padding-left:76px;flex-wrap:wrap"><span class="btn sm outline" style="background:var(--app-200)"><i class="fa-solid fa-code-branch"></i>Show commit…</span><span class="btn sm outline"><i class="fa-solid fa-cube fa-fw"></i>Snapshots…</span></div>
+        <hr>
+        <span class="ph">Git · billing-api</span>
+        <div style="font-size:12.5px;display:flex;gap:6px;align-items:center;white-space:nowrap"><i class="fa-solid fa-code-branch"></i><b>feature/invoice-rounding</b><span class="mute">→ origin/feature/invoice-rounding</span><span class="mute" style="margin-left:auto"><i class="fa-solid fa-arrow-up"></i>2 <i class="fa-solid fa-arrow-down"></i>1</span></div>
+        <div class="mute" style="font-size:12px">3 uncommitted changes (1 staged)</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="split" title="The branch has diverged: pull first, then push"><span><i class="fa-solid fa-arrow-down"></i>Pull<span class="cnt"><i class="fa-solid fa-arrow-down"></i>1 <i class="fa-solid fa-arrow-up"></i>2</span></span><span title="More sync actions"><i class="fa-solid fa-caret-down"></i></span></span><span class="btn sm outline" style="margin-left:auto"><i class="fa-solid fa-clock-rotate-left fa-fw"></i>Open History</span></div>
+        <hr>
+        <div style="display:flex;align-items:center"><span class="ph">Activity</span><span class="btn sm" style="margin-left:auto">Clear finished</span></div>
+        <div class="row" style="flex-wrap:wrap"><span class="spin"></span><span>Analysing <span class="sha">a1b2c3d</span> <span class="mute">Fix invoice rounding</span></span><span style="margin-left:auto" class="mute">42 %</span><i class="fa-solid fa-stop mute" title="Cancel this analysis"></i></div>
+        <div style="height:6px;border-radius:3px;background:var(--app-300);margin:0 6px"><div style="width:42%;height:100%;border-radius:3px;background:var(--app-primary)"></div></div>
+        <div class="row"><i class="fa-regular fa-clock mute"></i><span>Queued: working tree</span><i class="fa-solid fa-stop mute" style="margin-left:auto"></i></div>
+        <div class="row"><i class="fa-solid fa-check" style="color:var(--app-ok)"></i><span>Analysed <span class="sha">9f8e7d6</span> <span class="mute">· 1 min 12 s</span></span><span class="btn sm outline" style="margin-left:auto">Open</span></div>
+        <div class="row" style="flex-wrap:wrap"><i class="fa-solid fa-circle-xmark" style="color:var(--app-err)"></i><span>Analysis of <span class="sha">3c4d5e6</span> failed</span><span style="margin-left:auto;display:flex;gap:4px"><span class="btn sm outline"><i class="fa-solid fa-file-lines fa-fw"></i>Show log</span><span class="btn sm outline">Retry</span></span><span style="width:100%;padding-left:22px;font-size:11.5px;color:var(--app-err)">Java 21 is too old. CodeCharta needs Java 22 or newer.</span></div>
+        <hr>
+        <span class="btn sm" style="align-self:flex-start"><i class="fa-solid fa-circle-info fa-fw"></i>Project overview</span>
+      </div>
+      <div class="menu" style="left:828px;top:118px;width:390px">
+        <span class="inp focus"><i class="fa-solid fa-magnifying-glass"></i>release</span>
+        <div class="gh">Branches</div>
+        <div class="row"><i class="fa-solid fa-code-branch"></i><span>release/2.5</span><span class="sha mute">7d6c5b4</span><span class="badge s-ok wbadge" style="margin-left:auto"><span>analysed</span></span></div>
+        <div class="gh">Tags</div>
+        <div class="row hover"><i class="fa-solid fa-tag mute"></i><span>v2.4.0</span><span class="sha mute">9f8e7d6</span><span class="badge s-prim wbadge" style="margin-left:auto"><span>in map</span></span></div>
+        <div class="row"><i class="fa-solid fa-tag mute"></i><span>v2.3.0</span><span class="sha mute">4e5f6a7</span><span class="badge b-ghost wbadge" style="margin-left:auto"><span>not analysed</span></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Git sync · after Zed</span>
+  <h2>One button that does what the branch needs</h2>
+  <p>The main part runs the action that fits the branch's state. The caret lists the others: Fetch, Fetch and remove deleted branches, Pull, Push, Publish, Force push (with lease)…, Set upstream…. While it runs, the caret becomes Cancel and the same progress fill appears. The same button appears in History, in the status element and on the project overview. Commit stays in History's Changes tab.</p>
+  <div class="screen-wrap"><div class="screen states" style="min-width:0;grid-template-columns:13rem auto"><span class="lab">Nothing to do</span><span><span class="split" title="Fetch from all remotes (last fetched 12 min ago)"><span><i class="fa-solid fa-rotate"></i>Fetch</span><span title="More sync actions"><i class="fa-solid fa-caret-down"></i></span></span></span><span class="lab">Behind by 3</span><span><span class="split" title="Pull 3 commits from origin/feature/x"><span><i class="fa-solid fa-arrow-down"></i>Pull<span class="cnt"><i class="fa-solid fa-arrow-down"></i>3</span></span><span title="More sync actions"><i class="fa-solid fa-caret-down"></i></span></span></span><span class="lab">Ahead by 2</span><span><span class="split" title="Push 2 commits to origin/feature/x"><span><i class="fa-solid fa-arrow-up"></i>Push<span class="cnt"><i class="fa-solid fa-arrow-up"></i>2</span></span><span title="More sync actions"><i class="fa-solid fa-caret-down"></i></span></span></span><span class="lab">Diverged (1 behind, 2 ahead)</span><span><span class="split" title="The branch has diverged: pull first, then push"><span><i class="fa-solid fa-arrow-down"></i>Pull<span class="cnt"><i class="fa-solid fa-arrow-down"></i>1 <i class="fa-solid fa-arrow-up"></i>2</span></span><span title="More sync actions"><i class="fa-solid fa-caret-down"></i></span></span></span><span class="lab">No upstream yet</span><span><span class="split" title="Publish 'feature/x' to origin and track it"><span><i class="fa-solid fa-cloud-arrow-up"></i>Publish</span><span title="More sync actions"><i class="fa-solid fa-caret-down"></i></span></span></span><span class="lab">Pulling, 45 %</span><span><span class="split" title=""><span class="fill" style="width:45%"></span><span><span class="spin"></span>Pulling 45 %</span><span title="Cancel"><i class="fa-solid fa-stop"></i></span></span></span><span class="lab">Pushing, no percentage</span><span><span class="split" title=""><span class="sweep"></span><span><span class="spin"></span>Pushing…</span><span title="Cancel"><i class="fa-solid fa-stop"></i></span></span></span></div></div>
+  <div class="tbl"><table><caption>Which action the main part shows, first match wins</caption>
+    <thead><tr><th>Branch</th><th>Main action</th></tr></thead>
+    <tbody><tr><td>Detached HEAD</td><td>Fetch</td></tr><tr><td>No upstream</td><td>Publish</td></tr><tr><td>Upstream deleted</td><td>Fetch (menu offers Set upstream…)</td></tr><tr><td>Behind (even if also ahead)</td><td>Pull — a push would be rejected</td></tr><tr><td>Ahead</td><td>Push</td></tr><tr><td>In sync</td><td>Fetch</td></tr></tbody>
   </table></div>
 </section>
 
 <section>
-  <span class="eyebrow">Picking a commit without leaving the map</span>
-  <h2>The map selector, opened</h2>
-  <p>The top of the dropdown says what the map shows and what it's meant to show. <b>Show commit…</b> opens the same branch/tag/commit picker that Compare uses, with each entry's analysis state. Below that are the project's folders, as in today's map dropdown.</p>
-  <div class="screen-wrap fit" role="img" aria-label="Map selector dropdown open, with the commit picker beside it">
-    <div class="screen" style="height:420px">
-      <div class="nav">
-        <div class="start">
-          <b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span>
-          <span class="btn outline" style="max-width:9rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t">billing</span><i class="fa-solid fa-caret-down caret"></i></span>
-          <span class="btn outline" style="max-width:15rem;background:var(--app-200)"><i class="fa-solid fa-code-branch fa-fw"></i><span class="t">billing-api @ <span class="sha">9f8e7d6</span></span><span class="badge b-warn"><span>stale by 4</span></span><i class="fa-solid fa-caret-up caret"></i></span>
-        </div>
-        <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
-        <div class="end"><span class="btn" style="max-width:12rem"><i class="fa-solid fa-code-branch fa-fw"></i><span class="t">feature/invoice-rounding</span><span class="dot"></span></span><span class="btn">Settings</span></div>
-      </div>
-      <div class="menu" style="left:150px;top:52px;width:480px">
-        <div class="tline"><span class="mute">Showing</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="sha">9f8e7d6</span> Release 2.4.0</span><span class="badge b-warn"><span>stale by 4</span></span></div>
-        <div class="tline"><span class="mute">Asked for</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="sha">a1b2c3d</span> Fix invoice rounding <span class="mute">(current checkout)</span></span><span></span></div>
-        <div style="display:flex;gap:6px;padding-left:62px"><span class="btn sm outline" style="background:var(--app-200)"><i class="fa-solid fa-code-branch fa-fw"></i>Show commit…</span><span class="btn sm prim"><i class="fa-solid fa-play fa-fw"></i>Analyse a1b2c3d</span></div>
-        <hr>
-        <div class="gh">Shown folders</div>
-        <div class="row hover"><span class="cb on"></span><i class="fa-solid fa-circle" style="color:var(--app-primary);font-size:7px" title="active folder"></i><b>billing-api</b><span class="badge b-ghost"><span>primary</span></span><span class="sha mute">9f8e7d6</span><span class="mute" style="overflow:hidden;text-overflow:ellipsis">Release 2.4.0</span></div>
-        <div class="row"><span class="cb"></span><span style="width:7px"></span><b>billing-web</b><span class="badge b-ghost"><span>fork</span></span><span class="mute">fork of billing-api</span></div>
-        <div class="row"><span class="cb" style="opacity:.4"></span><span style="width:7px"></span><b>devops</b><span class="badge b-ghost"><span>helper</span></span><i class="mute">no analysis yet</i><span class="btn sm outline" style="margin-left:auto"><i class="fa-solid fa-play fa-fw"></i>Analyse</span></div>
-        <hr>
-        <div style="display:flex;justify-content:space-between"><span class="btn sm outline"><i class="fa-solid fa-cube fa-fw"></i>Snapshots…</span><span class="btn sm prim">Apply</span></div>
-      </div>
-      <div class="menu" style="left:640px;top:96px;width:400px">
-        <span class="inp focus"><i class="fa-solid fa-magnifying-glass"></i>release</span>
-        <div class="gh">Branches</div>
-        <div class="row"><i class="fa-solid fa-code-branch fa-fw mute"></i><span>release/2.5</span><span class="sha mute">7d6c5b4</span><span class="mute" style="overflow:hidden;text-overflow:ellipsis">Prepare 2.5</span><span class="badge s-ok wbadge" style="margin-left:auto"><span>analysed</span></span></div>
-        <div class="gh">Tags</div>
-        <div class="row hover"><i class="fa-solid fa-tag fa-fw mute"></i><span>v2.4.0</span><span class="sha mute">9f8e7d6</span><span class="mute">Release 2.4.0</span><span class="badge s-prim wbadge" style="margin-left:auto"><span>in map</span></span></div>
-        <div class="row"><i class="fa-solid fa-tag fa-fw mute"></i><span>v2.3.0</span><span class="sha mute">4e5f6a7</span><span class="mute">Release 2.3.0</span><span class="badge b-ghost wbadge" style="margin-left:auto"><span>not analysed</span></span></div>
-        <div class="gh">Commits</div>
-        <div class="row"><i class="fa-regular fa-circle-dot fa-fw mute"></i><span class="sha">9f8e7d6</span><span class="mute" style="overflow:hidden;text-overflow:ellipsis">Release 2.4.0</span><span class="badge s-prim wbadge" style="margin-left:auto"><span>in map</span></span></div>
-      </div>
-    </div>
-  </div>
-  <p class="cap">Picking an analysed commit switches the map. Picking one that isn't analysed shows the nearest analysed commit and the stale notice with "Analyse". Nothing is analysed without a click.</p>
-</section>
-
-<section>
-  <span class="eyebrow">Before any project exists</span>
-  <h2>The project home</h2>
-  <p>When no map is open, the page under the nav bar shows the project home instead of an empty map. The view tabs are hidden until there is something to show.</p>
-  <div class="screen-wrap fit" role="img" aria-label="Project home with buttons and a project list">
+  <span class="eyebrow">Project overview · open it any time</span>
+  <h2>The working folder, its git state and its analyses</h2>
+  <p>Open it from the project menu's "Overview" or the status element's "Project overview". It also appears when there's nothing to show yet. "Show map" or any view tab goes back to the map.</p>
+  <div class="screen-wrap fit" role="img" aria-label="Project overview page">
     <div class="screen">
       <div class="nav">
-        <div class="start"><b style="padding:0 8px">CodeCharta</b><span class="vr"></span><span class="btn outline mute"><i class="fa-solid fa-layer-group fa-fw"></i>No project<i class="fa-solid fa-caret-down caret"></i></span></div>
-        <div class="center"></div>
+        <div class="start"><b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span><span class="btn outline co" style="max-width:13rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="mute">billing /</span> <b style="font-weight:600">billing-api</b></span><i class="fa-solid fa-caret-down caret"></i></span><span class="ws co " style="max-width:22rem;"><span class="fill" style="width:42%"></span><span class="ic"><span class="spin"></span></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">Analysing · 42 %</span><i class="fa-solid fa-caret-down caret"></i></span></div>
+        <div class="center"><span class="btn">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
         <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
       </div>
-      <div style="max-width:620px;margin:0 auto;padding:36px 16px 40px;display:flex;flex-direction:column;gap:18px">
-        <div><div style="font:600 24px var(--font-display)">CodeCharta</div><div class="mute">Open a project to see its code as a city.</div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="btn prim"><i class="fa-solid fa-plus fa-fw"></i>New project…</span><span class="btn outline"><i class="fa-solid fa-folder-open fa-fw"></i>Open cc.json…</span><span class="btn">Show sample maps</span></div>
-        <div class="ph">Recent projects</div>
-        <div style="border:1px solid var(--app-300);border-radius:10px;overflow:hidden">
-          <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--app-300)"><i class="fa-solid fa-layer-group mute"></i><b>billing</b><span class="mute" style="font-size:12px">3 folders · 41 analyses</span><span class="badge s-warn" style="margin-left:auto"><span><i class="fa-solid fa-triangle-exclamation"></i> 1 folder missing</span></span></div>
-          <div style="display:flex;align-items:center;gap:10px;padding:9px 14px"><i class="fa-solid fa-layer-group mute"></i><b>codecharta</b><span class="mute" style="font-size:12px">2 folders · 12 analyses</span></div>
+      <div class="ovp">
+        <div style="display:flex;align-items:flex-start;gap:12px"><div><div style="font:600 24px var(--font-display)">billing</div><div class="mute">Invoicing services and their deployment scripts.</div></div><span class="btn sm outline" style="margin-left:auto"><i class="fa-solid fa-gear fa-fw"></i>Manage project…</span></div>
+        <div class="cards">
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:8px"><span class="ph">Working folder</span><span style="margin-left:auto" class="btn sm outline"><i class="fa-regular fa-folder-open fa-fw"></i>Show in files</span></div>
+            <div style="display:flex;gap:8px;align-items:center"><i class="fa-solid fa-code-branch"></i><b>billing-api</b><span class="badge b-ghost"><span>primary</span></span><span class="sha mute">C:\work\billing-api</span></div>
+            <div class="kv"><span>Branch</span><span>feature/invoice-rounding</span><span>Upstream</span><span>origin/feature/invoice-rounding · <i class="fa-solid fa-arrow-up"></i>2 to push · <i class="fa-solid fa-arrow-down"></i>1 to pull</span><span>Changes</span><span>3 uncommitted (1 staged)</span><span>Last commit</span><span><span class="sha">a1b2c3d</span> Fix invoice rounding · Mia Chen · 2 hours ago</span><span>Remotes</span><span>origin github.com/acme/billing-api</span></div>
+            <div style="display:flex;gap:8px;margin-top:4px"><span class="split" title=""><span><i class="fa-solid fa-arrow-down"></i>Pull<span class="cnt"><i class="fa-solid fa-arrow-down"></i>1 <i class="fa-solid fa-arrow-up"></i>2</span></span><span title="More sync actions"><i class="fa-solid fa-caret-down"></i></span></span><span class="btn sm outline"><i class="fa-solid fa-clock-rotate-left fa-fw"></i>Open History</span></div>
+          </div>
+          <div class="card">
+            <span class="ph">Analyses</span>
+            <div class="kv"><span>In the map</span><span><span class="sha">9f8e7d6</span> Release 2.4.0 <span class="badge b-warn"><span>stale by 4</span></span></span><span></span><span class="mute">4 commits behind the current checkout <span class="sha">a1b2c3d</span></span><span>Latest</span><span><span class="sha">9f8e7d6</span> · 28 Oct · took 1 min 12 s</span><span>Analyses</span><span>12 · 61.2 MB</span><span>Running</span><span style="display:flex;gap:8px;align-items:center"><span class="sha">a1b2c3d</span> 42 %<span style="flex:1;height:6px;border-radius:3px;background:var(--app-300)"><span style="display:block;width:42%;height:100%;border-radius:3px;background:var(--app-primary)"></span></span></span></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"><span class="btn sm outline"><i class="fa-solid fa-map fa-fw"></i>Show map</span><span class="btn sm outline"><i class="fa-solid fa-play fa-fw"></i>Analyse current checkout</span><span class="btn sm outline"><i class="fa-solid fa-cube fa-fw"></i>Snapshots…</span></div>
+          </div>
         </div>
+        <div style="display:flex;align-items:center"><span class="ph">Recent commits on feature/invoice-rounding</span><span class="btn sm outline" style="margin-left:auto">Open History</span></div>
+        <div class="rowlist"><div style="grid-template-columns:18px 70px minmax(0,1fr) 90px 90px 84px"><span style="color:var(--app-primary)">◉</span><span class="sha">a1b2c3d</span><span style="overflow:hidden;text-overflow:ellipsis">Fix invoice rounding</span><span class="mute">Mia Chen</span><span class="mute" style="text-align:right">2 hours ago</span><span><span class="badge s-info wbadge"><span>42 %</span></span></span></div><div style="grid-template-columns:18px 70px minmax(0,1fr) 90px 90px 84px"><span style="color:var(--app-primary)">●</span><span class="sha">7c8d9e0</span><span style="overflow:hidden;text-overflow:ellipsis">Merge branch 'main' into feature/invoice-rounding</span><span class="mute">Mia Chen</span><span class="mute" style="text-align:right">2 days ago</span><span></span></div><div style="grid-template-columns:18px 70px minmax(0,1fr) 90px 90px 84px"><span style="color:var(--app-primary)">●</span><span class="sha">4f5a6b7</span><span style="overflow:hidden;text-overflow:ellipsis">Add currency table</span><span class="mute">Mia Chen</span><span class="mute" style="text-align:right">3 days ago</span><span></span></div><div style="grid-template-columns:18px 70px minmax(0,1fr) 90px 90px 84px"><span style="color:var(--app-primary)">●</span><span class="sha">9f8e7d6</span><span style="overflow:hidden;text-overflow:ellipsis">Release 2.4.0</span><span class="mute">Jo Park</span><span class="mute" style="text-align:right">5 days ago</span><span><span class="badge s-prim wbadge"><span>in map</span></span></span></div><div style="grid-template-columns:18px 70px minmax(0,1fr) 90px 90px 84px"><span style="color:var(--app-primary)">●</span><span class="sha">2b3c4d5</span><span style="overflow:hidden;text-overflow:ellipsis">Start the invoice module</span><span class="mute">Jo Park</span><span class="mute" style="text-align:right">1 week ago</span><span><span class="badge s-ok wbadge"><span>analysed</span></span></span></div></div>
+        <div style="display:flex;align-items:center"><span class="ph">Folders of this project</span><span class="btn sm outline" style="margin-left:auto"><i class="fa-solid fa-plus fa-fw"></i>Add folder…</span></div>
+        <div class="rowlist"><div style="grid-template-columns:14px 130px 70px minmax(0,1fr) 100px 100px"><i class="fa-solid fa-circle" style="color:var(--app-primary);font-size:9px"></i><b>billing-api</b><span class="badge b-ghost"><span>primary</span></span><span class="mute"><i class="fa-solid fa-code-branch"></i> feature/invoice-rounding</span><span class="mute">12 analyses</span><span class="mute">(working)</span></div>
+<div style="grid-template-columns:14px 130px 70px minmax(0,1fr) 100px 100px"><i class="fa-regular fa-circle mute" style="font-size:9px"></i><b>billing-web</b><span class="badge b-ghost"><span>fork</span></span><span class="mute"><i class="fa-solid fa-code-branch"></i> main</span><span class="mute">3 analyses</span><span class="btn sm outline">Work here</span></div>
+<div style="grid-template-columns:14px 130px 70px minmax(0,1fr) 100px 100px"><i class="fa-regular fa-circle mute" style="font-size:9px"></i><b>out</b><span class="badge b-ghost"><span>helper</span></span><span class="mute"><i class="fa-solid fa-folder"></i> plain folder · imported maps only</span><span class="mute">1 imported</span><span class="btn sm outline">Work here</span></div></div>
       </div>
     </div>
   </div>
@@ -301,41 +388,25 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
 <section>
   <span class="eyebrow">How it fits together</span>
   <h2>Journeys</h2>
-  <div class="journeys">
-    <div class="journey"><h3><span class="id">J1</span>First start</h3><ol><li>Project home → <b>New project…</b></li><li>Name it, <b>Add folder…</b> picks the repository</li><li><b>Analyse</b> on the folder; the analyses indicator shows progress</li><li>Map opens; the nav bar reads <code>billing ▾ | billing-api @ a1b2c3d ▾ | ⎇ main</code>, and the History tab appears</li></ol></div>
-    <div class="journey"><h3><span class="id">J2</span>Open a cc.json</h3><ol><li>Project switcher → <b>Open cc.json…</b> (Ctrl+O)</li><li>The dialog says which project it goes into, labels it "analysis time unknown", and offers to bind it to the commit its name points to</li><li>The map shows it; the selector reads "Downloads · imported"</li></ol></div>
-    <div class="journey"><h3><span class="id">J3</span>Everyday start</h3><ol><li>The last project and analysis reopen</li><li>If the checkout moved on, the selector shows "stale by N" and the notice offers <b>Analyse</b></li><li>Nothing runs by itself</li></ol></div>
-    <div class="journey"><h3><span class="id">J4</span>Another commit, from the map</h3><ol><li>Map selector ▾ → <b>Show commit…</b></li><li>Type a branch, tag or hash; entries say if they're analysed</li><li>Pick → the map switches, or shows the nearest analysis with "stale by N" and <b>Analyse</b></li><li><b>Show current checkout</b> goes back</li></ol></div>
-    <div class="journey"><h3><span class="id">J5</span>Another commit, from History</h3><ol><li>History tab, or click the branch chip</li><li>Browsing commits only fills the details pane, so arrow keys stay fast</li><li><b>Show in map</b> (or Enter) → metric view with that commit</li><li><b>Analyse this commit</b> queues it without leaving History</li></ol></div>
-    <div class="journey"><h3><span class="id">J6</span>Everyday git</h3><ol><li>History → Changes: stage, write the message, <b>Commit</b></li><li><b>Fetch / Pull / Push</b> next to the branch</li><li>The branch chip updates; a map that follows the checkout may now say "stale by N"</li></ol></div>
-    <div class="journey"><h3><span class="id">J7</span>Compare</h3><ol><li>Map: hover <b>Metric</b> → <b>Compare</b> opens the compare dialog. History: select two commits → <b>Compare</b>, or a branch → <b>Compare with 'main'</b></li><li>Missing analyses: <b>Analyse missing</b> or <b>Use nearest</b></li><li>The selector's place shows <code>base 9f8e7d6 ⇄ head a1b2c3d</code>; the explorer gets a <b>Changes</b> list</li><li><b>Explore</b> or <b>Leave compare</b> returns to one map</li></ol></div>
-    <div class="journey"><h3><span class="id">J8</span>Switch project</h3><ol><li>Project switcher ▾ → another project</li><li>Its last analysis loads; the selector, branch chip and History follow its active folder</li></ol></div>
-  </div>
+  <div class="journeys"><div class="journey"><h3><span class="id">J1</span>First start</h3><ol><li>The overview opens in its "no project" state: <b>New project…</b>, <b>Open cc.json…</b>, <b>Show sample maps</b></li><li>Name the project, <b>Add folder…</b> for the repository (forks and helper folders can be added later)</li><li>The overview shows the working folder with "No analysis yet" → <b>Analyse current checkout</b></li><li>The status element spins and fills; when it's done, it flashes green and the map opens</li></ol></div><div class="journey"><h3><span class="id">J2</span>Open a cc.json</h3><ol><li>Project menu → <b>Open cc.json…</b> (Ctrl+O)</li><li>The dialog says which project and folder it goes into, and labels it "analysis time unknown"</li><li><b>Open</b>: that folder becomes the working folder; the status reads "imported"</li></ol></div><div class="journey"><h3><span class="id">J3</span>Everyday start</h3><ol><li>The last project, working folder and analysis reopen</li><li>If the checkout moved on, the status says "stale by N" and the notice offers <b>Analyse</b></li><li>Nothing runs by itself</li></ol></div><div class="journey"><h3><span class="id">J4</span>Switch folder or project</h3><ol><li>Project menu → choose another folder of this project (for example the fork)</li><li>Or open another project under "Other projects" and choose one of its folders</li><li>Its last analysis loads; the status element, History and the overview follow</li></ol></div><div class="journey"><h3><span class="id">J5</span>Another commit, from the map</h3><ol><li>Status ▾ → <b>Show commit…</b>; type a branch, tag or hash</li><li>Analysed → the map switches. Not analysed → the nearest analysis shows with "stale by N" and <b>Analyse</b></li><li><b>Show current checkout</b> goes back</li></ol></div><div class="journey"><h3><span class="id">J6</span>Another commit, from History</h3><ol><li>History tab, or Status ▾ → <b>Open History</b></li><li>Browsing commits only fills the details pane</li><li><b>Show in map</b> (or Enter) switches the map; <b>Analyse this commit</b> queues it, and progress shows on the status element</li></ol></div><div class="journey"><h3><span class="id">J7</span>Everyday git</h3><ol><li>The sync button offers Pull, Push, Publish or Fetch to match the branch</li><li>While it runs, the status icon becomes the arrow and the background fills</li><li>To commit: History → <b>Changes</b>: stage files, write the message, <b>Commit</b></li></ol></div><div class="journey"><h3><span class="id">J8</span>Compare</h3><ol><li>Hover <b>Metric</b> → <b>Compare</b>, or in History select two commits → <b>Compare</b></li><li>Missing analyses: <b>Analyse missing</b> or <b>Use nearest</b></li><li>The comparison chip sits next to the status icon; the explorer gets <b>Changes</b></li></ol></div><div class="journey"><h3><span class="id">J9</span>Check on a project</h3><ol><li>Project menu → <b>Overview</b></li><li>See the git state, analyses, recent commits and folders</li><li><b>Show map</b> returns</li></ol></div></div>
 </section>
 
 <section>
-  <span class="eyebrow">Area 04 · revised</span>
+  <span class="eyebrow">Area 04 · History</span>
   <h2>History</h2>
-  <p>The toolbar says which repository and branch you're on and keeps sync next to them. Each pane holds its own filters: branches on the left, commits in the middle. The "(?)" opens the legend shown on the right.</p>
+  <p>The toolbar names the repository (the working folder, chosen in the project menu) and its branch, followed by the one sync button. Each pane holds its own filters: branches on the left, commits in the middle. The "(?)" opens the legend shown on the right.</p>
   <div class="screen-wrap fit" role="img" aria-label="History view: toolbar, branches pane, commit list with graph and analysis column, details pane, and the graph legend">
     <div class="screen">
       <div class="nav">
-        <div class="start">
-          <b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span>
-          <span class="btn outline" style="max-width:9rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t">billing</span><i class="fa-solid fa-caret-down caret"></i></span>
-          <span class="btn outline" style="max-width:15rem"><i class="fa-solid fa-code-branch fa-fw"></i><span class="t">billing-api @ <span class="sha">9f8e7d6</span></span><span class="badge b-warn"><span>stale by 4</span></span><i class="fa-solid fa-caret-down caret"></i></span>
-        </div>
+        <div class="start"><b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span><span class="btn outline co" style="max-width:13rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="mute">billing /</span> <b style="font-weight:600">billing-api</b></span><i class="fa-solid fa-caret-down caret"></i></span><span class="ws co " style="max-width:22rem;"><span class="fill" style="width:75%"></span><span class="ic"><span class="pulse"><i class="fa-solid fa-arrow-down"></i></span></span><span class="br" style="max-width:8.5rem">feature/invoice-rounding</span><span class="mp">Pulling · 75 %</span><i class="fa-solid fa-caret-down caret"></i></span></div>
         <div class="center"><span class="btn">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn sel">History</span></div>
-        <div class="end"><span class="btn" style="max-width:12rem"><i class="fa-solid fa-code-branch fa-fw"></i><span class="t">feature/invoice-rounding</span><span class="dot"></span></span><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
+        <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
       </div>
       <div class="toolbar">
         <span class="mute" style="font-size:12px">Repository</span>
-        <span class="select">billing-api<i class="fa-solid fa-caret-down caret"></i></span>
-        <span style="display:inline-flex;align-items:center;gap:6px;min-width:0"><span class="mute">on</span><i class="fa-solid fa-code-branch"></i><b style="font-weight:500">feature/invoice-rounding</b></span>
-        <span class="vr"></span>
-        <span class="btn sm"><i class="fa-solid fa-cloud-arrow-down fa-fw"></i>Fetch<i class="fa-solid fa-caret-down caret"></i></span>
-        <span class="btn sm" title="Pull 1 commit from origin/feature/invoice-rounding"><i class="fa-solid fa-arrow-down fa-fw"></i>Pull<span class="badge b-ghost"><span>1</span></span></span>
-        <span class="btn sm" title="Push 2 commits"><i class="fa-solid fa-arrow-up fa-fw"></i>Push<span class="badge b-ghost"><span>2</span></span></span>
+        <b style="font-weight:600;display:inline-flex;gap:6px;align-items:center"><i class="fa-solid fa-code-branch"></i>billing-api</b>
+        <span style="display:inline-flex;align-items:center;gap:6px;min-width:0"><span class="mute">on</span><b style="font-weight:500">feature/invoice-rounding</b></span>
+        <span class="split" title=""><span class="fill" style="width:75%"></span><span><span class="spin"></span>Pulling 75 %</span><span title="Cancel"><i class="fa-solid fa-stop"></i></span></span>
         <span style="margin-left:auto;display:flex;gap:2px;align-items:center"><span class="btn sm sel">Log</span><span class="btn sm">Changes<span class="badge b-ghost"><span>3</span></span></span><span class="btn sm" title="Refresh (F5)"><i class="fa-solid fa-rotate fa-fw"></i></span></span>
       </div>
       <div class="hist">
@@ -396,32 +467,30 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
       </div>
     </div>
   </div>
-  <p class="cap">The rows show a real history: "Release 2.4.0" on main (orange line) is merged into the feature branch (blue line) by the merge row, and both lines start from "Start the invoice module". The pills in the Fix row are cut by design to show the truncation rule: rounded ends, "…" inside, full name on hover.</p>
+  <p class="cap">The rows show a real history: "Release 2.4.0" on main (orange line) is merged into the feature branch (blue line) by the merge row, and both lines start from "Start the invoice module". Here a pull is running: the sync button and the status element both show the progress fill.</p>
 </section>
+
 
 <section>
   <span class="eyebrow">Where the design departs from the plans</span>
   <h2>Decisions the implementer will follow</h2>
   <div>
-    <div class="dev"><span class="where">03 · 05</span><div><p><b>One map selector for folders, commit and snapshot status, including "Show commit…".</b></p><p>Plans 03 and 05 each added a control naming the shown snapshot. Neither let you pick a commit from the map screen.</p></div></div>
-    <div class="dev"><span class="where">03 · 04 · 05</span><div><p><b>An explicit active folder, remembered per project.</b></p><p>History's "Repository" and the map selector's ● marker set the same thing.</p></div></div>
-    <div class="dev"><span class="where">05</span><div><p><b>Browsing commits in History does not change the map; "Show in map" does.</b></p><p>Loading a large map on every arrow key would be slow.</p></div></div>
-    <div class="dev"><span class="where">04</span><div><p><b>Toolbar shows repository, branch and sync; filters live in the panes they filter; words instead of letters and icons; uncommitted changes drawn in the graph.</b></p><p>From your review.</p></div></div>
-    <div class="dev"><span class="where">04</span><div><p><b>Git failures show inside History with Details; branch switch confirms only with uncommitted changes.</b></p></div></div>
-    <div class="dev"><span class="where">06</span><div><p><b>No separate Compare button; the existing Compare tab opens the compare dialog. The commit picker is shared with the map selector.</b></p></div></div>
-    <div class="dev"><span class="where">05 · 01 · 02</span><div><p><b>Stale notice over map views only; confirm before moving the store folder; theme toggle names its destination.</b></p></div></div>
+    <div class="dev"><span class="where">OD1 · 03</span><div><p><b>One working folder at a time; the project menu chooses project and folder.</b></p><p>Plan 03's multi-folder selector and side-by-side display are dropped. The store format changes now (03-M1).</p></div></div>
+    <div class="dev"><span class="where">OD2 · 04 05</span><div><p><b>One workspace status element with the activity icon and a progress fill.</b></p><p>Replaces the snapshot chip, the branch chip and the analyses indicator.</p></div></div>
+    <div class="dev"><span class="where">OD3 · 04</span><div><p><b>One contextual sync button, after Zed.</b></p><p>Replaces separate Fetch, Pull and Push buttons.</p></div></div>
+    <div class="dev"><span class="where">OD4 · 03</span><div><p><b>Project overview page, reachable any time.</b></p><p>Replaces the project home that only showed when no map was loaded.</p></div></div>
+    <div class="dev"><span class="where">05</span><div><p><b>Browsing commits in History does not change the map; "Show in map" and "Show commit…" do.</b></p></div></div>
+    <div class="dev"><span class="where">04</span><div><p><b>Filters live in the pane they filter; words instead of letters and icons; uncommitted changes drawn in the graph; failures shown inside History.</b></p></div></div>
+    <div class="dev"><span class="where">06</span><div><p><b>No separate Compare button; the existing Compare tab opens the compare dialog.</b></p></div></div>
   </div>
 </section>
 
 <section>
-  <span class="eyebrow">Your call</span>
+  <span class="eyebrow">Still your call</span>
   <h2>Open questions, with the default applied</h2>
   <div class="qs">
-    <div class="q"><span class="n">1</span><span class="area-l">Projects</span><b>One map selector for folders and snapshot status?</b><span class="def"><b>Default:</b> yes, as shown above.</span></div>
-    <div class="q"><span class="n">2</span><span class="area-l">Projects</span><b>Should the user choose the active folder explicitly?</b><span class="def"><b>Default:</b> yes. The alternative is always using the first shown folder.</span></div>
-    <div class="q"><span class="n">3</span><span class="area-l">Projects</span><b>How many folders may be shown side by side?</b><span class="def"><b>Default:</b> no limit.</span></div>
     <div class="q"><span class="n">4</span><span class="area-l">History</span><b>Confirm every branch switch?</b><span class="def"><b>Default:</b> only with uncommitted changes.</span></div>
-    <div class="q"><span class="n">5</span><span class="area-l">History</span><b>Where do git failures show?</b><span class="def"><b>Default:</b> in History with Details; successes as toasts.</span></div>
+    <div class="q"><span class="n">5</span><span class="area-l">History</span><b>Where do git failures show?</b><span class="def"><b>Default:</b> in History with Details, or in the status element's Activity list; successes as toasts.</span></div>
     <div class="q"><span class="n">6</span><span class="area-l">Snapshots</span><b>Does selecting a commit change the map?</b><span class="def"><b>Default:</b> no, only "Show in map" or "Show commit…".</span></div>
     <div class="q"><span class="n">7</span><span class="area-l">Snapshots</span><b>Stale notice in History too?</b><span class="def"><b>Default:</b> no; the details pane says it per commit.</span></div>
     <div class="q"><span class="n">8</span><span class="area-l">Compare</span><b>A Compare button in the nav bar?</b><span class="def"><b>Default:</b> no; the existing Compare tab opens the dialog.</span></div>
@@ -429,14 +498,16 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
     <div class="q"><span class="n">10</span><span class="area-l">Themes</span><b>Border on explorer and inspector edges?</b><span class="def"><b>Default:</b> yes; their shadow disappears on a dark map.</span></div>
     <div class="q"><span class="n">11</span><span class="area-l">Desktop tools</span><b>Confirm before moving the store folder?</b><span class="def"><b>Default:</b> yes, because the app restarts.</span></div>
   </div>
+  <p class="cap">Questions 1–3 (folders) are settled by your decision.</p>
 </section>
 
 </div>
+
 <script>
 (function () {
   function fit() {
     for (const wrap of document.querySelectorAll('.screen-wrap.fit')) {
-      wrap.firstElementChild.style.zoom = Math.min(1, wrap.clientWidth / 1440);
+      wrap.firstElementChild.style.zoom = Math.min(1, wrap.clientWidth / 1600);
     }
   }
   fit();

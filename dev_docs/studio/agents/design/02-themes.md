@@ -57,8 +57,7 @@ Light
 
 ## T2 Quick toggle
 
-**Where.** `navBar.component.html`, `navbar-end`, after the analysis jobs indicator (desktop, area 05)
-and before `cc-settings-button`. Present in both builds.
+**Where.** `navBar.component.html`, `navbar-end`, before `cc-settings-button`. Present in both builds.
 
 - `btn btn-ghost btn-sm btn-square`; icon `fa-solid fa-moon` while a light theme is active,
   `fa-solid fa-sun` while a dark theme is active.
@@ -99,8 +98,8 @@ the eight themes by the plan's smoke test (M5 step 2) plus an eyeball pass of th
    Rider uses) and asks the owner (open question 9).
 2. **Toggle titles name the destination theme** ("Switch to light theme (CodeCharta Light)"), so a user
    on Nord is not surprised to land on CodeCharta Light.
-3. **Toggle position** after area 05's jobs indicator: the plan says "before Settings", which still
-   holds.
+3. **Toggle position** as the plan says, before Settings (the analyses indicator that once sat there
+   is now part of the workspace status element, area 05 W1).
 
 ## Proposed changes to existing UI (not assumed approved)
 

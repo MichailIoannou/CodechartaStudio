@@ -48,7 +48,9 @@ layout — the radial layouts show a single map."
 
 ## C2 Comparison chip
 
-**Where.** Map slot (principles §3) while `CompareService.isActive()` or phase `noDifferences`.
+**Where.** Map slot (principles §3) while `CompareService.isActive()` or phase `noDifferences`, after
+the icon-only form of the workspace status element (area 05 W1), which keeps showing activity and
+progress during a comparison.
 
 ```
 [base  9f8e7d6 main ▾]  ⇄  [head  a1b2c3d feature/x]  stale by 2   #123 ↗   [▾]
@@ -64,7 +66,7 @@ noDifferences:
 - Swap: `btn btn-ghost btn-sm btn-square` with today's `fa fa-arrows-h` and today's title "Switch
   reference and comparison file", as in the delta selector.
 - Stale badge per side (`badge badge-warning badge-sm`) "stale by 2", `title` "No analysis for
-  a1b2c3d. Showing 9f8e7d6, 2 commits older." (descendant/diverged forms as area 05 S1).
+  a1b2c3d. Showing 9f8e7d6, 2 commits older." (descendant/diverged forms as area 05 W1).
 - PR badge: `badge badge-ghost badge-sm` `fa-code-pull-request` "#123" + `fa-arrow-up-right-from-square`;
   link to `changeRequest.url` (`target="_blank"`), `title` = PR title.
 - Base mode, when the origin is branches/PR: `badge badge-ghost badge-xs` "since merge base" or "tip
@@ -142,7 +144,7 @@ Native dialog, `modal-box max-w-3xl`, title "Compare".
 ## C4 Ref picker
 
 Shared component: it lives in `features/gitHistory` (the feature that owns refs), exported through
-its facade, and is used here and by area 05 S1 ("Show commit…"). Dependencies stay one-way
+its facade, and is used here and by area 05 W1 ("Show commit…"). Dependencies stay one-way
 (`compare → gitHistory`, `snapshots → gitHistory`).
 
 Combobox: `input input-bordered input-sm w-full font-mono` with `role="combobox"`,
@@ -313,7 +315,7 @@ upload delta mode.
    working-tree row of plan 06's table, reached where the working tree appears in History.
 
 6. **Ref picker lives in `features/gitHistory`**, not `features/compare` (plan 5), because the map
-   screen's "Show commit…" (area 05 S1) needs it too and `snapshots` may not depend on `compare`.
+   screen's "Show commit…" (area 05 W1) needs it too and `snapshots` may not depend on `compare`.
 
 ## Proposed changes to existing UI (not assumed approved)
 

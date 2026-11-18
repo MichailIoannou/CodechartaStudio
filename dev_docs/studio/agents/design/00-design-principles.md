@@ -29,7 +29,7 @@ Enhance the existing interface; do not redesign it.
 |---|---|---|
 | Nav bar, left (`navbar-start`) | `navBar.component.html` | `btn btn-ghost btn-sm` triggers; dropdown = `cc-map-selector` |
 | Nav bar, centre | `viewSwitcher.component.html` | `btn btn-ghost btn-sm` links + `cc-current-underline` |
-| Nav bar, right (`navbar-end`) | `navBar.component.html` | `cc-settings-button` (`btn btn-ghost btn-sm`); gets the branch chip, jobs indicator, theme toggle |
+| Nav bar, right (`navbar-end`) | `navBar.component.html` | `cc-settings-button` (`btn btn-ghost btn-sm`); gets the theme toggle |
 | Hover mode bar under the switcher | `viewModeBar.component.html` | `cc-mode-toggle` (Explore / Compare, `role="tablist"`) |
 | Dropdown | `mapSelector.component.html` | `.dropdown` + `dropdown-open`, content `bg-base-100 rounded-box border border-base-300 shadow-md mt-1 z-[70] p-2`, list `max-h-72 overflow-y-auto`, row `rounded-md px-2 py-1 hover:bg-base-200`, footer `flex justify-end mt-2` with `btn btn-primary btn-sm` |
 | Modal dialog | `globalConfigurationDialog`, `saveScenarioDialog`, `scenarioListDialog` | native `<dialog class="modal">`, `modal-box max-w-{sm,md,xl,2xl}`, `h2 text-xl font-bold mb-4`, `form-control` + `label-text`, `input input-bordered`, `modal-action`, `form method="dialog" class="modal-backdrop"` |
@@ -52,19 +52,19 @@ The nav bar is shared by plans 02–06. This is the single, final order; area fi
 
 ```
 desktop, project open, map shown
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [logo] │ [▣ billing ▾] [⎇ billing-api @ 9f8e7d6  stale by 4 ▾]   Metric Domain Dependencies History   [⎇ feature/x ↑2 ●] [⟳ 1] [☀] Settings │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-  start: logo, divider, project switcher (03), map slot (03/05/06)
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [logo] │ [▣ billing / billing-api ▾] [⎇ feature/x  @ 9f8e7d6  stale by 4 ▾]   Metric Domain Dependencies History        [☀] Settings │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  start: logo, divider, project menu (03 P1), map slot = workspace status (05 W1) or comparison chip (06)
   centre: view switcher (+ History tab, 04)
-  end: branch chip (04), analysis jobs indicator (05), theme toggle (02), Settings
+  end: theme toggle (02), Settings
 ```
 
-The daisyUI `navbar` gives `navbar-start` and `navbar-end` half of the space left beside the centred
-view switcher each. At 1280 px that is about 485 px per half, of which the logo and divider take about
-90: room for two triggers, not three. The branch chip therefore sits at the start of `navbar-end`,
-which today holds only Settings (owner review 2026-11-18; the first draft put it in `navbar-start`
-and the mock-up overlapped).
+Owner decisions OD1/OD2 (`owner-decisions.md`): the project menu chooses project and working folder;
+the workspace status element W1 carries branch, map status, analyses and git activity with a progress
+fill, replacing the map selector, the branch chip and the analyses indicator. The daisyUI `navbar`
+gives `navbar-start` and `navbar-end` half of the space beside the centred view switcher each (≈ 485
+px per half at 1280 px, ≈ 90 px of it for logo and divider), which holds exactly these two triggers.
 
 Map slot, first match wins:
 
@@ -72,29 +72,28 @@ Map slot, first match wins:
 |---|---|
 | web build, delta state | `cc-delta-selector` (today) |
 | web build | `cc-map-selector` (today) |
-| desktop, project comparison active | `cc-comparison-chip` (06) |
+| desktop, project comparison active | W1 icon-only form + `cc-comparison-chip` (06) |
 | desktop, delta state without a project comparison (sample maps) | `cc-delta-selector` |
-| desktop, project active, map shown | `cc-project-folder-selector` (03, carries the snapshot status of 05) |
-| desktop, sample maps shown | `cc-map-selector` |
-| desktop, nothing shown | nothing (project home fills the page) |
+| desktop, project active | `cc-workspace-status` (05 W1), also while the project overview shows |
+| desktop, sample maps shown, no project | `cc-map-selector` |
+| desktop, no project | nothing |
 
 Web build left side stays exactly: logo, divider, `cc-nav-bar-folder-button`, map/delta selector.
 
 **Narrow window.** Supported down to 1024 px wide (the Electron window minimum is set by plan 01; if
-none is set, this design assumes 1024). Budgets per half (window minus about 310 px of view tabs,
-halved, minus the logo on the left), widths capped by breakpoint, each step a Tailwind class on the
-element, never JavaScript measuring:
+none is set, this design assumes 1024). Budget of the left half (window minus about 310 px of view
+tabs, halved, minus the logo), widths capped by breakpoint, each step a Tailwind class on the element,
+never JavaScript measuring:
 
-| Window | Left budget | Project switcher | Map slot trigger | Right half: branch chip |
-|---|---|---|---|---|
-| ≥ 1536 (`2xl`) | ≈ 520 px | `max-w-48` | `max-w-80` | name `max-w-56`, ahead/behind numbers |
-| 1280–1535 (`xl`) | ≈ 395 px | `max-w-36` | `max-w-60` | name `max-w-48`, ahead/behind numbers |
-| 1024–1279 | ≈ 265 px | `max-w-24` | `max-w-40`, status badge as icon only | name `max-w-32`, arrows without numbers |
+| Window | Left budget | Project menu trigger | Workspace status trigger (W1) |
+|---|---|---|---|
+| ≥ 1536 (`2xl`) | ≈ 520 px | "project / folder", `max-w-52` | `max-w-[22rem]`: icon, branch (`max-w-36`) with ↑↓ counts, `@ sha` or activity, badge |
+| 1280–1535 (`xl`) | ≈ 395 px | folder only, `max-w-28` | `max-w-[17.5rem]`: icon, branch (`max-w-28`), `@ sha`, badge |
+| 1024–1279 | ≈ 265 px | folder only, `max-w-24` | `max-w-40`: icon, `@ sha`, badge as icon (branch in `title`) |
 
 - `navbar-start` and `navbar-end` keep their halves and get `min-w-0 overflow-hidden`; their children
   `min-w-0`, so a trigger shortens its text with "…" instead of running under `navbar-center`; the view
   switcher never shrinks.
-- Below 1280 the analysis jobs indicator shows only the spinner; the theme toggle and Settings stay.
 - Text inside every trigger is `truncate`; the full text is always in `title`.
 
 ## 4. Z-index layers in use
@@ -106,7 +105,7 @@ element, never JavaScript measuring:
 | `z-50` | inline colour picker panel | — |
 | `z-[60]` | explorer, inspector, legend drawer and its button | — (History panes are in-flow, not fixed) |
 | `z-[65]` | *new* | snapshot notice banner (05): above the side panels, below the mode bar |
-| `z-[70]` | nav-bar dropdowns, view mode bar and its handle, file extension bar | project switcher, folder selector, branch-chip menu, comparison-chip menu, jobs list |
+| `z-[70]` | nav-bar dropdowns, view mode bar and its handle, file extension bar | project menu, workspace status, branch-chip menu, comparison-chip menu, jobs list |
 | `z-[100]` | floating context menus, file-extension menu | commit, branch, snapshot context menus |
 | `z-[1000]` | loading overlays, code map error | — |
 | `z-[2000]` | toast | — |
@@ -163,7 +162,7 @@ Status meaning is fixed across areas:
 | manage / settings | `fa-gear` |
 | close project | `fa-xmark` |
 | missing | `fa-triangle-exclamation` |
-| branch, current branch chip | `fa-code-branch` |
+| branch, workspace status idle | `fa-code-branch` |
 | tag | `fa-tag` |
 | remote | `fa-cloud` |
 | commit | `fa-circle-dot` |
