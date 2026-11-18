@@ -344,4 +344,32 @@ mod tests {
         assert!(leftovers.iter().all(|file| !file.exists()));
         assert!(kept.iter().all(|file| file.exists()));
     }
+
+    #[test]
+    fn should_finish_a_snapshot_move_that_a_crash_interrupted() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+        let root = folder.path();
+        write_store_file(root, STORE_SCHEMA_VERSION);
+        let snapshots = root
+            .join("projects")
+            .join("p-0123456789abcdef")
+            .join("snapshots");
+        let old_place = snapshots
+            .join("f-0000000000000001")
+            .join("imported-0123456789abcdef");
+        fs::create_dir_all(&old_place).unwrap();
+        let record = json!({ "id": "imported-0123456789abcdef", "folderId": "f-0000000000000002" });
+        fs::write(old_place.join("snapshot.json"), record.to_string()).unwrap();
+
+        // Act
+        Store::open(root).unwrap();
+
+        // Assert
+        let new_place = snapshots
+            .join("f-0000000000000002")
+            .join("imported-0123456789abcdef");
+        assert!(!old_place.exists());
+        assert!(new_place.join("snapshot.json").is_file());
+    }
 }

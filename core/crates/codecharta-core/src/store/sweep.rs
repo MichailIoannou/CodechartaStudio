@@ -4,9 +4,14 @@ use std::path::Path;
 
 use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
 
+use serde_json::Value;
+
 use crate::error::{CoreError, CoreResult};
-use crate::store::atomic::TEMPORARY_FILE_PREFIX;
+use crate::store::atomic::{TEMPORARY_FILE_PREFIX, read_json_if_exists};
 use crate::store::paths::{STAGING_FOLDER_PREFIX, StorePaths};
+
+const SNAPSHOT_ID_FIELD: &str = "id";
+const SNAPSHOT_FOLDER_FIELD: &str = "folderId";
 
 /// Removes what a crash during a write can leave behind. Only the store's own places are searched,
 /// so nothing a user put into the store folder is touched.
@@ -45,9 +50,44 @@ fn sweep_folder_snapshots(
             fs::remove_dir_all(&staging).map_err(|source| sweep_error(&staging, source))?;
         } else if let Ok(snapshot) = SnapshotId::try_from(name) {
             remove_temporary_files(&paths.snapshot_dir(project, folder, &snapshot)?)?;
+            finish_interrupted_move(paths, project, folder, &snapshot)?;
         }
     }
     Ok(())
+}
+
+/// A move rewrites `snapshot.json` before it renames the directory; after a crash in between, the record
+/// names where the directory belongs.
+fn finish_interrupted_move(
+    paths: &StorePaths,
+    project: &ProjectId,
+    folder: &FolderId,
+    snapshot: &SnapshotId,
+) -> CoreResult<()> {
+    let Some((recorded_folder, recorded_id)) =
+        recorded_place(&paths.snapshot_file(project, folder, snapshot)?)
+    else {
+        return Ok(());
+    };
+    if (&recorded_folder, &recorded_id) == (folder, snapshot) {
+        return Ok(());
+    }
+    let target = paths.snapshot_dir(project, &recorded_folder, &recorded_id)?;
+    if target.exists() {
+        return Ok(());
+    }
+    let target_folder = paths.folder_snapshots_dir(project, &recorded_folder)?;
+    fs::create_dir_all(&target_folder).map_err(|source| sweep_error(&target_folder, source))?;
+    let current = paths.snapshot_dir(project, folder, snapshot)?;
+    fs::rename(&current, &target).map_err(|source| sweep_error(&current, source))
+}
+
+fn recorded_place(snapshot_file: &Path) -> Option<(FolderId, SnapshotId)> {
+    let record = read_json_if_exists::<Value>(snapshot_file).ok()??;
+    let field = |name: &str| record.get(name)?.as_str().map(str::to_string);
+    let folder = FolderId::try_from(field(SNAPSHOT_FOLDER_FIELD)?).ok()?;
+    let snapshot = SnapshotId::try_from(field(SNAPSHOT_ID_FIELD)?).ok()?;
+    Some((folder, snapshot))
 }
 
 fn remove_temporary_files(folder: &Path) -> CoreResult<()> {

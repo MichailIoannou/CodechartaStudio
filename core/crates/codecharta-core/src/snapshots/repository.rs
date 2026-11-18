@@ -246,6 +246,15 @@ impl<'deps> SnapshotRepository<'deps> {
         write_json_atomic(&file, record)
     }
 
+    /// For a record about to move: written where its directory still is.
+    pub(crate) fn write_record_in(
+        &self,
+        snapshot_dir: &Path,
+        record: &SnapshotRecord,
+    ) -> CoreResult<()> {
+        write_json_atomic(&snapshot_dir.join(SNAPSHOT_FILE_NAME), record)
+    }
+
     pub(crate) fn ensure_folder_exists(&self, folder: &FolderRef) -> CoreResult<()> {
         let project = self.projects().read_record(&folder.project_id)?;
         existing_folder(&project, &folder.folder_id).map(|_| ())

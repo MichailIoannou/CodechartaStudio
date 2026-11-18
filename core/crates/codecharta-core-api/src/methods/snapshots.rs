@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::ids::{FolderId, ProjectId, SnapshotId};
-use crate::methods::projects::{FolderGitFacts, FolderKind, ResolvedCommit};
+use crate::methods::projects::{FolderGitFacts, FolderKind, Project, ResolvedCommit};
 use crate::values::{CommitHash, FullCommit, PickToken, ProjectName};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -81,6 +81,16 @@ pub struct PickedImportFile {
     pub hint_commit: Option<ResolvedCommit>,
     pub existing_target: Option<ExistingTarget>,
     pub duplicate_of: Option<SnapshotRef>,
+}
+
+/// The project a cc.json file was opened into and the snapshot it became (or already was).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenedFile {
+    pub project: Project,
+    pub snapshot: SnapshotSummary,
+    pub created_project: bool,
+    pub was_already_imported: bool,
 }
 
 #[cfg(test)]

@@ -36,7 +36,7 @@ From `03-m2-projects.md`: append `NOT_A_COMMIT`; `resolve_commit` must also read
 
 - [x] 1. Repository
 - [x] 2. Import
-- [ ] 3. Open file and move
+- [x] 3. Open file and move
 - [ ] 4. JSON-RPC
 - [ ] 5. CLI
 - [ ] 6. Shell (part B)
@@ -119,4 +119,31 @@ described.
   `should_suggest_the_folder_name_as_project_name`.
 - Not done: no size limit on imports (the plan names none); hashing and copying run on the request's task,
   not `spawn_blocking`.
+
+### 3. Open a file, move
+- Api: `OpenedFile { project, snapshot, createdProject, wasAlreadyImported }`.
+- `snapshots/open_file.rs`: `open_file(OpenFileRequest { file, target, bind_to_commit }) -> OpenedFile`.
+  `target: None` reuses `existing_target` (the folder of the file in the most recently updated project
+  that has it), else creates a project named `suggested_project_name(folder)` whose only folder is the
+  containing folder (`primary`, label `suggested_label`, `kind` from inspection, so a non-repository folder is
+  `plain`); then `import_file`. **Addition:** when the import fails (for example `NOT_A_COMMIT`, or
+  `FOLDER_UNAVAILABLE` for a binding in a plain folder) a project created for this call is deleted again
+  (permanently: it was created a moment ago and holds nothing), so a failed open leaves no empty project.
+  The returned `project` is read from `project.json` without a git refresh. `open_file` does not change
+  `view` or the active project: plan section 6 step 7 leaves showing to the renderer.
+- `snapshots/move_snapshot.rs`: `move_snapshot(&SnapshotRef, SnapshotMove { to_folder, bind_to_commit })`.
+  Imported snapshots only (`BAD_REQUEST`); the target folder must be in the project (`NOT_FOUND`); binding is
+  verified in the target folder before the project lock is taken (`bound_git`). Under the lock (through
+  `ProjectRepository::modify`) the record is read again, gets the new id (`imported_snapshot_id` of its
+  content hash and the new commit, so no binding means `imported-<16hex>` again), folder and `git`, is
+  written atomically where the directory still is, and the directory is renamed; a target that exists is
+  `CONFLICT`. Moving to the same folder with a binding is "bind later". `shownSnapshotIdByFolder`: when the
+  source folder showed the snapshot, that entry is removed and the target folder's entry names the new id.
+- Crash repair: `store/sweep.rs` `finish_interrupted_move` runs in `Store::open` (writable opens only): a
+  snapshot directory whose `snapshot.json` names another folder or id is renamed to that place unless it is
+  taken. A read-only open (the CLI `list`) does not repair; `list` skips such a record until then.
+- Tests (`tests/snapshot_open.rs`): the plan's ten plus
+  `should_answer_not_a_commit_when_binding_to_a_commit_the_target_does_not_have`,
+  `should_bind_a_snapshot_later_in_its_own_folder`, `should_remove_the_new_project_when_the_file_cannot_be_imported`;
+  unit `store::tests::should_finish_a_snapshot_move_that_a_crash_interrupted`.
 
