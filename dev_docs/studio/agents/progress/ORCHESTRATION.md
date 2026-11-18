@@ -46,12 +46,12 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M6 Import and store settings | UI | todo | 03-M5 | — | — |
 | 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
-| 04-M2 Core: log, details, queries, changed files | core | in progress (branched from feature/studio-04-m1) | — | feature/studio-04-m2 | — |
+| 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
 | 04-M3 History view, branches pane, chip | UI | todo | 04-M2; plan 03 renderer (03-M4/M5) | — | — |
 | 04-M4 Commit list with graph, filters, details | UI | todo | 04-M3 | — | — |
 | 04-M5 Selection, keyboard, context menu, ports | UI | todo | 04-M4 | — | — |
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
-| 04-M7 Operation queue, progress, prompts | core + UI | todo | 04-M2 | — | — |
+| 04-M7 Operation queue, progress, prompts | core + UI | in progress (core half, tasks 1–4, from feature/studio-04-m2) | task 5 (UI): 04 History UI | feature/studio-04-m7 | — |
 | 04-M8 Fetch and branches | core + UI | todo | 04-M7 | — | — |
 | 04-M9 Changes and diff | core + UI | todo | 04-M8 | — | — |
 | 04-M10 Commit | core + UI | todo | 04-M9 | — | — |
@@ -153,6 +153,17 @@ the milestone is started.
   Playwright pages as source). First coverage exclusion in `visualization/app` — owner question 1.
   `shell.coreState` is typed locally (not in the generated contract). The fake's body must stay
   self-contained (no imports, no outer helpers, no async/await).
+- 04-M2 (see `04-M2-core-log-details.md` on `feature/studio-04-m2`): `git.measureDistances` returns
+  `GitCommitDistances`; line streaming built on the runner's chunk stream; ref names checked in-process;
+  every sha to `show`/`diff-tree` is peeled with `^{commit}`; new codes `LOG_SESSION_EXPIRED`,
+  `UNKNOWN_REVISION`. Acceptance: 100 006-commit repo, pages to offset 5000 in 417–451 ms, cached 3.4 ms.
+  Mutating operations must call `GitMemory::forget_logs`, fetch must call `fetched`.
+- 01-M4.2 (see `01-m4-2-desktop-tools.md`): followed the design over the plan (summary line; "Show" opens
+  the data folder; core-state alerts replace the rows; skeletons, progress, failure alert, narrow layout).
+  Wording the implementer had to supply is logged as O2 in `design/open-questions.md`. Not assigned to any
+  milestone yet: app-wide core-offline / "Back online" toasts (D4, OD5, needs the toast slot of OD8/OD9),
+  the "Open desktop tools" deep link (D5), the offline icon in the workspace status (W1); error toasts still
+  auto-close (OD8 not built).
 
 ## Known environment issues (not caused by the milestones)
 
