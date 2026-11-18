@@ -328,8 +328,8 @@ window.codeChartaDesktop = {
   subscribe(event, handler),                         // → unsubscribe(); handler exceptions swallowed
   pickFolder({ title }),                             // → Promise<string | null>   (path from the native picker, D3)
   pickFile({ title, filters }),                      // → Promise<string | null>
-  chooseToolExecutable(tool),                        // picker + tools.setPath inside main → Promise<Result<ToolsReport | null>>
-  chooseStoreRoot(),                                 // picker + paths.setStoreRoot inside main → Promise<Result<PathsInfo | null>>
+  chooseToolExecutable(tool, { title, filters }),    // picker + tools.setPath inside main → Promise<Result<ToolsReport | null>>
+  chooseStoreRoot({ title }),                        // picker + paths.setStoreRoot inside main → Promise<Result<PathsInfo | null>>
   reveal(target),                                    // ShellPathTarget → shell.resolvePath → showItemInFolder / openPath
   readSnapshotMap(target),                           // { projectId, folderId, snapshotId } → Promise<Result<Uint8Array>>
   setWindowBackground(color),                        // "#rrggbb"
@@ -383,10 +383,10 @@ class CoreClient extends EventEmitter {               // events: "notification" 
 |---|---|
 | `desktopBridge.ts` | `interface DesktopBridge` (the preload API above, typed: `request<Method extends RendererMethod>(method: Method, params: CoreMethods[Method]["params"], options?: { operationId: string }): Promise<CoreResult<CoreMethods[Method]["result"]>>`, `subscribe<Event extends RendererEvent \| "shell.coreState">(…)`, …); `type CoreResult<Value> = { ok: true; value: Value } \| { ok: false; error: ErrorPayload }`; `CoreState` |
 | `desktopBridge.token.ts` | `DESKTOP_BRIDGE = new InjectionToken<DesktopBridge \| null>("DESKTOP_BRIDGE", { providedIn: "root", factory: () => readDesktopBridge(window) })`; `readDesktopBridge(page)` returns `page.codeChartaDesktop` when its `protocolVersion === CORE_PROTOCOL_VERSION`, else `console.warn` + `null`; absent → `null`. The only reader of the global. |
-| `desktopEnvironment.service.ts` | root `DesktopEnvironment { isDesktop: Signal<boolean>; coreState: Signal<CoreState>; requireBridge(): DesktopBridge }` (throws `DesktopBridgeError` `NOT_ALLOWED` on the web) |
+| `desktopEnvironment.service.ts` | root `DesktopEnvironment { isDesktop: Signal<boolean>; coreState: Signal<CoreState> (`{ state, message }`; `stopped` on the web); requireBridge(): DesktopBridge }` (throws `DesktopBridgeError` `NOT_ALLOWED` on the web) |
 | `desktopResult.ts` | `DesktopBridgeError extends Error { code: ErrorCode; details }`; `valueOrThrow(result)` |
 | `desktopEvents.ts` | `observeDesktopEvent(bridge, event): Observable<payload>` (unsubscribes on teardown) |
-| `desktopBridge.mocks.ts` | `createFakeDesktopBridge(seed?: FakeDesktopSeed): FakeDesktopBridge` — `seed.responses: Partial<Record<RendererMethod, unknown>>`, `seed.failures`, picker answers; `calls` log; `emit(event, payload)` |
+| `desktopBridge.mocks.ts` | `createFakeDesktopBridge(seed?: FakeDesktopSeed): FakeDesktopBridge` — `seed { protocolVersion?, coreState?, responses?, failures? }` keyed by `FakeAnswerKey` (a `RendererMethod` or a picker/shell call name; the fake's `protocolVersion` defaults to 1, guarded by a spec against `CORE_PROTOCOL_VERSION`); `calls` log of `{ name, args }`; `emit(event, payload)`, `respondWith(key, value)`, `failWith(key, error)`. The function carries `/* istanbul ignore next */` so coverage counters stay out of its source text |
 
 - No change to `app.config.ts`. Tests override the token (`useValue: createFakeDesktopBridge()` or `null`). On the web `isDesktop()` is false and every desktop element sits behind `@if (isDesktop())` (D1).
 - `createFakeDesktopBridge` is self-contained (no outside references in its body) because `app/playwright.helper.ts` injects it as text: `standInForTheDesktopBridge(page, seed)` → `page.addInitScript(\`window.codeChartaDesktop = (${createFakeDesktopBridge.toString()})(${JSON.stringify(seed)})\`)`. The fake's `protocolVersion` comes from the seed (default set by the helper from `CORE_PROTOCOL_VERSION`).
