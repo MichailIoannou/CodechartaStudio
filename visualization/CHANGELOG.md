@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ## [unreleased] (Added 🚀 | Changed | Removed  | Fixed 🐞 | Chore 👨‍💻 👩‍💻)
 
+### Added 🚀
+
+- **Dark theme**: CodeCharta now starts in a dark theme, and you can pick CodeCharta Light or Follow system in the settings; the charts of the Domain and Dependencies views and the radial layouts follow in a later release.
+
 ### Changed
 
 - **One desktop window**: starting the desktop app a second time brings the running window to the front instead of opening another one.

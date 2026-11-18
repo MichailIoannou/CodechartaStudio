@@ -1,6 +1,6 @@
 ---
 name: 02-M1 dark by default
-state: progress
+state: complete
 version: 1
 ---
 
@@ -44,7 +44,7 @@ label `color` and `border` from the `buildingLabel` palette.
 - [x] 8. Preference and migration
 - [x] 9. Apply and flip to dark
 - [x] 10. Picker
-- [ ] 11. Visual check and changelog
+- [x] 11. Visual check and changelog
 
 ## Notes
 
@@ -175,3 +175,44 @@ Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feat
   cases; the corner pixel is read by copying `#codeMapScene` into a 1x1 2D canvas (the renderer keeps
   its drawing buffer).
 - Full e2e (153) green, `test:electron` 42/42, `e2e:desktop` 9/9 after this task.
+
+### 11. Visual check and changelog
+
+Built the app and took Playwright screenshots (headless chromium, swiftshader, 1600x950) of a fresh
+profile in CodeCharta Dark and after picking CodeCharta Light: main metrics view, settings dialog (picked
+theme and Follow system), toasts of all four severities (styled like `cc-toast`, injected into the page),
+the map screenshot export, the color settings popover with the ngx-color picker, the Domain and the
+Dependencies view (console errors are covered by `app.e2e.ts`, green). What I saw:
+
+- Dark: nav bar, explorer island, metrics bar, file extension bar, bottom bar, legend tab and the view cube
+  read well; borders are visible. The map is dark (`#14171b`), floors run from `#4a515c` to light grey with
+  white folder names, building labels are dark pills with light text and a `base-300` border, the
+  connectors are light grey. Settings dialog, selects, toggles and buttons follow the tokens; the
+  "Currently: CodeCharta Light" hint shows under the select.
+- Light: the CodeCharta blue look (primary `#0374c9`) with today's map colors (`#f4f4eb`, dark floors).
+- Map export in dark: the cropped image sits on `#1e2329` with 16 px padding, labels dark and readable.
+- Toasts: daisyUI `alert-*` fills are readable on dark.
+- Not token mistakes, left as they are (all expected by the plan or out of scope):
+  - the ngx-color chrome picker stays white in dark (plan: restyling it is out of scope);
+  - the Dependencies graph keeps its light boxes and the word cloud its dim `#0030ff` end on dark (M3/M4);
+  - the color-range diagram keeps `#888` axes, readable on dark (M4 themes it);
+  - the white browser-chrome flash of a non-default theme at boot (M2) and of the Electron window (M6).
+- No token fixes were needed beyond tasks 3 and 9.
+- Not done from the design: T4 (metrics bar refresh, OD6) and T5 (blended file extension bar, OD7) are
+  owner requests outside plan 02 M1's task list; the design says they may ship with M1 or as their own
+  milestone. They are left for their own milestone.
+
+Changelog: one entry under Added, saying the charts of the Domain and Dependencies views and the radial
+layouts follow later (M3/M4 not in this release yet). Rewrite it when M3/M4 land.
+
+### For M2–M5
+
+- M2: the mirror is already written by `ApplyThemeEffect` (`themeBootMirrorFor`); `index.html` fallbacks are the
+  cc-dark tokens; only `themeBoot.js`, its tag and its spec remain.
+- M3: `radialMap.e2e.ts` still asserts light colors and passes only because the radial colors are not themed
+  yet; it must pick CodeCharta Light through `themePicker.po.ts` once M3 themes them.
+- M5: `lowestContrastAlongGradient`, `MapPaletteSeed` and the builders are not there yet (knip); the editor
+  themes need one CSS block and one registry entry each; the CSS-sync spec also checks registry order.
+  Use the label "Rider Day" (design deviation 1), not "IntelliJ Light". No quick toggle (OD10).
+- `DB_VERSION` is 37 on this branch; renumber at merge if another plan took it.
+
