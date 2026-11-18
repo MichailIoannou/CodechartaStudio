@@ -215,6 +215,11 @@ impl TempRepo {
         self.folder.path()
     }
 
+    /// An existing folder outside the repository, to stand in for the core's data folder.
+    pub fn data_dir(&self) -> &Path {
+        self.home.path()
+    }
+
     pub fn git_executable(&self) -> &Path {
         &self.git
     }

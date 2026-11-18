@@ -34,7 +34,7 @@ record it as open for the owner. Task 7's fake-bridge `git` seed lives in the re
 - [x] 1. Reconcile and fixtures
 - [x] 2. Contract and helpers
 - [x] 3. Runner and failures
-- [ ] 4. Repository
+- [x] 4. Repository
 - [ ] 5. Status
 - [ ] 6. Refs and remotes
 - [ ] 7. RPC and CLI
@@ -129,3 +129,23 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0. Bra
 - Tests: the plan's names (unit tests in `git/runner.rs` over a recording `GitProcess`; one per rule in
   `git/failure.rs`, two from captured stderr), plus `should_classify_a_non_zero_exit`,
   `should_carry_git_text_and_repository_path_in_the_details`.
+
+### 4. Repository
+- `git/parse/repository.rs`: `REV_PARSE_ARGS`, `parse_rev_parse -> RevParseFacts` (exactly six lines, flags
+  must be `true` / `false`, else `PARSE_FAILED`), `reports_bare` (first line `true`).
+- `git/locator.rs`: `checked_version` (`GIT_TOO_OLD` below the `tools::definitions` git minimum; the version
+  itself is cached by plan 01's tools report, so no extra cache here), `locate(git, folder, cancel) ->
+  Repository { info: GitRepositoryInfo, git_dir }`. Non-zero exit: `BARE_REPOSITORY` when the partial answer
+  says bare, else classified (`DUBIOUS_OWNERSHIP` gets `repositoryPath` = the folder). `repository_id` =
+  canonical common git dir through `normalise_repository_id(path, PathStyle)` (Windows: `/` to `\`,
+  verbatim prefix dropped, lower case; Unix unchanged); `root_path` = `normalise_path(--show-toplevel)` (not
+  canonicalised, so it is git's spelling); `is_linked_worktree` = canonical git dir != canonical common dir.
+  No `dunce` crate: the prefix handling is the few lines in `normalise_path`.
+- `git/service.rs`: `GitFolder { path, repo: Option<FolderRef> }` (`GitFolder::at(path)` for the CLI),
+  `GitService::new(&dyn GitProcess, data_dir)` with `repository_info(&GitFolder, &cancel)`. Every service read
+  takes a cancellation token (the request's), which the plan's signatures leave out.
+- Fixture: `TempRepo::data_dir()` (the temp home) stands in for the core's data folder.
+- Tests: the plan's names (`should_parse_root_prefix_shallow_and_worktree` captured; the fixture ones in
+  `tests/git_repository.rs`; `should_reject_git_below_2_31` and the Windows normalisation as unit tests), plus
+  `should_report_a_bare_repository`, `should_recognise_a_bare_repository_from_the_partial_answer`,
+  `should_keep_case_and_separators_on_unix`, `should_turn_a_verbatim_unc_path_into_a_share_path`.
