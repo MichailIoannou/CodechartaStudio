@@ -105,24 +105,29 @@ the milestone is started.
 
 ## Known environment issues (not caused by the milestones)
 
-- This machine runs Node 26.13 while `mise.toml` and CI pin Node 24. On Node 26,
-  `app/codeCharta/stores/fileStore/loaders/ccJson/util/urlExtractor.spec.ts` fails 9 tests
-  (`Cannot delete property 'location' of #<Window>`). The spec and everything it imports are
-  identical to `main`; the rest of the suite (4852 tests) and the coverage gate pass. Needs Node 24
-  locally, or a fix of the spec for Node 26 (owner decision).
+- This machine runs Node 26.13 while `mise.toml` and CI pin Node 24. On Node 26 the upstream
+  `urlExtractor.spec.ts` fails 9 tests (`Cannot delete property 'location' of #<Window>`). Owner decision
+  (2026-11-18): the original is excluded in `visualization/conf/jestUnit.config.json`
+  (`testPathIgnorePatterns`) and replaced by `urlExtractor_fixed.spec.ts` next to it, which drops the
+  `window.location` mocking (the source never reads it). Verified by the orchestrator: `npm test` 636/636
+  suites, 4861 passed, coverage 96.71 / 90.1 / 95.33 / 96.62; `tsc`, `npm run lint`, root format check green.
+
+## Owner decisions taken from the open questions (2026-11-18)
+
+1. Windows/macOS spike items of 01-M0 (S1, S2, S3 Gatekeeper, S4, S5): work continues without them; the
+   owner tests later with the procedures in `01-m0-spikes.md`.
+2. `Unicode-3.0` added to `license_policy.json` (allow); the one-crate exception in `core/deny.toml` is
+   replaced by `Unicode-3.0` in its allow list. `cargo deny check licenses sources` (0.21.0, installed
+   only in a scratch folder) passes locally: `licenses ok, sources ok`. `license_policy.json` is an
+   upstream file; the edit may need upstream approval later.
+3. `actions/cache@v5` pinned by SHA (`caa296126883cff596d87d8935842f9db880ef25`, confirmed as the `v5` /
+   `v5.1.0` tag with `git ls-remote`) in `test_core.yml`.
+4. Rust toolchain stays `stable` with `rust-version = "1.95"`.
+5. Node 26 spec: see above.
 
 ## Open questions for the owner
 
-1. Windows/macOS spike items of 01-M0 (S1, S2, S3 Gatekeeper, S4, S5) need your hardware; procedures
-   are in `01-m0-spikes.md`.
-2. `Unicode-3.0` licence (needed by `unicode-ident`, pulled in by every proc macro) is in neither list
-   of `license_policy.json`; `deny.toml` has a one-crate exception for now.
-3. `actions/cache@v5` in `test_core.yml` is pinned by tag, not SHA; please confirm a SHA.
-4. Exact Rust toolchain pin (instead of `stable`) once machines and CI may download it.
-5. Node 26 failure of `urlExtractor.spec.ts` (see above): fix the spec, or require Node 24 locally?
-6. Root `npm run format:check` fails on the design mock-up (`design/mockups/studio-screens.html:438`,
-   Biome `noForEach`). Logged as O1 in `design/open-questions.md`; until fixed, every branch with the
-   mock-up fails this CI check. Milestone verification records it as the only format failure.
+Design questions are in `design/open-questions.md`; none are left here.
 
 ## Session log
 
@@ -135,3 +140,4 @@ the milestone is started.
 - 2026-11-18: 02-M0 verified (format check green, notes read); plan 02 now waits only on design 02-themes.
 - 2026-11-18: 01-M0 verified (format check green, notes read); 01-M1 and 02-M0 started.
 - 2026-11-18: file created; no design folder yet, so all UI work is blocked on design.
+- 2026-11-18: owner answered the five open questions; decisions applied (see above).

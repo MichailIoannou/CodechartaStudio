@@ -24,6 +24,7 @@
     "^echarts-wordcloud$": "<rootDir>/mocks/echartsWordcloudMock.js"
   },
   "roots": ["<rootDir>/app"],
+  "testPathIgnorePatterns": ["/node_modules/", "urlExtractor\\.spec\\.ts$"],
   "moduleFileExtensions": ["js", "json", "ts", "mjs"],
   "moduleDirectories": ["node_modules", "<rootDir>/app"],
   "setupFiles": ["<rootDir>/mocks/localStorageMock.js"],

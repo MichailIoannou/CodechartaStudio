@@ -89,6 +89,7 @@ allow = [
     "SMLNJ",
     "TCL",
     "TOSL",
+    "Unicode-3.0",
     "Unlicense",
     "UPL-1.0",
     "VSL-1.0",
@@ -107,12 +108,6 @@ allow = [
 ]
 confidence-threshold = 0.93
 unused-allowed-license = "allow"
-exceptions = [
-    # Unicode-3.0 is neither allowed nor denied in license_policy.json. unicode-ident needs it and is a
-    # build-time dependency of every proc macro used here (serde, clap, thiserror, ts-rs, tokio), so it
-    # cannot be avoided. Remove this exception once the owner has added Unicode-3.0 to the policy.
-    { allow = ["Unicode-3.0"], crate = "unicode-ident" },
-]
 
 [licenses.private]
 ignore = true
