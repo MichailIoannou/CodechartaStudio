@@ -1,5 +1,4 @@
 use std::io::{BufRead, BufReader, Write};
-use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
@@ -17,15 +16,15 @@ struct ServingCore {
     child: Child,
     stdin: Option<ChildStdin>,
     stdout_lines: Receiver<String>,
-    data_dir: PathBuf,
+    data_dir: tempfile::TempDir,
 }
 
 impl ServingCore {
     fn start() -> Self {
-        let data_dir = std::env::temp_dir().join("codecharta-core-protocol-test");
+        let data_dir = tempfile::tempdir().expect("a temporary data folder");
         let mut child = Command::new(CORE_EXECUTABLE)
             .args(["--log-level", "debug", "--data-dir"])
-            .arg(&data_dir)
+            .arg(data_dir.path())
             .arg("serve")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -141,7 +140,10 @@ fn should_answer_hello_with_versions() {
     assert_eq!(result["coreVersion"], json!(env!("CARGO_PKG_VERSION")));
     assert_eq!(result["protocolVersion"], json!(PROTOCOL_VERSION));
     assert!(["win32", "darwin", "linux"].contains(&result["platform"].as_str().unwrap()));
-    assert_eq!(result["dataDir"], json!(core.data_dir.to_str().unwrap()));
+    assert_eq!(
+        result["dataDir"],
+        json!(core.data_dir.path().to_str().unwrap())
+    );
 }
 
 #[test]
@@ -308,4 +310,41 @@ fn should_write_nothing_but_json_to_stdout() {
         let message: Value = serde_json::from_str(&line).unwrap();
         assert_eq!(message["jsonrpc"], json!("2.0"), "{line}");
     }
+}
+
+#[test]
+fn should_answer_paths_inside_the_data_dir() {
+    // Arrange
+    let mut core = ServingCore::started_and_greeted();
+
+    // Act
+    let answer = core.request(1, "paths.get", json!({}));
+
+    // Assert
+    let store_root = core.data_dir.path().join("store");
+    assert_eq!(
+        answer["result"]["storeRoot"],
+        json!(store_root.to_str().unwrap())
+    );
+    assert_eq!(answer["result"]["isDefaultStoreRoot"], json!(true));
+}
+
+#[test]
+fn should_keep_a_chosen_store_root_in_the_settings_file() {
+    // Arrange
+    let mut core = ServingCore::started_and_greeted();
+    let chosen = tempfile::tempdir().unwrap();
+    let path = chosen.path().to_str().unwrap();
+
+    // Act
+    let answer = core.request(1, "paths.setStoreRoot", json!({ "path": path }));
+
+    // Assert
+    assert_eq!(answer["result"]["storeRoot"], json!(path));
+    let settings_file = core.data_dir.path().join("core-settings.json");
+    assert!(
+        std::fs::read_to_string(settings_file)
+            .unwrap()
+            .contains(path)
+    );
 }

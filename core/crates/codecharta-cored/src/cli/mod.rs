@@ -12,7 +12,6 @@ use crate::serve::serve;
 /// The stdin reader blocks a runtime thread until the client closes the pipe; after a `core.shutdown`
 /// request that may never happen, so the runtime does not wait for it.
 const ABANDON_BLOCKED_READS_AFTER: Duration = Duration::from_millis(100);
-const USAGE_ERROR: u8 = 2;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -21,7 +20,8 @@ const USAGE_ERROR: u8 = 2;
     about = "Headless core of the CodeCharta desktop app"
 )]
 pub struct Cli {
-    /// Folder for the core's settings and the default store (the shell passes Electron's userData)
+    /// Folder for the core's settings and the default store (the shell passes Electron's userData);
+    /// defaults to CODECHARTA_DATA_DIR, else codecharta-visualization in the user's configuration folder
     #[arg(long, global = true)]
     pub data_dir: Option<PathBuf>,
 
@@ -55,20 +55,27 @@ fn init_logging(level: LevelFilter) {
 }
 
 fn run_serve(data_dir: Option<PathBuf>) -> ExitCode {
-    let Some(data_dir) = data_dir else {
-        eprintln!("serve needs --data-dir <folder>");
-        return ExitCode::from(USAGE_ERROR);
+    let Some(core) = open_core(data_dir) else {
+        return ExitCode::FAILURE;
     };
-    let runtime = match tokio::runtime::Runtime::new() {
-        Ok(runtime) => runtime,
-        Err(error) => {
-            tracing::error!("could not start the async runtime: {error}");
-            return ExitCode::FAILURE;
-        }
+    let Some(runtime) = start_runtime() else {
+        return ExitCode::FAILURE;
     };
-    let core = Arc::new(Core::new(CoreConfig { data_dir }));
     let input = tokio::io::BufReader::new(tokio::io::stdin());
-    runtime.block_on(serve(core, input, tokio::io::stdout()));
+    runtime.block_on(serve(Arc::new(core), input, tokio::io::stdout()));
     runtime.shutdown_timeout(ABANDON_BLOCKED_READS_AFTER);
     ExitCode::SUCCESS
+}
+
+fn open_core(data_dir: Option<PathBuf>) -> Option<Core> {
+    CoreConfig::resolve(data_dir, &|name| std::env::var_os(name))
+        .and_then(Core::open)
+        .inspect_err(|error| tracing::error!("could not open the core: {error}"))
+        .ok()
+}
+
+fn start_runtime() -> Option<tokio::runtime::Runtime> {
+    tokio::runtime::Runtime::new()
+        .inspect_err(|error| tracing::error!("could not start the async runtime: {error}"))
+        .ok()
 }

@@ -1,30 +1,40 @@
+pub mod config;
 pub mod error;
 
+pub use config::paths::{CoreConfig, Paths};
+pub use config::settings::{CoreSettings, SettingsStore};
 pub use error::{CoreError, CoreResult};
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::sync::Arc;
 
 use codecharta_core_api::methods::core::Platform;
 
-pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
+use config::settings::SETTINGS_FILE_NAME;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CoreConfig {
-    pub data_dir: PathBuf,
-}
+pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug)]
 pub struct Core {
-    config: CoreConfig,
+    paths: Paths,
 }
 
 impl Core {
-    pub fn new(config: CoreConfig) -> Self {
-        Self { config }
+    pub fn open(config: CoreConfig) -> CoreResult<Self> {
+        let settings = Arc::new(SettingsStore::load(
+            config.data_dir.join(SETTINGS_FILE_NAME),
+        )?);
+        Ok(Self {
+            paths: Paths::new(config.data_dir, settings),
+        })
     }
 
     pub fn data_dir(&self) -> &Path {
-        &self.config.data_dir
+        self.paths.data_dir()
+    }
+
+    pub fn paths(&self) -> &Paths {
+        &self.paths
     }
 
     pub fn platform(&self) -> Platform {
@@ -69,17 +79,19 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_the_configured_data_dir() {
+    fn should_open_without_creating_the_data_dir() {
         // Arrange
-        let data_dir = PathBuf::from("/some/data dir");
+        let folder = tempfile::tempdir().unwrap();
+        let data_dir = folder.path().join("data dir");
 
         // Act
-        let core = Core::new(CoreConfig {
+        let core = Core::open(CoreConfig {
             data_dir: data_dir.clone(),
-        });
+        })
+        .unwrap();
 
         // Assert
         assert_eq!(core.data_dir(), data_dir.as_path());
-        assert_eq!(path_to_wire(core.data_dir()).unwrap(), "/some/data dir");
+        assert!(!data_dir.exists());
     }
 }

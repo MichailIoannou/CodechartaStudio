@@ -5,6 +5,7 @@ use ts_rs::{Config, ExportError, TS};
 
 use crate::events::CoreProgress;
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
+use crate::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Audience {
@@ -87,6 +88,9 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<CoreHello>(),
     MethodSpec::of::<CorePing>(),
     MethodSpec::of::<CoreShutdown>(),
+    MethodSpec::of::<PathsGet>(),
+    MethodSpec::of::<PathsSetStoreRoot>(),
+    MethodSpec::of::<PathsResetStoreRoot>(),
 ];
 
 pub const EVENTS: &[EventSpec] = &[EventSpec::of::<CoreProgress>()];

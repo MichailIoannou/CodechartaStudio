@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::path::Path;
 use std::pin::Pin;
 
 use codecharta_core::{CORE_VERSION, Core, CoreError, path_to_wire};
@@ -8,6 +9,7 @@ use codecharta_core_api::events::{CoreProgress, ProgressParams};
 use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
+use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use codecharta_core_api::protocol::{
     INVALID_PARAMS, METHOD_NOT_FOUND, Notification, RequestId, ResponseError,
 };
@@ -39,6 +41,18 @@ const ROUTES: &[Route] = &[
     Route {
         name: CoreShutdown::NAME,
         handler: shutdown,
+    },
+    Route {
+        name: PathsGet::NAME,
+        handler: paths_get,
+    },
+    Route {
+        name: PathsSetStoreRoot::NAME,
+        handler: paths_set_store_root,
+    },
+    Route {
+        name: PathsResetStoreRoot::NAME,
+        handler: paths_reset_store_root,
     },
 ];
 
@@ -170,10 +184,36 @@ fn shutdown(_core: &Core, _context: RequestContext, params: Value) -> HandlerFut
     })
 }
 
+fn paths_get(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        read_params::<PathsGet>(params)?;
+        write_result::<PathsGet>(core.paths().info().map_err(domain_error)?)
+    })
+}
+
+fn paths_set_store_root(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<PathsSetStoreRoot>(params)?;
+        let info = core.paths().set_store_root(Path::new(&params.path)).await;
+        write_result::<PathsSetStoreRoot>(info.map_err(domain_error)?)
+    })
+}
+
+fn paths_reset_store_root(
+    core: &Core,
+    _context: RequestContext,
+    params: Value,
+) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        read_params::<PathsResetStoreRoot>(params)?;
+        let info = core.paths().reset_store_root().await;
+        write_result::<PathsResetStoreRoot>(info.map_err(domain_error)?)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
-    use std::path::PathBuf;
 
     use codecharta_core::CoreConfig;
     use codecharta_core_api::registry::METHODS;
@@ -181,9 +221,12 @@ mod tests {
     use super::*;
 
     fn test_core() -> Core {
-        Core::new(CoreConfig {
-            data_dir: PathBuf::from("/data"),
+        let missing_data_dir =
+            std::env::temp_dir().join("codecharta-core-dispatch-test-never-written");
+        Core::open(CoreConfig {
+            data_dir: missing_data_dir,
         })
+        .unwrap()
     }
 
     fn test_context() -> RequestContext {

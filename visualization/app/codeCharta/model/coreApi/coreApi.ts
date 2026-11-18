@@ -5,8 +5,10 @@ import type { EmptyParams } from "./EmptyParams"
 import type { ErrorCode } from "./ErrorCode"
 import type { HelloParams } from "./HelloParams"
 import type { HelloResult } from "./HelloResult"
+import type { PathsInfo } from "./PathsInfo"
 import type { PingResult } from "./PingResult"
 import type { ProgressParams } from "./ProgressParams"
+import type { SetStoreRootParams } from "./SetStoreRootParams"
 
 export const CORE_PROTOCOL_VERSION = 1
 
@@ -30,6 +32,9 @@ export type CoreMethods = {
     "core.hello": { params: HelloParams; result: HelloResult }
     "core.ping": { params: EmptyParams; result: PingResult }
     "core.shutdown": { params: EmptyParams; result: null }
+    "paths.get": { params: EmptyParams; result: PathsInfo }
+    "paths.setStoreRoot": { params: SetStoreRootParams; result: PathsInfo }
+    "paths.resetStoreRoot": { params: EmptyParams; result: PathsInfo }
 }
 
 export type CoreEvents = {
@@ -40,7 +45,7 @@ export type CoreClientNotifications = {
     "core.cancel": CancelParams
 }
 
-export const RENDERER_METHODS = ["core.ping"] as const satisfies ReadonlyArray<keyof CoreMethods>
+export const RENDERER_METHODS = ["core.ping", "paths.get", "paths.resetStoreRoot"] as const satisfies ReadonlyArray<keyof CoreMethods>
 
 export type RendererMethod = (typeof RENDERER_METHODS)[number]
 
