@@ -1,5 +1,6 @@
 #![allow(
     dead_code,
+    unused_imports,
     reason = "each integration test binary compiles this module and uses a different part of it"
 )]
 
@@ -23,7 +24,42 @@ pub fn install_fake_tool(folder: &Path, name: &str) -> PathBuf {
     fs::create_dir_all(folder).expect("the tool folder can be created");
     let installed = folder.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
     fs::copy(fake_tool(), &installed).expect("the fake tool can be copied");
+    wait_until_executable(&installed);
     installed
+}
+
+const EXECUTABLE_BUSY_RETRIES: u32 = 200;
+const EXECUTABLE_BUSY_PAUSE: Duration = Duration::from_millis(10);
+
+/// A child that another test thread forks while the copy is being written inherits the copy's write
+/// handle until it execs, and executing the copy fails with "text file busy" meanwhile. Once one run
+/// succeeds nobody holds that handle any more, so later runs cannot hit it.
+fn wait_until_executable(installed: &Path) {
+    for _ in 0..EXECUTABLE_BUSY_RETRIES {
+        match std::process::Command::new(installed)
+            .arg("--version")
+            .output()
+        {
+            Ok(_) => return,
+            Err(error) if error.kind() == std::io::ErrorKind::ExecutableFileBusy => {
+                std::thread::sleep(EXECUTABLE_BUSY_PAUSE);
+            }
+            Err(error) => panic!("the fake tool does not start: {error}"),
+        }
+    }
+    panic!("the fake tool stayed busy: {}", installed.display());
+}
+
+/// Installs the fake under the file name the core looks for and returns the executable whose version
+/// answer `answer_version_with` sets. On Windows ccsh is a batch file, so `ccsh.cmd` calls the fake.
+pub fn install_fake_command(folder: &Path, name: &str) -> PathBuf {
+    if cfg!(windows) && name == "ccsh" {
+        let executable = install_fake_tool(folder, "ccsh-fake");
+        let wrapper = "@echo off\r\n\"%~dp0ccsh-fake.exe\" %*\r\n";
+        fs::write(folder.join("ccsh.cmd"), wrapper).expect("the wrapper can be written");
+        return executable;
+    }
+    install_fake_tool(folder, name)
 }
 
 /// What an installed fake tool prints when it is asked for its version.

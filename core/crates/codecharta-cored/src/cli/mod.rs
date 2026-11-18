@@ -1,3 +1,5 @@
+mod doctor;
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -8,6 +10,7 @@ use codecharta_core::{Core, CoreConfig};
 use tracing_subscriber::filter::LevelFilter;
 
 use crate::serve::serve;
+use doctor::{DoctorOptions, run_doctor};
 
 /// The stdin reader blocks a runtime thread until the client closes the pipe; after a `core.shutdown`
 /// request that may never happen, so the runtime does not wait for it.
@@ -37,12 +40,24 @@ pub struct Cli {
 pub enum Command {
     /// Answer JSON-RPC 2.0 requests on stdin and stdout, one JSON object per line
     Serve,
+    /// Check git, ccsh, Java, gh and glab; exits 0 when every required tool is usable, 1 when not
+    Doctor {
+        /// Print the report as JSON
+        #[arg(long)]
+        json: bool,
+        /// Check again instead of answering a cached report (each run of this command checks anew)
+        #[arg(long)]
+        refresh: bool,
+    },
 }
 
 pub fn run(cli: Cli) -> ExitCode {
     init_logging(cli.log_level);
     match cli.command {
         Command::Serve => run_serve(cli.data_dir),
+        Command::Doctor { json, refresh } => {
+            run_doctor_command(cli.data_dir, &DoctorOptions { json, refresh })
+        }
     }
 }
 
@@ -65,6 +80,15 @@ fn run_serve(data_dir: Option<PathBuf>) -> ExitCode {
     runtime.block_on(serve(Arc::new(core), input, tokio::io::stdout()));
     runtime.shutdown_timeout(ABANDON_BLOCKED_READS_AFTER);
     ExitCode::SUCCESS
+}
+
+fn run_doctor_command(data_dir: Option<PathBuf>, options: &DoctorOptions) -> ExitCode {
+    let (Some(core), Some(runtime)) = (open_core(data_dir), start_runtime()) else {
+        return ExitCode::FAILURE;
+    };
+    let exit_code = run_doctor(&core, &runtime, options);
+    runtime.block_on(core.shutdown());
+    exit_code
 }
 
 fn open_core(data_dir: Option<PathBuf>) -> Option<Core> {

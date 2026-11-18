@@ -137,7 +137,11 @@ cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features                                 # --all-features adds the test-only protocol methods
 cargo run -p codecharta-cored -- --data-dir /tmp/cc serve # JSON-RPC on stdin/stdout
+cargo run -p codecharta-cored -- doctor                   # which git, ccsh, java, gh, glab were found
 ```
+
+Child processes (git, ccsh, …) start only through `Tools::run` / `ProcessRunner` in `codecharta-core`
+(`process/`, `tools/`); tests use the `cc-fake-tool` binary and `tests/support` (`TempRepo`, `fake_tool`).
 
 A new protocol method or event goes into `codecharta-core-api` first, then `npm run contract` (from
 `visualization/`), then the library code in `codecharta-core`, then the dispatch arm in `codecharta-cored`.

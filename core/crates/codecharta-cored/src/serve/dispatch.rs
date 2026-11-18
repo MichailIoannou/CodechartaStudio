@@ -10,6 +10,7 @@ use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 use codecharta_core_api::protocol::{
     INVALID_PARAMS, METHOD_NOT_FOUND, Notification, RequestId, ResponseError,
 };
@@ -19,6 +20,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
+use super::tools_routes;
 
 pub type DispatchResult = Result<Value, ResponseError>;
 pub type HandlerFuture<'core> = Pin<Box<dyn Future<Output = DispatchResult> + Send + 'core>>;
@@ -53,6 +55,18 @@ const ROUTES: &[Route] = &[
     Route {
         name: PathsResetStoreRoot::NAME,
         handler: paths_reset_store_root,
+    },
+    Route {
+        name: ToolsDoctor::NAME,
+        handler: tools_routes::doctor,
+    },
+    Route {
+        name: ToolsSetPath::NAME,
+        handler: tools_routes::set_path,
+    },
+    Route {
+        name: ToolsClearPath::NAME,
+        handler: tools_routes::clear_path,
     },
 ];
 

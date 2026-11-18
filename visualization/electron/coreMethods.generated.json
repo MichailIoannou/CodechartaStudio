@@ -1,5 +1,5 @@
 {
   "protocolVersion": 1,
   "rendererEvents": ["core.progress"],
-  "rendererMethods": ["core.ping", "paths.get", "paths.resetStoreRoot"]
+  "rendererMethods": ["core.ping", "paths.get", "paths.resetStoreRoot", "tools.doctor", "tools.clearPath"]
 }

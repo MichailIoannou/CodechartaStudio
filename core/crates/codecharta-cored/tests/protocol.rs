@@ -21,8 +21,14 @@ struct ServingCore {
 
 impl ServingCore {
     fn start() -> Self {
+        Self::start_with(|_| {})
+    }
+
+    fn start_with(configure: impl FnOnce(&mut Command)) -> Self {
         let data_dir = tempfile::tempdir().expect("a temporary data folder");
-        let mut child = Command::new(CORE_EXECUTABLE)
+        let mut command = Command::new(CORE_EXECUTABLE);
+        configure(&mut command);
+        let mut child = command
             .args(["--log-level", "debug", "--data-dir"])
             .arg(data_dir.path())
             .arg("serve")
@@ -347,4 +353,39 @@ fn should_keep_a_chosen_store_root_in_the_settings_file() {
             .unwrap()
             .contains(path)
     );
+}
+
+#[test]
+fn should_emit_progress_during_doctor() {
+    // Arrange
+    let empty_folder = tempfile::tempdir().unwrap();
+    let mut core = ServingCore::start_with(|command| {
+        command
+            .env("PATH", empty_folder.path())
+            .env("HOME", empty_folder.path())
+            .env_remove("JAVA_HOME");
+    });
+    core.request(0, "core.hello", hello_params(PROTOCOL_VERSION));
+
+    // Act
+    core.send(json!({ "jsonrpc": "2.0", "id": 1, "method": "tools.doctor", "params": { "refresh": true } }));
+    let mut progress = Vec::new();
+    let answer = loop {
+        let message = core.receive();
+        if message.get("id") == Some(&json!(1)) {
+            break message;
+        }
+        progress.push(message);
+    };
+
+    // Assert
+    assert_eq!(answer["result"]["tools"].as_array().unwrap().len(), 5);
+    let counts: Vec<(&Value, &Value)> = progress
+        .iter()
+        .filter(|message| message["method"] == json!("core.progress"))
+        .filter(|message| message["params"]["requestId"] == json!(1))
+        .map(|message| (&message["params"]["done"], &message["params"]["total"]))
+        .collect();
+    assert_eq!(counts.len(), 5);
+    assert!(counts.iter().all(|(_, total)| **total == json!(5)));
 }

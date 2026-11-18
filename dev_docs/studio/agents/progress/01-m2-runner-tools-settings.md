@@ -28,7 +28,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M2 (tests to write first a
 - [x] 2.2 Child environment and batch guard
 - [x] 2.3 Fake tool and temp repo helpers
 - [x] 2.4 Runner and tree kill
-- [ ] 2.5 Tools and doctor
+- [x] 2.5 Tools and doctor
 - [ ] 2.6 shell.resolvePath
 
 ## Notes
@@ -126,3 +126,53 @@ The `x86_64-pc-windows-gnu` std is installed here, so every task also ran
   (no Windows here); CI's `windows-latest` job will be their first run. Grandchild liveness: unix
   `kill(pid, 0)`, Windows `tasklist`, polled up to 5 s because a killed grandchild stays a zombie until
   init reaps it. Ran the suite three times in a row: green, no `cc-fake-tool` left running.
+
+### 2.5
+- Api (`methods/tools.rs`): `ToolState`, `ToolSource`, `ToolStatus`, `ToolsReport`, `DoctorParams`,
+  `SetToolPathParams`, `ClearToolPathParams`; methods `tools.doctor` (renderer), `tools.setPath` (shell),
+  `tools.clearPath` (renderer); contract regenerated (renderer allow-list now `core.ping`, `paths.get`,
+  `paths.resetStoreRoot`, `tools.doctor`, `tools.clearPath`).
+- **Deviation: `ToolSource` has a fourth value `javaHome`** (java found in `$JAVA_HOME/bin`); the plan's three
+  values had no honest name for it. `run(Ccsh)` sets `JAVA_HOME` only when java came from `custom` or
+  `wellKnownFolder` (with `javaHome` it is already set, with `path` ccsh finds java itself).
+- `tools/definitions.rs` (`TOOLS`, `definition(tool)`; git minimum written `2.31.0`), `tools/version.rs`
+  (`read_version`, `is_at_least`, hand-written parsing, no regex crate: up to three numeric segments; git,
+  ccsh, gh need three, java one; glab = first `x.y.z` that is not part of a longer number),
+  `tools/finder.rs` (`SearchLocations { java_home_bin, path_folders, well_known_folders }` with
+  `from_environment` and `only(folders)` for tests, `search_folders`, `find_executable`,
+  `well_known_folders`), `tools/doctor.rs` (`Tools`, `ToolsSetup { settings, runner, locations }`,
+  `ToolRunOptions::new(timeout)`, `ResolvedTool`).
+- `Tools::doctor` holds a tokio mutex over the cache while it checks, so concurrent callers share one check.
+  The five checks run concurrently with `tokio::join!` in one task (no spawn, no `'static` needed);
+  `on_checked(done, total)` follows each. A cancelled doctor answers `CANCELLED`, the runner kills the
+  version processes. `resolve` / `run` use the cached report (checking once if there is none).
+- A custom path whose file is gone reports `missing` with the problem "The chosen file no longer exists."
+  (no silent fall-back to discovery). `setPath` needs an existing absolute file that answers with a version
+  (a too-old version is accepted and reported `tooOld`); otherwise `TOOL_FAILED` and the settings stay.
+  The status `path` is the lossy UTF-8 form of the path (display only); `run` uses it as the program path,
+  so a tool in a non-UTF-8 folder cannot be run — acceptable, noted.
+- `checkedAt`: `humantime` 2.4.0 (MIT OR Apache-2.0), `format_rfc3339_seconds` (UTC, `Z`).
+- `Core` now owns `Arc<ProcessRunner>` (base env = `hardened_env(process env, well-known folders)`) and
+  `Tools`; `Core::shutdown()` = `runner.kill_all()`, called by `serve` after the session finished (EOF or
+  `core.shutdown`) and by the `doctor` command. `Core` no longer derives `Debug`.
+- Dispatch: tool handlers live in `codecharta-cored/src/serve/tools_routes.rs` (dispatch.rs was getting long);
+  `tools.doctor` emits `core.progress { requestId, message: "Checked N of 5 tools", done, total }`.
+- CLI: `codecharta-core [--data-dir D] doctor [--json] [--refresh]`; one line per tool
+  (`git   ok        2.56.0    /usr/bin/git`, optional absent tools say `absent`); exit 0 = every required
+  tool ok, 1 = not, 2 = the check itself failed. On this machine: git 2.56.0 ok, java 27.0.1 ok, ccsh, gh,
+  glab not installed → exit 1.
+- **Test-only race found and fixed:** copying the fake tool while another test thread forks lets that child
+  inherit the copy's write handle until it execs; executing the copy then fails with ETXTBSY ("Text file
+  busy", seen once in 40 repeated runs). `install_fake_tool` now runs the copy once and retries while it is
+  busy before returning. 40 further repeated runs of `runner` + `tools`: green. Production code is not
+  affected (it never runs a file it just wrote).
+- Tests: every plan name (unit, `tests/tools.rs`, protocol `should_emit_progress_during_doctor`, CLI
+  `should_exit_1_when_a_required_tool_is_missing`), plus `should_read_a_full_java_version`,
+  `should_read_gh_and_glab_versions`, `should_not_read_a_version_from_other_text`,
+  `should_treat_missing_segments_as_zero`, `should_find_the_definition_of_every_tool`,
+  `should_report_progress_for_every_tool`, `should_not_run_a_missing_tool`, CLI
+  `should_print_the_report_as_json`, doctor rendering tests. The tools tests install the fake as `git`,
+  `ccsh` (on Windows a `ccsh.cmd` calling `ccsh-fake.exe`) and `java` in a temp folder that is the only search
+  folder. The protocol and CLI tests point `PATH` and `HOME` at an empty temp folder and remove `JAVA_HOME`;
+  the CLI test makes git missing deterministically through a custom path to a file that does not exist.
+- Docs: `core/README.md` (data dir lookup, `doctor`, child-process rule), root `CLAUDE.md` core commands.

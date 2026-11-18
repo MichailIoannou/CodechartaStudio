@@ -1,6 +1,7 @@
 pub mod config;
 pub mod error;
 pub mod process;
+pub mod tools;
 
 pub use config::paths::{CoreConfig, Paths};
 pub use config::settings::{CoreSettings, SettingsStore};
@@ -12,21 +13,38 @@ use std::sync::Arc;
 use codecharta_core_api::methods::core::Platform;
 
 use config::settings::SETTINGS_FILE_NAME;
+use process::ProcessRunner;
+use process::env::hardened_env;
+use tools::{SearchLocations, Tools, ToolsSetup};
 
 pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Debug)]
 pub struct Core {
     paths: Paths,
+    runner: Arc<ProcessRunner>,
+    tools: Tools,
 }
 
 impl Core {
+    /// Reads the settings and the process environment; creates nothing on disk.
     pub fn open(config: CoreConfig) -> CoreResult<Self> {
         let settings = Arc::new(SettingsStore::load(
             config.data_dir.join(SETTINGS_FILE_NAME),
         )?);
+        let locations = SearchLocations::from_environment(&|name| std::env::var_os(name));
+        let runner = Arc::new(ProcessRunner::new(hardened_env(
+            std::env::vars_os(),
+            &locations.well_known_folders,
+        )));
+        let tools = Tools::new(ToolsSetup {
+            settings: Arc::clone(&settings),
+            runner: Arc::clone(&runner),
+            locations,
+        });
         Ok(Self {
             paths: Paths::new(config.data_dir, settings),
+            runner,
+            tools,
         })
     }
 
@@ -36,6 +54,15 @@ impl Core {
 
     pub fn paths(&self) -> &Paths {
         &self.paths
+    }
+
+    pub fn tools(&self) -> &Tools {
+        &self.tools
+    }
+
+    /// Kills every child process tree that is still running.
+    pub async fn shutdown(&self) {
+        self.runner.kill_all().await;
     }
 
     pub fn platform(&self) -> Platform {
