@@ -25,7 +25,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M2 (tests to write first a
 ## Steps
 
 - [x] 2.1 Data dir and settings
-- [ ] 2.2 Child environment and batch guard
+- [x] 2.2 Child environment and batch guard
 - [ ] 2.3 Fake tool and temp repo helpers
 - [ ] 2.4 Runner and tree kill
 - [ ] 2.5 Tools and doctor
@@ -66,3 +66,14 @@ The `x86_64-pc-windows-gnu` std is installed here, so every task also ran
   `should_keep_a_chosen_store_root_in_the_settings_file`. The protocol tests now use a fresh temp data dir
   per test instead of one shared folder in the system temp dir.
 
+
+### 2.2
+- `process/env.rs`: `hardened_env`, `askpass_env` as planned, plus `child_env(base, overrides, askpass)` (the
+  merge the runner does: request variables over the base, askpass variables last, a later name replaces an
+  earlier one) and `variable(env, name)`. Variable names compare case-insensitively on Windows only
+  (`Path` vs `PATH`). Search folders already on `PATH` are not added twice.
+- `process/launch.rs`: `is_batch_file`, `check_batch_args` with the plan's set (`"`, `%`, `!`, CR, LF,
+  NUL) — S4 is still open, so this is the plan's rule, not a verified one. Added `check_args` (NUL for every
+  program). The refusal names the 1-based argument number and the character, never the argument (it may
+  carry credentials). Extra tests: `should_accept_spaces_and_other_metacharacters_for_batch_files`,
+  `should_refuse_nul_for_every_program`.

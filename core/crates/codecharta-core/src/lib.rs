@@ -1,5 +1,6 @@
 pub mod config;
 pub mod error;
+pub mod process;
 
 pub use config::paths::{CoreConfig, Paths};
 pub use config::settings::{CoreSettings, SettingsStore};
