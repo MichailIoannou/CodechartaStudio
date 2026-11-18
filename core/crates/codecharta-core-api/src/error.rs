@@ -28,10 +28,17 @@ pub enum ErrorCode {
     DifferentHistory,
     TooLarge,
     NotACommit,
+    GitTooOld,
+    NotARepository,
+    DubiousOwnership,
+    BareRepository,
+    IndexLocked,
+    ParseFailed,
+    CommandFailed,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 22] = [
+    pub const ALL: [ErrorCode; 29] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -54,6 +61,13 @@ impl ErrorCode {
         ErrorCode::DifferentHistory,
         ErrorCode::TooLarge,
         ErrorCode::NotACommit,
+        ErrorCode::GitTooOld,
+        ErrorCode::NotARepository,
+        ErrorCode::DubiousOwnership,
+        ErrorCode::BareRepository,
+        ErrorCode::IndexLocked,
+        ErrorCode::ParseFailed,
+        ErrorCode::CommandFailed,
     ];
 }
 
@@ -89,6 +103,37 @@ mod tests {
 
         // Assert
         assert_eq!(json, "\"OUTPUT_TOO_LARGE\"");
+    }
+
+    #[test]
+    fn should_serialize_git_error_codes_as_stable_screaming_snake_case_strings() {
+        // Arrange
+        let codes = [
+            ErrorCode::GitTooOld,
+            ErrorCode::NotARepository,
+            ErrorCode::DubiousOwnership,
+            ErrorCode::BareRepository,
+            ErrorCode::IndexLocked,
+            ErrorCode::ParseFailed,
+            ErrorCode::CommandFailed,
+        ];
+
+        // Act
+        let json = serde_json::to_value(codes).unwrap();
+
+        // Assert
+        assert_eq!(
+            json,
+            serde_json::json!([
+                "GIT_TOO_OLD",
+                "NOT_A_REPOSITORY",
+                "DUBIOUS_OWNERSHIP",
+                "BARE_REPOSITORY",
+                "INDEX_LOCKED",
+                "PARSE_FAILED",
+                "COMMAND_FAILED"
+            ])
+        );
     }
 
     #[test]

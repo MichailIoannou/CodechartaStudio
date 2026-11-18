@@ -32,7 +32,7 @@ record it as open for the owner. Task 7's fake-bridge `git` seed lives in the re
 ## Steps
 
 - [x] 1. Reconcile and fixtures
-- [ ] 2. Contract and helpers
+- [x] 2. Contract and helpers
 - [ ] 3. Runner and failures
 - [ ] 4. Repository
 - [ ] 5. Status
@@ -81,3 +81,24 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0. Bra
   not a run). The minimum stays 2.31.0. To close it: run `testdata/capture.sh` and the M1 tests with a git
   2.31.x first on `PATH` (for example a container `git` 2.31 image or a self-built `git-2.31.8` in a scratch
   prefix).
+
+### 2. Contract and helpers
+- Api `methods/git.rs` (plan's `src/git.rs`; one module per domain as built): `GitRepositoryInfo`, `GitHead`
+  (`kind` tag, camelCase fields), `GitUpstream`, `OperationInProgress`, `StatusCounts`, `GitStatus`,
+  `GitLastCommit`, `GitLocalBranch`, `GitRemoteBranch`, `GitTag`, `GitRefs` (remotes reuse plan 03's
+  `GitRemote`), `ChangedPart`. Params, method markers and `RepositoryChanged` arrive with task 7 (every
+  `METHODS` entry needs a route), so the regenerated contract only gains the error codes now.
+- **Deviation: git error codes are `ErrorCode` values** (overview section 10: plan 01's transport wins), not
+  a camelCase `GitErrorCode`. Appended (`ErrorCode::ALL` now 29): `GIT_TOO_OLD`, `NOT_A_REPOSITORY`,
+  `DUBIOUS_OWNERSHIP`, `BARE_REPOSITORY`, `INDEX_LOCKED`, `PARSE_FAILED`, `COMMAND_FAILED` (the codes M1's reads
+  can produce). Existing codes cover the rest: `gitNotFound` = `TOOL_NOT_FOUND` (details.tool `git`),
+  `timeout` / `outputTooLarge` / `cancelled` = `TIMEOUT` / `OUTPUT_TOO_LARGE` / `CANCELLED`, `invalidArgument`
+  = `BAD_REQUEST`, `folderNotFound` = `NOT_FOUND` (unknown) or `FOLDER_UNAVAILABLE` (detached). Later
+  milestones append theirs. Test renamed `should_serialize_git_error_codes_as_stable_screaming_snake_case_strings`.
+- **Deviation: `CommitSha` and `FullRefName` live in the api's `values.rs`** (validated while deserialised,
+  like plan 03's `FullCommit`), not in a core `revisions.rs`; `validate_new_branch_name` comes with M8.
+  `FullRefName`: starts with `refs/`, at most 1024 bytes, no character below U+0020 or U+007F.
+- Core `git/nul.rs` (`split_nul_fields`, `chunk_records` -> `Option`, `None` for a count that is not a
+  multiple), `git/cache.rs` (`LruCache`, linear lookups, most recent first).
+- Tests: the plan's six names (the error code one renamed as above) plus
+  `should_tag_heads_by_kind_with_camel_case_fields`, `should_replace_the_value_of_a_known_key`.

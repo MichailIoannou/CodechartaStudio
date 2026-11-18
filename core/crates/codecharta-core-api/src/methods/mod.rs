@@ -1,4 +1,5 @@
 pub mod core;
+pub mod git;
 pub mod paths;
 pub mod projects;
 pub mod shell;

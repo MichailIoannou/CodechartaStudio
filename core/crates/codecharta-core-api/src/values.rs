@@ -4,6 +4,10 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 pub const FULL_COMMIT_LENGTH: usize = 40;
+pub const SHA256_COMMIT_LENGTH: usize = 64;
+pub const MAX_FULL_REF_NAME_LENGTH: usize = 1024;
+const FULL_REF_NAME_PREFIX: &str = "refs/";
+const DELETE_CHARACTER: char = '\u{7f}';
 pub const SHORTEST_COMMIT_HASH_LENGTH: usize = 7;
 pub const PICK_TOKEN_LENGTH: usize = 32;
 pub const MAX_LABEL_CHARS: usize = 60;
@@ -39,6 +43,22 @@ fn is_lowercase_hex(value: &str, lengths: std::ops::RangeInclusive<usize>) -> bo
 
 fn is_full_commit(value: &str) -> bool {
     is_lowercase_hex(value, FULL_COMMIT_LENGTH..=FULL_COMMIT_LENGTH)
+}
+
+fn is_commit_sha(value: &str) -> bool {
+    [FULL_COMMIT_LENGTH, SHA256_COMMIT_LENGTH]
+        .into_iter()
+        .any(|length| is_lowercase_hex(value, length..=length))
+}
+
+/// git's own `check-ref-format` runs where a ref is used; this rule keeps options and control characters
+/// out before that.
+fn is_full_ref_name(value: &str) -> bool {
+    value.len() <= MAX_FULL_REF_NAME_LENGTH
+        && value.starts_with(FULL_REF_NAME_PREFIX)
+        && !value
+            .chars()
+            .any(|character| character < ' ' || character == DELETE_CHARACTER)
 }
 
 fn is_commit_hash(value: &str) -> bool {
@@ -152,6 +172,18 @@ validated_text!(
     "use 7 to 40 lowercase hexadecimal digits of a commit"
 );
 
+validated_text!(
+    CommitSha,
+    is_commit_sha,
+    "use the 40 or 64 lowercase hexadecimal digits of a commit"
+);
+
+validated_text!(
+    FullRefName,
+    is_full_ref_name,
+    "use a full ref name starting with refs/, at most 1024 characters, without control characters"
+);
+
 validated_text!(PickToken, is_pick_token, "use the token the pick answered");
 
 validated_text!(
@@ -211,6 +243,57 @@ mod tests {
         // Assert
         assert_eq!(accepted.unwrap().as_str(), full);
         assert_eq!(rejected, vec![true, true, true]);
+    }
+
+    #[test]
+    fn should_accept_40_and_64_hex_shas_and_reject_upper_case_short_and_dash() {
+        // Arrange
+        let sha1 = "0123456789abcdef0123456789abcdef01234567";
+        let sha256 = format!("{sha1}0123456789abcdef01234567");
+        let candidates = [
+            sha1.to_uppercase(),
+            sha1[..FULL_COMMIT_LENGTH - 1].to_string(),
+            format!("-{}", &sha1[1..]),
+            format!("{sha1}0"),
+        ];
+
+        // Act
+        let accepted = [
+            CommitSha::try_from(sha1),
+            CommitSha::try_from(sha256.as_str()),
+        ];
+        let rejected: Vec<bool> = candidates
+            .into_iter()
+            .map(|candidate| CommitSha::try_from(candidate).is_err())
+            .collect();
+
+        // Assert
+        assert!(accepted.iter().all(Result::is_ok));
+        assert_eq!(rejected, vec![true; 4]);
+    }
+
+    #[test]
+    fn should_reject_ref_names_with_control_chars_leading_dash_or_without_refs_prefix() {
+        // Arrange
+        let candidates = [
+            "refs/heads/a\u{1}b".to_string(),
+            "refs/heads/tab\there".to_string(),
+            "refs/heads/delete\u{7f}".to_string(),
+            "-refs/heads/main".to_string(),
+            "heads/main".to_string(),
+            "main".to_string(),
+            format!("refs/heads/{}", "x".repeat(MAX_FULL_REF_NAME_LENGTH)),
+        ];
+
+        // Act
+        let rejected: Vec<bool> = candidates
+            .into_iter()
+            .map(|candidate| serde_json::from_value::<FullRefName>(json!(candidate)).is_err())
+            .collect();
+
+        // Assert
+        assert_eq!(rejected, vec![true; rejected.len()]);
+        assert!(FullRefName::try_from("refs/remotes/team/fork/feature-x").is_ok());
     }
 
     #[test]

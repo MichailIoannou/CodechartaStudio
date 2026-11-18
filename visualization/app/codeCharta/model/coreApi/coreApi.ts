@@ -74,7 +74,14 @@ export const CORE_ERROR_CODES = [
     "FOLDER_UNAVAILABLE",
     "DIFFERENT_HISTORY",
     "TOO_LARGE",
-    "NOT_A_COMMIT"
+    "NOT_A_COMMIT",
+    "GIT_TOO_OLD",
+    "NOT_A_REPOSITORY",
+    "DUBIOUS_OWNERSHIP",
+    "BARE_REPOSITORY",
+    "INDEX_LOCKED",
+    "PARSE_FAILED",
+    "COMMAND_FAILED"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {
