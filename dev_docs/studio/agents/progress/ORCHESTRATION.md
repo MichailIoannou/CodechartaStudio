@@ -20,7 +20,7 @@ UI descriptions.
 
 ## Milestones
 
-State: todo · blocked · in progress · done. "UI" = needs its design area to be ready.
+State: todo · blocked · in progress · done. "UI" = needs its design area to be ready (all ready since 2026-11-18 22:40).
 
 | Milestone | Kind | State | Blocked on | Branch | Last verified commit |
 |---|---|---|---|---|---|
@@ -29,49 +29,49 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 01-M2 Process runner, tools, settings, doctor | core | done (Windows-only tests not yet run) | — | feature/studio-01-m2 | 5169e28c9 (merged a57c8e7e9) |
 | 01-M3 Electron shell | shell | done (Windows/macOS and CI not run) | — | feature/studio-01-m3 | d8cdbfdfd (merged 1ce44fc54) |
 | 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | todo (next) | — | feature/studio-01-m4 | — |
-| 01-M4.2 Desktop tools panel | UI | blocked | design 01-desktop-tools; 01-M4.1 | — | — |
+| 01-M4.2 Desktop tools panel | UI | todo | 01-M4.1 | — | — |
 | 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
 | 02-M1 Dark by default | UI | in progress | — | feature/studio-02-m1 | — |
-| 02-M2 No-flash boot | UI | blocked | design 02-themes; 02-M1 | — | — |
-| 02-M3 Radial map and word cloud | UI | blocked | design 02-themes; 02-M2 | — | — |
-| 02-M4 Dependency graph, color-range diagram | UI | blocked | design 02-themes; 02-M3 | — | — |
-| 02-M5 Editor schemes and quick toggle | UI | blocked | design 02-themes; 02-M4 | — | — |
-| 02-M6 Native window appearance | UI | blocked | design 02-themes; plan 01 | — | — |
+| 02-M2 No-flash boot | UI | todo | 02-M1 | — | — |
+| 02-M3 Radial map and word cloud | UI | todo | 02-M2 | — | — |
+| 02-M4 Dependency graph, color-range diagram | UI | todo | 02-M3 | — | — |
+| 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | todo | 02-M4 | — | — |
+| 02-M6 Native window appearance | UI | todo | plan 01 | — | — |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | part A (tasks 1–7) verified, **merge pending**; part B todo | merge: uncommitted owner/designer edits to plan 03 in the main checkout; part B (tasks 8–9): 01-M4.1 | feature/studio-03-m2 | 168d4fa21 (verified, not merged) |
 | 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | in progress (part A: tasks 1–5, branched from feature/studio-03-m2) | part B (task 6): 03-M2 merge, 01-M4.1 | feature/studio-03-m3 | — |
 | 03-M4 Renderer load path | renderer | todo | 03-M3; check for visible parts first | — | — |
-| 03-M5 Projects UI | UI | blocked | design 03-projects | — | — |
-| 03-M6 Import and store settings | UI | blocked | design 03-projects | — | — |
-| 03-M7 Local source and scenarios | UI | blocked | design 03-projects | — | — |
+| 03-M5 Projects UI | UI | todo | 03-M4 | — | — |
+| 03-M6 Import and store settings | UI | todo | 03-M5 | — | — |
+| 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | todo | plan 03 core | — | — |
 | 04-M2 Core: log, details, queries, changed files | core | todo | 04-M1 | — | — |
-| 04-M3 History view, branches pane, chip | UI | blocked | design 04-history | — | — |
-| 04-M4 Commit list with graph, filters, details | UI | blocked | design 04-history | — | — |
-| 04-M5 Selection, keyboard, context menu, ports | UI | blocked | design 04-history | — | — |
-| 04-M6 Read-only end-to-end and docs | UI | blocked | design 04-history | — | — |
-| 04-M7 Operation queue, progress, prompts | core + UI | todo (core half) | 04-M2; UI half: design 04-history | — | — |
-| 04-M8 Fetch and branches | core + UI | todo (core half) | 04-M7; UI half: design 04-history | — | — |
-| 04-M9 Changes and diff | core + UI | todo (core half) | 04-M8; UI half: design 04-history | — | — |
-| 04-M10 Commit | core + UI | todo (core half) | 04-M9; UI half: design 04-history | — | — |
-| 04-M11 Pull, push, abort | core + UI | todo (core half) | 04-M10; UI half: design 04-history | — | — |
-| 04-M12 Workflow e2e, docs, stash | UI | blocked | design 04-history | — | — |
+| 04-M3 History view, branches pane, chip | UI | todo | 04-M2; plan 03 renderer (03-M4/M5) | — | — |
+| 04-M4 Commit list with graph, filters, details | UI | todo | 04-M3 | — | — |
+| 04-M5 Selection, keyboard, context menu, ports | UI | todo | 04-M4 | — | — |
+| 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
+| 04-M7 Operation queue, progress, prompts | core + UI | todo | 04-M2 | — | — |
+| 04-M8 Fetch and branches | core + UI | todo | 04-M7 | — | — |
+| 04-M9 Changes and diff | core + UI | todo | 04-M8 | — | — |
+| 04-M10 Commit | core + UI | todo | 04-M9 | — | — |
+| 04-M11 Pull, push, abort | core + UI | todo | 04-M10 | — | — |
+| 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
 | 05-M0 Spikes on a real Windows machine | spike | blocked | owner: needs a Windows machine | — | — |
 | 05-M1 Run one analysis from the core | core | todo | plan 04 core | — | — |
 | 05-M2 Snapshot records | core | todo | 05-M1 | — | — |
 | 05-M3 Queue, preflight, RPC, CLI | core | todo | 05-M2 | — | — |
-| 05-M4 Analyse from the UI, browse snapshots | UI | blocked | design 05-snapshots | — | — |
-| 05-M5 Nearest snapshot and stale notice | core + UI | todo (core half) | 05-M3; UI half: design 05-snapshots | — | — |
-| 05-M6 Batches, retention, cleanup | core + UI | todo (core half) | 05-M5; UI half: design 05-snapshots | — | — |
-| 05-M7 E2E and docs | UI | blocked | design 05-snapshots | — | — |
+| 05-M4 Analyse from the UI, browse snapshots | UI | todo | 05-M3; 04 UI | — | — |
+| 05-M5 Nearest snapshot and stale notice | core + UI | todo | 05-M3 | — | — |
+| 05-M6 Batches, retention, cleanup | core + UI | todo | 05-M5 | — | — |
+| 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
 | 06-M0 Spikes | spike | todo | plan 05 core (item 3 needs Windows) | — | — |
-| 06-M1 Compare core: commit vs commit | core + UI | todo (core half) | plan 05 core; UI half: design 06-compare | — | — |
-| 06-M2 Entry points | UI | blocked | design 06-compare | — | — |
-| 06-M3 Missing snapshots and staleness | core + UI | todo (core half) | 06-M1; UI half: design 06-compare | — | — |
-| 06-M4 Changed files | core + UI | todo (core half) | 06-M3; UI half: design 06-compare | — | — |
-| 06-M5 PRs and merge requests | core + UI | todo (core half) | 06-M4; UI half: design 06-compare | — | — |
-| 06-M6 Polish and stretch | UI | blocked | design 06-compare | — | — |
+| 06-M1 Compare core: commit vs commit | core + UI | todo | plan 05 core | — | — |
+| 06-M2 Entry points | UI | todo | 06-M1 | — | — |
+| 06-M3 Missing snapshots and staleness | core + UI | todo | 06-M1 | — | — |
+| 06-M4 Changed files | core + UI | todo | 06-M3 | — | — |
+| 06-M5 PRs and merge requests | core + UI | todo | 06-M4 | — | — |
+| 06-M6 Polish and stretch | UI | todo | 06-M5 | — | — |
 
 The core/UI split of mixed milestones is provisional; it is confirmed against the plan text when
 the milestone is started.
