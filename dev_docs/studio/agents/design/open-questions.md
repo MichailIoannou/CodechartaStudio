@@ -35,6 +35,19 @@ answer that differs means the named file is changed, nothing else.
    the metric view's mode bar opens the compare dialog in project mode, and History offers compare on
    commits and branches. Add the button only if the hover mode bar proves too hidden.
 
+## Area 02 — themes
+
+9. **"IntelliJ Light" or "Rider Light"?** The README's owner decisions say "Rider Light"; plan 02
+   registers "IntelliJ Light" (the JetBrains palette Rider uses). *Default:* "IntelliJ Light", the
+   palette's own name, in line with plan 02's rule to name palettes descriptively.
+10. **Panel edges on dark.** *Default:* add a `base-300` border to the explorer and inspector edges
+    (`02-themes.md`, proposed change 1), because their shadow vanishes on a dark map.
+
+## Area 01 — desktop tools
+
+11. **Confirm before changing the store folder?** *Default:* yes, one yes/no before the folder picker,
+    because the app restarts afterwards.
+
 ## From orchestration
 
 (The orchestrator appends questions here.)
