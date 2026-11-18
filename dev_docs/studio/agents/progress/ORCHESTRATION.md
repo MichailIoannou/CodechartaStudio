@@ -37,7 +37,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M5 Editor schemes and quick toggle | UI | blocked | design 02-themes; 02-M4 | — | — |
 | 02-M6 Native window appearance | UI | blocked | design 02-themes; plan 01 | — | — |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
-| 03-M1 Store core | core | todo | plan 01 core | — | — |
+| 03-M1 Store core | core | in progress | — | feature/studio-03-m1 | — |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | todo | 03-M1 | — | — |
 | 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | todo | 03-M2 | — | — |
 | 03-M4 Renderer load path | renderer | todo | 03-M3; check for visible parts first | — | — |
@@ -126,6 +126,7 @@ the milestone is started.
 
 ## Session log
 
+- 2026-11-18: 03-M1 started in the core lane (plan 01 core done; 03-M0 store items answered on Linux).
 - 2026-11-18: design files appeared (all areas blocked for owner review); format check now fails on the mock-up (O1). 03-M0 part A verified (notes read) and recorded.
 - 2026-11-18: 03-M0 part A (reconciliation + core-only spike item 3) started in parallel with 01-M3.
 - 2026-11-18: 01-M2 verified (same gates, same Node 26 caveat) and merged; 01-M3 started (no visible UI: picker titles come from callers, core state is only an event).
