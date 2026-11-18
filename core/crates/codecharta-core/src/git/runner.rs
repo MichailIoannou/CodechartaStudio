@@ -3,7 +3,7 @@ use std::future::Future;
 use std::ops::ControlFlow;
 use std::path::Path;
 use std::pin::Pin;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use codecharta_core_api::methods::tools::{ToolId, ToolState};
 use tokio::sync::mpsc;
@@ -11,6 +11,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::command::{GitCommand, GitInvocation, Limits, UserEnvironment, invocation_of};
 use super::error::command_failed;
+use super::progress::{ProgressReporter, ProgressSink};
 use crate::error::{CoreError, CoreResult};
 use crate::process::lines::LineSplitter;
 use crate::process::{OutputChunk, OutputMode, RunOutput};
@@ -244,6 +245,51 @@ impl<'core> GitCli<'core> {
         let invocation = invocation_of(command, self.data_dir, &self.user);
         self.process.execute(invocation, cancel).await
     }
+
+    /// Like `run_raw`, while git's progress on stderr goes to `progress` as it is printed.
+    pub async fn run_reporting(
+        &self,
+        command: &GitCommand,
+        cancel: &CancellationToken,
+        progress: ProgressSink<'_>,
+    ) -> CoreResult<RunOutput> {
+        let (sender, receiver) = mpsc::channel(STREAM_CHUNK_BUFFER);
+        let invocation = invocation_of(command, self.data_dir, &self.user);
+        let (run, collected) = tokio::join!(
+            self.process.stream(invocation, sender, cancel),
+            collect_reporting(receiver, ProgressReporter::new(progress))
+        );
+        Ok(RunOutput {
+            stdout: collected.stdout,
+            stderr: collected.stderr,
+            ..run?
+        })
+    }
+}
+
+struct CollectedOutput {
+    stdout: String,
+    stderr: String,
+}
+
+async fn collect_reporting(
+    mut receiver: mpsc::Receiver<OutputChunk>,
+    mut reporter: ProgressReporter<'_>,
+) -> CollectedOutput {
+    let mut collected = CollectedOutput {
+        stdout: String::new(),
+        stderr: String::new(),
+    };
+    while let Some(chunk) = receiver.recv().await {
+        match chunk {
+            OutputChunk::Stdout(text) => collected.stdout.push_str(&text),
+            OutputChunk::Stderr(text) => {
+                reporter.push(&text, Instant::now());
+                collected.stderr.push_str(&text);
+            }
+        }
+    }
+    collected
 }
 
 /// git in one folder for one request: the runner, the folder git runs in and the request's cancellation.
@@ -317,6 +363,7 @@ mod tests {
     use super::*;
     use crate::git::command::{CommandKind, GLOBAL_ARGS, READ_ARGS, REPOSITORY_LIMITS};
     use crate::git::error::MAX_DETAIL_CHARS;
+    use crate::git::parse::progress::ProgressUpdate;
 
     struct RecordingProcess {
         answer: Result<RunOutput, fn() -> CoreError>,
@@ -469,6 +516,39 @@ mod tests {
 
         // Assert
         assert_eq!(process.last().cwd, data_dir());
+    }
+
+    #[tokio::test]
+    async fn should_report_progress_and_keep_the_output_of_a_reporting_run() {
+        // Arrange
+        let stderr = "Receiving objects:  50% (1/2)\rReceiving objects: 100% (2/2), done.\r\n";
+        let process = RecordingProcess::answering(1, stderr);
+        let data_dir = data_dir();
+        let reports = Mutex::new(Vec::new());
+        let sink = |update: ProgressUpdate| reports.lock().unwrap().push(update);
+
+        // Act
+        let output = GitCli::new(&process, &data_dir)
+            .run_reporting(
+                &command(CommandKind::Network),
+                &CancellationToken::new(),
+                &sink,
+            )
+            .await
+            .unwrap();
+
+        // Assert
+        assert_eq!(
+            (
+                output.exit_code,
+                output.stdout.as_str(),
+                output.stderr.as_str()
+            ),
+            (1, "out", stderr)
+        );
+        let reported = reports.lock().unwrap();
+        assert_eq!(reported.len(), 1);
+        assert_eq!(reported[0].message, "Receiving objects: 100% (2/2), done.");
     }
 
     #[tokio::test]

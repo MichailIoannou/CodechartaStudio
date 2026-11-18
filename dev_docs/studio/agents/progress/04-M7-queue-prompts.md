@@ -33,7 +33,7 @@ spaces in the helper path work on Linux; non-zero exit is a clean cancel. Window
 
 - [x] 1. Spike (Linux) — (b), (d), (g) open, need Windows (procedures below)
 - [x] 2. Runner environment
-- [ ] 3. Queue and progress
+- [x] 3. Queue and progress
 - [ ] 4. Prompt broker
 - [ ] 5. Renderer dialog (later)
 
@@ -118,5 +118,37 @@ small launcher with `CREATE_NO_WINDOW` and closed stdin, as in S5):
   `should_never_print_the_token_of_an_invocation`, `should_keep_a_path_with_a_space_elsewhere`,
   `should_copy_only_when_the_executable_changed`, `should_leave_the_users_ssh_askpass_out_without_an_ssh_helper`,
   `should_print_the_token_of_a_setup_as_stars` and the two `Secret` tests. `tracing-subscriber` became a
-  dev-dependency of `codecharta-core` (already a workspace crate).
+  dev-dependency of `codecharta-core` (already a workspace crate). The log test installs a *global*
+  subscriber: with a single scoped one, tracing asks the subscriber of whichever test thread reaches a log
+  call first whether it is wanted, and parallel tests made it flaky.
+
+### 3. Queue and progress
+- `git/queue.rs` `OperationQueue::run_exclusive(repository_id, &cancel, task)`: one tokio mutex per repository
+  id (FIFO hand-over), held in a map entry that is removed when the last waiter or runner of that repository
+  leaves (`busy_repositories()` for tests and diagnostics). A cancel while waiting returns `CANCELLED` and the
+  task future is dropped unpolled. `Core::operation_queue()` is the one instance (plans 05/06 use it too).
+- `git/parse/progress.rs`: `ProgressUpdate { message, done, total }`, `last_progress_line` (split on `\r` and
+  `\n`, newest non-empty after trimming the end), `progress_of` (strips one `remote: `, trailing spaces; the
+  first word `NN%` with NN ≤ 100 gives `done = NN, total = 100`).
+- `git/progress.rs`: `PROGRESS_INTERVAL` 200 ms, `ProgressThrottle::admit(now)` (first passes, then one per
+  interval, the rest dropped), `ProgressReporter::new(sink).push(stderr_chunk, now)` (a line counts once its
+  `\r` / `\n` arrived; chunks may split lines). `GitCli::run_reporting(command, cancel, sink)` streams the
+  command (plan 01's chunk stream), reports progress, and answers the collected stdout and stderr with the exit
+  code (classification is the caller's, as for `run_raw`).
+- **Deviation — no `git.operationProgress` event:** plan 01's `core.progress { requestId, message, done, total }`
+  already carries exactly this, and the shell already maps `requestId` back to the renderer's `operationId`
+  for it. M8+ routes pass `|update| context.notifier.progress(ProgressParams { request_id: context.id.clone(),
+  message: update.message, done: update.done, total: update.total })` as the sink. The renderer knows the
+  repository of its own operation, so `repositoryId` is not needed in the payload.
+- Tests: the plan's eight (`queue.rs`: `should_run_two_operations_of_one_repository_in_order`,
+  `should_run_operations_of_two_repositories_in_parallel`, `should_start_the_next_operation_after_a_failure`,
+  `should_never_run_a_cancelled_queued_task`; `parse/progress.rs`:
+  `should_keep_the_last_line_of_a_carriage_return_stream`, `should_read_nn_percent_as_done_of_100`,
+  `should_strip_remote_prefix_and_trailing_spaces`; `progress.rs`: `should_throttle_progress_to_200_ms`), plus
+  `should_forget_a_repository_once_its_operations_ended`, `should_have_no_counts_without_a_percentage`,
+  `should_report_only_finished_lines_and_drop_reports_within_the_interval`,
+  `should_report_progress_and_keep_the_output_of_a_reporting_run` (`runner.rs`).
+- Not done here (M8 builds it on these pieces): the operation wrapper that runs inside the queue, opens the
+  prompt session, re-reads inside the queue, calls `GitMemory::forget_logs` / `fetched`, and emits
+  `repository.changed` at the end.
 

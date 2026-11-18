@@ -73,7 +73,7 @@ From plan 01 (core):
 - Workspace `core/` with `codecharta-core`, `codecharta-core-api`, `codecharta-cored`; the async runtime it chose (tokio expected; if plan 01 is synchronous, keep these signatures without `async`).
 - **Process runner** (expected `codecharta_core::process::Runner`): argv vector, cwd, environment overlay **and removal list**, optional **stdin text** (closed after writing), timeout, stdout cap, cancellation token that kills the process tree, **stderr chunk callback** and **stdout line callback** (streaming rev-list, progress). Errors distinguish timeout, cancelled, output too large, executable missing. Add whatever is missing in plan 01's module, test first, in the milestone that needs it (stdin: M2; streaming stdout: M2; env removal: M7).
 - **Tools check** (expected `codecharta_core::tools`): resolved `git` path and version; set git's minimum version to **2.31.0** (M1 task 1; test "should report git below the minimum as too old").
-- **JSON-RPC dispatcher** (expected `codecharta-cored/src/rpc/`): method registration, typed params / results from `codecharta-core-api`, notification sink, domain error mapping (`error.data` carries the domain code), generic cancel `operations.cancel { operationId }` (if plan 01 has none, add it there, not a git-specific cancel).
+- **JSON-RPC dispatcher** (expected `codecharta-cored/src/rpc/`): method registration, typed params / results from `codecharta-core-api`, notification sink, domain error mapping (`error.data` carries the domain code), generic cancel (as built: the `core.cancel` notification with the request id, overview section 10).
 - **CLI** (clap expected) with a subcommand slot for `git`, and the `askpass` mode slot in `main` (section 4.6).
 - **Core data directory** (expected `AppPaths::data_dir()`): cwd for git, temporary commit-message files.
 - **Contract generation** into `visualization/app/codeCharta/model/coreApi/` with the drift check.
@@ -122,7 +122,7 @@ core/crates/codecharta-core/src/git/
   locator.rs             version check, rev-parse, repository id
   read.rs                status, refs, log sessions and pages, commit details
   query.rs               resolve_commit, rev_list_count, rev_list stream, merge_base, is_ancestor, measure_distances, refs_at, changed_files
-  queue.rs               OperationQueue (G10)
+  queue.rs               OperationQueue (G10); progress.rs: ProgressReporter, ProgressThrottle (as built in M7)
   working_tree.rs        working tree, diff, stage, unstage, discard
   commit.rs              commit, amend
   branch.rs              switch, checkout remote, create, rename, delete, delete remote, set upstream
@@ -248,7 +248,7 @@ pub struct GitFetchResult { pub updated_refs: u32, pub refs: GitRefs }
 pub enum GitPullMode { FfOnly, Rebase, Merge }
 pub struct GitStashEntry { pub index: u32, pub sha: String, pub subject: String }
 
-// notifications
+// notifications (as built in M7: GitOperationProgress is not added — progress travels as plan 01's core.progress)
 pub struct GitOperationProgress { pub operation_id: String, pub repository_id: String, pub message: String,
     pub done: Option<u32>, pub total: Option<u32> }
 pub enum ChangedPart { Status, Refs, WorkingTree }
@@ -269,7 +269,7 @@ pub struct PromptCancelParams { pub prompt_id: String }
 
 #### JSON-RPC methods
 
-Every `repo` param is a `FolderRef`. Methods marked **(op)** take `operationId: String` (client-generated UUID), run in the operation queue, report `git.operationProgress` when they talk to a remote, are cancellable through `operations.cancel`, and emit `repository.changed` when done (success or failure).
+Every `repo` param is a `FolderRef`. Methods marked **(op)** are called with the bridge's `operationId` (the shell maps it to the JSON-RPC request id), run in the operation queue, report `core.progress` (plan 01; `requestId` = the request) when they talk to a remote, are cancellable through the `core.cancel` notification with that request id, and emit `repository.changed` when done (success or failure).
 
 | Method | Params | Result |
 |---|---|---|
@@ -305,7 +305,7 @@ Every `repo` param is a `FolderRef`. Methods marked **(op)** take `operationId: 
 | `prompt.answer` | `PromptAnswerParams` | `null` |
 | `prompt.cancel` | `PromptCancelParams` | `null` |
 
-Notifications: `git.operationProgress` (`GitOperationProgress`, at most every 200 ms per operation), `repository.changed` (`RepositoryChanged`), `prompt.requested` (`PromptRequested`), `prompt.closed` (`PromptClosed`).
+Notifications: `core.progress` (plan 01's `ProgressParams`, at most every 200 ms per operation; as built in M7 there is no `git.operationProgress`), `repository.changed` (`RepositoryChanged`), `prompt.requested` (`PromptRequested`), `prompt.closed` (`PromptClosed`).
 
 #### Parameter validation (in `rpc/git.rs`, before anything runs; failure → `invalidArgument`)
 
@@ -518,7 +518,7 @@ All mutating operations run in `OperationQueue::run_exclusive(repository_id, …
 | `branch_delete` remote | remote ref exists | `push --progress --end-of-options <remote> --delete <branch>` (network) |
 | `set_upstream` | local ref; upstream a remote-tracking ref or none | `branch --set-upstream-to=<remote>/<branch> --end-of-options <name>` / `branch --unset-upstream --end-of-options <name>` |
 
-**Sync** (`sync.rs`) — network environment with askpass, `--progress`, stderr through `parse/progress.rs` (split on `\r` and `\n`, keep the last non-empty line, strip `remote: ` and trailing spaces, `NN%` → `done/total = NN/100`), throttled to one `git.operationProgress` per 200 ms, cancellable (kills the process tree and closes the operation's open prompts).
+**Sync** (`sync.rs`) — network environment with askpass, `--progress`, stderr through `parse/progress.rs` (split on `\r` and `\n`, keep the last non-empty line, strip `remote: ` and trailing spaces, `NN%` → `done/total = NN/100`), throttled to one `core.progress` per 200 ms (`GitCli::run_reporting`), cancellable (kills the process tree and closes the operation's open prompts).
 
 | Operation | Command | Outcome |
 |---|---|---|
@@ -584,7 +584,7 @@ Changes tab panes: `cc-changes-panel` (360 px, 260–640) — groups Conflicted 
 
 `cc-commit-box`: subject (counter, warning > 72), body, "Amend last commit" (fills the last message when the box is empty; off restores the draft), **Commit** (`btn btn-primary btn-sm`, disabled without staged files unless amending, without subject, or while an operation runs; Ctrl+Enter). Draft per repository in `codeChartaCommitDraft.<repositoryId>` (message only), cleared after a commit. During a merge: "This commit concludes the merge."
 
-Toolbar: folder picker (`select select-sm` of project folders that are repositories; hidden for one), search / author / path (debounced 300 ms; Log tab only), Refresh (`fa-rotate`, F5), and from M8 `cc-sync-buttons`: Fetch (`fa-cloud-arrow-down`, prune option), Pull (`fa-arrow-down`, badge `behind`), Push (`fa-arrow-up`, badge `ahead`; "Publish branch" without upstream). While an operation runs: spinner, last `git.operationProgress` message, Cancel (`operations.cancel`); other mutating controls of that repository disabled ("Waiting for the previous git operation…").
+Toolbar: folder picker (`select select-sm` of project folders that are repositories; hidden for one), search / author / path (debounced 300 ms; Log tab only), Refresh (`fa-rotate`, F5), and from M8 `cc-sync-buttons`: Fetch (`fa-cloud-arrow-down`, prune option), Pull (`fa-arrow-down`, badge `behind`), Push (`fa-arrow-up`, badge `ahead`; "Publish branch" without upstream). While an operation runs: spinner, last `core.progress` message, Cancel (`core.cancel` through `bridge.cancel(operationId)`); other mutating controls of that repository disabled ("Waiting for the previous git operation…").
 
 **Branch actions** (`cc-branch-context-menu`, also in the commit context menu): local → Switch to, New branch from here…, Rename…, Delete…, Set upstream…, Push / Force push (with lease)…; remote → Check out as new local branch…, New branch from here…, Delete from remote…; tag → New branch from here…. The current branch offers Rename, Push, Set upstream only.
 
@@ -789,7 +789,7 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
    - Tests (real git, offline): `git -c credential.helper= credential fill` with stdin `protocol=https\nhost=example.test\n\n` and the askpass env → two `prompt.requested` (Username, then Password), answers appear as `username=` / `password=` in git's output (UNVERIFIED that git asks through askpass here — spike (a) settles it); if spike (c) succeeded, `ssh-keygen -y` on an encrypted fixture key receives the passphrase through the broker. SSH host-key and remote password prompts stay manual.
    - Commit: `feat(core): broker git and ssh credential prompts through askpass`
 5. **Renderer prompt and operations.** `credentialPrompt.service.ts`, `credentialPromptDialog` in `views/codeCharta.component.html`, `gitOperation.service.ts` (fresh `operationId`, `running: Signal<{ repositoryId; label; progress } | null>`, cancel, refresh afterwards).
-   - Tests: dialog shows the message verbatim; password input for secret, text for text; yes/no for confirm; input cleared after answering; `prompt.cancel` on Cancel and Escape; second prompt queued; closes on `prompt.closed`; stays open across view switches; refresh after an operation, also after failure; cancel goes through `operations.cancel`.
+   - Tests: dialog shows the message verbatim; password input for secret, text for text; yes/no for confirm; input cleared after answering; `prompt.cancel` on Cancel and Escape; second prompt queued; closes on `prompt.closed`; stays open across view switches; refresh after an operation, also after failure; cancel goes through `bridge.cancel(operationId)` (`core.cancel`).
    - Commit: `feat(visualization): answer git credential prompts in a dialog`
 
 ### M8 — Fetch and branches (M)
@@ -904,7 +904,7 @@ Open, proceeding on the default: commit order by date (Rider) rather than topolo
 Reconciled names from plans 01 and 03, deviations and measured numbers are recorded here by the implementing agent (details in `dev_docs/studio/agents/progress/`).
 
 Cross-plan items:
-- Plan 01: runner stdin, stdout line streaming, env removal; generic `operations.cancel`; git minimum version 2.31; the `askpass` mode check in `main` before CLI parsing; redaction of `prompt.answer` in the RPC trace; relay forwarding `prompt.*` and `repository.changed`.
+- Plan 01: runner stdin, stdout line streaming, env removal; generic `core.cancel` (as built); git minimum version 2.31; the `askpass` mode check in `main` before CLI parsing; redaction of `prompt.answer` in the RPC trace; relay forwarding `prompt.*` and `repository.changed`.
 - Plan 03: `FolderRef` in the API crate, the core folder resolver, the recycle-bin helper, `ProjectsService` exported from `features/projects/facade.ts`.
 - Plan 05: in-core `GitService` (`rev_list` stream, `measure_distances`, `status`, `subscribe_changes`), the `workingTree` selection item, `ANALYSED_COMMITS` / `COMMIT_ACTIONS` / `LOADED_MAP_LOCATOR` ports; mutating git only through `OperationQueue`; fixtures from `tests/support/git_fixture.rs`.
 - Plan 06: `merge_base`, `changed_files` / `git.changedFiles`, `fetch_refspecs` into `refs/codecharta/pr/<n>` (prompts and progress included), `COMMIT_ACTIONS` for "Compare with…"; fixtures from `tests/support/git_fixture.rs`.

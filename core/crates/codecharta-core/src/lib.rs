@@ -30,6 +30,7 @@ use config::settings::SETTINGS_FILE_NAME;
 use git::changes::RepositoryChanges;
 use git::command::UserEnvironment;
 use git::memory::GitMemory;
+use git::queue::OperationQueue;
 use git::{GitFolder, GitService};
 use process::ProcessRunner;
 use process::env::hardened_env;
@@ -53,6 +54,7 @@ pub struct Core {
     repository_changes: RepositoryChanges,
     git_memory: GitMemory,
     user_environment: UserEnvironment,
+    operation_queue: OperationQueue,
 }
 
 impl Core {
@@ -81,6 +83,7 @@ impl Core {
             repository_changes: RepositoryChanges::default(),
             git_memory: GitMemory::default(),
             user_environment: UserEnvironment::read(&|name| std::env::var_os(name)),
+            operation_queue: OperationQueue::default(),
         })
     }
 
@@ -130,6 +133,11 @@ impl Core {
     /// The project folder a git request names, resolved through the store.
     pub fn git_folder(&self, repo: &FolderRef) -> CoreResult<GitFolder> {
         self.projects()?.git_folder(repo)
+    }
+
+    /// Every mutating git command of the core waits its turn here (plans 04–06).
+    pub fn operation_queue(&self) -> &OperationQueue {
+        &self.operation_queue
     }
 
     pub fn subscribe_repository_changes(
