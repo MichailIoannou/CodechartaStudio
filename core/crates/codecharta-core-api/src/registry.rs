@@ -30,6 +30,22 @@ pub trait Method {
     type Result: Serialize + DeserializeOwned + TS + 'static;
 }
 
+/// Declares a method marker: `method!(Marker, "domain.verb", Renderer | Shell, Params, Result)`.
+macro_rules! method {
+    ($marker:ident, $name:literal, $audience:ident, $params:ty, $result:ty) => {
+        pub struct $marker;
+
+        impl $crate::registry::Method for $marker {
+            const NAME: &'static str = $name;
+            const AUDIENCE: $crate::registry::Audience = $crate::registry::Audience::$audience;
+            type Params = $params;
+            type Result = $result;
+        }
+    };
+}
+
+pub(crate) use method;
+
 pub trait Event {
     const NAME: &'static str;
     const AUDIENCE: Audience;

@@ -5,7 +5,7 @@ use ts_rs::TS;
 
 use crate::ids::{FolderId, ProjectId, SnapshotId};
 use crate::methods::core::EmptyParams;
-use crate::registry::{Audience, Method};
+use crate::registry::method;
 use crate::values::{
     CommitHash, Description, ExcludePattern, FullCommit, Label, PickToken, ProjectName,
 };
@@ -350,19 +350,6 @@ pub struct SourceFileLocation {
 #[serde(rename_all = "camelCase")]
 pub struct SourceFileLookup {
     pub location: Option<SourceFileLocation>,
-}
-
-macro_rules! method {
-    ($marker:ident, $name:literal, $audience:ident, $params:ty, $result:ty) => {
-        pub struct $marker;
-
-        impl Method for $marker {
-            const NAME: &'static str = $name;
-            const AUDIENCE: Audience = Audience::$audience;
-            type Params = $params;
-            type Result = $result;
-        }
-    };
 }
 
 method!(
