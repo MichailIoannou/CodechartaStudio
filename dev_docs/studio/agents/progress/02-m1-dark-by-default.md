@@ -42,7 +42,7 @@ label `color` and `border` from the `buildingLabel` palette.
 - [x] 6. Labels, connectors, view cube
 - [x] 7. Map screenshot
 - [x] 8. Preference and migration
-- [ ] 9. Apply and flip to dark
+- [x] 9. Apply and flip to dark
 - [ ] 10. Picker
 - [ ] 11. Visual check and changelog
 
@@ -144,3 +144,20 @@ Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feat
   exported from the read facade in the migration commit (its first consumer, for knip);
   `themePreferenceSelector` follows with the effect in task 9.
 
+### 9. Apply and flip to dark
+
+- `SystemColorSchemeService` (signal over `matchMedia`, `light` without it, listener removed on destroy),
+  `ThemeBootMirrorRepo` (key `codeCharta.themeBoot`, shape-checked read, plus `themeBootMirrorFor(preference)`,
+  which resolves the light and dark entries through `resolveTheme`, so "system" yields cc-light/cc-dark),
+  `ThemeService.apply`, `ApplyThemeEffect` in `themeEffects`, registered in `app.config.ts`.
+- Effect differences from the plan's sketch: the boot mirror is (re)written whenever the preference or
+  the restored flag changes after the session is restored, but the theme is only applied, and
+  `activeThemeChanged` only dispatched, when the resolved theme id changes (no double apply on restore).
+  The apply happens before the dispatch (spec "should apply the theme before announcing it …").
+  `activeThemeChanged` is also dispatched once at boot; it is not saved and the render effect ignores
+  it until a map exists.
+- `ThemeReadStore` / `ThemeWriteStore` and `facade.ts` move to task 10, where their first consumer (the
+  picker) arrives (knip).
+- `tailwind.css`: `default: true` moved to `cc-dark`; `index.html`: `data-theme="cc-dark"`, boot placeholder
+  uses `var(--cc-boot-*, <cc-dark token>)` for background, text, track and accent.
+- Full e2e (149) green after this task, including `app.e2e.ts` and `radialMap.e2e.ts`.

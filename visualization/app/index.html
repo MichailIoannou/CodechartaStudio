@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="cc-light">
+<html lang="en" data-theme="cc-dark">
     <head>
         <title>CodeCharta</title>
         <!-- The sha256 allows the inline <script> Angular's critical-CSS inlining (beasties) adds to the built
@@ -39,21 +39,22 @@
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    background: #fff;
+                    background: var(--cc-boot-background, #1e2329);
+                    color: var(--cc-boot-content, #e6e9ee);
                     font-family: system-ui, sans-serif;
                 "
             >
                 <!-- Geometry and colours match the application's own spinner: this one hands over to it,
                      and any difference reads as a second spinner rather than the same one carrying on.
-                     The ring is 6rem with a 4px border, base-300 (#d1d5db) with a primary (#1b9cfc) top,
+                     The ring is 6rem with a 4px border, base-300 with a primary top (fallbacks: CodeCharta Dark),
                      and the caption hangs below it instead of sharing a column, so the ring never moves. -->
                 <div style="position: relative; display: flex; align-items: center; justify-content: center">
                     <div
                         style="
                             width: 6rem;
                             height: 6rem;
-                            border: 4px solid #d1d5db;
-                            border-top-color: #1b9cfc;
+                            border: 4px solid var(--cc-boot-track, #3a424d);
+                            border-top-color: var(--cc-boot-accent, #8b9cff);
                             border-radius: 9999px;
                             animation: cc-boot-spin 1s linear infinite;
                         "

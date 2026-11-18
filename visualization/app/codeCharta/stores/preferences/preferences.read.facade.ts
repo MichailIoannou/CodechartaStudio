@@ -21,3 +21,4 @@ export { resetCameraIfNewFileIsLoadedSelector } from "./store/resetCameraIfNewFi
 export { defaultSorting } from "./store/sorting/sorting.reducer"
 export { sortingOrderAscendingSelector, sortingOrderSelector } from "./store/sorting/sorting.selector"
 export { defaultTheme } from "./store/theme/theme.reducer"
+export { themePreferenceSelector } from "./store/theme/theme.selector"
