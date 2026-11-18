@@ -45,7 +45,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M5 Projects UI | UI | todo | 03-M4 | — | — |
 | 03-M6 Import and store settings | UI | todo | 03-M5 | — | — |
 | 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
-| 04-M1 Core: fixtures, contract, runner, status, refs | core | todo | plan 03 core | — | — |
+| 04-M1 Core: fixtures, contract, runner, status, refs | core | in progress (branched from feature/studio-03-m3; fake-bridge seed waits for 01-M4.1) | — | feature/studio-04-m1 | — |
 | 04-M2 Core: log, details, queries, changed files | core | todo | 04-M1 | — | — |
 | 04-M3 History view, branches pane, chip | UI | todo | 04-M2; plan 03 renderer (03-M4/M5) | — | — |
 | 04-M4 Commit list with graph, filters, details | UI | todo | 04-M3 | — | — |
@@ -165,6 +165,7 @@ Design questions are in `design/open-questions.md`; none are left here.
 
 ## Session log
 
+- 2026-11-18 23:50: 04-M1 started in the core lane at the owner's request (5-hour usage 87%, reset at 00:10).
 - 2026-11-18: 03-M3 part A verified on a scratch merge of integration + 03-M2 + 03-M3 (cargo fmt/clippy/test 282, cargo-deny, contract drift, format, lint, tsc, test:electron 42/42, npm test 636/636). Merge pending, as for 03-M2.
 - 2026-11-18 22:40: design ready for all areas. 02-M1 started (visualization lane) and 03-M3 part A started (core lane, from feature/studio-03-m2). 03-M2 merge still pending on the uncommitted plan 03 edit.
 - 2026-11-18, end of session: 03-M2 part A verified on a scratch merge of `feature/studio-integration` +
