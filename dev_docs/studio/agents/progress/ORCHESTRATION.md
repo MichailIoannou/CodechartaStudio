@@ -28,10 +28,10 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 01-M1 Core skeleton, protocol, contract, CI | core | done | — | feature/studio-01-m1 | c6b3d9a7f (merged 8688edb53) |
 | 01-M2 Process runner, tools, settings, doctor | core | done (Windows-only tests not yet run) | — | feature/studio-01-m2 | 5169e28c9 (merged a57c8e7e9) |
 | 01-M3 Electron shell | shell | done (Windows/macOS and CI not run) | — | feature/studio-01-m3 | d8cdbfdfd (merged 1ce44fc54) |
-| 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | todo (next) | — | feature/studio-01-m4 | — |
+| 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | in progress | — | feature/studio-01-m4 | — |
 | 01-M4.2 Desktop tools panel | UI | todo | 01-M4.1 | — | — |
 | 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
-| 02-M1 Dark by default | UI | in progress | — | feature/studio-02-m1 | — |
+| 02-M1 Dark by default | UI | done | — | feature/studio-02-m1 | 5fadc0ca3 (merged db5d2dc60) |
 | 02-M2 No-flash boot | UI | todo | 02-M1 | — | — |
 | 02-M3 Radial map and word cloud | UI | todo | 02-M2 | — | — |
 | 02-M4 Dependency graph, color-range diagram | UI | todo | 02-M3 | — | — |
@@ -46,7 +46,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M6 Import and store settings | UI | todo | 03-M5 | — | — |
 | 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
-| 04-M2 Core: log, details, queries, changed files | core | todo | 04-M1 | — | — |
+| 04-M2 Core: log, details, queries, changed files | core | in progress (branched from feature/studio-04-m1) | — | feature/studio-04-m2 | — |
 | 04-M3 History view, branches pane, chip | UI | todo | 04-M2; plan 03 renderer (03-M4/M5) | — | — |
 | 04-M4 Commit list with graph, filters, details | UI | todo | 04-M3 | — | — |
 | 04-M5 Selection, keyboard, context menu, ports | UI | todo | 04-M4 | — | — |
@@ -143,6 +143,11 @@ the milestone is started.
   (`GitRunner` was taken by plan 03); unknown folder → `NOT_FOUND`, missing on disk → `FOLDER_UNAVAILABLE`;
   `TempRepo` extended in place. Git 2.31 spike open (no 2.31 binary obtainable without installing):
   run `src/git/parse/testdata/capture.sh` and the tests with git 2.31 first on `PATH`.
+- 02-M1 (see `02-m1-dark-by-default.md`): followed the design over the plan for panel edges (Rider-style
+  islands: 6 px gaps, 10 px corners, `shadow-lg`, no border) and the picker layout; no nav-bar toggle (OD10).
+  `DB_VERSION` is 37 (renumber at merge if another plan takes it). Design items T4 (metrics bar refresh,
+  OD6) and T5 (blended file extension bar, OD7) are outside M1 and still to schedule. Changelog says the
+  Domain/Dependencies charts and radial layouts follow later (M3/M4).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -172,6 +177,7 @@ Design questions are in `design/open-questions.md`; none are left here.
 
 ## Session log
 
+- 2026-11-19: 02-M1 verified on the merged integration branch (format, lint, tsc, npm test 649/649 with 43 snapshots unchanged, coverage 96.84/90.24/95.43/96.77, build, test:electron 42/42, e2e:desktop 9/9, web e2e:ci 153/153) and merged. After the usage reset (3%): 01-M4.1 and 04-M2 started.
 - 2026-11-19: 04-M1 verified on a scratch merge of integration + 04-M1 (cargo fmt/clippy/test 354, cargo-deny, contract drift, format, lint, tsc, test:electron 42/42, npm test 636/636). Merge pending, as for 03-M2.
 - 2026-11-18 23:50: 04-M1 started in the core lane at the owner's request (5-hour usage 87%, reset at 00:10).
 - 2026-11-18: 03-M3 part A verified on a scratch merge of integration + 03-M2 + 03-M3 (cargo fmt/clippy/test 282, cargo-deny, contract drift, format, lint, tsc, test:electron 42/42, npm test 636/636). Merge pending, as for 03-M2.
