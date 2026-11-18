@@ -1,13 +1,8 @@
+use std::process::ExitCode;
+
 use clap::Parser;
+use codecharta_cored::cli::{Cli, run};
 
-#[derive(Debug, Parser)]
-#[command(
-    name = "codecharta-core",
-    version,
-    about = "Headless core of the CodeCharta desktop app"
-)]
-struct Cli {}
-
-fn main() {
-    Cli::parse();
+fn main() -> ExitCode {
+    run(Cli::parse())
 }

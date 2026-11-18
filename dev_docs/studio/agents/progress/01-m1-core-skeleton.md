@@ -30,7 +30,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M1 (the test names to writ
 - [x] 1.1 Commit scope, gitignore, toolchain pin
 - [x] 1.2 Cargo workspace and crates
 - [x] 1.3 Protocol envelopes and error codes
-- [ ] 1.4 serve over stdio
+- [x] 1.4 serve over stdio
 - [ ] 1.5 Contract generation
 - [ ] 1.6 CI
 - [ ] 1.7 Docs
@@ -74,4 +74,30 @@ node 26.13.0, npm 12.2.2. No `mise`, `cargo-deny` or `cargo-cyclonedx` installed
   `Internal` (a fixed sentence); details carry `tool`, `afterMs` or `limitBytes` where present.
 - Framing faults carry `data.code`: `BAD_REQUEST` for -32700/-32600/-32602, `NOT_FOUND` for -32601
   (`ResponseError::framing`). Failures whose id is unknown answer with `"id": null`.
+
+### 1.4
+- `codecharta-cored` is a library (`cli`, `serve`) plus the thin `main.rs`, so the serve pieces are
+  unit-testable and public items are not dead code in a bin.
+- Routing: `dispatch.rs` holds a `ROUTES` table of `(name, fn handler)`; names come from the api
+  `Method::NAME` consts; `should_handle_exactly_the_registered_methods` compares it with `METHODS`.
+  Test-only routes (`core.sleep { milliseconds }`, emits one `core.progress`) live in
+  `serve/test_methods.rs` behind the crate feature `test-methods`; they are not in the api registry, so
+  never in the contract. The two protocol tests that need it are `#[cfg(feature = "test-methods")]`, so
+  plain `cargo test` skips them; the gates and CI use `--all-features`.
+- Session: `core.hello` and `core.shutdown` run inline in the read loop (ordering guaranteed); every other
+  request is its own tokio task (inner `tokio::spawn` so a panic becomes an `INTERNAL` answer) tracked by
+  a `TaskTracker`. Cancellation is **cooperative**: `core.cancel` cancels the request's token, the handler
+  decides how to stop (M2's runner must kill the process tree on it). A second request with an id that is
+  still running gets -32600. Unknown notifications are logged and ignored.
+- Shutdown (EOF or `core.shutdown`): cancel all tokens, wait up to 5 s for running requests, up to 5 s
+  for the writer, then `Runtime::shutdown_timeout(100 ms)` because tokio's stdin read sits on a blocking
+  thread that only returns when the client closes the pipe. Exit code 0. Killing child processes on
+  shutdown arrives with M2 (`Core::shutdown`).
+- **Data dir in M1:** `serve` requires `--data-dir` (exit 2 otherwise); `Core::new(CoreConfig { data_dir })`
+  and `path_to_wire` are minimal. M2 task 2.1 replaces this with `CoreConfig::resolve` (`--data-dir` →
+  `CODECHARTA_DATA_DIR` → `directories`), `Core::open` and settings.
+- Logging: `tracing-subscriber` fmt to stderr, no ANSI, `--log-level` is a level (`off`…`trace`), not an
+  `RUST_LOG`-style filter (no `env-filter` feature needed). Only method names are logged, never params.
+- Tests added beyond the plan list: `should_answer_ping_after_hello`, `should_answer_a_request_with_a_string_id`,
+  `should_answer_other_requests_while_one_is_running`, `should_exit_cleanly_after_a_shutdown_request`.
 
