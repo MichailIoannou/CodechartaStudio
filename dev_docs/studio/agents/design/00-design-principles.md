@@ -41,7 +41,7 @@ Enhance the existing interface; do not redesign it.
 | Panel header | `explorerHeader` | `text-xs font-semibold uppercase tracking-wide`, collapse button `btn btn-ghost btn-xs btn-square` |
 | Segmented control | `explorerModeToggle` | `join` of `btn btn-sm join-item`, `btn-active` + `aria-pressed` |
 | Inline banner inside a panel | `explorerFocusBanner`, `clusterExplorer` alert | `rounded-md bg-secondary/10 text-secondary text-xs`; `alert alert-warning px-2 py-1 text-xs` |
-| Transient message | `ToastService.show(text, severity)` | top right, just below the nav bar (OD8), 5 s, no actions; persistent toasts (OD9) above them |
+| Transient message | `ToastService.show(text, severity, options?)` | top right, just below the nav bar (OD8); success/info 5 s, errors stay with Details and one action; persistent toasts (OD9) above them |
 | Explorer mode | `EXPLORER_CONDITIONAL_MODES` (`provideClustersExplorerMode`) | mode in the explorer's join toggle, body projected as `[modeBody]` |
 | Resizable side pane | `ccColumnResizeHandle` | as the explorer and inspector |
 | Settings row | `cc-setting-toggle` | label + daisyUI `toggle` |
@@ -106,7 +106,13 @@ Order in the stack, top to bottom: **persistent toasts first** (today only the s
 owner decision OD9), then ordinary toasts, newest first. Persistent toasts are projected into
 `cc-toast` through an `<ng-content />` placed before the `@for` over `messages()`; they have the same
 `alert shadow-lg` shape, a dismiss button where dismissing is allowed, and never close on a timer.
-Ordinary toasts keep 5 s, the dismiss button and `aria-live="polite"`. All toasts are `w-96
+Ordinary toasts: success and info close after 5 s; **error toasts stay until dismissed** (owner
+decision, open question 5) and may carry a "Details" button, which expands the full technical message
+inside the toast (`font-mono text-xs whitespace-pre-wrap max-h-40 overflow-auto`), and at most one
+follow-up action button (`btn btn-sm`). All keep the dismiss button and `aria-live="polite"`.
+`ToastService.show(text, severity, options?: { details?: string; action?: { label; run } })`; errors
+ignore the timer. Used for every failed git operation (area 04) and failed analysis started outside
+the stale notice. All toasts are `w-96
 max-w-[calc(100vw-2rem)]` with wrapping text. They sit above the inspector (`z-[60]`) and may cover
 its header.
 
@@ -148,6 +154,10 @@ open dialogs (the browser stacks a later `showModal()` on top).
   (History, the project overview, the commit list) it is a static label such as "Pulling…" or "42 %".
 - **Fixed-size status.** An element whose content changes while the user watches (W1) has a fixed
   width per window size and fixed-size icon slots; content truncates, the element never resizes.
+- **Islands, no divider lines** (owner, open question 10, after Rider 2026.2): panels are
+  `rounded-[10px] bg-base-100` islands separated by 6 px of backdrop (`bg-base-200` in tiled views, the
+  3D map in map views); floating panels keep 6 px from the window edges and use `shadow-lg` instead of
+  a border. Nav bar, bottom bar and file extension bar stay flush.
 - **Words over codes.** Status is said in a word ("modified", "analysed"), not a letter or a bare
   icon; an icon may accompany the word.
 - Monospace (`font-mono`) only for short SHAs, refs in sentences, paths and commands to copy.

@@ -192,10 +192,12 @@ Studio:  [   kt 42.25% ░░▒▒▓▓ scss 28.17% ░░▒▒▓▓ ts 25.3
 
 ## Deviations from the plan
 
-1. **Theme label "Rider Day"** (owner, open question 9): the official JetBrains name of Rider's light
-   theme, instead of plan 02's "IntelliJ Light" and the README's "Rider Light". Plan 02 M5 checks the
-   palette against the installed Rider (Rider 2026.x may default to the "Islands" look) before
-   finalising the token values; the label is "Rider Day" either way.
+1. **Theme label "Rider Day"** (owner, open question 9): an official JetBrains name, instead of plan
+   02's "IntelliJ Light". Checked in the installed Rider 2026.2 (`rider-theme-pack.jar`): Rider ships
+   **"Rider Day"** (new UI, parent `ExperimentalLight`) and **"Rider Light"** (classic UI, parent
+   `IntelliJ`), plus "Rider Night" / "Rider Dark"; both light themes use the editor colour scheme
+   "Rider Light". Studio follows the new UI, so the label is "Rider Day"; plan 02 takes its chrome tokens
+   from `RiderDay.theme.json` and its map/editor-like colours from the "Rider Light" editor scheme.
 2. **Toggle titles name the destination theme** ("Switch to light theme (CodeCharta Light)"), so a user
    on Nord is not surprised to land on CodeCharta Light.
 3. **Toggle position** as the plan says, before Settings (the analyses indicator that once sat there
@@ -211,12 +213,24 @@ Approved by the owner (OD6): the metrics bar shape, the Layout and view-tools ta
 bar, the link button becoming a square, and the LEGEND edge tab becoming a tool in the bar (T4).
 
 
-1. **Panel edges on dark.** Explorer and inspector separate from the map by a black 15 % shadow, which
-   disappears on a dark map. Proposed: add `border-r border-base-300` (explorer) / `border-l
-   border-base-300` (inspector), visible in every theme. Without it the panels still work but read as
-   floating on the map.
-   *Owner (open question 10):* "look at how Zed or Rider do it and copy that". For the first
-   implementation the `base-300` border line ships; plan 02 M5's eyeball pass compares the installed
-   Zed and Rider (Islands look: rounded, gapped panels) and adjusts this edge if they differ.
+1. **Panel edges: islands, after Rider** (owner, open question 10: "look at how Zed or Rider do it
+   and copy that"). Checked on this machine on 2026-11-18:
+   - **Rider 2026.2** (build RD-262.10968.170) defaults to the "Islands" themes. Their theme files
+     (`intellij.platform.ide.impl.jar`, `themes/islands/ManyIslandsDark|Light.theme.json`) set
+     `Island.arc: 20` (10 px corner radius), `Island.borderWidth: 6` (a 6 px gap between panels,
+     painted in the window background), `ToolWindow.borderColor: transparent` and
+     `StatusBar.borderColor: transparent`: rounded panels separated by gaps, **no border lines**.
+   - **Zed**: its themes are compiled into the binary, so the panel styling could not be read from
+     files here. From Zed's source conventions its docks are split by a 1 px border line with square
+     corners (not visually confirmed on this machine).
+   The design copies **Rider's islands**, which also matches the rounded metrics bar (T4):
+   - Explorer and inspector float over the map as islands: `m-1.5` (6 px) from the window and nav-bar
+     edges, `rounded-[10px]`, `bg-base-100`, `shadow-lg`, **no** border line; the 3D map is the
+     backdrop between them.
+   - Tiled views (History, the project overview cards) put their panes on a `bg-base-200` backdrop with
+     `p-1.5 gap-1.5` (6 px) and `rounded-[10px] bg-base-100` panes, no border lines between panes.
+   - The nav bar, the bottom bar and the file extension bar stay flush, edge to edge, as Rider's main
+     toolbar and status bar do.
+   This replaces the earlier proposal of a `base-300` border line.
 2. **Hard-coded colours in T3** are replaced by tokens as plan 02 M1 step 3 already intends; listed so
    the implementer has the full set.

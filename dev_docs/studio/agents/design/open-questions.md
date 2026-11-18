@@ -16,9 +16,13 @@ answer that differs means the named file is changed, nothing else.
 4. ~~Confirm a branch switch?~~ **Decided by the owner (2026-11-18):** the default stands. Confirm only
    when the working tree has changes; a clean switch happens at once, as in Rider and VS Code.
 5. ~~Where do git failures show?~~ **Decided by the owner (2026-11-18), differs from the default:** every
-   git failure shows as a toast, like successes. `04-history.md` (and any area quoting the in-view error
-   notice) must change; the designer has to reconsider how a toast carries the failure details, since
-   toasts close after 5 s and cannot hold buttons.
+   git failure shows as a toast, like successes. Error toasts stay open until dismissed and carry a
+   "Details" button (git's full message) and a close button; success toasts still close after 5 seconds.
+   `04-history.md` line 151 (failures to the H6 operation banner or W1's ACTIVITY row), line 185 (H6 "operation
+   failed" row), lines 584-586 (deviation 4, "error notice in H6 (dismissible, with Details)") and
+   `mockups/studio-screens.html` line 565 (the question's old default) must change to this toast behaviour.
+   - *Applied (designer, 2026-11-18):* `04-history.md` (H5 results, H6, H12, deviation 4),
+     `00-design-principles.md` §3 "Toasts" (error toasts stay, Details, one action) and the mock-up.
 
 ## Area 05 — snapshots
 
@@ -44,6 +48,9 @@ answer that differs means the named file is changed, nothing else.
    **"Rider Day"** (dark: "Rider Night"); neither "Rider Light" nor "IntelliJ Light" is the official Rider name.
    JetBrains IDEs from 2025.3 default to an "Islands" look ("Islands Light"), which Rider's page does not
    mention. The designer and plan 02 must check the palette against the installed Rider before renaming.
+   - *Applied (designer, 2026-11-18):* the installed Rider 2026.2 ships both "Rider Day" (new UI) and
+     "Rider Light" (classic UI); the label is "Rider Day", tokens from `RiderDay.theme.json`
+     (`02-themes.md`, T1 and deviation 1).
 10. ~~**Panel edges on dark.** *Default:* add a `base-300` border to the explorer and inspector edges
     (`02-themes.md`, proposed change 1), because their shadow vanishes on a dark map.~~ **Decided by the
     owner (2026-11-18), pending the designer's check:** "Look at how Zed or Rider do it and copy that."
@@ -55,6 +62,11 @@ answer that differs means the named file is changed, nothing else.
     divider line is unverified. The designer must check both installed apps and align `02-themes.md`
     proposed change 1; a themed border line is consistent with the `base-300` default, rounded gapped
     panels would differ from it and must be stated.
+    - *Applied (designer, 2026-11-18):* checked the installed Rider 2026.2 Islands theme files
+      (10 px radius, 6 px gaps, no border lines; Zed's compiled-in themes could not be read). The design
+      copies Rider's islands: explorer and inspector float as rounded panels 6 px from the edges, tiled
+      panes sit on a darker backdrop with 6 px gaps. This differs from the `base-300` default, as stated
+      in `02-themes.md` proposed change 1.
 
 ## Area 01 — desktop tools
 

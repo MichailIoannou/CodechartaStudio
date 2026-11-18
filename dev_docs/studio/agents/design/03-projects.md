@@ -149,8 +149,8 @@ FOLDERS OF THIS PROJECT                                   [＋ Add folder…]
 ```
 
 - Title `text-2xl font-bold`, description `text-base-content/70`, "Manage project…" `btn btn-sm`.
-- Two cards side by side (`grid md:grid-cols-2 gap-4`; stacked below 768 px), `rounded-box border
-  border-base-300 p-4`, header in the explorer header style. Label/value rows
+- Two cards side by side (`grid md:grid-cols-2 gap-1.5`; stacked below 768 px) on the page's
+  `bg-base-200` backdrop, each an island `rounded-[10px] bg-base-100 p-4` without border lines, header in the explorer header style. Label/value rows
   `grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm`, labels `text-base-content/60`.
 - **Working folder card**: label + role badge; path `font-mono text-xs` + "Show in files"
   (`fa-regular fa-folder-open`, reveal); Branch (detached: "detached at a1b2c3d"); Upstream with

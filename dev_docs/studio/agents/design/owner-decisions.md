@@ -66,7 +66,8 @@ the ui, it should ask for the data from the core and re-draw the various ui elem
 without restart, also it should be able to handle the core going offline/online without closing itself".
 
 **Confirmation (owner, follow-up).** Changing the store folder asks for **no** yes/no confirmation:
-"Change…" goes straight to the folder picker; the core switches and the UI redraws.
+"Change…" goes straight to the folder picker; the core switches and the UI redraws. "Use default
+folder" has no confirmation either: it switches at once.
 
 **What exists today (found in the files).** Plan 01 §shell already respawns the core with backoff
 0.5/1/2/4/8 s, state `restarting`, `unavailable` after five failures in 60 s, `restartCore()`, and
@@ -91,9 +92,9 @@ settings, doctor; the shell lifecycle and the D4 panel) and 03-M1 (next: store c
 | 03 | renderer `ProjectsService` / `projectsBoot` | on the store-changed notification and on core reconnect: reload projects, working folder, shown snapshot and redraw the map; guess: the previous selection is kept only if it exists in the new store |
 | 03 | M6 manual verification ("Change… to an empty folder copies the store and restarts into the same project") and M1 acceptance wording "restart, land in the same project" (that one is a real app restart and stays) | the first becomes "copies the store and the UI shows the same project without restarting" |
 | 03 | M6 step 6 changelog "Store folder" | no restart wording (none present today; keep it so) |
-| design 01 | D3 "Store folder" — drop the confirmation step too: no "Change Store Folder" yes/no before the picker, and no yes/no before "Use default" (guess for the latter: same reasoning); remove ("…and restarts; …Continue?", "Copying the store — CodeCharta restarts when it is done.", "Use the default store folder '<path>'? CodeCharta restarts.") | remove every "restarts" sentence; while copying keep the button `loading` with "Copying the store…"; after success a success toast and the rows show the new path |
+| design 01 | D3 "Store folder" — drop the confirmation step too: no "Change Store Folder" yes/no before the picker, and no yes/no before "Use default" either (confirmed by the owner, 2026-11-18: it switches at once); remove ("…and restarts; …Continue?", "Copying the store — CodeCharta restarts when it is done.", "Use the default store folder '<path>'? CodeCharta restarts.") | remove every "restarts" sentence; while copying keep the button `loading` with "Copying the store…"; after success a success toast and the rows show the new path |
 | design 01 | Deviations item 2 ("Confirm before changing the store folder") | delete: decided, no confirmation (open question 11) |
-| design 01 | D4 core state table | add an app-wide offline presentation (guess: a slim banner or status element, not only the tools panel) with wording for offline, reconnecting and back online; keep "Restart core" button; define what each core-backed area shows meanwhile (guess: last known data, actions disabled) |
+| design 01 | D4 core state table | add an app-wide offline presentation (owner-confirmed 2026-11-18): a persistent toast of the same kind as the stale notice (`05-snapshots.md` S2: `cc-toast` persistent slot, first in the stack below the nav bar, `alert shadow-lg text-sm w-96`, `alert-warning`/`alert-info` tone, `role="status"`, never closes on a timer; `00-design-principles.md` §3 "Toasts"), which stays until the core is back and then becomes a short ordinary "back online" toast; wording for offline, reconnecting and back online is still for the designer; keep "Restart core" button; define what each core-backed area shows meanwhile (guess: last known data, actions disabled) |
 | design 00 / other design files | (not read in full) | any screen that assumes core data is always present needs an offline state; flag for the designer |
 
 ## OD2a — The workspace status has a fixed width (2026-11-18)
@@ -133,3 +134,26 @@ only by its dismiss button or when the situation resolves. While an analysis run
 and Cancel; the progress itself stays in the workspace status. Plan impact: plan 05's
 `cc-snapshot-notice` placement (`fixed … z-[70]` under the nav bar) is replaced by projection into
 `cc-toast` (`<ng-content />` added to `features/shared/components/toast/toast.component.html`).
+
+## OD10 — No theme control in the nav bar (2026-11-18)
+
+Neither a theme picker nor a quick light/dark toggle sits in the top nav bar; choosing a theme happens
+only in the Settings (Global Configuration dialog). Supersedes the quick toggle (`02-themes.md` T2) and
+the assumption behind plan 02 open question 1. Plan impact (nothing below is edited by this entry):
+
+| File | Section | Change |
+| --- | --- | --- |
+| `design/02-themes.md:11,60` | table row T2, section "T2 Quick toggle" | Delete T2 (`cc-theme-quick-toggle`, nav bar before Settings) |
+| `design/00-design-principles.md:22` | web build elements | Theme picker only, no toggle |
+| `design/00-design-principles.md:32,60` | nav bar composition (right end) | Remove "gets the theme toggle"; right end is Settings only |
+| `design/00-design-principles.md:103` | Toasts | Drop "theme toggle" from what toasts used to cover |
+| `design/00-design-principles.md:205` | icon table | Remove the `fa-moon` / `fa-sun` row |
+| `design/journeys.md:134` | theme journey | Drop "theme toggle in the nav bar" |
+| `design/mockups/studio-screens.html:241` | OD8 table row | "covering the theme toggle and Settings" becomes "covering Settings"; check the nav bar mockups (265) for a toggle |
+| `design/STATUS.md:19` | 02-themes row | Drop "quick toggle" |
+| `02-themes.md:118,260` | file list, facade exports | Remove `themeQuickToggle` component and `ThemeQuickToggleComponent` export |
+| `02-themes.md:419` | nav bar section | Delete the nav bar bullet |
+| `02-themes.md:494,502-503` | M5 title and task 4 | Retitle "Editor color schemes"; delete task 4 and its commit |
+| `02-themes.md:561` | risks table | "or the quick toggle (M5)" removed; return to light via Settings only |
+| `progress/ORCHESTRATION.md:37` | 02-M5 row | Rename to "Editor schemes" |
+| `DESIGNER.md:54` | open design work | Drop "and the quick toggle" |

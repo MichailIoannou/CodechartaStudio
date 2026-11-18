@@ -13,7 +13,7 @@ Principles: `00-design-principles.md`. Desktop only. Mock-up: `mockups/studio-sc
 | H3 | History view frame | `cc-history-view` → `cc-git-history-panel` | new route `history` | metrics view (explorer left, inspector right) |
 | H4 | Toolbar | `cc-history-toolbar` | top of H3 | explorer search bar, `cc-mode-toggle` |
 | H5 | Contextual sync button | `cc-sync-button` | H4, W1, P3 | `join` split button, after Zed |
-| H6 | Problem and operation banners | `cc-git-problem-notice`, operation-state banner | under H4 | `explorerFocusBanner`, cluster explorer alert |
+| H6 | Problem notices and lasting-state banners (failures are toasts) | `cc-git-problem-notice`, operation-state banner | under H4 | `explorerFocusBanner`, cluster explorer alert |
 | H7 | Branches tree | `cc-branches-tree` | Log tab, left pane | `cc-sidebar-explorer` header and tree rows |
 | H8 | Commit list with graph | `cc-commit-list`, `cc-commit-row`, `cc-commit-graph-cell` | Log tab, centre | explorer rows, map-selector rows |
 | H9 | Commit details | `cc-commit-details` | Log tab, right pane | `cc-sidebar-inspector` |
@@ -75,7 +75,8 @@ metrics bar, no legend). Layout, all in-flow (not fixed panes):
 - Three panes, each with its own header in the explorer's header style. Each pane holds the controls
   that act on it: the branch filter sits in BRANCHES, the commit search and filters sit in COMMITS
   (H8), so nothing in the top toolbar filters a list.
-- Pane borders `border-r` / `border-l border-base-300`; widths via `ccColumnResizeHandle`
+- Panes are **islands** (`02-themes.md` proposed change 1): the view body is `bg-base-200 p-1.5 gap-1.5`,
+  each pane `rounded-[10px] bg-base-100 overflow-hidden`, no border lines; widths via `ccColumnResizeHandle`
   (double-click resets, arrow keys move, as the explorer). Widths remembered in
   `codeChartaHistoryLayout`.
 - Both side panes collapse like the explorer: header button `btn btn-ghost btn-xs btn-square`
@@ -148,8 +149,9 @@ running:         [ ◌ Pulling 45 % | ■ ]     progress fill as W1; caret becom
   the button appears in W1's dropdown and on the project overview.
 - **Results**: toast (success) "Fetched 3 updated refs", "Already up to date", "Pulled 3 commits",
   "Pushed 2 commits to origin/feature/x", "Published 'feature/x' to origin"; the button relabels from the
-  new status. Failures go to the operation banner (H6) in History, or to W1's ACTIVITY row when started
-  elsewhere.
+  new status. **Failures are error toasts** (owner decision, open question 5): they stay until dismissed
+  and carry "Details" (git's full message) plus, where the sentence table names one, a follow-up
+  action ("Pull", "Fetch", "Publish branch"). See principles §3 "Toasts".
 - Narrow (< 1280 px): the label hides, icon and counts stay; the title is unchanged.
 
 **Data.** `GitRepositoryService.status()` (`head`, `upstream.ahead/behind/isGone`), `refs()`;
@@ -182,10 +184,15 @@ Copy blocks: `font-mono text-xs bg-base-200 rounded-md px-2 py-1` with a
 | merge in progress | warning | "Merging into 'main'. Resolve the conflicts in your editor, stage the files, then commit. 2 files have conflicts." | "Abort merge…", "Refresh" |
 | rebase in progress | warning | "Rebasing 'feature/x'. Resolve the conflicts in your editor, stage the files, then continue the rebase in a terminal." | "Abort rebase…", "Refresh" |
 | other operation (cherry-pick, revert, bisect) | warning | "A <cherry-pick> is in progress. Finish or abort it in a terminal." | "Refresh" |
-| operation failed | error | the `gitErrorText` sentence (below) | "Details" (`<details>` showing `detail` verbatim, `font-mono text-xs whitespace-pre-wrap max-h-40 overflow-auto`), dismiss |
 | first page timed out | warning | "The history took too long to load. Running `git commit-graph write --reachable` in the repository makes it faster." | "Retry", copy command |
 
-**Error sentences** (`util/gitErrorText.ts`, one per code; `<…>` filled from the error):
+Failed git operations are **not** shown here; they are error toasts (below and principles §3).
+
+**Error sentences** (`util/gitErrorText.ts`, one per code; `<…>` filled from the error). Every failed
+git operation shows its sentence as an **error toast** (owner decision, open question 5): it stays
+until dismissed, has a "Details" button that expands git's verbatim `detail` inside the toast
+(`font-mono text-xs whitespace-pre-wrap max-h-40 overflow-auto`), the follow-up button named in the
+table (at most one), and the close button. Successes stay ordinary 5 s toasts.
 
 | Code | Sentence |
 |---|---|
@@ -481,8 +488,8 @@ H12 commit box
 - Amend checked with an empty box fills the last message; unchecking restores the draft. Amending a
   commit already on the upstream asks first (H15).
 - During a merge: `text-xs text-base-content/60` "This commit concludes the merge."
-- After success: box cleared, toast (success) "Committed a1b2c3d". Hook output on failure in the
-  operation banner.
+- After success: box cleared, toast (success) "Committed a1b2c3d". A failing hook gives an error
+  toast "A git hook stopped the commit." whose "Details" shows the hook's output.
 - Draft kept per repository (message only).
 
 ## H13 Diff view
@@ -581,10 +588,11 @@ the files, then commit. The stash is kept."
 3. **No folder select in History.** The working folder is chosen in the project menu (OD1); the
    toolbar names it, and `GitRepositoryService` follows `ProjectsService.workingFolder()` instead of
    keeping its own `selectFolder` state.
-4. **Mutating failures go to a banner, not a toast.** Plan: "toast with the sentence and Details".
-   `ToastService` has no actions and closes after 5 s, so "Details" and buttons like "Pull" cannot
-   live there. Failures show as an error notice in H6 (dismissible, with Details); successes stay
-   toasts.
+4. **Git failures are error toasts that stay until dismissed** (owner decision, open question 5), as
+   the plan says ("toast with the sentence and Details"). Because today's `ToastService` closes every
+   toast after 5 s and has no buttons, it gains error toasts that do not time out, a "Details"
+   expansion and one optional action (principles §3 "Toasts"). The H6 banners keep only lasting states
+   (merge or rebase in progress, shallow clone, slow first page).
 5. **Switch confirmation only when dirty.** Plan quotes the switch sentence without a condition. A
    confirmation on a clean switch has nothing to warn about; the sentence is shown only when there are
    changed files.

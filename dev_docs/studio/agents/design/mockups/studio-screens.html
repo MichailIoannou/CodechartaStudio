@@ -82,7 +82,7 @@ section { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .city { position: absolute; left: 40%; top: 42%; display: grid; grid-template-columns: repeat(9, 22px); gap: 6px; transform: skewX(-18deg) rotate(-6deg); opacity: .7; }
 .city i { display: block; height: 22px; border-radius: 2px; background: #5c6878; }
 .city i:nth-child(3n) { background: #c4705a; } .city i:nth-child(5n) { background: #6fb37a; }
-.explorer { position: absolute; left: 0; top: 0; bottom: 0; width: 220px; background: var(--app-100); border-right: 1px solid var(--app-300); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.explorer { position: absolute; left: 6px; top: 6px; bottom: 6px; width: 220px; background: var(--app-100); border-radius: 10px; box-shadow: 0 8px 22px #0008; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 .seg { display: flex; border: 1px solid var(--app-300); border-radius: 6px; overflow: hidden; font-size: 12px; }
 .seg span { flex: 1; text-align: center; padding: 3px 0; display: inline-flex; gap: 5px; align-items: center; justify-content: center; }
 .seg .on { background: var(--app-200); font-weight: 600; }
@@ -108,8 +108,8 @@ section { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .screen-wrap.fit > .screen { width: 1600px; min-width: 0; }
 /* history */
 .toolbar { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--app-300); white-space: nowrap; }
-.hist { display: grid; grid-template-columns: 230px minmax(0,1fr) 330px; height: 390px; }
-.pane { border-right: 1px solid var(--app-300); overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.hist { display: grid; grid-template-columns: 230px minmax(0,1fr) 330px; height: 402px; gap: 6px; padding: 6px; background: #15191e; }
+.pane { background: var(--app-100); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 .pane:last-child { border-right: 0; }
 .phead { display: flex; align-items: center; gap: 8px; padding: 8px; }
 .ph { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; color: var(--app-mute); }
@@ -219,7 +219,7 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
 <div class="wrap">
 
 <header style="display:flex;flex-direction:column;gap:14px">
-  <span class="eyebrow">CodeCharta Studio · design review · revision 7 · 18 Nov 2026</span>
+  <span class="eyebrow">CodeCharta Studio · design review · revision 8 · 18 Nov 2026</span>
   <h1>Studio Interface Design</h1>
   <p class="lede">How the CodeCharta screen changes in the desktop app. This revision follows your decision: a project groups folders, you work in one folder at a time, and one status element shows branch, map and running work.</p>
   <div class="status">
@@ -230,7 +230,7 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
 </header>
 
 <section>
-  <span class="eyebrow">Your feedback, revisions 3 to 7</span>
+  <span class="eyebrow">Your feedback, revisions 3 to 8</span>
   <h2>What changed</h2>
   <div class="tbl"><table>
     <thead><tr><th>You asked</th><th>Now</th></tr></thead>
@@ -474,6 +474,7 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
         <div class="center"><span class="btn">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn sel">History</span></div>
         <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
       </div>
+      <div style="position:absolute;top:64px;right:16px;width:384px;z-index:6;padding:10px 12px;border-radius:10px;background:var(--app-err);color:#2b0606;box-shadow:0 6px 18px #0008;font-size:13px;display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:10px;align-items:flex-start"><i class="fa-solid fa-circle-xmark" style="margin-top:2px"></i><span style="flex:1">The remote has commits you do not have. Pull first, then push.</span><i class="fa-solid fa-xmark" style="opacity:.7;margin-top:2px"></i></div><div style="display:flex;justify-content:flex-end;gap:6px"><span class="btn sm" style="border:1px solid #2b060655;color:#2b0606">Details</span><span class="btn sm" style="background:#2b0606;color:var(--app-err)"><i class="fa-solid fa-arrow-down fa-fw"></i>Pull</span></div></div>
       <div class="toolbar">
         <span class="mute" style="font-size:12px">Repository</span>
         <b style="font-weight:600;display:inline-flex;gap:6px;align-items:center"><i class="fa-solid fa-code-branch"></i>billing-api</b>
@@ -539,7 +540,7 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
       </div>
     </div>
   </div>
-  <p class="cap">The rows show a real history: "Release 2.4.0" on main (orange line) is merged into the feature branch (blue line) by the merge row, and both lines start from "Start the invoice module". Here a pull is running. Only the status element at the top animates; the sync button just says "Pulling…" and offers Cancel, and the commit list shows "42 %" as plain text.</p>
+  <p class="cap">The rows show a real history: "Release 2.4.0" on main (orange line) is merged into the feature branch (blue line) by the merge row, and both lines start from "Start the invoice module". An error toast (top right) shows a rejected push: it stays until dismissed, with Details and a Pull button. The panes are islands: rounded, with 6 px gaps and no divider lines, as in Rider. A pull is also running. Only the status element at the top animates; the sync button just says "Pulling…" and offers Cancel, and the commit list shows "42 %" as plain text.</p>
 </section>
 
 
@@ -558,19 +559,22 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
 </section>
 
 <section>
-  <span class="eyebrow">Still your call</span>
-  <h2>Open questions, with the default applied</h2>
-  <div class="qs">
-    <div class="q"><span class="n">4</span><span class="area-l">History</span><b>Confirm every branch switch?</b><span class="def"><b>Default:</b> only with uncommitted changes.</span></div>
-    <div class="q"><span class="n">5</span><span class="area-l">History</span><b>Where do git failures show?</b><span class="def"><b>Default:</b> in History with Details, or in the status element's Activity list; successes as toasts.</span></div>
-    <div class="q"><span class="n">6</span><span class="area-l">Snapshots</span><b>Does selecting a commit change the map?</b><span class="def"><b>Default:</b> no, only "Show in map" or "Show commit…".</span></div>
-    <div class="q"><span class="n">7</span><span class="area-l">Snapshots</span><b>Stale notice in History too?</b><span class="def"><b>Default:</b> no; the details pane says it per commit.</span></div>
-    <div class="q"><span class="n">8</span><span class="area-l">Compare</span><b>A Compare button in the nav bar?</b><span class="def"><b>Default:</b> no; the existing Compare tab opens the dialog.</span></div>
-    <div class="q"><span class="n">9</span><span class="area-l">Themes</span><b>"IntelliJ Light" or "Rider Light"?</b><span class="def"><b>Default:</b> "IntelliJ Light", as plan 02 has it.</span></div>
-    <div class="q"><span class="n">10</span><span class="area-l">Themes</span><b>Border on explorer and inspector edges?</b><span class="def"><b>Default:</b> yes; their shadow disappears on a dark map.</span></div>
-    <div class="q"><span class="n">11</span><span class="area-l">Desktop tools</span><b>Confirm before moving the store folder?</b><span class="def"><b>Default:</b> yes, because the app restarts.</span></div>
-  </div>
-  <p class="cap">Questions 1–3 (folders) are settled by your decision.</p>
+  <span class="eyebrow">Your answers</span>
+  <h2>Every open question is answered</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>Question</th><th>Your answer, as applied</th></tr></thead>
+    <tbody>
+      <tr><td>1–3</td><td>Folders side by side, active folder</td><td>One working folder at a time, chosen in the project menu</td></tr>
+      <tr><td>4</td><td>Confirm a branch switch?</td><td>Only with uncommitted changes</td></tr>
+      <tr><td>5</td><td>Where do git failures show?</td><td>As error toasts that stay until dismissed, with Details and one follow-up action (for example Pull). Successes close after 5 s</td></tr>
+      <tr><td>6</td><td>Does selecting a commit change the map?</td><td>No; "Show in map" or "Show commit…" does</td></tr>
+      <tr><td>7</td><td>Stale notice in History?</td><td>No; it shows over the map views as a persistent toast</td></tr>
+      <tr><td>8</td><td>Compare button in the nav bar?</td><td>No; the existing Compare tab opens the dialog</td></tr>
+      <tr><td>9</td><td>Light theme name</td><td>"Rider Day". Your installed Rider 2026.2 ships both "Rider Day" (new UI) and "Rider Light" (classic UI); Studio follows the new UI</td></tr>
+      <tr><td>10</td><td>Panel edges</td><td>Copied from Rider 2026.2's Islands theme (read from its theme files): rounded panels (10 px radius) with 6 px gaps and no divider lines. Zed's themes are compiled into its binary, so its panels couldn't be checked the same way</td></tr>
+      <tr><td>11</td><td>Confirm before moving the store folder?</td><td>No confirmation and no restart; the app redraws, and it survives the core going offline</td></tr>
+    </tbody>
+  </table></div>
 </section>
 
 </div>

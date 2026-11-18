@@ -167,6 +167,8 @@ ACTIVITY                                              [Clear finished]
   analysis" / "Cancel the pull"), Open, Show log (S9), Retry. Batches group under a collapsible line
   with "7 of 20 done" and "Cancel batch". "Clear finished" in the header. Many rows: section
   `max-h-60 overflow-y-auto`.
+- A failed git operation or analysis also raises an error toast (principles §3); the ACTIVITY row stays
+  until "Clear finished".
 - Footer: `btn btn-ghost btn-sm` "Project overview" (`fa-circle-info`) → area 03 P3.
 
 **States.**
