@@ -32,7 +32,8 @@ export const CORE_ERROR_CODES = [
     "PROTOCOL_MISMATCH",
     "CORE_UNAVAILABLE",
     "INTERNAL",
-    "STORE_NEWER_SCHEMA"
+    "STORE_NEWER_SCHEMA",
+    "STORE_LOCKED"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {

@@ -15,3 +15,4 @@ export type ErrorCode =
     | "CORE_UNAVAILABLE"
     | "INTERNAL"
     | "STORE_NEWER_SCHEMA"
+    | "STORE_LOCKED"

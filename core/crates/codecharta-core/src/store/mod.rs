@@ -1,8 +1,8 @@
 pub mod atomic;
+pub mod lock;
 pub mod paths;
 mod sweep;
 
-use std::fs;
 use std::path::Path;
 use std::time::SystemTime;
 
@@ -11,6 +11,7 @@ use serde_json::Value;
 
 use crate::error::{CoreError, CoreResult};
 use atomic::{ProjectLocks, read_json_if_exists, write_json_atomic};
+use lock::StoreLock;
 use paths::StorePaths;
 
 pub const STORE_SCHEMA_VERSION: u32 = 1;
@@ -44,28 +45,48 @@ struct NewStoreFile {
 #[derive(Debug)]
 pub struct Store {
     paths: StorePaths,
+    lock: Option<StoreLock>,
     project_locks: ProjectLocks,
 }
 
 impl Store {
+    /// Opens the store for writing: takes the store lock, creates, sweeps and migrates.
     pub fn open(root: &Path) -> CoreResult<Self> {
         Self::open_with_schema(root, &CURRENT_SCHEMA)
     }
 
+    /// Opens the store for reading only: no lock, nothing is created or changed on disk.
+    pub fn open_read_only(root: &Path) -> CoreResult<Self> {
+        let paths = StorePaths::new(root.to_path_buf());
+        let store_file = paths.store_file();
+        if let Some(content) = read_json_if_exists::<Value>(&store_file)? {
+            let version = schema_version_of(&store_file, &content)?;
+            ensure_readable(version, STORE_SCHEMA_VERSION)?;
+            ensure_migrated(root, version)?;
+        }
+        Ok(Self::new(paths, None))
+    }
+
     fn open_with_schema(root: &Path, schema: &Schema) -> CoreResult<Self> {
-        fs::create_dir_all(root).map_err(|source| CoreError::Io {
-            context: format!("Could not create the store folder {}", root.display()),
-            source,
-        })?;
+        let lock = StoreLock::acquire(root)?;
         let paths = StorePaths::new(root.to_path_buf());
         let version = read_or_create_schema_version(&paths, schema.version)?;
         ensure_readable(version, schema.version)?;
         sweep::sweep_leftovers(&paths)?;
         run_migrations(&paths, version, schema.migrations)?;
-        Ok(Self {
+        Ok(Self::new(paths, Some(lock)))
+    }
+
+    fn new(paths: StorePaths, lock: Option<StoreLock>) -> Self {
+        Self {
             paths,
+            lock,
             project_locks: ProjectLocks::default(),
-        })
+        }
+    }
+
+    pub fn is_writable(&self) -> bool {
+        self.lock.is_some()
     }
 
     pub fn paths(&self) -> &StorePaths {
@@ -115,6 +136,16 @@ fn ensure_readable(version: u64, supported: u32) -> CoreResult<()> {
     Ok(())
 }
 
+fn ensure_migrated(root: &Path, version: u64) -> CoreResult<()> {
+    if version < u64::from(STORE_SCHEMA_VERSION) {
+        return Err(CoreError::Conflict(format!(
+            "The store at {} needs an upgrade; open it in the app once.",
+            root.display()
+        )));
+    }
+    Ok(())
+}
+
 fn run_migrations(paths: &StorePaths, version: u64, migrations: &[Migration]) -> CoreResult<()> {
     for migration in migrations
         .iter()
@@ -137,6 +168,8 @@ fn write_schema_version(paths: &StorePaths, version: u32) -> CoreResult<()> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use serde_json::json;
 
     use super::*;

@@ -30,7 +30,7 @@ codes need an `ErrorCode` variant, `ErrorCode::ALL`, a `CoreError` variant and i
 - [x] 1. Paths and ids
 - [x] 2. Atomic writes
 - [x] 3. Open, migrations, sweep
-- [ ] 4. Lock
+- [x] 4. Lock
 - [ ] 5. Session
 - [ ] 6. store.status and degraded serve
 
@@ -90,4 +90,18 @@ compiles the `cfg(windows)` code; nothing ran on Windows.
   as ids, so nothing a user put into a chosen store folder is deleted. Symbolic links are not followed.
   `StorePaths::project_snapshots_dir` was added for it.
 - `Store` also owns the `ProjectLocks` (`project_locks()`), for M2.
+
+### 4. Lock
+- New error code `STORE_LOCKED` (appended; `ErrorCode::ALL` now 15; `CoreError::StoreLocked { store_root }`).
+  `CONFLICT` was not reused: the plan, `StoreProblemCode` and the UI need to tell this case apart.
+- `store/lock.rs`: `StoreLock::acquire(root)` creates the root, opens `.lock` (create, write, no truncate)
+  and calls std `File::try_lock`; `WouldBlock` is `STORE_LOCKED`, anything else `IO`. The `File` is the
+  guard; dropping it (or the process ending) releases the lock. No `fs4`.
+- `Store::open` takes the lock first, before `store.json` is read or created; `Store::open_read_only(root)`
+  takes no lock and writes nothing: it only checks `schemaVersion` when `store.json` exists (newer is
+  `STORE_NEWER_SCHEMA`, older than current is `CONFLICT` "needs an upgrade; open it in the app once", which
+  cannot happen while `MIGRATIONS` is empty). `Store::is_writable()` tells the two apart.
+- Two-process tests in `codecharta-core/tests/store_lock.rs`: the second process is `cc-fake-tool
+  hold-store-lock <root>` (new mode: takes `StoreLock`, prints `locked`, holds until stdin closes).
+  Linux uses `flock`; Windows (`LockFileEx`) is not verified here.
 
