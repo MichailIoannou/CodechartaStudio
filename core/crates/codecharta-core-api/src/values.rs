@@ -5,6 +5,13 @@ use ts_rs::TS;
 
 pub const FULL_COMMIT_LENGTH: usize = 40;
 pub const SHORTEST_COMMIT_HASH_LENGTH: usize = 7;
+pub const PICK_TOKEN_LENGTH: usize = 32;
+pub const MAX_LABEL_CHARS: usize = 60;
+pub const MAX_PROJECT_NAME_CHARS: usize = 80;
+pub const MAX_DESCRIPTION_CHARS: usize = 500;
+pub const MAX_EXCLUDE_PATTERN_CHARS: usize = 200;
+const LABEL_FORBIDDEN_CHARACTERS: [char; 3] = ['/', '\\', ':'];
+const LINE_BREAKS: [char; 2] = ['\n', '\r'];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InvalidValue {
@@ -33,6 +40,35 @@ fn is_full_commit(value: &str) -> bool {
 
 fn is_commit_hash(value: &str) -> bool {
     is_lowercase_hex(value, SHORTEST_COMMIT_HASH_LENGTH..=FULL_COMMIT_LENGTH)
+}
+
+fn is_pick_token(value: &str) -> bool {
+    is_lowercase_hex(value, PICK_TOKEN_LENGTH..=PICK_TOKEN_LENGTH)
+}
+
+fn has_chars(value: &str, counts: std::ops::RangeInclusive<usize>) -> bool {
+    counts.contains(&value.chars().count())
+}
+
+fn is_label(value: &str) -> bool {
+    has_chars(value, 1..=MAX_LABEL_CHARS)
+        && !value.chars().any(|character| {
+            character.is_control() || LABEL_FORBIDDEN_CHARACTERS.contains(&character)
+        })
+}
+
+fn is_project_name(value: &str) -> bool {
+    has_chars(value, 1..=MAX_PROJECT_NAME_CHARS)
+        && !value.trim().is_empty()
+        && !value.chars().any(char::is_control)
+}
+
+fn is_description(value: &str) -> bool {
+    has_chars(value, 0..=MAX_DESCRIPTION_CHARS)
+}
+
+fn is_exclude_pattern(value: &str) -> bool {
+    has_chars(value, 1..=MAX_EXCLUDE_PATTERN_CHARS) && !value.contains(LINE_BREAKS)
 }
 
 /// A text value checked while it is deserialised, so a handler never sees an invalid one. The rule text
@@ -101,6 +137,28 @@ validated_text!(
     "use 7 to 40 lowercase hexadecimal digits of a commit"
 );
 
+validated_text!(PickToken, is_pick_token, "use the token the pick answered");
+
+validated_text!(
+    Label,
+    is_label,
+    "use 1 to 60 characters without /, \\, : or control characters"
+);
+
+validated_text!(
+    ProjectName,
+    is_project_name,
+    "use 1 to 80 characters, not only spaces, without control characters"
+);
+
+validated_text!(Description, is_description, "use at most 500 characters");
+
+validated_text!(
+    ExcludePattern,
+    is_exclude_pattern,
+    "use 1 to 200 characters without line breaks"
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,6 +200,45 @@ mod tests {
         // Assert
         assert_eq!(accepted, vec![false; candidates.len()]);
         assert!(CommitHash::try_from("abcdef0").is_ok());
+    }
+
+    #[test]
+    fn should_reject_a_label_containing_a_path_separator_at_deserialisation() {
+        // Arrange
+        let candidates = [
+            json!("src/main"),
+            json!("src\\main"),
+            json!("C:"),
+            json!("tab\there"),
+            json!(""),
+            json!("x".repeat(MAX_LABEL_CHARS + 1)),
+        ];
+
+        // Act
+        let rejected: Vec<bool> = candidates
+            .into_iter()
+            .map(|candidate| serde_json::from_value::<Label>(candidate).is_err())
+            .collect();
+
+        // Assert
+        assert_eq!(rejected, vec![true; rejected.len()]);
+        assert!(serde_json::from_value::<Label>(json!("codecharta fork 2")).is_ok());
+    }
+
+    #[test]
+    fn should_reject_a_blank_project_name_and_a_long_description() {
+        // Arrange
+        let long_description = "x".repeat(MAX_DESCRIPTION_CHARS + 1);
+
+        // Act
+        let blank = ProjectName::try_from("   ");
+        let long = Description::try_from(long_description);
+        let empty = Description::try_from("");
+
+        // Assert
+        assert!(blank.is_err());
+        assert!(long.is_err());
+        assert!(empty.is_ok());
     }
 
     #[test]

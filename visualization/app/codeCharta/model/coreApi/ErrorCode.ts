@@ -16,3 +16,4 @@ export type ErrorCode =
     | "INTERNAL"
     | "STORE_NEWER_SCHEMA"
     | "STORE_LOCKED"
+    | "TOKEN_EXPIRED"

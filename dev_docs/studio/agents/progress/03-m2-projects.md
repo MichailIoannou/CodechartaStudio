@@ -41,7 +41,7 @@ store API of `03-m1-store-core.md` apply. Git fixtures go in `tests/support/git_
 
 - [x] 1. Relationships
 - [x] 2. Fixture and inspector
-- [ ] 3. Pick tokens
+- [x] 3. Pick tokens
 - [ ] 4. Repository
 - [ ] 5. Folder operations
 - [ ] 6. JSON-RPC
@@ -94,3 +94,19 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0, nod
 - Extra tests: `should_report_no_root_commits_for_a_shallow_clone`, `should_read_the_fields_of_a_shown_commit`,
   `should_refuse_a_commit_hash_that_could_be_an_option`. The stub-runner test is a unit test.
 
+
+### 3. Pick tokens
+- Api `values.rs`: `PickToken` (32 lowercase hex), `Label` (1-60 characters, none of `/ \ :` or control
+  characters), `ProjectName` (1-80, not blank, no control characters), `Description` (0-500; empty clears
+  it), `ExcludePattern` (1-200, no line breaks). `methods/projects.rs`: `FolderRole`, `AnalyserName`
+  (lowercase, the six of the plan), `AnalysisProfile` (`deny_unknown_fields`, at most 50 patterns through
+  `deserialize_with`, default `{ exclude: [], without: [], parallel: true }`), `NewFolder`.
+- New error code `TOKEN_EXPIRED` (appended; `ErrorCode::ALL` now 16; `CoreError::TokenExpired { what }`,
+  "folder" or "file"); contract regenerated (`ErrorCode.ts`, `CORE_ERROR_CODES`).
+- `ids.rs`: `new_token()` (16 random bytes as hex). `projects/tokens.rs`: `PickTokens` with
+  `issue_folder`, `issue_file`, `take_folder`, `take_file`, `take_folders` (all or nothing) and
+  `give_back`. **Deviation in shape, not in rule:** the plan's "consumed on first successful use" is
+  `take_*` before the use and `give_back` after a failed one, so two concurrent uses of one token can never
+  both succeed. A token of the wrong kind, an unknown or an expired one is `TOKEN_EXPIRED`. Lifetime
+  `PICK_TOKEN_LIFETIME` = 15 min (`with_lifetime` for tests); expired entries are dropped whenever a new
+  token is issued. Tokens live only in the serving process's memory.

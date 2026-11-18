@@ -21,10 +21,11 @@ pub enum ErrorCode {
     Internal,
     StoreNewerSchema,
     StoreLocked,
+    TokenExpired,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 15] = [
+    pub const ALL: [ErrorCode; 16] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -40,6 +41,7 @@ impl ErrorCode {
         ErrorCode::Internal,
         ErrorCode::StoreNewerSchema,
         ErrorCode::StoreLocked,
+        ErrorCode::TokenExpired,
     ];
 }
 

@@ -34,7 +34,8 @@ export const CORE_ERROR_CODES = [
     "CORE_UNAVAILABLE",
     "INTERNAL",
     "STORE_NEWER_SCHEMA",
-    "STORE_LOCKED"
+    "STORE_LOCKED",
+    "TOKEN_EXPIRED"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {

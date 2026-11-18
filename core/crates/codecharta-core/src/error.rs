@@ -39,6 +39,8 @@ pub enum CoreError {
     StoreNewerSchema { found: u64, supported: u32 },
     #[error("Another CodeCharta process is using the store at {store_root}.")]
     StoreLocked { store_root: String },
+    #[error("The choice has expired or was used already; choose the {what} again.")]
+    TokenExpired { what: &'static str },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;
@@ -59,6 +61,7 @@ impl CoreError {
             CoreError::Internal(_) => ErrorCode::Internal,
             CoreError::StoreNewerSchema { .. } => ErrorCode::StoreNewerSchema,
             CoreError::StoreLocked { .. } => ErrorCode::StoreLocked,
+            CoreError::TokenExpired { .. } => ErrorCode::TokenExpired,
         }
     }
 
@@ -146,6 +149,10 @@ mod tests {
                     store_root: "/data/store".into(),
                 },
                 ErrorCode::StoreLocked,
+            ),
+            (
+                CoreError::TokenExpired { what: "folder" },
+                ErrorCode::TokenExpired,
             ),
         ]
     }

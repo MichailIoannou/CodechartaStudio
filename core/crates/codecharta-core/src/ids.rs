@@ -1,25 +1,32 @@
 use std::fmt::Write;
 
 use codecharta_core_api::ids::{FolderId, ProjectId};
+use codecharta_core_api::values::{PICK_TOKEN_LENGTH, PickToken};
 
 use crate::error::{CoreError, CoreResult};
 
 const PROJECT_ID_PREFIX: &str = "p-";
 const FOLDER_ID_PREFIX: &str = "f-";
 const RANDOM_ID_BYTES: usize = 8;
+const HEX_DIGITS_PER_BYTE: usize = 2;
 
 pub fn new_project_id() -> CoreResult<ProjectId> {
-    let id = random_id(PROJECT_ID_PREFIX)?;
+    let id = random_hex(PROJECT_ID_PREFIX, RANDOM_ID_BYTES)?;
     ProjectId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
 }
 
 pub fn new_folder_id() -> CoreResult<FolderId> {
-    let id = random_id(FOLDER_ID_PREFIX)?;
+    let id = random_hex(FOLDER_ID_PREFIX, RANDOM_ID_BYTES)?;
     FolderId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
 }
 
-fn random_id(prefix: &str) -> CoreResult<String> {
-    let mut bytes = [0u8; RANDOM_ID_BYTES];
+pub fn new_token() -> CoreResult<PickToken> {
+    let token = random_hex("", PICK_TOKEN_LENGTH / HEX_DIGITS_PER_BYTE)?;
+    PickToken::try_from(token).map_err(|error| CoreError::Internal(error.to_string()))
+}
+
+fn random_hex(prefix: &str, byte_count: usize) -> CoreResult<String> {
+    let mut bytes = vec![0u8; byte_count];
     getrandom::fill(&mut bytes).map_err(|error| CoreError::Io {
         context: "Could not generate a random id".to_string(),
         source: std::io::Error::other(error.to_string()),
@@ -33,8 +40,6 @@ fn random_id(prefix: &str) -> CoreResult<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    const HEX_DIGITS_PER_BYTE: usize = 2;
 
     #[test]
     fn should_accept_a_generated_id() {
@@ -64,6 +69,19 @@ mod tests {
         let second = new_project_id().unwrap();
 
         // Assert
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn should_generate_a_token_of_32_hex_digits() {
+        // Arrange
+        let first = new_token().unwrap();
+
+        // Act
+        let second = new_token().unwrap();
+
+        // Assert
+        assert_eq!(first.as_str().len(), PICK_TOKEN_LENGTH);
         assert_ne!(first, second);
     }
 }
