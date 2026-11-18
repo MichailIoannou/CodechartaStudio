@@ -46,6 +46,28 @@ test.describe("Theme", () => {
         await expect(themePicker.documentRoot()).toHaveAttribute("data-theme", "cc-light")
     })
 
+    test("should start in the saved light theme without a dark frame", async ({ page }) => {
+        // Arrange
+        const themePicker = new ThemePickerPageObject(page)
+        await goto(page)
+        await themePicker.pick("CodeCharta Light")
+        await expect.poll(() => readPersistedPreference(page, "theme"), { timeout: 30_000 }).toBe("cc-light")
+        await page.addInitScript(() => {
+            document.addEventListener("DOMContentLoaded", () => {
+                ;(window as unknown as { themeAtDomContentLoaded: string }).themeAtDomContentLoaded = document.documentElement.dataset.theme
+            })
+        })
+
+        // Act
+        await goto(page)
+
+        // Assert
+        const themeAtDomContentLoaded = await page.evaluate(
+            () => (window as unknown as { themeAtDomContentLoaded: string }).themeAtDomContentLoaded
+        )
+        expect(themeAtDomContentLoaded).toBe("cc-light")
+    })
+
     test("should follow the system when asked to", async ({ page }) => {
         // Arrange
         const themePicker = new ThemePickerPageObject(page)
