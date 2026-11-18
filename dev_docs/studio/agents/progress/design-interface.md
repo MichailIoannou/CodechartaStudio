@@ -1,6 +1,6 @@
 ---
 name: Studio interface design (designer agent)
-state: progress
+state: complete
 version: 1
 ---
 
@@ -30,8 +30,8 @@ Produce the interface design for plans 01–06 under `dev_docs/studio/agents/des
 - [x] Task 2: area 05 snapshots
 - [x] Task 2: area 06 compare
 - [x] Task 2: area 02 themes
-- [ ] Task 2: area 01 desktop tools
-- [ ] Task 3: open questions and STATUS kept current; `DESIGN COMPLETE` when all are ready
+- [x] Task 2: area 01 desktop tools
+- [x] Task 3: open questions and STATUS kept current; `DESIGN COMPLETE` when all are ready
 
 ## Notes
 
