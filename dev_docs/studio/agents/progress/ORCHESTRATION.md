@@ -24,8 +24,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 |---|---|---|---|---|---|
 | 01-M0 Spikes | spike | done (Linux); Windows/macOS items open for owner | owner hardware for S1/S2/S3/S4/S5 remainder | feature/studio-01-m0 | 977074f72 |
 | 01-M1 Core skeleton, protocol, contract, CI | core | done | — | feature/studio-01-m1 | c6b3d9a7f (merged 8688edb53) |
-| 01-M2 Process runner, tools, settings, doctor | core | in progress | — | feature/studio-01-m2 | — |
-| 01-M3 Electron shell | shell | todo | 01-M2 | feature/studio-01-m3 | — |
+| 01-M2 Process runner, tools, settings, doctor | core | done (Windows-only tests not yet run) | — | feature/studio-01-m2 | 5169e28c9 (merged a57c8e7e9) |
+| 01-M3 Electron shell | shell | in progress | — | feature/studio-01-m3 | — |
 | 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | todo | 01-M3 | feature/studio-01-m4 | — |
 | 01-M4.2 Desktop tools panel | UI | blocked | design 01-desktop-tools; 01-M4.1 | — | — |
 | 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
@@ -90,6 +90,11 @@ the milestone is started.
   (an exact pin made rustup download); workspace `resolver = "3"`; `serve` requires `--data-dir` until
   2.1; licences checked by a `cargo-deny` job in `test_core.yml` (not run locally); Rust prerequisite
   documented in `dev_docs/DEV_START_GUIDE.md` (root README has no prerequisites section).
+- 01-M2 (see `01-m2-runner-tools-settings.md`): no `directories` crate (pulls an MPL-2.0 crate that
+  `deny.toml` refuses); the core computes Electron's appData folder itself. `RunRequest` gains `tool`,
+  `ToolSource` gains `javaHome`; doctor CLI exit codes 0 ready / 1 not ready / 2 check failed.
+  Windows-only `.cmd` and job-object tests are `#[cfg(windows)]` and first run on the `windows-latest`
+  CI job; the job-object assignment race (S4) stays open.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -110,6 +115,8 @@ the milestone is started.
 5. Node 26 failure of `urlExtractor.spec.ts` (see above): fix the spec, or require Node 24 locally?
 
 ## Session log
+
+- 2026-11-18: 01-M2 verified (same gates, same Node 26 caveat) and merged; 01-M3 started (no visible UI: picker titles come from callers, core state is only an event).
 
 - 2026-11-18: 01-M1 verified (cargo fmt/clippy/test, contract drift, format, lint, tsc, npm test with the Node 26 caveat) and merged; 01-M2 started.
 - 2026-11-18: 02-M0 verified (format check green, notes read); plan 02 now waits only on design 02-themes.
