@@ -2,9 +2,11 @@ pub mod cache;
 pub mod command;
 pub mod error;
 pub mod failure;
+pub mod fingerprint;
 pub mod locator;
 pub mod nul;
 pub mod parse;
+pub mod read;
 pub mod runner;
 pub mod service;
 

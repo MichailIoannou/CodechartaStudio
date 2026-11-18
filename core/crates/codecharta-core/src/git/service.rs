@@ -1,16 +1,15 @@
 use std::path::{Path, PathBuf};
 
 use codecharta_core_api::methods::git::{
-    GitHead, GitRepositoryInfo, GitStatus, GitUpstream, OperationInProgress,
+    GitHead, GitRefs, GitRepositoryInfo, GitStatus, GitUpstream, OperationInProgress,
 };
 use codecharta_core_api::methods::projects::FolderRef;
 use tokio_util::sync::CancellationToken;
 
-use super::command::{GitCommand, QUERY_LIMITS, STATUS_LIMITS};
+use super::command::{GitCommand, QUERY_LIMITS};
 use super::locator::{Repository, locate};
-use super::parse::status::{
-    STATUS_ARGS, StatusSummary, StatusUpstream, operation_in_progress, parse_status,
-};
+use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
+use super::read::{read_refs, status_summary};
 use super::runner::{GitCli, GitProcess};
 use crate::error::CoreResult;
 
@@ -60,7 +59,7 @@ impl<'core> GitService<'core> {
         cancel: &CancellationToken,
     ) -> CoreResult<GitStatus> {
         let repository = locate(&self.git, &folder.path, cancel).await?;
-        let summary = self.status_summary(&folder.path, cancel).await?;
+        let summary = status_summary(&self.git, &folder.path, cancel).await?;
         let upstream = match &summary.upstream {
             Some(upstream) => Some(self.upstream_of(folder, &summary, upstream, cancel).await?),
             None => None,
@@ -73,13 +72,21 @@ impl<'core> GitService<'core> {
         })
     }
 
-    async fn status_summary(
+    pub async fn refs(
         &self,
-        folder: &Path,
+        folder: &GitFolder,
         cancel: &CancellationToken,
-    ) -> CoreResult<StatusSummary> {
-        let command = GitCommand::read(folder, &STATUS_ARGS, STATUS_LIMITS);
-        parse_status(&self.git.run(&command, cancel).await?)
+    ) -> CoreResult<GitRefs> {
+        let repository = locate(&self.git, &folder.path, cancel).await?;
+        read_refs(&self.git, &repository, &folder.path, cancel).await
+    }
+
+    pub async fn refs_fingerprint(
+        &self,
+        folder: &GitFolder,
+        cancel: &CancellationToken,
+    ) -> CoreResult<String> {
+        Ok(self.refs(folder, cancel).await?.fingerprint)
     }
 
     /// `status` names the upstream briefly (`origin/main`); its full ref name comes from the branch's

@@ -36,7 +36,7 @@ record it as open for the owner. Task 7's fake-bridge `git` seed lives in the re
 - [x] 3. Runner and failures
 - [x] 4. Repository
 - [x] 5. Status
-- [ ] 6. Refs and remotes
+- [x] 6. Refs and remotes
 - [ ] 7. RPC and CLI
 - [ ] Fake-bridge git seed (after 01-M4.1)
 
@@ -165,3 +165,28 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0. Bra
   counts of all four kinds, rename original path) and fixture cases (`tests/git_status.rs`: clean after
   commit, merge in progress), plus `should_report_the_upstream_with_its_full_ref_name`,
   `should_fail_on_an_unknown_entry`, `should_find_a_rebase_before_a_merge`.
+
+### 6. Refs and remotes
+- `git/parse/refs.rs`: `REFS_ARGS` (the plan's 12-field format), `parse_refs -> Vec<RefRecord>` (exactly 12
+  fields, ref name under `refs/`, numeric date, else `PARSE_FAILED`), `sort_refs(records, RefContext
+  { remote_names, root_path, style }) -> SortedRefs` (symbolic refs skipped; tags peeled, tags not leading to a
+  commit skipped; `parse_track`: empty = in step `0/0`, `gone` = `isGone` with null counts;
+  `checked_out_in_other_worktree` compares through `normalise_repository_id`; `split_remote` picks the longest
+  configured remote name, else the first path segment). `GitLastCommit.committedAt` is
+  `%(creatordate:unix)` (the committer date for branches).
+- `git/parse/remotes.rs`: `REMOTE_URLS_ARGS`, `parse_remote_urls` (first url per remote; exit 1 with empty
+  output = no remotes, read in `git/read.rs`). **Deviation:** credentials go through plan 03's
+  `folders::inspector::strip_credentials` (http/https drop the whole user part; other schemes keep the user
+  and drop a password; scp-like unchanged) instead of a second rule, so both plans strip alike.
+- `git/fingerprint.rs`: `fingerprint_of(records, head)` = SHA-256 hex over the sorted `refname object` lines of
+  the non-symbolic refs (the unpeeled object, so moving an annotated tag counts) plus `branch:<name>:<sha>` /
+  `detached:<sha>`.
+- `git/read.rs` (shared reads): `status_summary`, `read_refs` (status header, for-each-ref and remote urls in
+  parallel with `tokio::join!`). `GitService::refs` and `refs_fingerprint` (the latter reads the same three
+  commands; no cheaper path in M1, no cache yet — the plan's refs cache by fingerprint comes with the log
+  sessions in M2).
+- Tests: the plan's captured cases (`git/parse/refs.rs`, `git/parse/remotes.rs`) and fixture cases
+  (`tests/git_refs.rs`), plus `should_name_the_other_worktree_of_a_branch`, `should_fail_on_a_line_with_missing_fields`,
+  `should_keep_the_first_url_of_a_remote`, `should_read_no_remotes_from_empty_output`,
+  `should_not_depend_on_the_order_of_the_refs`, `should_change_when_the_head_moves`,
+  `should_list_no_refs_in_a_repository_without_commits`.
