@@ -20,11 +20,15 @@ use std::sync::{Arc, OnceLock};
 
 use codecharta_core_api::ids::InvalidStoreId;
 use codecharta_core_api::methods::core::Platform;
+use codecharta_core_api::methods::git::RepositoryChanged;
+use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::methods::shell::ShellPathTarget;
 use codecharta_core_api::methods::snapshots::SnapshotRef;
 use codecharta_core_api::methods::store::StoreStatus;
 
 use config::settings::SETTINGS_FILE_NAME;
+use git::changes::RepositoryChanges;
+use git::{GitFolder, GitService};
 use process::ProcessRunner;
 use process::env::hardened_env;
 use projects::ProjectRepository;
@@ -44,6 +48,7 @@ pub struct Core {
     store: OnceLock<StoreState>,
     pick_tokens: PickTokens,
     recycler: SystemRecycler,
+    repository_changes: RepositoryChanges,
 }
 
 impl Core {
@@ -69,6 +74,7 @@ impl Core {
             store: OnceLock::new(),
             pick_tokens: PickTokens::default(),
             recycler: SystemRecycler,
+            repository_changes: RepositoryChanges::default(),
         })
     }
 
@@ -98,6 +104,29 @@ impl Core {
             &self.tools,
             &self.recycler,
         ))
+    }
+
+    /// git runs in the data folder, which is created for it when it does not exist yet.
+    pub fn git(&self) -> CoreResult<GitService<'_>> {
+        std::fs::create_dir_all(self.data_dir()).map_err(|source| CoreError::Io {
+            context: format!(
+                "Could not create the data folder {}",
+                self.data_dir().display()
+            ),
+            source,
+        })?;
+        Ok(GitService::new(&self.tools, self.data_dir()).with_changes(&self.repository_changes))
+    }
+
+    /// The project folder a git request names, resolved through the store.
+    pub fn git_folder(&self, repo: &FolderRef) -> CoreResult<GitFolder> {
+        self.projects()?.git_folder(repo)
+    }
+
+    pub fn subscribe_repository_changes(
+        &self,
+    ) -> tokio::sync::broadcast::Receiver<RepositoryChanged> {
+        self.repository_changes.subscribe()
     }
 
     /// A snapshot map is found through the store; every other target through the paths alone.

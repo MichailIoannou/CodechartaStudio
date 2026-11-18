@@ -1,5 +1,6 @@
 mod arguments;
 mod doctor;
+mod git;
 mod output;
 mod projects;
 mod snapshots;
@@ -15,6 +16,7 @@ use tracing_subscriber::filter::LevelFilter;
 
 use crate::serve::serve;
 use doctor::{DoctorOptions, run_doctor};
+use git::{GitCommand, run_git};
 use projects::{ProjectsCommand, run_projects};
 use snapshots::{SnapshotsCommand, run_snapshots};
 
@@ -65,6 +67,11 @@ pub enum Command {
         #[command(subcommand)]
         command: SnapshotsCommand,
     },
+    /// Read the git status and branches of a project folder or of any folder, without the app
+    Git {
+        #[command(subcommand)]
+        command: GitCommand,
+    },
 }
 
 pub fn run(cli: Cli) -> ExitCode {
@@ -79,6 +86,9 @@ pub fn run(cli: Cli) -> ExitCode {
         }),
         Command::Snapshots { command } => run_store_command(cli.data_dir, |core, runtime| {
             run_snapshots(core, runtime, command)
+        }),
+        Command::Git { command } => run_store_command(cli.data_dir, |core, runtime| {
+            run_git(core, runtime, command)
         }),
     }
 }

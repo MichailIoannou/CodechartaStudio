@@ -700,7 +700,7 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 6. **Refs and remotes.** `parse/refs.rs`, `parse/remotes.rs`, `fingerprint.rs`, `refs`, `refs_fingerprint`.
    - Tests (captured): split local / remote / tags; peel annotated tags; skip symbolic remote head; parse `ahead 2, behind 1`, `gone`, empty; remote name with a slash; strip https credentials, keep scp-like url. (fixture): mark current branch; fingerprint changes when a branch moves, stable otherwise.
    - Commit: `feat(core): list git branches, tags and remotes`
-7. **RPC and CLI.** `rpc/git.rs` (`git.repositoryInfo`, `git.status`, `git.branches`, `git.refsFingerprint`), `changes.rs` (emit `repository.changed` when a read sees a new fingerprint), `cli/git.rs` (`status`, `branches`), plan 01's fake bridge gets a self-contained `git` seed (refs, status, commits, per-method failures).
+7. **RPC and CLI.** `serve/git_routes.rs` (`git.repositoryInfo`, `git.status`, `git.branches`, `git.refsFingerprint`), `changes.rs` (emit `repository.changed` when a read sees a new fingerprint), `cli/git.rs` (`status`, `branches`), plan 01's fake bridge gets a self-contained `git` seed (refs, status, commits, per-method failures).
    - Tests (`codecharta-cored/tests/git_protocol.rs`): should_answer_git_status_over_stdio_for_a_fixture_folder; should_return_folder_not_found_for_unknown_or_detached_folder; should_reject_malformed_params_without_running_git (one per section 4.4 rule that applies); should_emit_repository_changed_when_fingerprint_changes; should_print_status_and_branches_from_cli_with_path_and_json.
    - Commit: `feat(core): expose git status and branches over json-rpc and cli`
    - Acceptance: `codecharta-core git branches --path <real repo>` lists its branches.
@@ -924,3 +924,8 @@ Reconciled with plans 01 and 03 as implemented (04-M1 task 1, 2026-11-18):
   by the folder inspector) stays; plan 04's richer runner is `git::GitCli` over a new port `git::GitProcess`.
 - Fixture: `tests/support/git_fixture.rs` `TempRepo` (plan's `FixtureRepo`), extended as M1 task 1 lists;
   `FixtureGit` (its `GitRunner`) gains the plan 04 port too.
+- As built in M1: api `methods/git.rs` (not `src/git.rs`), routes `serve/git_routes.rs` (not `rpc/git.rs`),
+  plan 04's runner struct is `git::GitCli` over the port `git::GitProcess`, `GitService` methods take a
+  resolved `GitFolder` and the request's `CancellationToken`, git error codes are appended `ErrorCode` values
+  (SCREAMING_SNAKE_CASE) with git's text in `details.detail`, `CommitSha` / `FullRefName` are api `values.rs`
+  types. Details and the open git 2.31 spike: `progress/04-M1-core-status-refs.md`.

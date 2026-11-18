@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::methods::projects::GitRemote;
+use crate::methods::projects::{FolderRef, GitRemote};
+use crate::registry::{Audience, Event, method};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -136,10 +137,78 @@ pub enum ChangedPart {
     WorkingTree,
 }
 
+/// A client names a repository only by its project folder; the core finds the path.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitRepoParams {
+    pub repo: FolderRef,
+}
+
+/// The core saw a repository change: a read found a new refs fingerprint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct RepositoryChanged {
+    pub repo: FolderRef,
+    pub repository_id: String,
+    pub parts: Vec<ChangedPart>,
+    pub fingerprint: Option<String>,
+}
+
+method!(
+    GitRepositoryInfoMethod,
+    "git.repositoryInfo",
+    Renderer,
+    GitRepoParams,
+    GitRepositoryInfo
+);
+method!(
+    GitStatusMethod,
+    "git.status",
+    Renderer,
+    GitRepoParams,
+    GitStatus
+);
+method!(
+    GitBranchesMethod,
+    "git.branches",
+    Renderer,
+    GitRepoParams,
+    GitRefs
+);
+method!(
+    GitRefsFingerprintMethod,
+    "git.refsFingerprint",
+    Renderer,
+    GitRepoParams,
+    String
+);
+
+pub struct RepositoryChangedEvent;
+
+impl Event for RepositoryChangedEvent {
+    const NAME: &'static str = "repository.changed";
+    const AUDIENCE: Audience = Audience::Renderer;
+    type Params = RepositoryChanged;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn should_refuse_unknown_fields_next_to_the_repo() {
+        // Arrange
+        let repo = json!({ "projectId": "p-0123456789abcdef", "folderId": "f-0123456789abcdef" });
+        let params = json!({ "repo": repo, "path": "/etc" });
+
+        // Act
+        let parsed = serde_json::from_value::<GitRepoParams>(params);
+
+        // Assert
+        assert!(parsed.is_err());
+        assert!(serde_json::from_value::<GitRepoParams>(json!({ "repo": repo })).is_ok());
+    }
 
     #[test]
     fn should_tag_heads_by_kind_with_camel_case_fields() {

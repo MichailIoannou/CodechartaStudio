@@ -5,6 +5,10 @@ use ts_rs::{Config, ExportError, TS};
 
 use crate::events::CoreProgress;
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
+use crate::methods::git::{
+    GitBranchesMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitStatusMethod,
+    RepositoryChangedEvent,
+};
 use crate::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use crate::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
@@ -150,9 +154,16 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<SnapshotsImport>(),
     MethodSpec::of::<SnapshotsMove>(),
     MethodSpec::of::<SnapshotsDelete>(),
+    MethodSpec::of::<GitRepositoryInfoMethod>(),
+    MethodSpec::of::<GitStatusMethod>(),
+    MethodSpec::of::<GitBranchesMethod>(),
+    MethodSpec::of::<GitRefsFingerprintMethod>(),
 ];
 
-pub const EVENTS: &[EventSpec] = &[EventSpec::of::<CoreProgress>()];
+pub const EVENTS: &[EventSpec] = &[
+    EventSpec::of::<CoreProgress>(),
+    EventSpec::of::<RepositoryChangedEvent>(),
+];
 
 pub const CLIENT_NOTIFICATIONS: &[EventSpec] = &[EventSpec::of::<CoreCancel>()];
 

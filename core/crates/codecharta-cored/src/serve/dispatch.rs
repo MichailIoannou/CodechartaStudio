@@ -9,6 +9,9 @@ use codecharta_core_api::events::{CoreProgress, ProgressParams};
 use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
+use codecharta_core_api::methods::git::{
+    GitBranchesMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitStatusMethod,
+};
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use codecharta_core_api::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
@@ -32,7 +35,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
-use super::{projects_routes, snapshots_routes, store_routes, tools_routes};
+use super::{git_routes, projects_routes, snapshots_routes, store_routes, tools_routes};
 
 pub type DispatchResult = Result<Value, ResponseError>;
 pub type HandlerFuture<'core> = Pin<Box<dyn Future<Output = DispatchResult> + Send + 'core>>;
@@ -187,6 +190,22 @@ const ROUTES: &[Route] = &[
     Route {
         name: SnapshotsDelete::NAME,
         handler: snapshots_routes::delete,
+    },
+    Route {
+        name: GitRepositoryInfoMethod::NAME,
+        handler: git_routes::repository_info,
+    },
+    Route {
+        name: GitStatusMethod::NAME,
+        handler: git_routes::status,
+    },
+    Route {
+        name: GitBranchesMethod::NAME,
+        handler: git_routes::branches,
+    },
+    Route {
+        name: GitRefsFingerprintMethod::NAME,
+        handler: git_routes::refs_fingerprint,
     },
 ];
 

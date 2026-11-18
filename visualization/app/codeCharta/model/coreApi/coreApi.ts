@@ -12,6 +12,10 @@ import type { EmptyParams } from "./EmptyParams"
 import type { ErrorCode } from "./ErrorCode"
 import type { FolderPath } from "./FolderPath"
 import type { FolderRef } from "./FolderRef"
+import type { GitRefs } from "./GitRefs"
+import type { GitRepoParams } from "./GitRepoParams"
+import type { GitRepositoryInfo } from "./GitRepositoryInfo"
+import type { GitStatus } from "./GitStatus"
 import type { HelloParams } from "./HelloParams"
 import type { HelloResult } from "./HelloResult"
 import type { ImportSnapshotParams } from "./ImportSnapshotParams"
@@ -32,6 +36,7 @@ import type { ProjectList } from "./ProjectList"
 import type { RecordMapFactsParams } from "./RecordMapFactsParams"
 import type { RelinkFolderParams } from "./RelinkFolderParams"
 import type { RemoveFolderParams } from "./RemoveFolderParams"
+import type { RepositoryChanged } from "./RepositoryChanged"
 import type { ResolveCommitParams } from "./ResolveCommitParams"
 import type { ResolveCommitResult } from "./ResolveCommitResult"
 import type { ResolvePathParams } from "./ResolvePathParams"
@@ -121,10 +126,15 @@ export type CoreMethods = {
     "snapshots.import": { params: ImportSnapshotParams; result: SnapshotSummary }
     "snapshots.move": { params: MoveSnapshotParams; result: SnapshotSummary }
     "snapshots.delete": { params: DeleteSnapshotParams; result: null }
+    "git.repositoryInfo": { params: GitRepoParams; result: GitRepositoryInfo }
+    "git.status": { params: GitRepoParams; result: GitStatus }
+    "git.branches": { params: GitRepoParams; result: GitRefs }
+    "git.refsFingerprint": { params: GitRepoParams; result: string }
 }
 
 export type CoreEvents = {
     "core.progress": ProgressParams
+    "repository.changed": RepositoryChanged
 }
 
 export type CoreClientNotifications = {
@@ -157,11 +167,15 @@ export const RENDERER_METHODS = [
     "snapshots.openFile",
     "snapshots.import",
     "snapshots.move",
-    "snapshots.delete"
+    "snapshots.delete",
+    "git.repositoryInfo",
+    "git.status",
+    "git.branches",
+    "git.refsFingerprint"
 ] as const satisfies ReadonlyArray<keyof CoreMethods>
 
 export type RendererMethod = (typeof RENDERER_METHODS)[number]
 
-export const RENDERER_EVENTS = ["core.progress"] as const satisfies ReadonlyArray<keyof CoreEvents>
+export const RENDERER_EVENTS = ["core.progress", "repository.changed"] as const satisfies ReadonlyArray<keyof CoreEvents>
 
 export type RendererEvent = (typeof RENDERER_EVENTS)[number]

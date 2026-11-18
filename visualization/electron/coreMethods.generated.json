@@ -1,6 +1,6 @@
 {
   "protocolVersion": 1,
-  "rendererEvents": ["core.progress"],
+  "rendererEvents": ["core.progress", "repository.changed"],
   "rendererMethods": [
     "core.ping",
     "paths.get",
@@ -27,6 +27,10 @@
     "snapshots.openFile",
     "snapshots.import",
     "snapshots.move",
-    "snapshots.delete"
+    "snapshots.delete",
+    "git.repositoryInfo",
+    "git.status",
+    "git.branches",
+    "git.refsFingerprint"
   ]
 }

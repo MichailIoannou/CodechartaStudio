@@ -6,6 +6,7 @@ use codecharta_core_api::methods::git::{
 use codecharta_core_api::methods::projects::FolderRef;
 use tokio_util::sync::CancellationToken;
 
+use super::changes::RepositoryChanges;
 use super::command::{GitCommand, QUERY_LIMITS};
 use super::locator::{Repository, locate};
 use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
@@ -36,12 +37,22 @@ impl GitFolder {
 /// The read-only git operations of the core.
 pub struct GitService<'core> {
     git: GitCli<'core>,
+    changes: Option<&'core RepositoryChanges>,
 }
 
 impl<'core> GitService<'core> {
     pub fn new(process: &'core dyn GitProcess, data_dir: &'core Path) -> Self {
         Self {
             git: GitCli::new(process, data_dir),
+            changes: None,
+        }
+    }
+
+    /// Reads of project folders then report a new refs fingerprint through `changes`.
+    pub fn with_changes(self, changes: &'core RepositoryChanges) -> Self {
+        Self {
+            changes: Some(changes),
+            ..self
         }
     }
 
@@ -78,7 +89,12 @@ impl<'core> GitService<'core> {
         cancel: &CancellationToken,
     ) -> CoreResult<GitRefs> {
         let repository = locate(&self.git, &folder.path, cancel).await?;
-        read_refs(&self.git, &repository, &folder.path, cancel).await
+        let refs = read_refs(&self.git, &repository, &folder.path, cancel).await?;
+        if let (Some(changes), Some(repo)) = (self.changes, &folder.repo) {
+            let repository_id = &repository.info.repository_id;
+            changes.observe_fingerprint(repo, repository_id, &refs.fingerprint);
+        }
+        Ok(refs)
     }
 
     pub async fn refs_fingerprint(

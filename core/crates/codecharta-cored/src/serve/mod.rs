@@ -1,5 +1,6 @@
 pub mod dispatch;
 pub mod framing;
+mod git_routes;
 pub mod output;
 mod projects_routes;
 pub mod session;
@@ -13,7 +14,9 @@ use std::sync::Arc;
 use codecharta_core::Core;
 use tokio::io::{AsyncBufRead, AsyncWrite};
 
+use dispatch::Notifier;
 use framing::{LineReader, MAX_LINE_BYTES};
+use git_routes::forward_repository_changes;
 use output::spawn_writer;
 use session::{Flow, SHUTDOWN_GRACE, Session};
 
@@ -23,6 +26,10 @@ where
     Output: AsyncWrite + Unpin + Send + 'static,
 {
     let (lines, writer) = spawn_writer(output);
+    let forwarder = tokio::spawn(forward_repository_changes(
+        core.subscribe_repository_changes(),
+        Notifier::new(lines.clone()),
+    ));
     let mut session = Session::new(Arc::clone(&core), lines);
     let mut reader = LineReader::new(input, MAX_LINE_BYTES);
     loop {
@@ -39,6 +46,8 @@ where
         }
     }
     session.finish().await;
+    forwarder.abort();
+    let _cancelled = forwarder.await;
     core.shutdown().await;
     match tokio::time::timeout(SHUTDOWN_GRACE, writer).await {
         Ok(Ok(())) => {}

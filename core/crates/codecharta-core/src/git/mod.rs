@@ -1,4 +1,5 @@
 pub mod cache;
+pub mod changes;
 pub mod command;
 pub mod error;
 pub mod failure;

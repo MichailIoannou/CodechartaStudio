@@ -1,6 +1,6 @@
 ---
 name: 04-M1 core - fixtures, contract, runner, repository, status, refs
-state: progress
+state: complete
 version: 1
 ---
 
@@ -37,8 +37,8 @@ record it as open for the owner. Task 7's fake-bridge `git` seed lives in the re
 - [x] 4. Repository
 - [x] 5. Status
 - [x] 6. Refs and remotes
-- [ ] 7. RPC and CLI
-- [ ] Fake-bridge git seed (after 01-M4.1)
+- [x] 7. RPC and CLI
+- [ ] Fake-bridge git seed (after 01-M4.1; not part of this run)
 
 ## Notes
 
@@ -190,3 +190,59 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0. Bra
   `should_keep_the_first_url_of_a_remote`, `should_read_no_remotes_from_empty_output`,
   `should_not_depend_on_the_order_of_the_refs`, `should_change_when_the_head_moves`,
   `should_list_no_refs_in_a_repository_without_commits`.
+
+### 7. RPC and CLI
+- Structural commit first: `refactor(core): share the id arguments of the command line` (`cli/arguments.rs`
+  with `parse_project_id` / `parse_folder_id`, used by `projects`, `snapshots` and `git`).
+- Api (`methods/git.rs`): `GitRepoParams { repo: FolderRef }` (`deny_unknown_fields`, so no path or other
+  field rides along), `RepositoryChanged { repo, repositoryId, parts, fingerprint }`; methods (all
+  **renderer**): `git.repositoryInfo` -> `GitRepositoryInfo`, `git.status` -> `GitStatus`, `git.branches` ->
+  `GitRefs`, `git.refsFingerprint` -> `string`; event `repository.changed` (renderer). Markers carry a
+  `Method` / `Event` suffix (`GitStatusMethod`, `RepositoryChangedEvent`) because the result types already
+  own the plain names. Contract regenerated (14 new type files, `coreApi.ts`, `coreMethods.generated.json`).
+- Core: `git/changes.rs` `RepositoryChanges` (last fingerprint per `repositoryId`; the first read only
+  remembers, a different later one is broadcast with `parts: ["refs"]`); `GitService::with_changes`, and
+  `refs` / `refs_fingerprint` of a `GitFolder` with a `repo` report through it. `Core::git()` (creates the data
+  folder, which is git's cwd, when missing), `Core::git_folder(&FolderRef)` via the new
+  `ProjectRepository::git_folder` (unknown project / folder `NOT_FOUND`, folder missing on disk
+  `FOLDER_UNAVAILABLE` — the plan's `folderNotFound`), `Core::subscribe_repository_changes()`.
+- Routes: `serve/git_routes.rs` (plan's `rpc/git.rs`); `serve()` spawns `forward_repository_changes`, which
+  turns every broadcast into a `repository.changed` notification and is aborted at shutdown. A notification may
+  arrive before the answer of the request that caused it.
+- CLI `cli/git.rs`: `codecharta-core [--data-dir D] git status|branches (--project <id> --folder <id> | --path
+  <dir>) [--json]`. A project folder is resolved in a read-only store (works while the app runs). Text:
+  `status` -> `main ↑1 ↓0 · 2 staged, 1 unstaged, 0 untracked` (no upstream: no arrows; gone: `(upstream
+  gone)`; plus `, N conflicted` and `· merge in progress` when they apply; detached: `(detached at
+  1a2b3c4)`); `branches` -> `* main  1a2b3c4`, remote branches as `remotes/<remote>/<branch>`, tags as
+  `tags/<name>`. Exit 0 / 1 with `<ERROR_CODE>: <message>` / 2 usage. `git log` comes with M2.
+- Tests (`codecharta-cored/tests/git_protocol.rs`, reusing the core's `git_fixture.rs` through `#[path]` so
+  there is still one fixture): the plan's five names. `should_reject_malformed_params_without_running_git`
+  runs the core with an empty `PATH` (no git at all) and checks 5 malformed params x 4 methods all answer
+  `BAD_REQUEST`. `should_return_folder_not_found_...` asserts `NOT_FOUND` (unknown) and
+  `FOLDER_UNAVAILABLE` (moved away). Unit tests: `should_announce_only_a_different_fingerprint_after_the_first`,
+  `should_refuse_unknown_fields_next_to_the_repo`, two CLI line tests.
+- **Left out on purpose:** task 7's fake-bridge `git` seed (renderer) waits for 01-M4.1.
+- Acceptance: `codecharta-core --data-dir <tmp> git branches --path <this worktree>` listed its 26 refs with
+  `* feature/studio-04-m1`; `git status --path` printed `feature/studio-04-m1 · 0 staged, 9 unstaged, 3
+  untracked` (the uncommitted work of that moment).
+
+### Gates at the end of M1 (Linux)
+- `core/`: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings` (also
+  `--target x86_64-pc-windows-gnu`), `cargo test --all-features` green; `npm run contract` leaves no diff; root
+  `npm run format:check` green; `visualization/`: `npm run lint`, `npx tsc --noEmit -p tsconfig.json`, `npm
+  test` (636 suites, 4861 passed, 2 todo; coverage 96.71 / 90.1 / 95.33 / 96.62) green. Only generated
+  `model/coreApi/` files and `electron/coreMethods.generated.json` changed in `visualization/`. No changelog
+  entry: nothing user-visible until the History UI.
+
+### For 04-M2 and the History UI milestones
+- Methods: `git.repositoryInfo`, `git.status`, `git.branches`, `git.refsFingerprint` with `{ repo: { projectId,
+  folderId } }`; event `repository.changed`. Errors: `GIT_TOO_OLD`, `NOT_A_REPOSITORY`, `DUBIOUS_OWNERSHIP`
+  (`details.repositoryPath`), `BARE_REPOSITORY`, `INDEX_LOCKED`, `PARSE_FAILED`, `COMMAND_FAILED`, plus existing
+  `TOOL_NOT_FOUND` (git missing), `NOT_FOUND`, `FOLDER_UNAVAILABLE`, `BAD_REQUEST`, `TIMEOUT`, `CANCELLED`,
+  `OUTPUT_TOO_LARGE`; git's own text in `details.detail` (always show it).
+- Rust: `GitService` (`core.git()?`), `GitFolder`, `GitCli` over `GitProcess`, `GitCommand::read` +
+  `Limits` constants, `git::read::{status_summary, read_refs}`, `nul::{split_nul_fields, chunk_records}`,
+  `cache::LruCache`, api values `CommitSha` / `FullRefName`. M2 needs: runner stdin and stdout line streaming
+  (not in plan 01's runner yet), log / show / diff-tree captures (extend `testdata/capture.sh`), and should add
+  its own `*_LIMITS`.
+- Still open: the git 2.31 spike (see task 1); nothing ran on Windows.
