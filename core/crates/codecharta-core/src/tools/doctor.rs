@@ -45,6 +45,7 @@ pub struct ToolRunOptions {
     pub max_output_bytes: Option<u64>,
     pub askpass: Option<AskpassSetup>,
     pub output: OutputMode,
+    pub stdin: Option<String>,
 }
 
 impl ToolRunOptions {
@@ -57,6 +58,7 @@ impl ToolRunOptions {
             max_output_bytes: None,
             askpass: None,
             output: OutputMode::Collect,
+            stdin: None,
         }
     }
 }
@@ -113,6 +115,7 @@ impl Tools {
             max_output_bytes: options.max_output_bytes.unwrap_or(DEFAULT_MAX_OUTPUT_BYTES),
             askpass: options.askpass,
             output: options.output,
+            stdin: options.stdin,
             ..RunRequest::new(tool, resolved.path, args, options.timeout)
         };
         self.setup.runner.run(request, cancel).await

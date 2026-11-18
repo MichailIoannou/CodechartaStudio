@@ -5,6 +5,8 @@ pub mod error;
 pub mod failure;
 pub mod fingerprint;
 pub mod locator;
+pub mod log;
+pub mod memory;
 pub mod nul;
 pub mod parse;
 pub mod read;

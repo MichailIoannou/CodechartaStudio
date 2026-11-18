@@ -1,7 +1,8 @@
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use codecharta_core_api::methods::git::{
-    GitHead, GitRefs, GitRepositoryInfo, GitStatus, GitUpstream, OperationInProgress,
+    GitHead, GitLogPage, GitRefs, GitRepositoryInfo, GitStatus, GitUpstream, OperationInProgress,
 };
 use codecharta_core_api::methods::projects::FolderRef;
 use tokio_util::sync::CancellationToken;
@@ -9,6 +10,8 @@ use tokio_util::sync::CancellationToken;
 use super::changes::RepositoryChanges;
 use super::command::{GitCommand, QUERY_LIMITS};
 use super::locator::{Repository, locate};
+use super::log::{LogRequest, log_page};
+use super::memory::GitMemory;
 use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
 use super::read::{read_refs, status_summary};
 use super::runner::{GitCli, GitProcess};
@@ -34,10 +37,28 @@ impl GitFolder {
     }
 }
 
+/// The memory of one service on its own (tests, one command line call), or the core's shared one.
+enum Memory<'core> {
+    Own(Box<GitMemory>),
+    Shared(&'core GitMemory),
+}
+
+impl Deref for Memory<'_> {
+    type Target = GitMemory;
+
+    fn deref(&self) -> &GitMemory {
+        match self {
+            Memory::Own(memory) => memory,
+            Memory::Shared(memory) => memory,
+        }
+    }
+}
+
 /// The read-only git operations of the core.
 pub struct GitService<'core> {
     git: GitCli<'core>,
     changes: Option<&'core RepositoryChanges>,
+    memory: Memory<'core>,
 }
 
 impl<'core> GitService<'core> {
@@ -45,6 +66,15 @@ impl<'core> GitService<'core> {
         Self {
             git: GitCli::new(process, data_dir),
             changes: None,
+            memory: Memory::Own(Box::default()),
+        }
+    }
+
+    /// Log sessions and cached answers then outlive this service.
+    pub fn with_memory(self, memory: &'core GitMemory) -> Self {
+        Self {
+            memory: Memory::Shared(memory),
+            ..self
         }
     }
 
@@ -103,6 +133,17 @@ impl<'core> GitService<'core> {
         cancel: &CancellationToken,
     ) -> CoreResult<String> {
         Ok(self.refs(folder, cancel).await?.fingerprint)
+    }
+
+    /// A page of commits; without a cursor a new log starts, whose later pages the cursor names.
+    pub async fn log(
+        &self,
+        folder: &GitFolder,
+        request: &LogRequest,
+        cancel: &CancellationToken,
+    ) -> CoreResult<GitLogPage> {
+        let repository = locate(&self.git, &folder.path, cancel).await?;
+        log_page(&self.git, &self.memory, &repository, request, cancel).await
     }
 
     /// `status` names the upstream briefly (`origin/main`); its full ref name comes from the branch's

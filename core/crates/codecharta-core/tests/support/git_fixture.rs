@@ -3,6 +3,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use codecharta_core::CoreError;
@@ -409,6 +410,7 @@ impl GitProcess for FixtureGit {
                 env,
                 env_remove: invocation.removed_env,
                 max_output_bytes: invocation.limits.max_stdout_bytes,
+                stdin: invocation.stdin,
                 ..RunRequest::new(
                     ToolId::Git,
                     self.program.clone(),
@@ -418,5 +420,54 @@ impl GitProcess for FixtureGit {
             };
             self.runner.run(request, cancel).await
         })
+    }
+}
+
+/// The fixture's git, remembering every invocation the core sends through it.
+pub struct RecordingGit {
+    inner: FixtureGit,
+    invocations: Mutex<Vec<GitInvocation>>,
+}
+
+impl RecordingGit {
+    pub fn new(inner: FixtureGit) -> Self {
+        Self {
+            inner,
+            invocations: Mutex::default(),
+        }
+    }
+
+    pub fn invocations(&self) -> Vec<GitInvocation> {
+        self.invocations.lock().expect("not poisoned").clone()
+    }
+
+    /// The invocations with `subcommand` among their arguments.
+    pub fn runs_of(&self, subcommand: &str) -> Vec<GitInvocation> {
+        self.invocations()
+            .into_iter()
+            .filter(|invocation| invocation.args.iter().any(|arg| arg == subcommand))
+            .collect()
+    }
+
+    fn record(&self, invocation: &GitInvocation) {
+        self.invocations
+            .lock()
+            .expect("not poisoned")
+            .push(invocation.clone());
+    }
+}
+
+impl GitProcess for RecordingGit {
+    fn version(&self) -> VersionFuture<'_> {
+        self.inner.version()
+    }
+
+    fn execute<'call>(
+        &'call self,
+        invocation: GitInvocation,
+        cancel: &'call CancellationToken,
+    ) -> ProcessFuture<'call> {
+        self.record(&invocation);
+        self.inner.execute(invocation, cancel)
     }
 }

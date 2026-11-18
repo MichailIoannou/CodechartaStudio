@@ -16,6 +16,12 @@ pub const MAX_DESCRIPTION_CHARS: usize = 500;
 pub const MAX_EXCLUDE_PATTERN_CHARS: usize = 200;
 pub const MAX_MAP_CHECKSUM_LENGTH: usize = 128;
 pub const MAX_ROOT_NAME_CHARS: usize = 255;
+pub const MAX_LOG_CURSOR_LENGTH: usize = 128;
+pub const MAX_LOG_FILTER_CHARS: usize = 200;
+pub const MAX_REPO_PATH_LENGTH: usize = 1024;
+const PARENT_SEGMENT: &str = "..";
+const PATH_SEPARATORS: [char; 2] = ['/', '\\'];
+const DRIVE_SEPARATOR: char = ':';
 const PATH_SEPARATOR: char = '/';
 const LABEL_FORBIDDEN_CHARACTERS: [char; 3] = ['/', '\\', ':'];
 const LINE_BREAKS: [char; 2] = ['\n', '\r'];
@@ -104,6 +110,28 @@ fn is_root_name(value: &str) -> bool {
         && !value
             .chars()
             .any(|character| character.is_control() || character == PATH_SEPARATOR)
+}
+
+fn is_log_cursor(value: &str) -> bool {
+    (1..=MAX_LOG_CURSOR_LENGTH).contains(&value.len())
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+}
+
+fn is_log_filter_text(value: &str) -> bool {
+    has_chars(value, 1..=MAX_LOG_FILTER_CHARS) && !value.chars().any(char::is_control)
+}
+
+/// A path git reads from its standard input one per line: relative, inside the repository, one line.
+fn is_repo_relative_path(value: &str) -> bool {
+    (1..=MAX_REPO_PATH_LENGTH).contains(&value.len())
+        && !value.starts_with(PATH_SEPARATORS)
+        && !value.contains(DRIVE_SEPARATOR)
+        && !value.chars().any(char::is_control)
+        && !value
+            .split(PATH_SEPARATORS)
+            .any(|segment| segment == PARENT_SEGMENT)
 }
 
 /// A text value checked while it is deserialised, so a handler never sees an invalid one. The rule text
@@ -216,6 +244,24 @@ validated_text!(
     RootName,
     is_root_name,
     "use 1 to 255 characters without / or control characters"
+);
+
+validated_text!(
+    LogCursor,
+    is_log_cursor,
+    "use the cursor of the previous page: 1 to 128 ASCII letters, digits, _ or -"
+);
+
+validated_text!(
+    LogFilterText,
+    is_log_filter_text,
+    "use 1 to 200 characters without control characters"
+);
+
+validated_text!(
+    RepoRelativePath,
+    is_repo_relative_path,
+    "use a relative path inside the repository: at most 1024 bytes, no .. segment, no : and no control characters"
 );
 
 #[cfg(test)]
@@ -382,5 +428,68 @@ mod tests {
         // Assert
         assert!(accepted.0.is_ok() && accepted.1.is_ok());
         assert!(rejected.0.is_err() && rejected.1.is_err() && rejected.2.is_err());
+    }
+
+    #[test]
+    fn should_accept_only_cursor_characters_in_a_log_cursor() {
+        // Arrange
+        let candidates = [
+            "".to_string(),
+            "a b".to_string(),
+            "a/b".to_string(),
+            "x".repeat(MAX_LOG_CURSOR_LENGTH + 1),
+        ];
+
+        // Act
+        let rejected: Vec<bool> = candidates
+            .into_iter()
+            .map(|candidate| LogCursor::try_from(candidate).is_err())
+            .collect();
+
+        // Assert
+        assert_eq!(rejected, vec![true; rejected.len()]);
+        assert!(LogCursor::try_from("0f3a_500").is_ok());
+    }
+
+    #[test]
+    fn should_reject_absolute_parent_and_multi_line_filter_paths() {
+        // Arrange
+        let candidates = [
+            "/etc/passwd",
+            "\\\\server\\share",
+            "C:/repo",
+            "src/../../etc",
+            "..",
+            "src\\..\\x",
+            "two\nlines",
+            "",
+        ];
+
+        // Act
+        let rejected: Vec<bool> = candidates
+            .into_iter()
+            .map(|candidate| RepoRelativePath::try_from(candidate).is_err())
+            .collect();
+
+        // Assert
+        assert_eq!(rejected, vec![true; rejected.len()]);
+        assert!(RepoRelativePath::try_from("docs/with space [1]/a..b.md").is_ok());
+    }
+
+    #[test]
+    fn should_reject_control_characters_and_long_filter_texts() {
+        // Arrange
+        let long = "x".repeat(MAX_LOG_FILTER_CHARS + 1);
+
+        // Act
+        let rejected = [
+            LogFilterText::try_from("line\nbreak").is_err(),
+            LogFilterText::try_from(long).is_err(),
+            LogFilterText::try_from("").is_err(),
+        ];
+
+        // Assert
+        assert_eq!(rejected, [true; 3]);
+        assert!(LogFilterText::try_from("Fix \"quoted\" [bug]").is_ok());
     }
 }

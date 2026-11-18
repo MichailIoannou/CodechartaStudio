@@ -29,6 +29,11 @@ pub fn new_token() -> CoreResult<PickToken> {
     PickToken::try_from(token).map_err(|error| CoreError::Internal(error.to_string()))
 }
 
+/// Names a log session in its page cursors: 16 hex digits.
+pub fn new_log_session_id() -> CoreResult<String> {
+    random_hex("", RANDOM_ID_BYTES)
+}
+
 /// The random part of a staging directory name: 8 hex digits.
 pub fn new_staging_suffix() -> CoreResult<String> {
     random_hex("", STAGING_SUFFIX_BYTES)

@@ -3,6 +3,7 @@ use ts_rs::TS;
 
 use crate::methods::projects::{FolderRef, GitRemote};
 use crate::registry::{Audience, Event, method};
+use crate::values::{FullRefName, LogCursor, LogFilterText, RepoRelativePath};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -152,6 +153,66 @@ pub struct RepositoryChanged {
     pub repository_id: String,
     pub parts: Vec<ChangedPart>,
     pub fingerprint: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCommitSummary {
+    pub sha: String,
+    /// The first parent first; empty for a root commit.
+    pub parents: Vec<String>,
+    pub author_name: String,
+    pub author_email: String,
+    /// Unix seconds.
+    pub authored_at: i64,
+    /// Unix seconds.
+    pub committed_at: i64,
+    pub subject: String,
+}
+
+/// The commits a log starts from: every branch, remote branch and tag plus the head, the head alone, or
+/// the named refs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum GitLogScope {
+    All,
+    Head,
+    Refs { ref_names: Vec<FullRefName> },
+}
+
+/// `text` and `author` match as plain text, ignoring case; `path` is relative to the repository root.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitLogFilter {
+    pub text: Option<LogFilterText>,
+    pub author: Option<LogFilterText>,
+    pub path: Option<RepoRelativePath>,
+}
+
+/// Without `cursor` a new log starts at the first page; with it, the page the cursor names follows, and
+/// `scope` and `filter` are those of the first page.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitLogParams {
+    pub repo: FolderRef,
+    pub scope: GitLogScope,
+    pub filter: Option<GitLogFilter>,
+    pub cursor: Option<LogCursor>,
+}
+
+/// Children come before their parents, newest first otherwise.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitLogPage {
+    pub commits: Vec<GitCommitSummary>,
+    /// Null on the last page.
+    pub next_cursor: Option<String>,
+    /// A filtered log leaves commits out, so its parents do not draw a connected graph.
+    pub is_graph_available: bool,
 }
 
 method!(

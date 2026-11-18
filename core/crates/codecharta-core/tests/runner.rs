@@ -21,6 +21,7 @@ const SMALL_CAP_BYTES: u64 = 1000;
 const FLOOD_BYTES: &str = "1000000";
 const CHUNK_CAPACITY: usize = 64;
 const MULTIBYTE_TEXT: &str = "aä€😀z";
+const STDIN_TIMEOUT: Duration = Duration::from_secs(5);
 
 fn runner() -> ProcessRunner {
     ProcessRunner::new(hardened_env(std::env::vars_os(), &[]))
@@ -121,6 +122,35 @@ async fn should_refuse_a_relative_program() {
         matches!(result, Err(CoreError::BadRequest(_))),
         "{result:?}"
     );
+}
+
+#[tokio::test]
+async fn should_write_stdin_and_close_it() {
+    // Arrange
+    let mut request = fake_request(&["echo-stdin"]);
+    request.stdin = Some(format!("first line\n{MULTIBYTE_TEXT}\n"));
+    request.timeout = STDIN_TIMEOUT;
+
+    // Act
+    let output = run(request).await.unwrap();
+
+    // Assert
+    assert_eq!(output.exit_code, 0);
+    assert_eq!(output.stdout, format!("first line\n{MULTIBYTE_TEXT}\n"));
+}
+
+#[tokio::test]
+async fn should_keep_stdin_closed_without_text() {
+    // Arrange
+    let mut request = fake_request(&["echo-stdin"]);
+    request.timeout = STDIN_TIMEOUT;
+
+    // Act
+    let output = run(request).await.unwrap();
+
+    // Assert
+    assert_eq!(output.exit_code, 0);
+    assert_eq!(output.stdout, "");
 }
 
 #[tokio::test]

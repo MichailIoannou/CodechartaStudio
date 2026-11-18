@@ -77,6 +77,11 @@ pub const QUERY_LIMITS: Limits = Limits {
     max_stdout_bytes: 64 * KIBIBYTE,
 };
 
+pub const LOG_LIMITS: Limits = Limits {
+    timeout: Duration::from_secs(60),
+    max_stdout_bytes: 8 * MEBIBYTE,
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandKind {
     Read,
@@ -89,6 +94,8 @@ pub struct GitCommand {
     pub kind: CommandKind,
     pub args: Vec<OsString>,
     pub limits: Limits,
+    /// Revisions and paths git reads with `--stdin`.
+    pub stdin: Option<String>,
 }
 
 impl GitCommand {
@@ -98,6 +105,14 @@ impl GitCommand {
             kind: CommandKind::Read,
             args: args.iter().map(OsString::from).collect(),
             limits,
+            stdin: None,
+        }
+    }
+
+    pub fn with_stdin(self, stdin: String) -> Self {
+        Self {
+            stdin: Some(stdin),
+            ..self
         }
     }
 }
@@ -110,6 +125,7 @@ pub struct GitInvocation {
     pub env: EnvVars,
     pub removed_env: Vec<OsString>,
     pub limits: Limits,
+    pub stdin: Option<String>,
 }
 
 /// The repository goes in through `-C`; git itself starts in the core's data folder.
@@ -127,6 +143,7 @@ pub fn invocation_of(command: &GitCommand, data_dir: &Path) -> GitInvocation {
         env: env_of(command.kind),
         removed_env: REMOVED_ENV.iter().map(OsString::from).collect(),
         limits: command.limits,
+        stdin: command.stdin.clone(),
     }
 }
 

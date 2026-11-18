@@ -102,6 +102,7 @@ impl GitProcess for Tools {
                 env: invocation.env,
                 env_remove: invocation.removed_env,
                 max_output_bytes: Some(invocation.limits.max_stdout_bytes),
+                stdin: invocation.stdin,
                 ..ToolRunOptions::new(invocation.limits.timeout)
             };
             Tools::run(self, ToolId::Git, invocation.args, options, cancel).await

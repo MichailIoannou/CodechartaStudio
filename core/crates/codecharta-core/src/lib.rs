@@ -28,6 +28,7 @@ use codecharta_core_api::methods::store::StoreStatus;
 
 use config::settings::SETTINGS_FILE_NAME;
 use git::changes::RepositoryChanges;
+use git::memory::GitMemory;
 use git::{GitFolder, GitService};
 use process::ProcessRunner;
 use process::env::hardened_env;
@@ -49,6 +50,7 @@ pub struct Core {
     pick_tokens: PickTokens,
     recycler: SystemRecycler,
     repository_changes: RepositoryChanges,
+    git_memory: GitMemory,
 }
 
 impl Core {
@@ -75,6 +77,7 @@ impl Core {
             pick_tokens: PickTokens::default(),
             recycler: SystemRecycler,
             repository_changes: RepositoryChanges::default(),
+            git_memory: GitMemory::default(),
         })
     }
 
@@ -115,7 +118,9 @@ impl Core {
             ),
             source,
         })?;
-        Ok(GitService::new(&self.tools, self.data_dir()).with_changes(&self.repository_changes))
+        Ok(GitService::new(&self.tools, self.data_dir())
+            .with_changes(&self.repository_changes)
+            .with_memory(&self.git_memory))
     }
 
     /// The project folder a git request names, resolved through the store.

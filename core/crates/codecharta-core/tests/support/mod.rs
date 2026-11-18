@@ -8,7 +8,7 @@ pub mod git_fixture;
 pub mod recycler;
 pub mod store_workspace;
 
-pub use git_fixture::TempRepo;
+pub use git_fixture::{RecordingGit, TempRepo};
 pub use recycler::RecordingRecycler;
 pub use store_workspace::{StoreWorkspace, folder_ref};
 

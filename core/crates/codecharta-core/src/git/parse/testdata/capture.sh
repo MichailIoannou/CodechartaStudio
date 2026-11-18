@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Captures the outputs of the M1 git read commands for the core's parser tests (git 2.56, Linux).
+# Captures the outputs of the M1 and M2 git read commands for the core's parser tests (git 2.56, Linux).
 # Usage: bash capture.sh <output folder> <scratch folder, deleted and created anew>
 set -euo pipefail
 OUT="$1"
@@ -20,6 +20,7 @@ G=(git --no-pager --literal-pathspecs -c core.quotepath=off -c color.ui=false -c
 REVPARSE=(rev-parse --path-format=absolute --is-bare-repository --is-shallow-repository --git-dir --git-common-dir --show-prefix --show-toplevel)
 STATUS=(status --porcelain=v2 --branch -z --untracked-files=normal --ignore-submodules=dirty)
 REFS=(for-each-ref '--format=%(refname)%00%(objectname)%00%(objecttype)%00%(*objectname)%00%(*objecttype)%00%(HEAD)%00%(symref)%00%(upstream)%00%(upstream:track,nobracket)%00%(worktreepath)%00%(creatordate:unix)%00%(contents:subject)' refs/heads refs/remotes refs/tags)
+LOG=(log -z --no-decorate --date-order '--format=tformat:%H%x00%P%x00%aN%x00%aE%x00%at%x00%ct%x00%s')
 cd "$WORK"
 
 # upstream with history, a clone that is ahead 1 and behind 2
@@ -94,5 +95,13 @@ set +e
 mkdir plain
 "${G[@]}" -C plain "${REVPARSE[@]}" > "$OUT/rev_parse_plain.txt" 2> "$OUT/rev_parse_plain.stderr"; echo "exit $?" > "$OUT/rev_parse_plain.exit"
 set -e
+
+# log: root commit, quotes, tab, non-ASCII, a control character, a merge
+git init -q history
+commit history "Root" a.txt a
+git -C history switch -q -c side; commit history "$(printf 'Quote "it"\tand tab \xe2\x80\x93 \xc3\xbc \xe6\x97\xa5\xe6\x9c\xac')" s.txt s
+git -C history switch -q main; commit history "$(printf 'Bell\a here')" b.txt b
+tick; git -C history merge -q --no-ff -m "Merge side" side
+git -C history rev-parse HEAD | "${G[@]}" -C history "${LOG[@]}" --stdin > "$OUT/log_history.txt"
 
 for file in "$OUT"/*; do sed -i "s#$WORK#/fixture#g" "$file"; done

@@ -30,3 +30,4 @@ export type ErrorCode =
     | "INDEX_LOCKED"
     | "PARSE_FAILED"
     | "COMMAND_FAILED"
+    | "LOG_SESSION_EXPIRED"

@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use codecharta_core_api::methods::tools::ToolId;
+use tokio::io::AsyncWriteExt;
 use tokio::process::{Child, Command};
 use tokio_util::sync::CancellationToken;
 
@@ -37,6 +38,8 @@ pub struct RunRequest {
     pub max_output_bytes: u64,
     pub askpass: Option<AskpassSetup>,
     pub output: OutputMode,
+    /// Written to the child's stdin, which is then closed; without it the child's stdin is closed at once.
+    pub stdin: Option<String>,
 }
 
 impl RunRequest {
@@ -52,6 +55,7 @@ impl RunRequest {
             max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES,
             askpass: None,
             output: OutputMode::Collect,
+            stdin: None,
         }
     }
 }
@@ -92,6 +96,7 @@ impl ProcessRunner {
         let started = Instant::now();
         let mut child = self.spawn(&request)?;
         let tree = Arc::new(ProcessTree::attach(&child)?);
+        feed_stdin(&mut child, request.stdin.clone());
         let _registration = LiveTree::register(self, Arc::clone(&tree));
         let result = supervise(&mut child, &tree, &request, cancel).await;
         log_finished(&request, &result, started.elapsed());
@@ -123,7 +128,11 @@ impl ProcessRunner {
                 &request.env,
                 request.askpass.as_ref(),
             ))
-            .stdin(Stdio::null())
+            .stdin(if request.stdin.is_some() {
+                Stdio::piped()
+            } else {
+                Stdio::null()
+            })
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
@@ -141,6 +150,18 @@ impl ProcessRunner {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
     }
+}
+
+/// A child that stops reading early (a stopped stream) makes the write fail; that is its choice, not an error.
+fn feed_stdin(child: &mut Child, text: Option<String>) {
+    let (Some(mut pipe), Some(text)) = (child.stdin.take(), text) else {
+        return;
+    };
+    tokio::spawn(async move {
+        if let Err(error) = pipe.write_all(text.as_bytes()).await {
+            tracing::debug!("the child process stopped reading its input: {error}");
+        }
+    });
 }
 
 struct LiveTree<'runner> {
