@@ -32,7 +32,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M1 (the test names to writ
 - [x] 1.3 Protocol envelopes and error codes
 - [x] 1.4 serve over stdio
 - [x] 1.5 Contract generation
-- [ ] 1.6 CI
+- [x] 1.6 CI
 - [ ] 1.7 Docs
 - [ ] 1.8 Licences
 
@@ -123,4 +123,21 @@ node 26.13.0, npm 12.2.2. No `mise`, `cargo-deny` or `cargo-cyclonedx` installed
   95.28 / 96.57). That spec fails alone too and this milestone touches no app code it reaches; it is a
   pre-existing incompatibility of the spec with this machine's Node 26.13 / jsdom (CI uses Node 24).
   Not changed here; worth a small `fix(visualization)` of its own.
+
+### 1.6
+- `.github/workflows/test_core.yml`, triggers on push/PR to `main` for `core/**`, the two generated
+  contract paths and the workflow itself. Jobs: `core_checks` (matrix ubuntu/windows/macos-latest,
+  `fail-fast: false`; fmt on ubuntu only; clippy and test with `--locked --all-features`) and
+  `contract_drift` (ubuntu; root `npm ci` only, see 1.5; `npm run contract`; fails on
+  `git status --porcelain` of the generated paths, so an uncommitted new file also fails).
+- Toolchain: no third-party action. The hosted runners ship rustup; `rustup toolchain install` without
+  arguments installs what `core/rust-toolchain.toml` names (rustup >= 1.28 behaviour, checked against
+  the local rustup 1.29 help text).
+- **Action pins:** most workflows here pin by tag, not SHA; only `actions/checkout` (v6.0.2) and
+  `actions/setup-node` (v6.5.0) have SHA pins in the repo (`check-licenses.yml`), and those are copied.
+  `actions/cache@v5` has no SHA pin anywhere in the repo, so it is pinned by tag like
+  `test_format.yml` / `test_visualization.yml`. **Owner: confirm and add the SHA for `actions/cache@v5`.**
+- Validated with Python `yaml.safe_load` (no actionlint here). Not run on GitHub.
+- `merge-gatekeeper.yml` waits for every check of a PR, so the new jobs are covered without changes;
+  `quality_gate.yml` is the reusable `ccsh gate` workflow and unrelated. Neither changed.
 
