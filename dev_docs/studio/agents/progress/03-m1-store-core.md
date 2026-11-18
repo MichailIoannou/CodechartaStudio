@@ -29,7 +29,7 @@ codes need an `ErrorCode` variant, `ErrorCode::ALL`, a `CoreError` variant and i
 
 - [x] 1. Paths and ids
 - [x] 2. Atomic writes
-- [ ] 3. Open, migrations, sweep
+- [x] 3. Open, migrations, sweep
 - [ ] 4. Lock
 - [ ] 5. Session
 - [ ] 6. store.status and degraded serve
@@ -69,4 +69,25 @@ compiles the `cfg(windows)` code; nothing ran on Windows.
   through a private `write_json_atomic_with(path, value, rename)` seam; the real Windows failure is not
   reproducible on Linux (03-M0 item 3.3) and stays unverified. Extra tests: `should_give_up_after_the_last_retry`,
   `should_replace_the_file_with_the_new_content`, `should_answer_none_for_a_missing_file_and_io_for_bad_json`.
+
+### 3. Open, migrations, sweep
+- New error code `STORE_NEWER_SCHEMA` (appended: `ErrorCode` variant, `ErrorCode::ALL` now 14,
+  `CoreError::StoreNewerSchema { found, supported }` and its `code()` arm); contract regenerated
+  (`ErrorCode.ts`, `CORE_ERROR_CODES`). The export-contract test `should_list_every_error_code` asserted
+  that `INTERNAL` is the last code, which breaks on every append; it now checks the whole list in
+  `ErrorCode::ALL` order instead.
+- `store/mod.rs`: `Store::open(root)` creates the root, reads `schemaVersion` from the raw JSON (so a newer
+  file whose other fields changed is still reported as newer), creates `store.json`
+  (`{ schemaVersion, createdAt }`, RFC 3339 UTC via `humantime`) when missing, fails with
+  `STORE_NEWER_SCHEMA` before touching anything, sweeps, then runs `MIGRATIONS` whose `to_version` is
+  above the stored version, in list order, rewriting only `schemaVersion` in `store.json` after each. A
+  `store.json` without a numeric `schemaVersion` (or invalid JSON) is `IO` and is left untouched. A test
+  keeps `MIGRATIONS` ascending and ending at `STORE_SCHEMA_VERSION`. The migration-order test uses a
+  private `open_with_schema` with its own list.
+- **Deviation:** the sweep is in `store/sweep.rs`, not `store/mod.rs`. It only looks in the store's own
+  places — `.tmp-*` files in the root, in `projects/<projectId>/` and in each snapshot folder, and
+  `.incoming-*` folders in `projects/<projectId>/snapshots/<folderId>/` — and only below names that parse
+  as ids, so nothing a user put into a chosen store folder is deleted. Symbolic links are not followed.
+  `StorePaths::project_snapshots_dir` was added for it.
+- `Store` also owns the `ProjectLocks` (`project_locks()`), for M2.
 

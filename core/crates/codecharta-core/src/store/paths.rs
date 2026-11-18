@@ -52,12 +52,16 @@ impl StorePaths {
         self.inside_root(self.project_dir(project)?.join(PROJECT_FILE_NAME))
     }
 
+    pub fn project_snapshots_dir(&self, project: &ProjectId) -> CoreResult<PathBuf> {
+        self.inside_root(self.project_dir(project)?.join(SNAPSHOTS_FOLDER_NAME))
+    }
+
     pub fn folder_snapshots_dir(
         &self,
         project: &ProjectId,
         folder: &FolderId,
     ) -> CoreResult<PathBuf> {
-        let snapshots = self.project_dir(project)?.join(SNAPSHOTS_FOLDER_NAME);
+        let snapshots = self.project_snapshots_dir(project)?;
         self.inside_root(snapshots.join(folder.as_str()))
     }
 
