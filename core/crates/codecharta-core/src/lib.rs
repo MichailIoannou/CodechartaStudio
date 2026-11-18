@@ -28,6 +28,7 @@ use codecharta_core_api::methods::store::StoreStatus;
 
 use config::settings::SETTINGS_FILE_NAME;
 use git::changes::RepositoryChanges;
+use git::command::UserEnvironment;
 use git::memory::GitMemory;
 use git::{GitFolder, GitService};
 use process::ProcessRunner;
@@ -51,6 +52,7 @@ pub struct Core {
     recycler: SystemRecycler,
     repository_changes: RepositoryChanges,
     git_memory: GitMemory,
+    user_environment: UserEnvironment,
 }
 
 impl Core {
@@ -78,6 +80,7 @@ impl Core {
             recycler: SystemRecycler,
             repository_changes: RepositoryChanges::default(),
             git_memory: GitMemory::default(),
+            user_environment: UserEnvironment::read(&|name| std::env::var_os(name)),
         })
     }
 
@@ -120,7 +123,8 @@ impl Core {
         })?;
         Ok(GitService::new(&self.tools, self.data_dir())
             .with_changes(&self.repository_changes)
-            .with_memory(&self.git_memory))
+            .with_memory(&self.git_memory)
+            .with_user_environment(self.user_environment.clone()))
     }
 
     /// The project folder a git request names, resolved through the store.

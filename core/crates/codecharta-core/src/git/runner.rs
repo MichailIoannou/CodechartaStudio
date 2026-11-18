@@ -9,7 +9,7 @@ use codecharta_core_api::methods::tools::{ToolId, ToolState};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use super::command::{GitCommand, GitInvocation, Limits, invocation_of};
+use super::command::{GitCommand, GitInvocation, Limits, UserEnvironment, invocation_of};
 use super::error::command_failed;
 use crate::error::{CoreError, CoreResult};
 use crate::process::lines::LineSplitter;
@@ -134,6 +134,7 @@ impl GitProcess for Tools {
                 env_remove: invocation.removed_env,
                 max_output_bytes: Some(invocation.limits.max_stdout_bytes),
                 stdin: invocation.stdin,
+                askpass: invocation.askpass,
                 ..ToolRunOptions::new(invocation.limits.timeout)
             };
             Tools::run(self, ToolId::Git, invocation.args, options, cancel).await
@@ -153,6 +154,7 @@ impl GitProcess for Tools {
                 env_remove: invocation.removed_env,
                 max_output_bytes: Some(invocation.limits.max_stdout_bytes),
                 stdin: invocation.stdin,
+                askpass: invocation.askpass,
                 output: OutputMode::Stream(chunks),
                 ..ToolRunOptions::new(invocation.limits.timeout)
             };
@@ -171,11 +173,20 @@ struct StreamedOutput {
 pub struct GitCli<'core> {
     process: &'core dyn GitProcess,
     data_dir: &'core Path,
+    user: UserEnvironment,
 }
 
 impl<'core> GitCli<'core> {
     pub fn new(process: &'core dyn GitProcess, data_dir: &'core Path) -> Self {
-        Self { process, data_dir }
+        Self {
+            process,
+            data_dir,
+            user: UserEnvironment::default(),
+        }
+    }
+
+    pub fn with_user_environment(self, user: UserEnvironment) -> Self {
+        Self { user, ..self }
     }
 
     pub async fn version(&self) -> CoreResult<String> {
@@ -204,7 +215,7 @@ impl<'core> GitCli<'core> {
     ) -> CoreResult<()> {
         let (sender, receiver) = mpsc::channel(STREAM_CHUNK_BUFFER);
         let stop = cancel.child_token();
-        let invocation = invocation_of(command, self.data_dir);
+        let invocation = invocation_of(command, self.data_dir, &self.user);
         let (run, streamed) = tokio::join!(
             self.process.stream(invocation, sender, &stop),
             read_lines(receiver, on_line, &stop)
@@ -230,7 +241,7 @@ impl<'core> GitCli<'core> {
         command: &GitCommand,
         cancel: &CancellationToken,
     ) -> CoreResult<RunOutput> {
-        let invocation = invocation_of(command, self.data_dir);
+        let invocation = invocation_of(command, self.data_dir, &self.user);
         self.process.execute(invocation, cancel).await
     }
 }

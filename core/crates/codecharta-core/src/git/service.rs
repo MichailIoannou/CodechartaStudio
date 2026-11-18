@@ -11,7 +11,7 @@ use codecharta_core_api::values::{CommitSha, Revision};
 use tokio_util::sync::CancellationToken;
 
 use super::changes::RepositoryChanges;
-use super::command::{GitCommand, QUERY_LIMITS};
+use super::command::{GitCommand, QUERY_LIMITS, UserEnvironment};
 use super::details::{ChangedFilesRequest, changed_files, commit_details};
 use super::locator::{Repository, locate};
 use super::log::{LogContext, LogRequest, log_page};
@@ -80,6 +80,14 @@ impl<'core> GitService<'core> {
     pub fn with_memory(self, memory: &'core GitMemory) -> Self {
         Self {
             memory: Memory::Shared(memory),
+            ..self
+        }
+    }
+
+    /// Mutations then keep the user's locale and network commands the user's credential choices.
+    pub fn with_user_environment(self, user: UserEnvironment) -> Self {
+        Self {
+            git: self.git.with_user_environment(user),
             ..self
         }
     }

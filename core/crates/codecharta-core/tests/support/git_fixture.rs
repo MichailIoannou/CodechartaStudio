@@ -432,6 +432,7 @@ impl FixtureGit {
             env_remove: invocation.removed_env,
             max_output_bytes: invocation.limits.max_stdout_bytes,
             stdin: invocation.stdin,
+            askpass: invocation.askpass,
             output,
             ..RunRequest::new(
                 ToolId::Git,

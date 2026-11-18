@@ -329,14 +329,18 @@ args = [...GLOBAL_ARGS, ("--no-optional-locks", "-c", "core.fsmonitor=false" for
 GLOBAL_ARGS = ["--no-pager", "--literal-pathspecs", "-c", "core.quotepath=off", "-c", "color.ui=false",
                "-c", "log.showSignature=false", "-c", "i18n.logOutputEncoding=UTF-8"]
 base env (all git calls) = GIT_TERMINAL_PROMPT=0, GIT_PAGER=cat, PAGER=cat, GCM_INTERACTIVE=never;
-                           removed: GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, CODECHARTA_ASKPASS*
+                           removed: GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, CODECHARTA_ASKPASS_ENDPOINT,
+                           CODECHARTA_ASKPASS_TOKEN
 READ env      = GIT_OPTIONAL_LOCKS=0, LC_ALL=C, LANG=C
-MUTATING env  = LC_MESSAGES=C, LANGUAGE="", GIT_EDITOR=true, GIT_SEQUENCE_EDITOR=true, GIT_MERGE_AUTOEDIT=no
-NETWORK env   = MUTATING env + askpass env (section 4.6); GCM_INTERACTIVE removed unless the user set it
+MUTATING env  = LC_MESSAGES=C, LANGUAGE="", GIT_EDITOR=true, GIT_SEQUENCE_EDITOR=true, GIT_MERGE_AUTOEDIT=no;
+                removed: LC_ALL — when the user set LC_ALL=<x>, LC_CTYPE, LC_COLLATE, LC_NUMERIC, LC_TIME and
+                LC_MONETARY get <x> instead (verified in M7 task 1: LC_ALL outranks LC_MESSAGES)
+NETWORK env   = MUTATING env + askpass env (section 4.6); GCM_INTERACTIVE removed unless the user set it (then
+                the user's value); DISPLAY=:0 only when the user has no DISPLAY
 cwd           = the core data directory (the repository goes in through -C)
 ```
 
-Reads use `LC_ALL=C` (parsers rely on `-z`, `core.quotepath=off` and explicit formats; stderr stays English for classification). Mutating commands run hooks and gpg, so they keep the user's locale and set only `LC_MESSAGES=C` (UNVERIFIED that this gives English messages when the user has `LC_ALL` set — M7 task 1; otherwise classification falls back to `commandFailed`, and git's verbatim text is always shown). `--literal-pathspecs` makes path arguments literal; it also disables the `:(top,literal)` magic (verified in M2 task 1), so the log filter's path goes without magic and the log runs with `-C <repository root>`.
+Reads use `LC_ALL=C` (parsers rely on `-z`, `core.quotepath=off` and explicit formats; stderr stays English for classification). Mutating commands run hooks and gpg, so they keep the user's locale and set only `LC_MESSAGES=C`. Verified in M7 task 1 (git 2.56, Greek and German catalogues): `LC_MESSAGES=C` gives English under `LANG=<other>` and under `LANGUAGE=de`, but **not** under `LC_ALL=<other>`, hence the `LC_ALL` rule above. The user's values of `LC_ALL`, `GCM_INTERACTIVE` and `DISPLAY` are read once when the core starts (`git::command::UserEnvironment`), because the process runner's base environment already replaced `GCM_INTERACTIVE`. `--literal-pathspecs` makes path arguments literal; it also disables the `:(top,literal)` magic (verified in M2 task 1), so the log filter's path goes without magic and the log runs with `-C <repository root>`.
 
 ```rust
 pub struct GitRunner { /* runner handle, git path, data dir */ }
@@ -536,13 +540,19 @@ Conflicts are not resolved in the app: the banner lists conflicted files, says "
 
 **Mode selection** (decision; UNVERIFIED until the M7 spike): `GIT_ASKPASS` and `SSH_ASKPASS` point **directly at the `codecharta-core` executable**. Git and ssh call it with the prompt as `argv[1]` only, so the mode is chosen by environment: `main()` checks `CODECHARTA_ASKPASS=1` **before** CLI parsing and, if set, runs `askpass::run(argv[1])` and exits; the serving core never has that variable itself, and the runner removes `CODECHARTA_ASKPASS*` from every child except the network commands of its own operation. Running a native executable avoids the `.cmd` quoting problems with `"`, `%`, `&` in prompts. Fallback if the spike shows git or ssh cannot run the binary directly: a two-line `askpass.sh` / `askpass.cmd` wrapper written into the data directory that sets the variable and calls the binary.
 
-Askpass environment of a network command (`AskpassEnv`):
+Askpass environment of a network command (as built in M7: `process::AskpassSetup { git_helper, ssh_helper,
+endpoint, token: Secret }` carried by `GitCommand::network(…)` → `GitInvocation.askpass` → `RunRequest.askpass`;
+the runner adds these variables last, so nothing else can replace them, and the token exists as text only in
+the child's environment):
 ```
 GIT_ASKPASS=<core exe>   SSH_ASKPASS=<core exe, space-free form>   SSH_ASKPASS_REQUIRE=force
-DISPLAY=:0 only when DISPLAY is unset (older OpenSSH)
-CODECHARTA_ASKPASS=1   CODECHARTA_ASKPASS_PIPE=<pipe or socket name>   CODECHARTA_ASKPASS_TOKEN=<per-operation token>
+  (without a space-free form: SSH_ASKPASS and SSH_ASKPASS_REQUIRE are removed, also the user's own)
+DISPLAY=:0 only when the user has no DISPLAY (older OpenSSH)
+CODECHARTA_ASKPASS_ENDPOINT=<pipe or socket name>   CODECHARTA_ASKPASS_TOKEN=<per-operation token>
 GIT_TERMINAL_PROMPT=0 (kept)   GCM_INTERACTIVE removed unless the user set it (GCM may show its own window)
 ```
+The helper paths come from `git::askpass::askpass_helpers` (`AskpassHelpers { git, ssh }`, platform and file
+system injected; `SystemHelperFiles` is the real one).
 
 Space-free path for `SSH_ASKPASS` on Windows (Git for Windows' ssh failed on a helper path with a space; UNVERIFIED whether that also holds for an `.exe`): use the path as is when it has no space; otherwise its 8.3 short name via `GetShortPathNameW` (`windows-sys`); otherwise copy the executable to `<dataDir>/askpass/codecharta-core.exe` when that path has no space (re-copied when the size or modification time differs); otherwise leave `SSH_ASKPASS` unset (HTTPS prompts still work) and fail ssh prompts with "CodeCharta cannot ask for ssh passphrases on this machine. Load the key into ssh-agent / Pageant first."
 

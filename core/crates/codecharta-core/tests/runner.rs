@@ -4,9 +4,11 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use codecharta_core::CoreError;
-use codecharta_core::process::env::hardened_env;
+use codecharta_core::process::AskpassSetup;
+use codecharta_core::process::env::{ASKPASS_TOKEN_VARIABLE, hardened_env};
 use codecharta_core::process::{OutputChunk, OutputMode, ProcessRunner, RunRequest};
 use codecharta_core_api::methods::tools::ToolId;
+use codecharta_core_api::secret::Secret;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -348,6 +350,73 @@ async fn should_kill_running_children_on_kill_all() {
 
     // Assert
     assert_ne!(result.unwrap().exit_code, 0);
+}
+
+#[derive(Clone, Default)]
+struct CapturedLog(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl std::io::Write for CapturedLog {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0
+            .lock()
+            .expect("not poisoned")
+            .extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl CapturedLog {
+    fn text(&self) -> String {
+        String::from_utf8_lossy(&self.0.lock().expect("not poisoned")).into_owned()
+    }
+}
+
+/// Global, not scoped to the test: with one scoped subscriber, tracing decides whether a log line is
+/// wanted by asking the subscriber of the thread that reaches it first, which may be another test's.
+fn global_trace_log() -> &'static CapturedLog {
+    static LOG: std::sync::OnceLock<CapturedLog> = std::sync::OnceLock::new();
+    LOG.get_or_init(|| {
+        let log = CapturedLog::default();
+        let writer = log.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::TRACE)
+            .with_writer(move || writer.clone())
+            .finish();
+        tracing::subscriber::set_global_default(subscriber).expect("no other global subscriber");
+        log
+    })
+}
+
+#[tokio::test]
+async fn should_never_log_the_token() {
+    // Arrange
+    let token = "5ec7e75ec7e75ec7e75ec7e75ec7e75ec7e75ec7e75ec7e75ec7e75ec7e75ec7";
+    let log = global_trace_log();
+    let mut request = fake_request(&["print-env", ASKPASS_TOKEN_VARIABLE]);
+    request.askpass = Some(AskpassSetup {
+        git_helper: fake_tool(),
+        ssh_helper: Some(fake_tool()),
+        endpoint: "endpoint".to_string(),
+        token: Secret::new(token.to_string()),
+    });
+    let failing = RunRequest {
+        askpass: request.askpass.clone(),
+        ..fake_request(&["exit", "3"])
+    };
+
+    // Act
+    let output = run(request).await.unwrap();
+    run(failing).await.unwrap();
+
+    // Assert
+    assert_eq!(output.stdout.trim_end(), token);
+    let logged = log.text();
+    assert!(logged.contains("child process finished"), "{logged}");
+    assert!(!logged.contains(token), "{logged}");
 }
 
 #[cfg(windows)]

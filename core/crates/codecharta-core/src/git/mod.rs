@@ -1,3 +1,4 @@
+pub mod askpass;
 pub mod cache;
 pub mod changes;
 pub mod command;

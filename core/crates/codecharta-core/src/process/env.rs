@@ -1,6 +1,8 @@
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 
+use codecharta_core_api::secret::Secret;
+
 pub type EnvVars = Vec<(OsString, OsString)>;
 
 /// Variables that would point git at another repository or change how Node-based tools start.
@@ -28,12 +30,19 @@ const FIXED_VARIABLES: [(&str, &str); 9] = [
 const PATH_VARIABLE: &str = "PATH";
 pub const ASKPASS_ENDPOINT_VARIABLE: &str = "CODECHARTA_ASKPASS_ENDPOINT";
 pub const ASKPASS_TOKEN_VARIABLE: &str = "CODECHARTA_ASKPASS_TOKEN";
+const GIT_ASKPASS_VARIABLE: &str = "GIT_ASKPASS";
+const SSH_ASKPASS_VARIABLE: &str = "SSH_ASKPASS";
+const SSH_ASKPASS_REQUIRE_VARIABLE: &str = "SSH_ASKPASS_REQUIRE";
 const SSH_ASKPASS_REQUIRE_FORCE: &str = "force";
 
+/// How a child reaches the core's credential prompt. Without an `ssh_helper` ssh cannot ask through the
+/// core, so an `SSH_ASKPASS` the user configured is left out rather than half-used.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AskpassSetup {
-    pub helper: PathBuf,
+    pub git_helper: PathBuf,
+    pub ssh_helper: Option<PathBuf>,
     pub endpoint: String,
+    pub token: Secret,
 }
 
 pub fn hardened_env(
@@ -54,19 +63,27 @@ pub fn hardened_env(
     env
 }
 
-pub fn askpass_env(setup: &AskpassSetup) -> [(OsString, OsString); 4] {
-    [
-        ("GIT_ASKPASS".into(), setup.helper.clone().into_os_string()),
-        ("SSH_ASKPASS".into(), setup.helper.clone().into_os_string()),
-        (
-            "SSH_ASKPASS_REQUIRE".into(),
+pub fn askpass_env(setup: &AskpassSetup) -> EnvVars {
+    let mut env: EnvVars = vec![(
+        GIT_ASKPASS_VARIABLE.into(),
+        setup.git_helper.clone().into_os_string(),
+    )];
+    if let Some(ssh_helper) = &setup.ssh_helper {
+        env.push((
+            SSH_ASKPASS_VARIABLE.into(),
+            ssh_helper.clone().into_os_string(),
+        ));
+        env.push((
+            SSH_ASKPASS_REQUIRE_VARIABLE.into(),
             SSH_ASKPASS_REQUIRE_FORCE.into(),
-        ),
-        (
-            ASKPASS_ENDPOINT_VARIABLE.into(),
-            setup.endpoint.clone().into(),
-        ),
-    ]
+        ));
+    }
+    env.push((
+        ASKPASS_ENDPOINT_VARIABLE.into(),
+        setup.endpoint.clone().into(),
+    ));
+    env.push((ASKPASS_TOKEN_VARIABLE.into(), setup.token.expose().into()));
+    env
 }
 
 /// `removed` names leave the base first; the askpass variables come last so that nothing a caller passes
@@ -82,7 +99,17 @@ pub fn child_env(
     for (name, value) in overrides {
         set_variable(&mut env, name.clone(), value.clone());
     }
-    for (name, value) in askpass.map(askpass_env).into_iter().flatten() {
+    let Some(setup) = askpass else {
+        return env;
+    };
+    if setup.ssh_helper.is_none() {
+        env.retain(|(name, _)| {
+            ![SSH_ASKPASS_VARIABLE, SSH_ASKPASS_REQUIRE_VARIABLE]
+                .iter()
+                .any(|ssh_name| is_same_name(name, ssh_name.as_ref()))
+        });
+    }
+    for (name, value) in askpass_env(setup) {
         set_variable(&mut env, name, value);
     }
     env
@@ -143,10 +170,15 @@ mod tests {
             .into_iter()
     }
 
+    const TOKEN: &str = "0123456789abcdef0123456789abcdef";
+
     fn askpass_setup() -> AskpassSetup {
+        let helper = std::env::temp_dir().join("codecharta-core");
         AskpassSetup {
-            helper: std::env::temp_dir().join("codecharta-core"),
+            git_helper: helper.clone(),
+            ssh_helper: Some(helper),
             endpoint: "endpoint-1".to_string(),
+            token: Secret::new(TOKEN.to_string()),
         }
     }
 
@@ -217,7 +249,7 @@ mod tests {
         let env = child_env(&base, &[], &overrides, Some(&askpass_setup()));
 
         // Assert
-        let last_names: Vec<String> = env[env.len() - 4..]
+        let last_names: Vec<String> = env[env.len() - 5..]
             .iter()
             .map(|(name, _)| name.to_string_lossy().into_owned())
             .collect();
@@ -227,12 +259,54 @@ mod tests {
                 "GIT_ASKPASS",
                 "SSH_ASKPASS",
                 "SSH_ASKPASS_REQUIRE",
-                ASKPASS_ENDPOINT_VARIABLE
+                ASKPASS_ENDPOINT_VARIABLE,
+                ASKPASS_TOKEN_VARIABLE
             ]
         );
-        let helper = askpass_setup().helper.to_string_lossy().into_owned();
+        let helper = askpass_setup().git_helper.to_string_lossy().into_owned();
         assert_eq!(value_of(&env, "GIT_ASKPASS"), Some(helper.clone()));
         assert_eq!(value_of(&env, "SSH_ASKPASS"), Some(helper));
+        assert_eq!(
+            value_of(&env, ASKPASS_TOKEN_VARIABLE).as_deref(),
+            Some(TOKEN)
+        );
+    }
+
+    #[test]
+    fn should_leave_the_users_ssh_askpass_out_without_an_ssh_helper() {
+        // Arrange
+        let base = hardened_env(
+            parent(&[
+                ("SSH_ASKPASS", "/usr/bin/ksshaskpass"),
+                ("SSH_ASKPASS_REQUIRE", "prefer"),
+            ]),
+            &[],
+        );
+        let setup = AskpassSetup {
+            ssh_helper: None,
+            ..askpass_setup()
+        };
+
+        // Act
+        let env = child_env(&base, &[], &Vec::new(), Some(&setup));
+
+        // Assert
+        assert_eq!(value_of(&env, "SSH_ASKPASS"), None);
+        assert_eq!(value_of(&env, "SSH_ASKPASS_REQUIRE"), None);
+        assert!(value_of(&env, "GIT_ASKPASS").is_some());
+    }
+
+    #[test]
+    fn should_print_the_token_of_a_setup_as_stars() {
+        // Arrange
+        let setup = askpass_setup();
+
+        // Act
+        let printed = format!("{setup:?}");
+
+        // Assert
+        assert!(!printed.contains(TOKEN), "{printed}");
+        assert!(printed.contains("***"));
     }
 
     #[test]
