@@ -1,0 +1,6 @@
+false
+true
+/fixture/shallow/.git/worktrees/shallow-linked
+/fixture/shallow/.git
+src/
+/fixture/shallow-linked

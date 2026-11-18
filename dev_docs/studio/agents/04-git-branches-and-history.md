@@ -682,7 +682,7 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 
 ### M1 — Core: fixtures, contract, runner, repository, status, refs (M)
 
-1. **Reconcile and fixtures.** Read plans 01 and 03 as implemented; record real names in section 9. Build `core/crates/codecharta-core/tests/support/git_fixture.rs` (`tempfile`): `FixtureRepo::new()` runs git with `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` = an empty file, `GIT_CONFIG_NOSYSTEM=1`, `HOME`/`USERPROFILE` = the temp dir, `GIT_AUTHOR_NAME=Ada Author`, `GIT_AUTHOR_EMAIL=ada@example.test`, `GIT_COMMITTER_NAME=Carl Committer`, `GIT_COMMITTER_EMAIL=carl@example.test`, `GIT_AUTHOR_DATE` = `GIT_COMMITTER_DATE` = `@<1700000000 + 60·n> +0000`, `-c init.defaultBranch=main -c commit.gpgsign=false -c core.autocrlf=false`. API: `commit(msg, files)`, `write_file`, `branch`, `checkout`, `merge(names, msg)` (`--no-ff`), `tag(name, annotated)`, `with_bare_origin()` (a bare repository added as `origin` by path, `push -u`), `clone_of_origin()` (second working clone for "remote moved" scenarios), `linear_history(n)` (via `git fast-import`), `path()`, `env()`. Also a `FolderResolver` fake mapping `FolderRef` → fixture path. Record outputs of every section 4.5 command into `src/git/parse/testdata/` and correct section 4.5 if git differs. Spike (findings in the progress file): with git 2.31 (portable or container) confirm `--end-of-options` on `switch`, `branch`, `push`, `rev-parse`, and `rev-parse --path-format=absolute`; set git's minimum version in plan 01's tools check.
+1. **Reconcile and fixtures.** Read plans 01 and 03 as implemented; record real names in section 9. Build `core/crates/codecharta-core/tests/support/git_fixture.rs` (`tempfile`): `TempRepo::new()` (the existing fixture, extended) runs git with `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` = an empty file, `GIT_CONFIG_NOSYSTEM=1`, `HOME`/`USERPROFILE` = the temp dir, `GIT_AUTHOR_NAME=Ada Author`, `GIT_AUTHOR_EMAIL=ada@example.test`, `GIT_COMMITTER_NAME=Carl Committer`, `GIT_COMMITTER_EMAIL=carl@example.test`, `GIT_AUTHOR_DATE` = `GIT_COMMITTER_DATE` = `@<1700000000 + 60·n> +0000`, `-c init.defaultBranch=main -c commit.gpgsign=false -c core.autocrlf=false`. API: `commit(msg, files)`, `write_file`, `branch`, `checkout`, `merge(names, msg)` (`--no-ff`), `tag(name, annotated)`, `with_bare_origin()` (a bare repository added as `origin` by path, `push -u`), `clone_of_origin()` (second working clone for "remote moved" scenarios), `linear_history(n)` (via `git fast-import`), `path()`, `env()`. (No `FolderResolver` fake: the service takes a resolved `GitFolder`, see section 9.) Record outputs of every section 4.5 command into `src/git/parse/testdata/` and correct section 4.5 if git differs. Spike (findings in the progress file): with git 2.31 (portable or container) confirm `--end-of-options` on `switch`, `branch`, `push`, `rev-parse`, and `rev-parse --path-format=absolute`; set git's minimum version in plan 01's tools check.
    - Tests: should_create_identical_shas_on_every_run; should_not_read_the_user_git_configuration; should_fail_commit_without_identity_when_use_config_only_is_set; plan 01 tools: should_report_git_below_minimum_as_too_old.
    - Commit: `test(core): add deterministic git fixture repositories`
 2. **Contract and helpers.** `codecharta-core-api/src/git.rs` (read types only; mutating types arrive with their milestone), `nul.rs`, `revisions.rs`, `cache.rs`; regenerate TS types.
@@ -898,3 +898,29 @@ Cross-plan items:
 - Plan 03: `FolderRef` in the API crate, the core folder resolver, the recycle-bin helper, `ProjectsService` exported from `features/projects/facade.ts`.
 - Plan 05: in-core `GitService` (`rev_list` stream, `measure_distances`, `status`, `subscribe_changes`), the `workingTree` selection item, `ANALYSED_COMMITS` / `COMMIT_ACTIONS` / `LOADED_MAP_LOCATOR` ports; mutating git only through `OperationQueue`; fixtures from `tests/support/git_fixture.rs`.
 - Plan 06: `merge_base`, `changed_files` / `git.changedFiles`, `fetch_refspecs` into `refs/codecharta/pr/<n>` (prompts and progress included), `COMMIT_ACTIONS` for "Compare with…"; fixtures from `tests/support/git_fixture.rs`.
+
+Reconciled with plans 01 and 03 as implemented (04-M1 task 1, 2026-11-18):
+- Async runtime: tokio. Process runner: `codecharta_core::process::ProcessRunner::run(RunRequest, &CancellationToken)`
+  (`RunRequest { tool, program, args, cwd, env, timeout, max_output_bytes, askpass, output }`, `RunOutput
+  { exit_code, stdout: String, stderr: String, duration }`; output is decoded UTF-8 with U+FFFD, not bytes).
+  Tools: `codecharta_core::tools::Tools::run(ToolId::Git, args, ToolRunOptions, &cancel)`; git's minimum
+  `2.31.0` is already in `tools/definitions.rs`, and the plan 01 test is `tests/tools.rs`
+  `should_report_too_old_below_minimum`. No stdin, no stdout line streaming yet (M2), env removal added in M1.
+- Dispatcher: `codecharta-cored/src/serve/dispatch.rs` (`ROUTES`, `read_params`, `write_result`,
+  `domain_error`, `Notifier`), one `serve/<domain>_routes.rs` per domain — so `rpc/git.rs` is
+  `serve/git_routes.rs`. Cancel is the `core.cancel` notification (overview section 10). CLI: clap in
+  `codecharta-cored/src/cli/` — `cli/git.rs` as planned; refusals print `<ERROR_CODE>: <message>`, exit 1.
+- Contract: one `codecharta-core-api/src/methods/<domain>.rs` per domain (so `git.rs` is `methods/git.rs`),
+  `method!` macro, `METHODS` / `EVENTS` in `registry.rs`; `npm run contract` regenerates
+  `visualization/app/codeCharta/model/coreApi/`. Error codes are `ErrorCode` (SCREAMING_SNAKE_CASE,
+  append-only, `ErrorCode::ALL`); JSON-RPC `-32000` with `data = { code, message, details }`. There is no
+  separate `GitErrorCode` on the wire: git codes are appended to `ErrorCode`, git's text goes in
+  `details.detail` (plan 01 wins, overview section 10).
+- Plan 03: `FolderRef { projectId, folderId }` in `methods/projects.rs`; `GitRemote { name, url }` exists there
+  too and is reused; folder lookup is `ProjectRepository::resolve_folder(&FolderRef) -> ResolvedFolder
+  { path, kind, status }` (unknown → `NOT_FOUND`, a missing folder → status `missing` → `FOLDER_UNAVAILABLE`);
+  recycle bin `codecharta_core::recycle::SystemRecycler`; credential stripping
+  `folders::inspector::strip_credentials`. Plan 03's simple `git::GitRunner` trait (`run(cwd, args)`, used
+  by the folder inspector) stays; plan 04's richer runner is `git::GitCli` over a new port `git::GitProcess`.
+- Fixture: `tests/support/git_fixture.rs` `TempRepo` (plan's `FixtureRepo`), extended as M1 task 1 lists;
+  `FixtureGit` (its `GitRunner`) gains the plan 04 port too.
