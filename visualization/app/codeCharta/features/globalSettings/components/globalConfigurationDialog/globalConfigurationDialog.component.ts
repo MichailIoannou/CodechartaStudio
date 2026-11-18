@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, viewChild } fro
 import { toSignal } from "@angular/core/rxjs-interop"
 import { MapStateReadWindow } from "../../../../stores/mapState/mapState.read.facade"
 import { PreferencesReadWindow } from "../../../../stores/preferences/preferences.read.facade"
+import { DesktopEnvironment } from "../../../../util/desktop/desktopEnvironment.service"
+import { DesktopToolsPanelComponent } from "../../../desktopTools/facade"
 import { canOpenFoldersHere } from "../../../localSource/facade"
 import { ThemePickerComponent } from "../../../theme/facade"
 import { GlobalSettingsWriteStore } from "../../stores/globalSettings.write.store"
@@ -20,7 +22,8 @@ import { SettingToggleComponent } from "./settingToggle/settingToggle.component"
         ResetSettingsButtonComponent,
         SettingToggleComponent,
         ExternalLinksComponent,
-        ThemePickerComponent
+        ThemePickerComponent,
+        DesktopToolsPanelComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -35,6 +38,7 @@ export class GlobalConfigurationDialogComponent {
         requireSync: true
     })
     readonly canOpenLocalFolders = canOpenFoldersHere()
+    readonly isDesktop = inject(DesktopEnvironment).isDesktop
     localSourceEnabled = toSignal(this.preferencesReadWindow.localSourceEnabled$, { requireSync: true })
     isWhiteBackground = toSignal(this.mapStateReadWindow.isWhiteBackground$, { requireSync: true })
     hideFlatBuildings = toSignal(this.mapStateReadWindow.hideFlatBuildings$, { requireSync: true })
