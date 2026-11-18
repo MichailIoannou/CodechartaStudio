@@ -35,7 +35,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M4 Dependency graph, color-range diagram | UI | blocked | design 02-themes; 02-M3 | — | — |
 | 02-M5 Editor schemes and quick toggle | UI | blocked | design 02-themes; 02-M4 | — | — |
 | 02-M6 Native window appearance | UI | blocked | design 02-themes; plan 01 | — | — |
-| 03-M0 Spikes | spike | todo | plan 01 (shell for item 1) | throwaway | — |
+| 03-M0 Spikes | spike | in progress (items 0, 3 now; 1, 2, 4 after 01-M3) | 01-M3 for items 1, 2, 4 | feature/studio-03-m0a | — |
 | 03-M1 Store core | core | todo | plan 01 core | — | — |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | todo | 03-M1 | — | — |
 | 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | todo | 03-M2 | — | — |
@@ -116,6 +116,7 @@ the milestone is started.
 
 ## Session log
 
+- 2026-11-18: 03-M0 part A (reconciliation + core-only spike item 3) started in parallel with 01-M3.
 - 2026-11-18: 01-M2 verified (same gates, same Node 26 caveat) and merged; 01-M3 started (no visible UI: picker titles come from callers, core state is only an event).
 
 - 2026-11-18: 01-M1 verified (cargo fmt/clippy/test, contract drift, format, lint, tsc, npm test with the Node 26 caveat) and merged; 01-M2 started.
