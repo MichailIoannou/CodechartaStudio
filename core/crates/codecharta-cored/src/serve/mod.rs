@@ -1,6 +1,7 @@
 pub mod dispatch;
 pub mod framing;
 pub mod output;
+mod projects_routes;
 pub mod session;
 mod store_routes;
 mod test_methods;

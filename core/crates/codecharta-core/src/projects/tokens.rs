@@ -111,6 +111,14 @@ impl PickTokens {
         self.lock().extend(taken.picks);
     }
 
+    /// Keeps the tokens used when the use succeeded and gives them back when it failed.
+    pub fn settle<T>(&self, taken: TakenPicks, result: CoreResult<T>) -> CoreResult<T> {
+        if result.is_err() {
+            self.give_back(taken);
+        }
+        result
+    }
+
     fn is_expired(&self, pick: &Pick) -> bool {
         pick.issued_at.elapsed() >= self.lifetime
     }
@@ -132,6 +140,13 @@ impl TakenPicks {
             .iter()
             .map(|(_, pick)| pick.path.as_path())
             .collect()
+    }
+
+    pub fn first_path(&self) -> CoreResult<PathBuf> {
+        self.picks
+            .first()
+            .map(|(_, pick)| pick.path.clone())
+            .ok_or_else(|| CoreError::Internal("no token was taken".to_string()))
     }
 }
 

@@ -26,10 +26,11 @@ pub enum ErrorCode {
     DuplicateLabel,
     FolderUnavailable,
     DifferentHistory,
+    TooLarge,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 20] = [
+    pub const ALL: [ErrorCode; 21] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -50,6 +51,7 @@ impl ErrorCode {
         ErrorCode::DuplicateLabel,
         ErrorCode::FolderUnavailable,
         ErrorCode::DifferentHistory,
+        ErrorCode::TooLarge,
     ];
 }
 

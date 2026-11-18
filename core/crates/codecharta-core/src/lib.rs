@@ -23,6 +23,9 @@ use codecharta_core_api::methods::store::StoreStatus;
 use config::settings::SETTINGS_FILE_NAME;
 use process::ProcessRunner;
 use process::env::hardened_env;
+use projects::ProjectRepository;
+use projects::tokens::PickTokens;
+use recycle::SystemRecycler;
 use store::Store;
 use store::state::StoreState;
 use tools::{SearchLocations, Tools, ToolsSetup};
@@ -34,6 +37,8 @@ pub struct Core {
     runner: Arc<ProcessRunner>,
     tools: Tools,
     store: OnceLock<StoreState>,
+    pick_tokens: PickTokens,
+    recycler: SystemRecycler,
 }
 
 impl Core {
@@ -57,6 +62,8 @@ impl Core {
             runner,
             tools,
             store: OnceLock::new(),
+            pick_tokens: PickTokens::default(),
+            recycler: SystemRecycler,
         })
     }
 
@@ -68,6 +75,19 @@ impl Core {
 
     pub fn store(&self) -> CoreResult<&Store> {
         self.store_state()?.store()
+    }
+
+    /// The projects of the store this core opened, with the real git and recycle bin.
+    pub fn projects(&self) -> CoreResult<ProjectRepository<'_>> {
+        Ok(ProjectRepository::new(
+            self.store()?,
+            &self.tools,
+            &self.recycler,
+        ))
+    }
+
+    pub fn pick_tokens(&self) -> &PickTokens {
+        &self.pick_tokens
     }
 
     pub fn store_status(&self) -> CoreResult<StoreStatus> {

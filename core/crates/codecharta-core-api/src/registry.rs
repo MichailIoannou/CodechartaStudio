@@ -6,6 +6,12 @@ use ts_rs::{Config, ExportError, TS};
 use crate::events::CoreProgress;
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
 use crate::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use crate::methods::projects::{
+    ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
+    ProjectsGetActive, ProjectsInspectFolder, ProjectsList, ProjectsRefreshFolder,
+    ProjectsRelinkFolder, ProjectsRemoveFolder, ProjectsResolveCommit, ProjectsSetActive,
+    ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
+};
 use crate::methods::shell::ShellResolvePath;
 use crate::methods::store::StoreGetStatus;
 use crate::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
@@ -99,6 +105,23 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<ToolsClearPath>(),
     MethodSpec::of::<ShellResolvePath>(),
     MethodSpec::of::<StoreGetStatus>(),
+    MethodSpec::of::<ProjectsList>(),
+    MethodSpec::of::<ProjectsGet>(),
+    MethodSpec::of::<ProjectsInspectFolder>(),
+    MethodSpec::of::<ProjectsCreate>(),
+    MethodSpec::of::<ProjectsUpdate>(),
+    MethodSpec::of::<ProjectsDelete>(),
+    MethodSpec::of::<ProjectsAddFolder>(),
+    MethodSpec::of::<ProjectsUpdateFolder>(),
+    MethodSpec::of::<ProjectsRemoveFolder>(),
+    MethodSpec::of::<ProjectsRelinkFolder>(),
+    MethodSpec::of::<ProjectsRefreshFolder>(),
+    MethodSpec::of::<ProjectsGetActive>(),
+    MethodSpec::of::<ProjectsSetActive>(),
+    MethodSpec::of::<ProjectsSetView>(),
+    MethodSpec::of::<ProjectsResolveCommit>(),
+    MethodSpec::of::<ProjectsFolderPath>(),
+    MethodSpec::of::<ProjectsSourceFileLocation>(),
 ];
 
 pub const EVENTS: &[EventSpec] = &[EventSpec::of::<CoreProgress>()];

@@ -44,7 +44,7 @@ store API of `03-m1-store-core.md` apply. Git fixtures go in `tests/support/git_
 - [x] 3. Pick tokens
 - [x] 4. Repository
 - [x] 5. Folder operations
-- [ ] 6. JSON-RPC
+- [x] 6. JSON-RPC
 - [ ] 7. CLI
 - [ ] 8. Shell (part B)
 - [ ] 9. Fake bridge backend (part B)
@@ -159,3 +159,67 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0, nod
 - Tests: the plan's six plus `should_refuse_to_leave_a_project_without_a_primary_folder`,
   `should_recycle_the_snapshots_of_a_removed_folder`, `should_refuse_a_view_naming_a_folder_outside_the_project`,
   `should_resolve_commits_only_in_git_folders`.
+
+### 6. JSON-RPC
+- Structural commit first: the protocol tests' `ServingCore` moved to `codecharta-cored/tests/support/mod.rs`
+  (`refactor(core): share the serving core helper of the protocol tests`), so `tests/projects_protocol.rs`
+  can use it.
+- Api (`methods/projects.rs`): params `ProjectIdParams`, `InspectFolderParams`, `CreateProjectParams`,
+  `DeleteProjectParams`, `AddFolderParams`, `UpdateFolderParams`, `RemoveFolderParams`, `RelinkFolderParams`
+  (`acceptDifferentHistory?: boolean`), `SetActiveProjectParams { projectId | null }`, `SetViewParams { projectId,
+  view }`, `ResolveCommitParams`, `SourceFileParams`; results `ProjectList`, `PickedFolder`, `ActiveProject`,
+  `ResolveCommitResult`, `FolderPath`, `SourceFileLocation`, `SourceFileLookup`. Every request type has
+  `deny_unknown_fields`; `FolderRef` & `{ .. }` are written out as flat structs because serde's `flatten`
+  does not work with `deny_unknown_fields`. 17 methods registered with a local `method!` macro.
+- **Deviation: three results are wrapped** (`ProjectList { projects }`, `ResolveCommitResult { commit }`,
+  `SourceFileLookup { location }`) instead of the plan's `ProjectSummary[]`, `ResolvedCommit | null`,
+  `SourceFileLocation | null`: the export (`export-contract`, `referenced_types`) only exports and imports
+  named types, and `Vec<T>` / `Option<T>` are unnamed, so the element types would be missing from the
+  contract. Plan text corrected.
+- `projects.setView` takes `{ projectId, view: { workingFolderId, shownSnapshotIdByFolder } }` (OD1; no
+  separate `setWorkingFolder`). `projects.setActive` refuses an unknown project (`NOT_FOUND`);
+  `projects.getActive` answers null for a remembered project that no longer exists (03-M1 left both to M2).
+- New error code `TOO_LARGE` (appended, `ErrorCode::ALL` now 21; `details.limitBytes` like
+  `OUTPUT_TOO_LARGE`). `projects/source_files.rs`: `source_file_location` (folder `ok` else
+  `FOLDER_UNAVAILABLE`; `confine_to_folder`; missing file `null`; a directory `BAD_REQUEST`; above
+  `MAX_SOURCE_FILE_BYTES` = 16 MiB `TOO_LARGE`; `path` and `folderRoot` are canonical, so the shell can
+  check `path` starts with `folderRoot`).
+- Core facade: `Core::projects() -> CoreResult<ProjectRepository>` (goes through `Core::store()`, so a store
+  that failed at start-up answers its problem), `Core::pick_tokens()`; `Core` owns `PickTokens` and a
+  `SystemRecycler`. `projects/active.rs`: `active_project`, `set_active_project`, `pick_folder(git, tokens,
+  path)` (absolute existing folder, else `BAD_REQUEST` / `NOT_FOUND`).
+- Routes: `codecharta-cored/src/serve/projects_routes.rs` (the plan's `rpc/projects.rs` does not match the
+  layout as built). Token-using routes take the tokens, run the library call and `settle` them.
+- Shell-only (`Audience::Shell`, absent from `rendererMethods`): `projects.inspectFolder`,
+  `projects.folderPath`, `projects.sourceFileLocation`. The plan's shell-composed `projects.pickFolder` and
+  `projects.readSourceFile` are not core methods (every `METHODS` entry needs a route; 03-M0 item 0); they
+  belong to the shell (task 8). The 03-M0 suggestion to use `ShellPathTarget` variants instead of
+  `projects.folderPath` was not taken: it keeps the plan's names and needs no store access in `Paths`.
+- Tests (`tests/projects_protocol.rs`, hermetic `HOME` / `GIT_CONFIG_NOSYSTEM` for the served core): the
+  plan's seven plus `should_create_list_and_activate_a_picked_project`,
+  `should_answer_the_folder_path_to_the_shell`. The symlink test is `cfg(unix)`; the large file is sparse.
+
+### Pick token contract for the shell (task 8; to settle with 01-M3)
+Plan 01's preload `pickFolder({ title })` resolves to a path string in the renderer; plan 03 decision 1
+forbids paths from the renderer. The core side is built for tokens; the shell must do this:
+1. `projects.pickFolder()` is composed in the main process: native `dialog.showOpenDialog` with
+   `openDirectory`; cancelled -> `null`; else core request `projects.inspectFolder { path }` with the
+   absolute picked path, and the `PickedFolder { pickToken, path, suggestedLabel, kind, git }` goes to the
+   renderer as it is. `path` is for display only.
+2. The renderer sends only the token: `projects.create { name, description?, folders: [{ pickToken, label,
+   role }] }`, `projects.addFolder { projectId, folder: { pickToken, label, role } }`,
+   `projects.relinkFolder { projectId, folderId, pickToken, acceptDifferentHistory? }`. No renderer-callable
+   method accepts a path.
+3. A token is 32 lowercase hex, lives 15 minutes in the serving core's memory, and works for one successful
+   use; a failed use (for example `DUPLICATE_LABEL`) leaves it usable. Unknown, used, expired or
+   wrong-kind tokens (and every token after a core restart) answer `TOKEN_EXPIRED`: the renderer asks the
+   user to pick again.
+4. The relay never forwards `projects.inspectFolder`, `projects.folderPath` or `projects.sourceFileLocation`
+   from the renderer (they are not in `coreMethods.generated.json`). Reveal-in-explorer resolves
+   `(projectId, folderId)` with `projects.folderPath`. `projects.readSourceFile({ projectId, folderId,
+   relativePath })` asks `projects.sourceFileLocation`; `location: null` -> `null`; otherwise it checks that
+   `location.path` lies inside `location.folderRoot` and reads at most `sizeBytes`.
+5. Settling with plan 01: keep plan 01's generic path-returning picker only for the shell's own uses (tool
+   executable, store root); the project flows use `projects.pickFolder` above. The `DesktopBridge` type
+   declares the two composed methods by hand over the generated `PickedFolder` (they are not in
+   `CoreMethods`).

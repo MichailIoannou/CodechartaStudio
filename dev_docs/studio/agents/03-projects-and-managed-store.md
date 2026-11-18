@@ -126,7 +126,7 @@ Renderer and shell (`visualization/`)
     "addedAt": "ISO"
   }],
   "analysisProfile": { "exclude": [], "without": [], "parallel": true },
-  "view": { "visibleFolderIds": ["f-…"], "shownSnapshotIdByFolder": { "f-…": "<snapshotId>" } }
+  "view": { "workingFolderId": "f-…", "shownSnapshotIdByFolder": { "f-…": "<snapshotId>" } }   // OD1: one working folder, null when the project has none
 }
 ```
 
@@ -157,10 +157,12 @@ Modules in `core/crates/codecharta-core/src/` (no function bodies here; signatur
 | `store/session.rs` | `SessionRepository::{active_project, set_active_project}` |
 | `store/root_change.rs` | `change_store_root(current: &Path, target: &Path) -> Result<StoreRootChange, CoreError>` (adopt an existing store, copy into an empty folder without `.lock`, else `BAD_REQUEST`) |
 | `recycle.rs` | `trait Recycler { fn recycle(&self, path: &Path) -> Result<(), CoreError>; }`, `SystemRecycler` (crate candidate `trash`) |
-| `folders/inspector.rs` | `inspect_folder(git: &dyn GitRunner, path: &Path) -> FolderInspection`, `resolve_commit(git: &dyn GitRunner, folder: &Path, hash: &CommitHash) -> Result<Option<ResolvedCommit>, CoreError>` |
+| `git/runner.rs` | `trait GitRunner { fn run(&self, cwd: &Path, args: &[&str]) -> GitFuture }` (boxed future of `CoreResult<GitOutput { exit_code, stdout }>`), implemented by `Tools`; `GIT_TIMEOUT` (as built in 03-M2) |
+| `folders/inspector.rs` | `async inspect_folder(git: &dyn GitRunner, path: &Path) -> FolderInspection`, `resolve_commit(git: &dyn GitRunner, folder: &Path, hash: &CommitHash) -> Result<Option<ResolvedCommit>, CoreError>` |
 | `folders/relationships.rs` | pure: `normalise_remote_url(url: &str) -> String`, `derive_relationships(folders: &[ProjectFolder]) -> BTreeMap<FolderId, Vec<FolderRelationship>>` |
 | `projects/repository.rs` | `ProjectRepository` (CRUD, folder operations, derived status, `resolve_folder(&FolderRef) -> Result<ResolvedFolder, CoreError>` with `path`, `kind`, `status` — offered to plans 04/05/06) |
-| `projects/tokens.rs` | `PickTokens::{issue_folder, issue_file, take_folder, take_file}` (in-memory, 32 hex, 15-minute lifetime as a named constant, consumed on first successful use) |
+| `projects/tokens.rs` | `PickTokens::{issue_folder, issue_file, take_folder, take_folders, take_file, give_back, settle}` (in-memory, 32 hex, 15-minute lifetime as a named constant; taken before a use and given back when the use fails, so consumed on first successful use) |
+| `projects/{record,derived,folders,folder_operations,active,source_files}.rs` | as built in 03-M2: `ProjectRecord` (stored), derived fields, `FolderToAdd`/`attach_folder`, the folder operations, active project and `pick_folder`, `source_file_location` |
 | `snapshots/repository.rs` | `SnapshotRepository` (list, map location, delete, record facts, begin/commit/abort, find by commit) |
 | `snapshots/record.rs` | `SnapshotRecord` (the full `snapshot.json` of section 5 of the decisions file; plan 05 fills the `analysis`/`hosting` parts) |
 | `snapshots/import.rs` | `inspect_import_file`, `import_file`, `open_file`, `move_snapshot`, content hash, hint detection, gzip copy, bind to commit |
@@ -170,7 +172,7 @@ Types in `core/crates/codecharta-core-api/src/{error,store,projects,snapshots,sh
 ```rust
 // error.rs — appended to plan 01's ErrorCode (serialised SCREAMING_SNAKE_CASE, stable)
 TokenExpired, DuplicateFolder, DuplicateLabel, FolderUnavailable, NotACommit,
-DifferentHistory, StoreLocked, StoreNewerSchema, TooLarge      // 03-M1 appended StoreNewerSchema, StoreLocked
+DifferentHistory, StoreLocked, StoreNewerSchema, TooLarge      // 03-M1 appended StoreNewerSchema, StoreLocked; 03-M2 TokenExpired, DuplicateFolder, DuplicateLabel, FolderUnavailable, DifferentHistory, TooLarge; NotACommit is 03-M3's
 pub enum StoreProblemCode { StoreLocked, StoreNewerSchema, Io }   // methods/store.rs; plan 01's IO code is `IO`
 // ids.rs — ProjectId, FolderId, SnapshotId (03-M1); the other newtypes join with their first user
 
@@ -191,7 +193,7 @@ pub struct ProjectFolder { id: FolderId, path: String, label: Label, role: Folde
     git: Option<FolderGitFacts>, added_at: String,
     status: FolderStatus, relationships: Vec<FolderRelationship>, snapshot_count: u32 }   // last three derived
 pub struct AnalysisProfile { exclude: Vec<String> /* ≤ 50 × ≤ 200 chars, no line breaks */, without: Vec<AnalyserName>, parallel: bool }
-pub struct ProjectView { visible_folder_ids: Vec<FolderId>, shown_snapshot_id_by_folder: BTreeMap<FolderId, SnapshotId> }
+pub struct ProjectView { working_folder_id: Option<FolderId>, shown_snapshot_id_by_folder: BTreeMap<FolderId, SnapshotId> }   // OD1
 pub struct Project { id: ProjectId, name: ProjectName, description: Option<Description>, created_at: String, updated_at: String,
     folders: Vec<ProjectFolder>, analysis_profile: AnalysisProfile, view: ProjectView }
 pub struct ProjectSummary { id: ProjectId, name: String, folder_count: u32, missing_folder_count: u32, snapshot_count: u32, problem: Option<String> }
@@ -228,7 +230,7 @@ JSON-RPC methods (params → result; `ok` types are the success payload; failure
 
 | Method | Params | Result | Notes |
 | --- | --- | --- | --- |
-| `projects.list` | — | `ProjectSummary[]` | |
+| `projects.list` | — | `ProjectList { projects: ProjectSummary[] }` | named wrapper: the contract export only names struct types (03-M2) |
 | `projects.get` | `{ projectId }` | `Project` | refreshes git facts and derived fields |
 | `projects.inspectFolder` | `{ path }` | `PickedFolder` | shell-only; issues the pick token |
 | `projects.pickFolder` | — | `PickedFolder \| null` | shell: native folder dialog → `projects.inspectFolder`; `null` = cancelled |
@@ -242,9 +244,9 @@ JSON-RPC methods (params → result; `ok` types are the success payload; failure
 | `projects.refreshFolder` | `FolderRef` | `Project` | |
 | `projects.getActive` / `projects.setActive` | — / `{ projectId \| null }` | `{ activeProjectId }` / void | `session.json` |
 | `projects.setView` | `{ projectId, view }` | void | |
-| `projects.resolveCommit` | `FolderRef & { hash }` | `ResolvedCommit \| null` | |
+| `projects.resolveCommit` | `FolderRef & { hash }` | `ResolveCommitResult { commit: ResolvedCommit \| null }` | `FOLDER_UNAVAILABLE` outside an `ok` git folder |
 | `projects.folderPath` | `FolderRef` | `{ path }` | shell-only; for reveal-in-explorer |
-| `projects.sourceFileLocation` | `FolderRef & { relativePath }` | `SourceFileLocation \| null` | shell-only; folder `ok`, `confine_to_folder`, ≤ 16 MiB else `TOO_LARGE`; `null` when absent; reads the **working tree**, not the snapshot's commit (plan 04) |
+| `projects.sourceFileLocation` | `FolderRef & { relativePath }` | `SourceFileLookup { location: SourceFileLocation \| null }` | shell-only; folder `ok`, `confine_to_folder`, ≤ 16 MiB else `TOO_LARGE`; `null` when absent; reads the **working tree**, not the snapshot's commit (plan 04) |
 | `projects.readSourceFile` | `FolderRef & { relativePath }` | `SourceFileBytes \| null` | shell: asks `sourceFileLocation`, checks the path is inside `folder_root`, reads |
 | `snapshots.list` | `FolderRef` | `SnapshotSummary[]` | newest first |
 | `snapshots.mapLocation` | `SnapshotRef` | `MapLocation` | shell-only |
@@ -284,7 +286,7 @@ impl SnapshotRepository {
 }
 ```
 
-CLI (`codecharta-cored/src/cli/projects.rs`, `cli/snapshots.rs`; calls the library directly with argv paths, no tokens; global `--store-root <dir>` and `--json`; exit 0 ok, 1 `CoreError`, 2 usage):
+CLI (`codecharta-cored/src/cli/projects.rs`, `cli/snapshots.rs`; calls the library directly with argv paths, no tokens; global `--data-dir <dir>` (the store is `<dataDir>/store` unless a store root is set) and `--json` per command; exit 0 ok, 1 `CoreError`, 2 usage):
 
 ```
 codecharta-core projects list
@@ -468,12 +470,12 @@ Acceptance: `cargo test` green; starting the app creates `store.json` and `.lock
 ### M2 — Projects: core, RPC, CLI, shell, fake (L)
 
 1. `folders/relationships.rs` (pure). Tests: should treat ssh and https urls of one repository as equal; should report fork_of when a non-origin remote matches the other origin; should report shares_history_with for intersecting root commits; should report nothing for shallow clones without matching remotes. Commit: `feat(core): derive relationships between project folders`
-2. `core/crates/codecharta-core/tests/support/fixture_repo.rs` — temporary git repositories with a hermetic environment (`GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` → empty file, `GIT_CONFIG_NOSYSTEM=1`, `HOME`/`USERPROFILE` = temp dir, fixed author/committer names and dates, `-c init.defaultBranch=main -c commit.gpgsign=false -c core.autocrlf=false`) with `create()`, `commit(message, files)`, `add_remote(name, url)`, `clone_shallow()`; plan 04 extends it. Then `folders/inspector.rs`. Tests: should strip credentials from a remote url; should report no default branch when origin/HEAD is unset and HEAD has no commits; should classify a repository root as git; should flag a subfolder as not the repository root; should classify a plain folder; should classify everything as plain when git is unavailable (stub runner); should resolve a short hash to its commit; should return none for an unknown hash. Commit: `feat(core): inspect project folders with git`
+2. `core/crates/codecharta-core/tests/support/git_fixture.rs` (`TempRepo`, overview section 10) — temporary git repositories with a hermetic environment (`GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` → empty file, `GIT_CONFIG_NOSYSTEM=1`, `HOME`/`USERPROFILE` = temp dir, fixed author/committer names and dates, `-c init.defaultBranch=main -c commit.gpgsign=false -c core.autocrlf=false`) with `create()`, `commit(message, files)`, `add_remote(name, url)`, `clone_shallow()`; plan 04 extends it. Then `folders/inspector.rs`. Tests: should strip credentials from a remote url; should report no default branch when origin/HEAD is unset and HEAD has no commits; should classify a repository root as git; should flag a subfolder as not the repository root; should classify a plain folder; should classify everything as plain when git is unavailable (stub runner); should resolve a short hash to its commit; should return none for an unknown hash. Commit: `feat(core): inspect project folders with git`
 3. `projects/tokens.rs`. Tests: should consume a token once; should expire a token; should reject a label containing a path separator at deserialisation; should reject an unknown analyser name. Commit: `feat(core): add pick tokens and validated project requests`
 4. `projects/repository.rs`: create, get, list, update, delete with an injected `Recycler`. Tests: should write project.json atomically; should force the first folder to primary; should list a project with a newer schema as a problem; should recycle a deleted project's directory; should delete permanently when asked. Commit: `feat(core): store projects in the managed store`
 5. Folder operations: add, update, remove, relink, refresh, derived status, `resolve_folder`. Tests: should reject a folder already in the project; should reject a duplicate label; should demote the old primary; should flag a vanished folder as missing; should refuse a relink to a different history unless accepted; should keep snapshots when a folder is relinked. Commit: `feat(core): manage folders of a project`
-6. API types, `projects.*` and shell-only methods registered in `codecharta-cored/src/rpc/projects.rs`, `confine_to_folder` + `projects.sourceFileLocation`, regeneration of `model/coreApi/`. Tests (`codecharta-cored/tests/`, protocol over stdio): should answer BAD_REQUEST for an unknown request key; should answer BAD_REQUEST for an id containing a path separator; should answer BAD_REQUEST for a commit hash that is not lowercase hex (e.g. `--output=x`); should answer TOKEN_EXPIRED for a reused token; should refuse a source file larger than the limit; should return null for a missing source file; should refuse a source path that leaves the folder through a symlink. Commit: `feat(core): serve projects over json-rpc`
-7. CLI `projects list|create|add-folder`. Tests (binary with `--store-root`): should list no projects in a new store; should create a project from folder arguments; should add a folder with label and role; should exit 2 for a missing argument; should print json with `--json`. Commit: `feat(core): add project commands to the command line`
+6. API types, `projects.*` and shell-only methods registered in `codecharta-cored/src/serve/projects_routes.rs`, `confine_to_folder` + `projects.sourceFileLocation`, regeneration of `model/coreApi/`. Tests (`codecharta-cored/tests/`, protocol over stdio): should answer BAD_REQUEST for an unknown request key; should answer BAD_REQUEST for an id containing a path separator; should answer BAD_REQUEST for a commit hash that is not lowercase hex (e.g. `--output=x`); should answer TOKEN_EXPIRED for a reused token; should refuse a source file larger than the limit; should return null for a missing source file; should refuse a source path that leaves the folder through a symlink. Commit: `feat(core): serve projects over json-rpc`
+7. CLI `projects list|create|add-folder`. Tests (binary with `--data-dir`): should list no projects in a new store; should create a project from folder arguments; should add a folder with label and role; should exit 2 for a missing argument; should print json with `--json`. Commit: `feat(core): add project commands to the command line`
 8. Shell: `projectsShell.js` (`projects.pickFolder`, `projects.readSourceFile`, shell-only gate, `projects.folderPath` for reveal-in-explorer); preload exposure; add the same methods to `createFakeDesktopBridge` as minimal stubs (the compiler forces it). Covered by plan 01's relay specs plus an `_electron` smoke addition (stubbed dialog: pick → create → list). Commit: `feat(visualization): expose projects through the desktop shell`
 9. Replace the stubs with an in-memory projects/snapshots/store backend inside `createFakeDesktopBridge` (seedable through `FakeDesktopSeed`). Tests: should create and list a project; should report a seeded missing folder; should work when rebuilt from its own source text. Commit: `test(visualization): add projects to the fake desktop bridge`
 

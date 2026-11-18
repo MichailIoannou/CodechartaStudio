@@ -10,6 +10,12 @@ use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use codecharta_core_api::methods::projects::{
+    ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
+    ProjectsGetActive, ProjectsInspectFolder, ProjectsList, ProjectsRefreshFolder,
+    ProjectsRelinkFolder, ProjectsRemoveFolder, ProjectsResolveCommit, ProjectsSetActive,
+    ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
+};
 use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
 use codecharta_core_api::methods::store::StoreGetStatus;
 use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
@@ -22,7 +28,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
-use super::{store_routes, tools_routes};
+use super::{projects_routes, store_routes, tools_routes};
 
 pub type DispatchResult = Result<Value, ResponseError>;
 pub type HandlerFuture<'core> = Pin<Box<dyn Future<Output = DispatchResult> + Send + 'core>>;
@@ -77,6 +83,74 @@ const ROUTES: &[Route] = &[
     Route {
         name: StoreGetStatus::NAME,
         handler: store_routes::status,
+    },
+    Route {
+        name: ProjectsList::NAME,
+        handler: projects_routes::list,
+    },
+    Route {
+        name: ProjectsGet::NAME,
+        handler: projects_routes::get,
+    },
+    Route {
+        name: ProjectsInspectFolder::NAME,
+        handler: projects_routes::inspect_folder,
+    },
+    Route {
+        name: ProjectsCreate::NAME,
+        handler: projects_routes::create,
+    },
+    Route {
+        name: ProjectsUpdate::NAME,
+        handler: projects_routes::update,
+    },
+    Route {
+        name: ProjectsDelete::NAME,
+        handler: projects_routes::delete,
+    },
+    Route {
+        name: ProjectsAddFolder::NAME,
+        handler: projects_routes::add_folder,
+    },
+    Route {
+        name: ProjectsUpdateFolder::NAME,
+        handler: projects_routes::update_folder,
+    },
+    Route {
+        name: ProjectsRemoveFolder::NAME,
+        handler: projects_routes::remove_folder,
+    },
+    Route {
+        name: ProjectsRelinkFolder::NAME,
+        handler: projects_routes::relink_folder,
+    },
+    Route {
+        name: ProjectsRefreshFolder::NAME,
+        handler: projects_routes::refresh_folder,
+    },
+    Route {
+        name: ProjectsGetActive::NAME,
+        handler: projects_routes::get_active,
+    },
+    Route {
+        name: ProjectsSetActive::NAME,
+        handler: projects_routes::set_active,
+    },
+    Route {
+        name: ProjectsSetView::NAME,
+        handler: projects_routes::set_view,
+    },
+    Route {
+        name: ProjectsResolveCommit::NAME,
+        handler: projects_routes::resolve_commit,
+    },
+    Route {
+        name: ProjectsFolderPath::NAME,
+        handler: projects_routes::folder_path,
+    },
+    Route {
+        name: ProjectsSourceFileLocation::NAME,
+        handler: projects_routes::source_file_location,
     },
 ];
 

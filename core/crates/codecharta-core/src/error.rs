@@ -51,6 +51,8 @@ pub enum CoreError {
         "The folder at {path} has a different history; relink anyway only if this is intended."
     )]
     DifferentHistory { path: String },
+    #[error("The file is larger than {limit_bytes} bytes.")]
+    TooLarge { limit_bytes: u64 },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;
@@ -76,6 +78,7 @@ impl CoreError {
             CoreError::DuplicateLabel { .. } => ErrorCode::DuplicateLabel,
             CoreError::FolderUnavailable(_) => ErrorCode::FolderUnavailable,
             CoreError::DifferentHistory { .. } => ErrorCode::DifferentHistory,
+            CoreError::TooLarge { .. } => ErrorCode::TooLarge,
         }
     }
 
@@ -101,7 +104,7 @@ impl CoreError {
                 Some(("tool", serde_json::json!(tool)))
             }
             CoreError::Timeout { after_ms } => Some(("afterMs", serde_json::json!(after_ms))),
-            CoreError::OutputTooLarge { limit_bytes } => {
+            CoreError::OutputTooLarge { limit_bytes } | CoreError::TooLarge { limit_bytes } => {
                 Some(("limitBytes", serde_json::json!(limit_bytes)))
             }
             _ => None,
@@ -190,6 +193,7 @@ mod tests {
                 },
                 ErrorCode::DifferentHistory,
             ),
+            (CoreError::TooLarge { limit_bytes: 16 }, ErrorCode::TooLarge),
         ]
     }
 

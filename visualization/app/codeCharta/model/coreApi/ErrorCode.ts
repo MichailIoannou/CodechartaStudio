@@ -21,3 +21,4 @@ export type ErrorCode =
     | "DUPLICATE_LABEL"
     | "FOLDER_UNAVAILABLE"
     | "DIFFERENT_HISTORY"
+    | "TOO_LARGE"

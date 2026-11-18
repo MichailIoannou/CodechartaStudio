@@ -1,5 +1,26 @@
 {
   "protocolVersion": 1,
   "rendererEvents": ["core.progress"],
-  "rendererMethods": ["core.ping", "paths.get", "paths.resetStoreRoot", "tools.doctor", "tools.clearPath", "store.status"]
+  "rendererMethods": [
+    "core.ping",
+    "paths.get",
+    "paths.resetStoreRoot",
+    "tools.doctor",
+    "tools.clearPath",
+    "store.status",
+    "projects.list",
+    "projects.get",
+    "projects.create",
+    "projects.update",
+    "projects.delete",
+    "projects.addFolder",
+    "projects.updateFolder",
+    "projects.removeFolder",
+    "projects.relinkFolder",
+    "projects.refreshFolder",
+    "projects.getActive",
+    "projects.setActive",
+    "projects.setView",
+    "projects.resolveCommit"
+  ]
 }
