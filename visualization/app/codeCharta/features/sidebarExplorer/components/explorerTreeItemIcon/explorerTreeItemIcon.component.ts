@@ -6,8 +6,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from "@angular/co
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ExplorerTreeItemIconComponent {
-    private static readonly DEFAULT_FOLDER_COLOR = "#000000"
-    private static readonly INACTIVE_ROW_COLOR = "#BDBDBD"
+    private static readonly INACTIVE_ROW_COLOR = "color-mix(in srgb, var(--color-base-content) 35%, transparent)"
 
     readonly isFolder = input.required<boolean>()
     readonly isOpen = input.required<boolean>()
@@ -28,6 +27,6 @@ export class ExplorerTreeItemIconComponent {
         if (!this.isFolder()) {
             return undefined
         }
-        return this.markingColor() ?? ExplorerTreeItemIconComponent.DEFAULT_FOLDER_COLOR
+        return this.markingColor() ?? undefined
     })
 }

@@ -36,7 +36,7 @@ label `color` and `border` from the `buildingLabel` palette.
 
 - [x] 1. Types, registry, render palettes
 - [x] 2. Themes registered in CSS
-- [ ] 3. DOM stragglers
+- [x] 3. DOM stragglers
 - [ ] 4. Scene background
 - [ ] 5. Floors and floor labels
 - [ ] 6. Labels, connectors, view cube
@@ -73,4 +73,23 @@ Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feat
 - `index.html`: `data-theme="cc-light"`. Build OK, `app.e2e.ts` green (chromium channel, temporary).
 - The CSS-sync spec lives in `themes.spec.ts` as planned; a second case checks that the stylesheet
   registers exactly the registry's themes in registry order.
+
+### 3. DOM stragglers
+
+- All plan items replaced as listed (veils `bg-base-100/80`, zoom slider `base-content/60`, action icon
+  `text-primary-content`, settings button `group-hover:bg-secondary`, explorer icon inherits / fades
+  with `color-mix`, changelog chore `base-content`, explorer row bar `bg-base-content/10`).
+- Added `hover:text-secondary-content` (action icon) and `group-hover:text-secondary-content` (settings
+  button): with `cc-light` the hover fill `secondary` (#1b9cfc) gets only 2.9:1 with white, its content
+  token is dark.
+- **Panel edges follow the design, not the plan**: `design/02-themes.md` T3 and proposed change 1
+  (owner, open question 10) replace the plan's `border-base-300` edge with Rider's islands. Explorer,
+  metrics inspector and dependency inspector float 6 px from the edges (`m-1.5` / `inset-y-1.5 right-1.5`),
+  `rounded-[10px]`, `shadow-lg`, no border line; the old black shadow is gone. Heights subtract the two
+  margins (`- 0.75rem`). The inspectors keep the `translate-x-full` class (specs and page objects find it)
+  and slide out by `calc(100% + 0.75rem)` through `[&.translate-x-full]:` so the margin does not leave a
+  6 px strip on screen. Two specs now test the class token with `classList.contains` instead of a
+  substring of `className` (the variant contains the text `translate-x-full`).
+- New `explorerTreeItemIcon.component.spec.ts` (the component had none).
+- Full e2e (`e2e:ci`, 149 tests) green after this task.
 

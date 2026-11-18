@@ -63,7 +63,7 @@ describe("SidebarInspectorComponent", () => {
         const { fixture } = await render(SidebarInspectorComponent)
 
         // Assert
-        expect((fixture.nativeElement as HTMLElement).className).toContain("translate-x-full")
+        expect((fixture.nativeElement as HTMLElement).classList.contains("translate-x-full")).toBe(true)
     })
 
     it("should slide in and show all sections when a building is selected", async () => {
@@ -75,7 +75,7 @@ describe("SidebarInspectorComponent", () => {
         detectChanges()
 
         // Assert
-        expect((fixture.nativeElement as HTMLElement).className).not.toContain("translate-x-full")
+        expect((fixture.nativeElement as HTMLElement).classList.contains("translate-x-full")).toBe(false)
         expect(screen.getByText("Inspector")).not.toBe(null)
         expect(screen.getByText("Metric Mapping")).not.toBe(null)
         expect(screen.getByText("Metrics")).not.toBe(null)
@@ -95,6 +95,6 @@ describe("SidebarInspectorComponent", () => {
 
         // Assert
         expect(clearSelection).toHaveBeenCalled()
-        await waitFor(() => expect((fixture.nativeElement as HTMLElement).className).toContain("translate-x-full"))
+        await waitFor(() => expect((fixture.nativeElement as HTMLElement).classList.contains("translate-x-full")).toBe(true))
     })
 })

@@ -31,13 +31,12 @@ export const COLLAPSED_STRIP_WIDTH_PX = 300
         RulesPopoverComponent
     ],
     host: {
-        class: "fixed left-0 z-[60] bg-base-100 flex flex-col shadow-[2px_0_8px_-2px_rgba(0,0,0,0.15)]",
+        class: "fixed left-0 z-[60] m-1.5 rounded-[10px] bg-base-100 flex flex-col shadow-lg",
         "[class.overflow-hidden]": "!isCollapsed()",
-        "[class.rounded-br-md]": "isCollapsed()",
         "[style.width.px]": "displayWidth()",
         "[style.top]": "'var(--cc-bars-height, 49px)'",
         "[style.height]":
-            "isCollapsed() ? 'auto' : 'calc(100vh - var(--cc-bars-height, 49px) - var(--cc-file-extension-bar-height, 0px) - var(--cc-bottom-bar-height, 32px))'"
+            "isCollapsed() ? 'auto' : 'calc(100vh - var(--cc-bars-height, 49px) - var(--cc-file-extension-bar-height, 0px) - var(--cc-bottom-bar-height, 32px) - 0.75rem)'"
     }
 })
 export class SidebarExplorerComponent {
