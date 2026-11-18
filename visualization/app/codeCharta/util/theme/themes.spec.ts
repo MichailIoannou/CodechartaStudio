@@ -1,3 +1,5 @@
+import { readFileSync } from "fs"
+import { resolve } from "path"
 import { ChromeTokens, RenderPalette, ThemeDefinition } from "../../model/theme.model"
 import { contrastRatio } from "./contrast"
 import { DEFAULT_THEME_ID, SYSTEM_THEME_BY_SCHEME, THEMES, themeById } from "./themes"
@@ -19,6 +21,25 @@ function contentPairs(chrome: ChromeTokens): [string, string, string][] {
             const fillToken = contentToken.slice(0, -CONTENT_SUFFIX.length)
             return [fillToken, tokens[fillToken], tokens[contentToken]]
         })
+}
+
+const STYLESHEET_PATH = resolve(__dirname, "../../../tailwind.css")
+const THEME_BLOCK = /@plugin "daisyui\/theme" \{([^}]*)\}/g
+const THEME_NAME = /name: "([a-z-]+)";/
+const COLOR_TOKEN = /--color-([a-z0-9-]+): (#[0-9a-f]{6});/g
+
+function cssTokensByThemeName(): Map<string, Record<string, string>> {
+    const stylesheet = readFileSync(STYLESHEET_PATH, "utf8")
+    return new Map(
+        [...stylesheet.matchAll(THEME_BLOCK)].map(([, body]) => [
+            THEME_NAME.exec(body)?.[1] ?? "",
+            Object.fromEntries([...body.matchAll(COLOR_TOKEN)].map(([, token, color]) => [camelCase(token), color]))
+        ])
+    )
+}
+
+function camelCase(cssToken: string): string {
+    return cssToken.replace(/-([a-z0-9])/g, (_dash, letter: string) => letter.toUpperCase())
 }
 
 function colorLeaves(value: unknown, path: string): [string, string][] {
@@ -84,6 +105,17 @@ describe("THEMES", () => {
             expect(matches).toBe(true)
         })
 
+        it("should keep the css tokens of every theme equal to its registry tokens", () => {
+            // Arrange
+            const cssTokens = cssTokensByThemeName()
+
+            // Act
+            const tokensOfTheme = cssTokens.get(theme.id)
+
+            // Assert
+            expect(tokensOfTheme).toEqual(theme.chrome)
+        })
+
         it("should keep every render palette color a six digit hex", () => {
             // Arrange
             const colors = renderColors(theme.render)
@@ -105,6 +137,17 @@ describe("THEMES", () => {
             // Assert
             expect(malformed).toEqual([])
         })
+    })
+
+    it("should register exactly the themes of the registry in the stylesheet", () => {
+        // Arrange
+        const registryIds = THEMES.map(theme => theme.id)
+
+        // Act
+        const stylesheetIds = [...cssTokensByThemeName().keys()]
+
+        // Assert
+        expect(stylesheetIds).toEqual(registryIds)
     })
 
     it("should give every theme its own id", () => {

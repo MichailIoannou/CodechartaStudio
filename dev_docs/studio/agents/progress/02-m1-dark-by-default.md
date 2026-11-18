@@ -35,7 +35,7 @@ label `color` and `border` from the `buildingLabel` palette.
 ## Steps
 
 - [x] 1. Types, registry, render palettes
-- [ ] 2. Themes registered in CSS
+- [x] 2. Themes registered in CSS
 - [ ] 3. DOM stragglers
 - [ ] 4. Scene background
 - [ ] 5. Floors and floor labels
@@ -63,4 +63,14 @@ Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feat
   hex; "should keep every render palette color a six digit hex" therefore exempts exactly that path
   (it is a canvas stroke style, never parsed as hex).
 - `darkRenderPalette.dependencyGraph` holds the light constants as the plan's M4 placeholder.
+
+### 2. Themes registered in CSS
+
+- `themes: false` plus one `@plugin "daisyui/theme"` block each for `cc-dark` (`default: false` for now)
+  and `cc-light` (`default: true` for now), all 20 color tokens and the eight non-color tokens from M0.
+  The daisyUI token lines of `@theme` and their comment are deleted (M0 showed utilities still compile).
+  The `--color-cc-50…950` brand scale stays.
+- `index.html`: `data-theme="cc-light"`. Build OK, `app.e2e.ts` green (chromium channel, temporary).
+- The CSS-sync spec lives in `themes.spec.ts` as planned; a second case checks that the stylesheet
+  registers exactly the registry's themes in registry order.
 
