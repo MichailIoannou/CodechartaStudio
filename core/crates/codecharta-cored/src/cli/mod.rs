@@ -1,4 +1,5 @@
 mod doctor;
+mod projects;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -11,6 +12,7 @@ use tracing_subscriber::filter::LevelFilter;
 
 use crate::serve::serve;
 use doctor::{DoctorOptions, run_doctor};
+use projects::{ProjectsCommand, run_projects};
 
 /// The stdin reader blocks a runtime thread until the client closes the pipe; after a `core.shutdown`
 /// request that may never happen, so the runtime does not wait for it.
@@ -49,6 +51,11 @@ pub enum Command {
         #[arg(long)]
         refresh: bool,
     },
+    /// List, create and extend projects in the store, without the app
+    Projects {
+        #[command(subcommand)]
+        command: ProjectsCommand,
+    },
 }
 
 pub fn run(cli: Cli) -> ExitCode {
@@ -58,6 +65,7 @@ pub fn run(cli: Cli) -> ExitCode {
         Command::Doctor { json, refresh } => {
             run_doctor_command(cli.data_dir, &DoctorOptions { json, refresh })
         }
+        Command::Projects { command } => run_projects_command(cli.data_dir, command),
     }
 }
 
@@ -88,6 +96,15 @@ fn run_doctor_command(data_dir: Option<PathBuf>, options: &DoctorOptions) -> Exi
         return ExitCode::FAILURE;
     };
     let exit_code = run_doctor(&core, &runtime, options);
+    runtime.block_on(core.shutdown());
+    exit_code
+}
+
+fn run_projects_command(data_dir: Option<PathBuf>, command: ProjectsCommand) -> ExitCode {
+    let (Some(core), Some(runtime)) = (open_core(data_dir), start_runtime()) else {
+        return ExitCode::FAILURE;
+    };
+    let exit_code = run_projects(&core, &runtime, command);
     runtime.block_on(core.shutdown());
     exit_code
 }

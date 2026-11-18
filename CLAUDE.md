@@ -138,6 +138,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features                                 # --all-features adds the test-only protocol methods
 cargo run -p codecharta-cored -- --data-dir /tmp/cc serve # JSON-RPC on stdin/stdout
 cargo run -p codecharta-cored -- doctor                   # which git, ccsh, java, gh, glab were found
+cargo run -p codecharta-cored -- projects list            # projects of the store (also create, add-folder)
 ```
 
 Child processes (git, ccsh, …) start only through `Tools::run` / `ProcessRunner` in `codecharta-core`

@@ -27,7 +27,14 @@ cargo build --release                         # target/release/codecharta-core, 
 cargo run -p codecharta-cored -- --version
 cargo run -p codecharta-cored -- --data-dir /tmp/cc-data serve   # JSON-RPC on stdin/stdout, log on stderr
 cargo run -p codecharta-cored -- doctor [--json]                 # tools report; exit 0 = ready, 1 = a required tool is not usable
+cargo run -p codecharta-cored -- projects list [--json]          # projects of the store; reads only
+cargo run -p codecharta-cored -- projects create --name demo --folder .[=<label>[:primary|fork|helper]]
+cargo run -p codecharta-cored -- projects add-folder --project <id> --path <dir> [--label <l>] [--role fork]
 ```
+
+The `projects` commands exit 0 when done, 1 when the core refused (message on stderr) and 2 for a usage
+error; `create` and `add-folder` print the id they made, or the whole project with `--json`. Writing commands
+take the store lock, so they fail with `STORE_LOCKED` while the app runs.
 
 The data folder (settings file `core-settings.json`, default store `store/`, `logs/`) is `--data-dir`, else
 `CODECHARTA_DATA_DIR`, else `codecharta-visualization` in the user's configuration folder (`%APPDATA%`,

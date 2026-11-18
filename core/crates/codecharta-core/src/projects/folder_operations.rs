@@ -9,12 +9,13 @@ use codecharta_core_api::values::{CommitHash, Label};
 
 use crate::error::{CoreError, CoreResult};
 use crate::folders::inspector::{inspect_folder, resolve_commit};
+use crate::path_to_wire;
 use crate::projects::derived::status_of;
 use crate::projects::folders::{
     FolderToAdd, attach_folder, demote_primary, ensure_new_label, ensure_new_location,
 };
 use crate::projects::record::{FolderRecord, ProjectRecord};
-use crate::projects::repository::{ProjectRepository, absolute_path_text, refresh_folder_facts};
+use crate::projects::repository::{ProjectRepository, existing_directory, refresh_folder_facts};
 use crate::recycle::delete_permanently;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -76,8 +77,9 @@ impl ProjectRepository<'_> {
 
     /// Points the folder id at another place; its snapshots stay attached to the id.
     pub async fn relink_folder(&self, target: &FolderRef, relink: Relink) -> CoreResult<Project> {
-        let inspection = inspect_folder(self.git, &relink.path).await;
-        let path = absolute_path_text(&relink.path)?;
+        let new_path = existing_directory(&relink.path)?;
+        let inspection = inspect_folder(self.git, &new_path).await;
+        let path = path_to_wire(&new_path)?;
         self.modify(&target.project_id, |record| {
             ensure_new_location(record, &path, Some(&target.folder_id))?;
             let folder = existing_folder_mut(record, &target.folder_id)?;

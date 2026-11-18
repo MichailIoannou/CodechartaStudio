@@ -45,7 +45,7 @@ store API of `03-m1-store-core.md` apply. Git fixtures go in `tests/support/git_
 - [x] 4. Repository
 - [x] 5. Folder operations
 - [x] 6. JSON-RPC
-- [ ] 7. CLI
+- [x] 7. CLI
 - [ ] 8. Shell (part B)
 - [ ] 9. Fake bridge backend (part B)
 
@@ -223,3 +223,50 @@ forbids paths from the renderer. The core side is built for tokens; the shell mu
    executable, store root); the project flows use `projects.pickFolder` above. The `DesktopBridge` type
    declares the two composed methods by hand over the generated `PickedFolder` (they are not in
    `CoreMethods`).
+
+### 7. CLI
+- `codecharta-cored/src/cli/projects.rs`: `codecharta-core [--data-dir D] projects list [--json]`,
+  `projects create --name <n> [--description <d>] --folder <path>[=<label>[:<role>]] … [--json]`,
+  `projects add-folder --project <id> --path <dir> [--label <l>] [--role primary|fork|helper] [--json]`.
+  `--data-dir` instead of the plan's `--store-root` (03-M0 item 0; plan text corrected in task 6's commit),
+  and `--json` per command (as `doctor` has it), not global.
+- Names, labels, ids and roles are parsed by clap value parsers over the api newtypes, so an invalid one is a
+  usage error (exit 2) like a missing argument; `--folder` is required at least once; the label defaults
+  to the folder name of the absolute path (so `--folder .` works), the role to helper (the first folder is
+  primary anyway). Exit 1 = `CoreError`, message on stderr. Text output: `list` one line per project
+  (`<id>  <name>  <n> folders[  (<problem>)]`, nothing for an empty store); `create` / `add-folder` print
+  the new project / folder id.
+- `list` opens the store read-only (no lock, nothing written); `create` and `add-folder` take the store lock
+  through `Store::open`, so they answer `STORE_LOCKED` while the app runs.
+- Library change in this commit: `new_folder_record` and `relink_folder` make the path absolute and refuse
+  a path that is not a folder (`NOT_FOUND`) before git or the store sees it (`existing_directory`); a relative
+  `cwd` would have made the runner refuse git and the folder look plain.
+- Tests (`codecharta-cored/tests/cli_projects.rs`, hermetic `HOME`): the plan's five plus
+  `should_exit_1_when_the_core_refuses_the_command`; unit tests for the `--folder` syntax.
+- Acceptance (core half): `codecharta-core --data-dir <tmp> projects create --name demo --folder .` printed the
+  id; `projects list` showed `demo  1 folders`; `project.json` held the worktree as a `git` repository root
+  with label `agent-…` (the folder name) and `workingFolderId` set. The DevTools half needs task 8.
+- Docs: `core/README.md` and the root `CLAUDE.md` core command list.
+
+### State at the end of part A
+- Tasks 1-7 done; 8 (shell) and 9 (fake bridge) wait for 01-M3 and 01-M4.1, so `state` stays `progress`.
+- Gates (final run, Linux): `core/`: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D
+  warnings` (also `--target x86_64-pc-windows-gnu`), `cargo test --all-features` green; `npm run contract`
+  leaves no diff; root `npm run format:check` green; `visualization/`: `npm run lint`, `npx tsc --noEmit -p
+  tsconfig.json`, `npm test` (636 suites, 4861 passed, 2 todo) green. Only generated `model/coreApi/` files
+  changed in `visualization/`. No changelog entry: nothing user-visible ships until the shell and UI exist.
+- Not verified: anything on Windows (canonical path comparison, `trash` into the recycle bin, case-insensitive
+  duplicates); `cargo deny` is not installed here.
+
+### For 03-M3 (snapshots)
+- Error code `NOT_A_COMMIT` is still to be appended (bind-to-commit). `resolve_commit` reads only
+  `%H %h %s %an %aI`; binding needs `%cI` and `%P` added to `SHOW_COMMIT_FORMAT` and to `ResolvedCommit`
+  or an internal type.
+- Reuse: `Core::projects()`, `ProjectRepository::resolve_folder(&FolderRef) -> ResolvedFolder { path, kind,
+  status }`, `read_record` / `modify` (`pub(crate)`, under the project lock) to update
+  `view.shownSnapshotIdByFolder`, `PickTokens::issue_file` / `take_file` / `settle` for `importToken`,
+  `pick_folder` for the containing folder of an import, `existing_directory`, `timestamps::now()`.
+  `set_view` already checks that a shown snapshot's directory exists; `remove_folder` already recycles
+  `snapshots/<folderId>/`; snapshot counts are directories named like a snapshot id.
+- `ShellPathTarget::SnapshotMap` still answers `NOT_FOUND` in `Paths::resolve` (03-M0 item 0, 03-M3 fills it).
+- Result wrappers: a method answering a list or `T | null` needs a named wrapper struct (see task 6).

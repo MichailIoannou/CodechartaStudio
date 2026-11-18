@@ -1,6 +1,6 @@
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use codecharta_core_api::ids::ProjectId;
 use codecharta_core_api::methods::projects::{
@@ -135,10 +135,11 @@ impl<'deps> ProjectRepository<'deps> {
     }
 
     pub(crate) async fn new_folder_record(&self, folder: FolderToAdd) -> CoreResult<FolderRecord> {
-        let inspection = inspect_folder(self.git, &folder.path).await;
+        let path = existing_directory(&folder.path)?;
+        let inspection = inspect_folder(self.git, &path).await;
         Ok(FolderRecord {
             id: new_folder_id()?,
-            path: absolute_path_text(&folder.path)?,
+            path: path_to_wire(&path)?,
             label: folder.label,
             role: folder.role,
             kind: inspection.kind,
@@ -299,9 +300,24 @@ fn no_such_project(id: &ProjectId) -> CoreError {
 }
 
 pub(crate) fn absolute_path_text(path: &Path) -> CoreResult<String> {
-    let absolute = std::path::absolute(path).map_err(|source| CoreError::Io {
+    path_to_wire(&absolute(path)?)
+}
+
+fn absolute(path: &Path) -> CoreResult<PathBuf> {
+    std::path::absolute(path).map_err(|source| CoreError::Io {
         context: format!("Could not resolve {}", path.display()),
         source,
-    })?;
-    path_to_wire(&absolute)
+    })
+}
+
+/// The absolute form of a folder that is there; git and the store only ever see absolute paths.
+pub(crate) fn existing_directory(path: &Path) -> CoreResult<PathBuf> {
+    let absolute = absolute(path)?;
+    if !absolute.is_dir() {
+        return Err(CoreError::NotFound(format!(
+            "There is no folder {}.",
+            absolute.display()
+        )));
+    }
+    Ok(absolute)
 }
