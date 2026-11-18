@@ -16,49 +16,46 @@ fn answer<M: Method>(result: CoreResult<M::Result>) -> DispatchResult {
     write_result::<M>(result.map_err(domain_error)?)
 }
 
-pub fn repository_info(core: &Core, context: RequestContext, params: Value) -> HandlerFuture<'_> {
-    Box::pin(async move {
-        let params = read_params::<GitRepositoryInfoMethod>(params)?;
-        let info = async {
-            let folder = core.git_folder(&params.repo)?;
-            core.git()?.repository_info(&folder, &context.cancel).await
-        };
-        answer::<GitRepositoryInfoMethod>(info.await)
-    })
+/// A handler for a method whose params name a project folder as `repo`: the folder is resolved through
+/// the store, then `$call` runs with the core's git service, the folder, the params and the request's
+/// cancellation token.
+macro_rules! folder_route {
+    ($handler:ident, $method:ty, |$git:ident, $folder:ident, $params:ident, $cancel:ident| $call:expr) => {
+        pub fn $handler(core: &Core, context: RequestContext, params: Value) -> HandlerFuture<'_> {
+            Box::pin(async move {
+                let $params = read_params::<$method>(params)?;
+                let result = async {
+                    let $folder = core.git_folder(&$params.repo)?;
+                    let $git = core.git()?;
+                    let $cancel = &context.cancel;
+                    $call.await
+                };
+                answer::<$method>(result.await)
+            })
+        }
+    };
 }
 
-pub fn status(core: &Core, context: RequestContext, params: Value) -> HandlerFuture<'_> {
-    Box::pin(async move {
-        let params = read_params::<GitStatusMethod>(params)?;
-        let status = async {
-            let folder = core.git_folder(&params.repo)?;
-            core.git()?.status(&folder, &context.cancel).await
-        };
-        answer::<GitStatusMethod>(status.await)
-    })
-}
+folder_route!(
+    repository_info,
+    GitRepositoryInfoMethod,
+    |git, folder, _params, cancel| git.repository_info(&folder, cancel)
+);
 
-pub fn branches(core: &Core, context: RequestContext, params: Value) -> HandlerFuture<'_> {
-    Box::pin(async move {
-        let params = read_params::<GitBranchesMethod>(params)?;
-        let refs = async {
-            let folder = core.git_folder(&params.repo)?;
-            core.git()?.refs(&folder, &context.cancel).await
-        };
-        answer::<GitBranchesMethod>(refs.await)
-    })
-}
+folder_route!(status, GitStatusMethod, |git, folder, _params, cancel| git
+    .status(&folder, cancel));
 
-pub fn refs_fingerprint(core: &Core, context: RequestContext, params: Value) -> HandlerFuture<'_> {
-    Box::pin(async move {
-        let params = read_params::<GitRefsFingerprintMethod>(params)?;
-        let fingerprint = async {
-            let folder = core.git_folder(&params.repo)?;
-            core.git()?.refs_fingerprint(&folder, &context.cancel).await
-        };
-        answer::<GitRefsFingerprintMethod>(fingerprint.await)
-    })
-}
+folder_route!(
+    branches,
+    GitBranchesMethod,
+    |git, folder, _params, cancel| git.refs(&folder, cancel)
+);
+
+folder_route!(
+    refs_fingerprint,
+    GitRefsFingerprintMethod,
+    |git, folder, _params, cancel| git.refs_fingerprint(&folder, cancel)
+);
 
 /// Sends every repository change the core announces as a `repository.changed` notification.
 pub async fn forward_repository_changes(
