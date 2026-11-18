@@ -41,7 +41,7 @@ label `color` and `border` from the `buildingLabel` palette.
 - [x] 5. Floors and floor labels
 - [x] 6. Labels, connectors, view cube
 - [x] 7. Map screenshot
-- [ ] 8. Preference and migration
+- [x] 8. Preference and migration
 - [ ] 9. Apply and flip to dark
 - [ ] 10. Picker
 - [ ] 11. Visual check and changelog
@@ -131,4 +131,16 @@ Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feat
   services are M3 as planned.
 - Spec note: JSDOM drops `backdrop-filter`, so the label spec defines `style.backdropFilter` on the
   element to make it look like a live label.
+
+### 8. Preference and migration
+
+- Slice `stores/preferences/store/theme/` (`setThemePreference`, `defaultTheme = DEFAULT_THEME_ID`,
+  `theme` reducer, `themePreferenceSelector`) wired as planned; `ThemePreference` joins `theme.model.ts`.
+  `activeThemeChanged` stays out of `preferencesActions` (so out of the save allow-list); no spec
+  enumerates that list.
+- Two hand-written preference objects in specs (`fileExtensionBarSegment.component.spec.ts`,
+  `extensionRules.service.spec.ts`) needed `theme` for `tsc`. No snapshot changed.
+- `migrateToV37` seeds `"cc-dark"`; `DB_VERSION = 37` (still free on this branch). `defaultTheme` is
+  exported from the read facade in the migration commit (its first consumer, for knip);
+  `themePreferenceSelector` follows with the effect in task 9.
 
