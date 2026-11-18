@@ -162,8 +162,8 @@ FOLDERS OF THIS PROJECT                                   [＋ Add folder…]
   `alert alert-warning text-sm` "This folder was not found on disk. Its analyses still open." +
   "Re-link…".
 - **Analyses card**: In the map (display name + the staleness sentence of `noticeText`, or "nothing
-  shown"); Latest (short SHA, date, duration); Analyses (count, store size); Running (job + progress
-  bar, only while one runs); buttons "Show map" (→ metrics view, disabled with title "No analysis yet"
+  shown"); Latest (short SHA, date, duration); Analyses (count, store size); Running (job and percentage as
+  static text, only while one runs; the animated progress is in W1 at the top); buttons "Show map" (→ metrics view, disabled with title "No analysis yet"
   when there is none), "Analyse current checkout", "Snapshots…". No analyses: "No analysis yet. Analyse
   the current checkout to see its map." with "Analyse current checkout" as `btn-primary`.
 - **Recent commits**: the 10 newest commits of the current branch, as History rows without the graph

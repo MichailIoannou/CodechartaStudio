@@ -45,3 +45,4 @@ Produce the interface design for plans 01–06 under `dev_docs/studio/agents/des
 - 2026-11-18 owner review 2: one working folder per project (OD1), workspace status element with
   progress fill (OD2), contextual sync button after Zed (OD3), project overview page (OD4); recorded
   in `design/owner-decisions.md` and the README. Fixed the mock-up's Biome failure (orchestration O1).
+- 2026-11-18 owner review 3: fixed-width workspace status (OD2a), animation only there, refreshed metrics bar (OD5, 02 T4).

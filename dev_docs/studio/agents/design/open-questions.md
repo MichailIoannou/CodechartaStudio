@@ -31,22 +31,38 @@ answer that differs means the named file is changed, nothing else.
 
 ## Area 06 — compare
 
-8. **A "Compare" button in the nav bar?** Plan 06 adds one. *Default:* no; the existing Compare tab in
-   the metric view's mode bar opens the compare dialog in project mode, and History offers compare on
-   commits and branches. Add the button only if the hover mode bar proves too hidden.
+8. ~~A "Compare" button in the nav bar?~~ **Decided (2026-11-18):** the owner has no preference, so the
+   default stands: no button; the existing Compare tab in the metric view's mode bar opens the compare
+   dialog in project mode, and History offers compare on commits and branches. Add the button only if
+   the hover mode bar proves too hidden.
 
 ## Area 02 — themes
 
-9. **"IntelliJ Light" or "Rider Light"?** The README's owner decisions say "Rider Light"; plan 02
-   registers "IntelliJ Light" (the JetBrains palette Rider uses). *Default:* "IntelliJ Light", the
-   palette's own name, in line with plan 02's rule to name palettes descriptively.
-10. **Panel edges on dark.** *Default:* add a `base-300` border to the explorer and inspector edges
-    (`02-themes.md`, proposed change 1), because their shadow vanishes on a dark map.
+9. ~~"IntelliJ Light" or "Rider Light"?~~ **Decided by the owner (2026-11-18), differs from the default:**
+   use the name JetBrains officially gives it. Rider's help page ([User interface
+   themes](https://www.jetbrains.com/help/rider/User_interface_themes.html)) calls its default light theme
+   **"Rider Day"** (dark: "Rider Night"); neither "Rider Light" nor "IntelliJ Light" is the official Rider name.
+   JetBrains IDEs from 2025.3 default to an "Islands" look ("Islands Light"), which Rider's page does not
+   mention. The designer and plan 02 must check the palette against the installed Rider before renaming.
+10. ~~**Panel edges on dark.** *Default:* add a `base-300` border to the explorer and inspector edges
+    (`02-themes.md`, proposed change 1), because their shadow vanishes on a dark map.~~ **Decided by the
+    owner (2026-11-18), pending the designer's check:** "Look at how Zed or Rider do it and copy that."
+    Rider's Islands look (default since 2025.3) uses rounded tool-window panels with "more distinct tool
+    window borders" ([JetBrains blog](https://blog.jetbrains.com/platform/2025/12/meet-the-islands-theme-the-new-default-look-for-jetbrains-ides/),
+    via a [summary](https://www.plushcap.com/content/jetbrains/blog/jetbrains-meet-the-islands-theme-the-new-default-look-for-jetbrains-ides-the-jetbrains-platform-blog));
+    gap size and whether the edge is a line or a gap are unverified. Zed's [theme docs](https://zed.dev/docs/extensions/themes.md)
+    only define a `border` colour and a `border.variant` "visual divider"; that panels are split by a 1px
+    divider line is unverified. The designer must check both installed apps and align `02-themes.md`
+    proposed change 1; a themed border line is consistent with the `base-300` default, rounded gapped
+    panels would differ from it and must be stated.
 
 ## Area 01 — desktop tools
 
-11. **Confirm before changing the store folder?** *Default:* yes, one yes/no before the folder picker,
-    because the app restarts afterwards.
+11. ~~**Confirm before changing the store folder?** *Default:* yes, one yes/no before the folder picker,
+    because the app restarts afterwards.~~ **Decided by the owner (2026-11-18)**: see OD5 in
+    `owner-decisions.md`. The "app restarts" premise is dropped (the core owns the store, the UI
+    redraws), and there is **no confirmation**: "Change…" goes straight to the folder picker; the core
+    switches and the UI redraws.
 
 ## From orchestration
 

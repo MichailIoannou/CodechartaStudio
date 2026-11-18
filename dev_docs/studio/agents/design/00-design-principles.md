@@ -87,9 +87,9 @@ never JavaScript measuring:
 
 | Window | Left budget | Project menu trigger | Workspace status trigger (W1) |
 |---|---|---|---|
-| ≥ 1536 (`2xl`) | ≈ 520 px | "project / folder", `max-w-52` | `max-w-[22rem]`: icon, branch (`max-w-36`) with ↑↓ counts, `@ sha` or activity, badge |
-| 1280–1535 (`xl`) | ≈ 395 px | folder only, `max-w-28` | `max-w-[17.5rem]`: icon, branch (`max-w-28`), `@ sha`, badge |
-| 1024–1279 | ≈ 265 px | folder only, `max-w-24` | `max-w-40`: icon, `@ sha`, badge as icon (branch in `title`) |
+| ≥ 1536 (`2xl`) | ≈ 520 px | "project / folder", `max-w-52` | fixed `w-[22rem]`: icon, branch with ↑↓ counts, `@ sha` or activity, badge |
+| 1280–1535 (`xl`) | ≈ 395 px | folder only, `max-w-28` | fixed `w-[17.5rem]`: icon, branch, `@ sha` or activity, badge |
+| 1024–1279 | ≈ 265 px | folder only, `max-w-24` | fixed `w-40`: icon, `@ sha` or activity, badge as icon (branch in `title`) |
 
 - `navbar-start` and `navbar-end` keep their halves and get `min-w-0 overflow-hidden`; their children
   `min-w-0`, so a trigger shortens its text with "…" instead of running under `navbar-center`; the view
@@ -130,6 +130,11 @@ open dialogs (the browser stacks a later `showModal()` on top).
 - **Badges never cut off.** A badge with variable text is `inline-flex max-w-<n>` with the text in an
   inner `<span class="truncate">`; the badge keeps both rounded ends and the text ends in "…".
   Full text in `title`.
+- **One place animates.** Running work (analyses, git operations) is animated only in the workspace
+  status element (`05-snapshots.md` W1): spinner or arrow icon and progress fill. Everywhere else
+  (History, the project overview, the commit list) it is a static label such as "Pulling…" or "42 %".
+- **Fixed-size status.** An element whose content changes while the user watches (W1) has a fixed
+  width per window size and fixed-size icon slots; content truncates, the element never resizes.
 - **Words over codes.** Status is said in a word ("modified", "analysed"), not a letter or a bare
   icon; an icon may accompany the word.
 - Monospace (`font-mono`) only for short SHAs, refs in sentences, paths and commands to copy.

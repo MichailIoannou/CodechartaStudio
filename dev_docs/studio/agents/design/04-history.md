@@ -139,12 +139,13 @@ running:         [ ◌ Pulling 45 % | ■ ]     progress fill as W1; caret becom
   the reason in `title`): Fetch · Fetch and Remove Deleted Branches · Pull · Push · Publish Branch (no
   upstream only) · Force Push (with Lease)… · Set Upstream…. Pull on diverged branches opens the pull
   choice (H15).
-- **Running** (any mutating operation of this repository): the main part shows `loading
-  loading-spinner loading-xs` and "Fetching…" / "Pulling 45 %" / "Pushing…", with the W1 progress fill
-  behind it (shared `ccProgressFill` directive, determinate from `git.operationProgress done/total`,
-  else the sweeping band); the caret becomes **Cancel** (`fa-stop`, `aria-label` "Cancel the pull",
-  network operations only). Every other mutating control of the repository is disabled with title
-  "Waiting for the previous git operation…".
+- **Running** (any mutating operation of this repository): **no spinner and no progress fill here**
+  (owner decision, 2026-11-18): the workspace status element at the top already shows the activity
+  and its progress, so repeating it would be noise. The main part keeps the action's static icon,
+  reads "Fetching…" / "Pulling…" / "Pushing…" and is disabled; the caret becomes **Cancel** (static
+  `fa-stop`, `aria-label` "Cancel the pull", network operations only). Every other mutating control of
+  the repository is disabled with title "Waiting for the previous git operation…". The same holds where
+  the button appears in W1's dropdown and on the project overview.
 - **Results**: toast (success) "Fetched 3 updated refs", "Already up to date", "Pulled 3 commits",
   "Pushed 2 commits to origin/feature/x", "Published 'feature/x' to origin"; the button relabels from the
   new status. Failures go to the operation banner (H6) in History, or to W1's ACTIVITY row when started
@@ -321,7 +322,7 @@ GRAPH  COMMIT                                                     ANALYSIS     A
   | analysed | `badge-success` "analysed" | "Analysed 3 Nov 14:10" (+ " — other profile" / " — imported map, analysis time unknown") |
   | analysed and shown in the map now | `badge-primary` "in map" | "This analysis is shown in the map" |
   | queued | `badge-ghost` "queued" | "Waiting for another analysis to finish" |
-  | running | `badge-info` with `loading-spinner loading-xs` "42 %" | "Analysis running" |
+  | running | `badge-info` "42 %", static (no spinner: the workspace status animates) | "Analysis running" |
   | failed | `badge-error` "failed" | "Analysis failed: <message>" |
   | not analysed | empty cell | — |
 

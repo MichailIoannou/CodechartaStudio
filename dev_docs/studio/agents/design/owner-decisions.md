@@ -53,3 +53,61 @@ them. Commit stays in the Changes tab and is not part of this button. Design: `0
 
 The project home becomes a page the user can open at any time from the project menu ("Project
 overview"), showing the working folder, its git state and its analyses. Design: `03-projects.md` P3.
+
+## OD5 — The UI never restarts for core-owned state; it survives the core going offline (2026-11-18)
+
+**Decision.** The core owns the store and its folder. The app is only the UI: it asks the core for
+the data and redraws the affected elements from the answer, so changing the store folder (or any other
+core-owned state) does **not** restart the app. The app also keeps running when the core goes offline
+and comes back: it never closes itself, shows an offline state while the core is away, and recovers
+without a restart when the core is reachable again. Owner's words: "Why would the app restart, the
+core is the one that should be managing this information not the app itself, the app itself is simply
+the ui, it should ask for the data from the core and re-draw the various ui elements based off of that
+without restart, also it should be able to handle the core going offline/online without closing itself".
+
+**Confirmation (owner, follow-up).** Changing the store folder asks for **no** yes/no confirmation:
+"Change…" goes straight to the folder picker; the core switches and the UI redraws.
+
+**What exists today (found in the files).** Plan 01 §shell already respawns the core with backoff
+0.5/1/2/4/8 s, state `restarting`, `unavailable` after five failures in 60 s, `restartCore()`, and
+publishes `shell.coreState` to the renderer (`DesktopEnvironment.coreState()`). The only renderer
+reaction is the core-state block (D4) inside the desktop tools panel; nothing says the rest of the UI
+(project menu, history, analyses, map) reacts, or reloads its data when the core is back after
+`restarting`. The store-folder flow is the one place that restarts the *app* (`app.relaunch()`).
+
+**Plan impact (for the orchestrator and planner).** Touches 01-M2 (in progress: runner, tools,
+settings, doctor; the shell lifecycle and the D4 panel) and 03-M1 (next: store core) and 03-M2/M6.
+
+| Plan | Part | Change |
+|---|---|---|
+| 01 | shell, core supervision (spawn/respawn/backoff paragraph; `coreClient.js` "restart with backoff") | keep respawn, but after every successful `core.hello` of a respawned core publish a "core back" event (guess: `shell.coreState` `ready` again suffices) so the renderer can reload; renderer services must refetch, not assume state survived. The `unavailable` state must not quit the app |
+| 01 | renderer `DesktopEnvironment.coreState()` and manual check 6 ("restarting", "unavailable" with "Restart core") | the state becomes app-wide, not only a panel in the tools dialog; add a check: kill the core, the map and open dialogs stay, an offline state shows, the app recovers when the core is back |
+| 01 | pending requests resolve `CORE_UNAVAILABLE` | renderer callers must handle it (disable core-backed actions, keep what is on screen, retry on reconnect); guess: a shared helper instead of per-service handling |
+| 01 | `main.js` lifecycle ("core start/stop", `before-quit`) | confirm no path closes the window or the app on core exit; `app.relaunch()` is no longer used for settings |
+| 03 | store layout/core, `store/state.rs` (`StoreState::{Open, Unavailable}`), `Core::open_store`, `store.status` | the core must switch its open store to the new root at runtime (close, open, update settings) without a process restart; `StoreState` is already the right shape. **03-M1 is next: shape `Core::open_store` to be re-entrant now** (guess) |
+| 03 | `store.changeRoot` (RPC table, M3 step 3 "copy the managed store to a new folder") | the core copies, reopens at the target and returns `StoreRootChange`; it also sends a store-changed notification (new, name open) so the renderer refetches projects, snapshots and analyses |
+| 03 | `store.chooseRoot` row and M6 step 4 ("dialog → `store.changeRoot` → `app.relaunch()`") | the shell only shows the native picker and calls `store.changeRoot`; drop `app.relaunch()` |
+| 03 | `paths.resetStoreRoot` ("then relaunch", Required-from-plan-01 bullet on store location) | same reopen at the default root, no relaunch |
+| 03 | renderer `ProjectsService` / `projectsBoot` | on the store-changed notification and on core reconnect: reload projects, working folder, shown snapshot and redraw the map; guess: the previous selection is kept only if it exists in the new store |
+| 03 | M6 manual verification ("Change… to an empty folder copies the store and restarts into the same project") and M1 acceptance wording "restart, land in the same project" (that one is a real app restart and stays) | the first becomes "copies the store and the UI shows the same project without restarting" |
+| 03 | M6 step 6 changelog "Store folder" | no restart wording (none present today; keep it so) |
+| design 01 | D3 "Store folder" — drop the confirmation step too: no "Change Store Folder" yes/no before the picker, and no yes/no before "Use default" (guess for the latter: same reasoning); remove ("…and restarts; …Continue?", "Copying the store — CodeCharta restarts when it is done.", "Use the default store folder '<path>'? CodeCharta restarts.") | remove every "restarts" sentence; while copying keep the button `loading` with "Copying the store…"; after success a success toast and the rows show the new path |
+| design 01 | Deviations item 2 ("Confirm before changing the store folder") | delete: decided, no confirmation (open question 11) |
+| design 01 | D4 core state table | add an app-wide offline presentation (guess: a slim banner or status element, not only the tools panel) with wording for offline, reconnecting and back online; keep "Restart core" button; define what each core-backed area shows meanwhile (guess: last known data, actions disabled) |
+| design 00 / other design files | (not read in full) | any screen that assumes core data is always present needs an offline state; flag for the designer |
+
+## OD2a — The workspace status has a fixed width (2026-11-18)
+
+Its width is fixed per window size; activity, percentages and badges change how many characters of the
+text fit, never the element's size. Icons sit in a fixed-size slot so a spinner or arrow never moves
+the text. Running work is animated only there: History, the project overview and the commit list show
+it as static text. Design: `05-snapshots.md` W1, `04-history.md` H5, `00-design-principles.md` §5.
+
+## OD5 — Modernised metrics bar (2026-11-18)
+
+The metrics bar keeps all its controls, recoloured by the theme, as one rounded rectangle with nothing
+protruding: the Layout tab and the view-tools tab move inside the bar, the link button becomes a
+square inside it, and the rotated LEGEND edge tab becomes a Legend tool in the bar. Design:
+`02-themes.md` T4. Plan impact: a new milestone (or part of plan 02 M1) touching `metricsBar`,
+`shared/barShell`, `shared/barToolsTab`, `shared/barTool`, `legend/legendDrawer` and `domainBar`; their
+specs and e2e page objects that locate the tabs and the legend button change.

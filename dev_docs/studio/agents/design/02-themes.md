@@ -10,6 +10,7 @@ Plan: `02-themes.md` ("UI", "Error states and edge cases", M1, M5). Principles:
 | T1 | Theme picker | `cc-theme-picker` | Global Configuration dialog, first row | `cc-setting-toggle` row |
 | T2 | Quick toggle | `cc-theme-quick-toggle` | nav bar, `navbar-end`, before Settings | `cc-settings-button` |
 | T3 | Dark chrome audit | checklist | every existing screen | — |
+| T4 | Metrics bar, refreshed | `cc-metrics-bar`, `ccBarShell` | floating bar above the file extension bar | today's metrics bar |
 
 ## T1 Theme picker
 
@@ -88,6 +89,70 @@ Every new element of areas 01 and 03–06 already uses tokens only (principles �
 theme without per-theme work. Graph lane colours (area 04) and status badges are checked in each of
 the eight themes by the plan's smoke test (M5 step 2) plus an eyeball pass of the History view.
 
+## T4 Metrics bar, refreshed (owner decision OD5)
+
+The floating metrics bar keeps **every control it has today**, in the same order and with the same
+popovers; it is recoloured by the theme and its shape is modernised: one rounded rectangle, and
+nothing sticks out of it. Today three things protrude: the **Layout** tab above its left edge
+(`layoutTab`, `rounded-t-md border-b-0`), the **view tools** tab above its right edge
+(`barToolsTab`, `absolute bottom-full`), and the round **link** button between Height and Color
+(`btn-circle` with a ring). The rotated **LEGEND** tab on the right screen edge
+(`legendToggleButton`, `rotate-90`) also protrudes from the map.
+
+**Where.** `features/metricsBar/components/metricsBar/metricsBar.component.html` and the components it
+projects; `features/shared/components/barShell/barShell.directive.ts` (shared with the domain bar,
+which gets the same shape); `features/legend/components/legendDrawer/legendToggleButton`.
+
+```
+today (light):
+   ┌ LAYOUT ▦ Squarified TreeMap ▾ ┐                                          ┌ ⌖ 💡 📷 ┐
+ ┌─┴───────────────────────────────┴──────────────────────────────────────────┴─────────┴──┐  ┃L┃
+ │ AREA ⚙   │ HEIGHT ⚙          (⛓) │ COLOR ⚙          │ EDGES ⚙    │ LABELS ⚙          │  ┃E┃
+ │ rloc     │ sonar_complexity      │ sonar_complexity │ avgCommits │ SCENARIOS ＋       │  ┃G┃
+ │ Σ 1,420  │ Σ 393                 │ Σ 393            │ Σ 5 / 5    │ 7 scenarios avail. │  ┃E┃
+ └──────────────────────────────────────────────────────────────────────────────────────────┘
+
+Studio (dark, one rounded rectangle, nothing protrudes):
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ LAYOUT       │ AREA      ⚙ │ HEIGHT          ⚙ │⛓│ COLOR           ⚙ │ EDGES      ⚙ │ LABELS      ⚙ │ ⌖  💡 │
+│ ▦ Squarified │ rloc         │ sonar_complexity  │  │ sonar_complexity  │ avgCommits   │ SCENARIOS   ＋ │ 📷  ☰ │
+│   TreeMap  ▾ │ Σ 1,420      │ Σ 393             │  │ Σ 393             │ Σ 5 / 5      │ 7 scenarios ▸ │       │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+- **Shell** (`ccBarShell`, unchanged position, width and z-index): `rounded-2xl border border-base-300
+  bg-base-100 shadow-lg p-1.5 gap-1 items-stretch`. Sections are separated by `w-px bg-base-300 my-2`
+  dividers, not by borders on the cards.
+- **Cells** (axis cards, labels/scenarios, layout): `rounded-xl px-3 py-2 hover:bg-base-200
+  transition-colors`; open popover → `bg-base-200 ring-1 ring-primary/40`. Inside unchanged: the
+  `text-[10px] uppercase tracking-wide text-base-content/60` label with the cog (`btn btn-ghost btn-xs
+  btn-square rounded-lg`) on the same line, the metric name `text-sm font-semibold truncate`, the meta
+  value (`Σ 1,420`, delta values with their colours) `text-xs text-base-content/70`.
+- **Layout** becomes the first cell inside the bar: label "LAYOUT", glyph + layout name (two lines
+  allowed, `leading-tight`) + `fa-caret-down`; same `title` "Change the map layout" and same popover
+  (`cc-settings-popover-shell`, now anchored above the cell).
+- **Link Height and Color**: a `btn btn-sm btn-square rounded-lg` centred vertically in its own
+  narrow column between Height and Color, inside the bar's height. Linked: `btn-soft btn-primary`
+  with `fa-link`; unlinked: `btn-ghost border border-dashed border-base-300 text-base-content/60` with
+  `fa-unlink`. Titles unchanged.
+- **View tools** become the last cell: a `grid grid-cols-2 gap-1` of `btn btn-ghost btn-sm btn-square
+  rounded-lg` — Center map (`fa-compass`), Flashlight (`fa-lightbulb`), Screenshot (`fa-camera`),
+  Legend (`fa-list`, see below); Unfocus (`fa-crosshairs`) is added as a fifth (`grid-cols-3`) while a
+  folder is focused. The hover-expanding labels of `cc-bar-tool` become `title` tooltips (an expanding
+  label would resize the bar). Right-click on Center map keeps its zoom menu. Radial layout: the tools
+  of `cc-radial-map-tools` in the same cell.
+- **Legend**: the rotated "LEGEND" tab on the screen edge is removed; the Legend tool in the bar
+  toggles the same drawer (`aria-expanded`, `aria-controls="legend-panel"`), pressed state
+  `btn-active`. The drawer still slides in from the right.
+- **Variants keep their cells**: radial layout (Folders cell, no Height, no link button), delta mode
+  (Color shows "Settings" with the delta colour popover), no edges (no Edges cell).
+- **States**: disabled cell `opacity-50 cursor-default`; narrow window (the bar is
+  `max-w-[min(95vw,1200px)]`): metric names truncate first, then the layout name shows only its glyph,
+  then the tools grid becomes `grid-cols-1`; the bar never scrolls or wraps.
+- **Keyboard**: unchanged order (layout, area, height, link, color, edges, labels, scenarios, tools);
+  every icon-only button has `title` = `aria-label`.
+- **Domain bar** (`features/domainBar`) uses the same shell and gets the same shape and tools cell.
+
 ---
 
 ## Deviations from the plan
@@ -101,7 +166,14 @@ the eight themes by the plan's smoke test (M5 step 2) plus an eyeball pass of th
 3. **Toggle position** as the plan says, before Settings (the analyses indicator that once sat there
    is now part of the workspace status element, area 05 W1).
 
+4. **Metrics bar refresh (T4)** is an owner request (OD5), not part of plan 02; it can ship with plan
+   02 M1 (dark by default) or as its own milestone.
+
 ## Proposed changes to existing UI (not assumed approved)
+
+Approved by the owner (OD5): the metrics bar shape, the Layout and view-tools tabs moving into the
+bar, the link button becoming a square, and the LEGEND edge tab becoming a tool in the bar (T4).
+
 
 1. **Panel edges on dark.** Explorer and inspector separate from the map by a black 15 % shadow, which
    disappears on a dark map. Proposed: add `border-r border-base-300` (explorer) / `border-l

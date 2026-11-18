@@ -65,20 +65,28 @@ not analysed:          [⎇ main  (not analysed)                                
 detached HEAD:         [⎇ detached at a1b2c3d  @ 9f8e7d6                           ▾]
 ```
 
-- `btn btn-ghost btn-sm justify-between min-w-0 relative overflow-hidden isolate` (widths per
-  principles §3). Children, all `relative z-10` above the fill:
-  1. **Activity icon** (`w-4 shrink-0`, centred): idle `fa-code-branch` (git) / `fa-folder` (plain) /
+- **Fixed width** (owner decision OD2a): `btn btn-ghost btn-sm relative overflow-hidden isolate` with a
+  **fixed `w-*` per window width** (principles §3), never `max-w` or content width. Nothing that happens
+  (an analysis starting, a percentage counting up, a badge appearing, a long branch name) changes the
+  element's size or moves its neighbours; only how many characters of the text fit before "…" changes.
+  Inside, a CSS grid `grid-cols-[1rem_minmax(0,1fr)_auto_auto] items-center gap-2` keeps every part in
+  its place. Children, all `relative z-10` above the fill:
+  1. **Activity icon** in a fixed `size-4 grid place-items-center` slot: every icon and the spinner
+     are drawn at that size (`loading-xs` is 1 rem; Font Awesome icons `fa-fw text-[0.875rem]`), so
+     switching from the branch icon to a spinner or an arrow never moves the text. Idle `fa-code-branch` (git) / `fa-folder` (plain) /
      `fa-file-import` (imported unbound); analysing `loading loading-spinner loading-xs`; fetching
      `fa-cloud-arrow-down`, pulling `fa-arrow-down`, pushing `fa-arrow-up`, each with
      `motion-safe:animate-pulse`; finished `fa-check text-success`; failed `fa-triangle-exclamation
      text-error`.
-  2. **Branch** `font-medium truncate` (keeps priority over the rest); ahead/behind `text-xs
+  2. **Text column** (`minmax(0,1fr)`, `flex min-w-0 gap-2`): **branch** `font-medium truncate
+     shrink` (gives way first), then the map part. Ahead/behind `text-xs
      tabular-nums` with `fa-arrow-up`/`fa-arrow-down` icons only at ≥ 1536 px; a dirty dot
      (`size-2 rounded-full bg-warning`, `title` "3 uncommitted changes") after the branch.
   3. **Map part** `text-base-content/70 truncate`: `@ <short>` (`font-mono`) of the analysis in the map,
      or the activity text while something runs, kept short so the branch stays readable ("Analysing ·
      42 %", "Fetching…", "Pulling · 45 %", "Pushing…", "Analysis failed", "Pull failed"); which commit
-     is being analysed is in the `title` and the dropdown.
+     is being analysed is in the `title` and the dropdown. The percentage sits in its own
+     `tabular-nums w-[4.5ch] text-right` span so counting up never shifts the text.
   4. **Status badge** (one, highest priority first): failed (`badge-error` "failed"), stale / ahead /
      diverged / uncommitted-analysis (`badge-warning`, texts as `noticeText().chip`), imported
      (`badge-ghost`), not analysed (`badge-ghost`), other profile (`badge-ghost` "other profile"). Badges
@@ -105,7 +113,8 @@ detached HEAD:         [⎇ detached at a1b2c3d  @ 9f8e7d6                      
 - `title` (multi-line): "Working folder billing-api (C:\work\billing-api)\nBranch feature/x, 2 to
   push, 1 to pull, 3 uncommitted\nMap shows 9f8e7d6 Release 2.4.0, 4 commits behind the current
   checkout\nAnalysing a1b2c3d — 42 %".
-- Narrow: at 1024–1279 the branch hides first (icon, map part, badge stay; the branch is in the title).
+- Narrow: the fixed width steps down with the window (principles §3); at 1024–1279 px the branch
+  hides (icon, map part, badge stay; the branch is in the title).
 
 ### Dropdown
 
@@ -149,7 +158,9 @@ ACTIVITY                                              [Clear finished]
   ahead/behind, uncommitted summary, the contextual sync button (`04-history.md` H5, same component),
   "Open History" `btn btn-ghost btn-xs`. Problems (git missing, not a repository) show the area 04
   sentence instead.
-- **ACTIVITY** (only when jobs or a git operation exist; was plan 05's jobs popover): one row per git
+- **ACTIVITY** (only when jobs or a git operation exist; was plan 05's jobs popover; this is the one
+  place besides the trigger that shows per-job progress bars, because the trigger shows only one
+  thing at a time): one row per git
   operation and analysis job — icon, text, state at the right (percent `tabular-nums`, "queued",
   duration, or error `text-error text-xs` with the hint below in `text-base-content/60`), a
   `progress progress-primary` bar under running rows, buttons Cancel (`fa-stop`, "Cancel this
