@@ -1,0 +1,5 @@
+{
+  "protocolVersion": 1,
+  "rendererEvents": ["core.progress"],
+  "rendererMethods": ["core.ping"]
+}

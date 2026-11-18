@@ -12,7 +12,9 @@
     // "project" deliberately covers app/ only, so script/, electron/ and the root config files
     // are not analyzed for dead code.
     "project": ["app/**/*.ts"],
-    "ignore": ["app/codeCharta/mocks/**"],
+    // coreApi is generated from core/crates/codecharta-core-api (npm run contract); it exports every
+    // protocol type whether the renderer uses it yet or not.
+    "ignore": ["app/codeCharta/mocks/**", "app/codeCharta/model/coreApi/**"],
     "rules": {
         // Off because these packages are reached from sources knip does not parse: app.scss
         // (@fortawesome/fontawesome-free), angular.json (material-icons, karma/jasmine),

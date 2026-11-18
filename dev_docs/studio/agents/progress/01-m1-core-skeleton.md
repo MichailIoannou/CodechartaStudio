@@ -31,7 +31,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M1 (the test names to writ
 - [x] 1.2 Cargo workspace and crates
 - [x] 1.3 Protocol envelopes and error codes
 - [x] 1.4 serve over stdio
-- [ ] 1.5 Contract generation
+- [x] 1.5 Contract generation
 - [ ] 1.6 CI
 - [ ] 1.7 Docs
 - [ ] 1.8 Licences
@@ -98,6 +98,29 @@ node 26.13.0, npm 12.2.2. No `mise`, `cargo-deny` or `cargo-cyclonedx` installed
   `CODECHARTA_DATA_DIR` → `directories`), `Core::open` and settings.
 - Logging: `tracing-subscriber` fmt to stderr, no ANSI, `--log-level` is a level (`off`…`trace`), not an
   `RUST_LOG`-style filter (no `env-filter` feature needed). Only method names are logged, never params.
-- Tests added beyond the plan list: `should_answer_ping_after_hello`, `should_answer_a_request_with_a_string_id`,
+- Tests added beyond the plan list (1.4): `should_answer_ping_after_hello`, `should_answer_a_request_with_a_string_id`,
   `should_answer_other_requests_while_one_is_running`, `should_exit_cleanly_after_a_shutdown_request`.
+
+### 1.5
+- `export-contract` (`codecharta-core-api/src/bin/export-contract/{main,render}.rs`): std-only argument
+  parsing (`--ts <dir> --shell <file>`, no clap in the api crate); deletes and recreates the `--ts` folder so
+  removed types disappear; ts-rs `Config::new().with_out_dir(..).with_large_int("number")`; exports
+  every named params/result/event type plus `ErrorPayload` and `RequestId` (types without
+  `output_path()`, e.g. `()`, are skipped as S6 found). `coreApi.ts` imports only the types it references
+  (Biome's `noUnusedImports` would fail otherwise) and holds `CORE_PROTOCOL_VERSION`,
+  `CORE_ERROR_CODES`, `CoreMethods`, `CoreEvents`, `CoreClientNotifications` (`core.cancel`),
+  `RENDERER_METHODS`/`RendererMethod`, `RENDERER_EVENTS`/`RendererEvent`.
+- `npm run contract` (in `visualization/package.json`): `cargo run --quiet --locked -p codecharta-core-api
+  --bin export-contract …` then `node ../node_modules/@biomejs/biome/bin/biome check --write` on the two
+  outputs. Biome is a root devDependency only (not in `visualization/`), so the script calls the root's
+  copy by path; root `npm i` is needed, `visualization/node_modules` is not. A second run is a no-op.
+- `coreMethods.generated.json` keys come out sorted (`protocolVersion`, `rendererEvents`,
+  `rendererMethods`) because serde_json is built without `preserve_order`.
+- knip: `app/codeCharta/model/coreApi/**` added to `ignore`. No Biome lint exclusion was needed.
+- **Visualization gates:** `npm run lint` and `npx tsc --noEmit -p tsconfig.json` green. `npm test`:
+  636 suites, 9 failures, all in `stores/fileStore/loaders/ccJson/util/urlExtractor.spec.ts`
+  (`TypeError: Cannot delete property 'location' of #<Window>`), coverage gate met (96.66 / 89.93 /
+  95.28 / 96.57). That spec fails alone too and this milestone touches no app code it reaches; it is a
+  pre-existing incompatibility of the spec with this machine's Node 26.13 / jsdom (CI uses Node 24).
+  Not changed here; worth a small `fix(visualization)` of its own.
 
