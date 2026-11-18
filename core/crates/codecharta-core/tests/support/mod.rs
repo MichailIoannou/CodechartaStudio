@@ -10,6 +10,7 @@ pub use git_fixture::TempRepo;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 const FAKE_TOOL: &str = env!("CARGO_BIN_EXE_cc-fake-tool");
 
@@ -47,4 +48,49 @@ pub fn system_git() -> PathBuf {
 
 pub fn args(values: &[&str]) -> Vec<OsString> {
     values.iter().map(OsString::from).collect()
+}
+
+const GONE_TIMEOUT: Duration = Duration::from_secs(5);
+const GONE_POLL_INTERVAL: Duration = Duration::from_millis(50);
+const PID_FILE_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// A killed process reparented to init stays visible until init reaps it, hence the polling.
+pub fn is_gone_soon(pid: u32) -> bool {
+    let deadline = Instant::now() + GONE_TIMEOUT;
+    while Instant::now() < deadline {
+        if !is_alive(pid) {
+            return true;
+        }
+        std::thread::sleep(GONE_POLL_INTERVAL);
+    }
+    false
+}
+
+pub fn read_pid_file(file: &Path) -> u32 {
+    let deadline = Instant::now() + PID_FILE_TIMEOUT;
+    while Instant::now() < deadline {
+        if let Some(pid) = fs::read_to_string(file)
+            .ok()
+            .and_then(|text| text.trim().parse().ok())
+        {
+            return pid;
+        }
+        std::thread::sleep(GONE_POLL_INTERVAL);
+    }
+    panic!("no pid was written to {}", file.display());
+}
+
+#[cfg(unix)]
+fn is_alive(pid: u32) -> bool {
+    let pid = nix::unistd::Pid::from_raw(i32::try_from(pid).expect("a pid fits an i32"));
+    nix::sys::signal::kill(pid, None).is_ok()
+}
+
+#[cfg(windows)]
+fn is_alive(pid: u32) -> bool {
+    let output = std::process::Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
+        .output()
+        .expect("tasklist runs");
+    String::from_utf8_lossy(&output.stdout).contains(&format!("\"{pid}\""))
 }

@@ -27,7 +27,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M2 (tests to write first a
 - [x] 2.1 Data dir and settings
 - [x] 2.2 Child environment and batch guard
 - [x] 2.3 Fake tool and temp repo helpers
-- [ ] 2.4 Runner and tree kill
+- [x] 2.4 Runner and tree kill
 - [ ] 2.5 Tools and doctor
 - [ ] 2.6 shell.resolvePath
 
@@ -92,3 +92,37 @@ The `x86_64-pc-windows-gnu` std is installed here, so every task also ran
   compiles the module and uses a different part of it (the usual shared-test-support pattern).
 - Checked with a throwaway test (init + commit in a `TempRepo`, fake `git --version` from sidecars); not
   committed, the 2.4 tests use the helpers.
+
+### 2.4
+- Crates: `nix` 0.31.3 (MIT, feature `signal`, unix only) for `killpg` without unsafe code; `windows-sys`
+  0.61.2 (MIT OR Apache-2.0, Windows only) for the job object; tokio feature `process`; `tokio-util` in
+  `codecharta-core` for `CancellationToken`.
+- `process/tree.rs`: `ProcessTree::attach`, `terminate` (unix SIGTERM to the group, Windows
+  `TerminateJobObject`) and `kill` (SIGKILL / `TerminateJobObject`); ESRCH (group already gone) is not an
+  error. The only unsafe code is the `cfg(windows)` `windows_job` module (`#[allow(unsafe_code)]`, each
+  block with a SAFETY comment). It compiles and passes clippy for `x86_64-pc-windows-gnu`; it has **not run
+  on Windows**. Job assignment happens right after spawn (not suspended), so the S4 race stays open: a
+  grandchild started before the assignment would escape.
+- `process/runner.rs`: plan shape, with these differences:
+  - `RunRequest` has a `tool: ToolId` field, because `CoreError::ToolNotFound` / `ToolFailed` need the tool
+    and the runner has no other way to know it. `RunRequest::new(tool, program, args, timeout)` fills the
+    defaults (no cwd, no extra env, 16 MiB, no askpass, collect).
+  - `ProcessRunner::new(base_env)` takes the finished base environment (`hardened_env(..)` already put the
+    search folders on `PATH`), instead of `(base_env, extra_search_folders)`.
+  - Stop sequence on timeout / cancel / output cap: `terminate`, wait up to 3 s for the child, then `kill`
+    the whole tree anyway (catches grandchildren that ignore SIGTERM), then kill/reap the direct child.
+    A normal exit kills nothing on unix (daemons a tool leaves behind are its business); on Windows the
+    job handle closes at the end of the run and `KILL_ON_JOB_CLOSE` ends whatever is left.
+  - Validation: absolute program, no NUL in any argument, batch rule for `.cmd`/`.bat`, absolute existing
+    cwd, timeout > 0, output cap 1..=256 MiB, all `BAD_REQUEST`. Spawn `NotFound` → `TOOL_NOT_FOUND`,
+    `InvalidInput` → `BAD_REQUEST`, other → `TOOL_FAILED`. A child ended by a signal reports exit code -1.
+  - `OutputMode::Stream` sends chunks only; the `RunOutput` texts are then empty.
+  - `kill_all` kills every live tree (used by `Core::shutdown` in 2.5).
+- New `process/output.rs` (pipe readers, cap, streaming) and `process/utf8.rs` (`Utf8Decoder`, holds back
+  an incomplete character across reads; invalid bytes become U+FFFD).
+- Tests: all plan names in `tests/runner.rs`, plus `should_kill_running_children_on_kill_all` and unit tests
+  of the decoder. The two `#[cfg(windows)]` tests (`should_pass_arguments_unchanged_through_a_cmd_file`,
+  `should_kill_java_like_grandchild_of_a_cmd_file`, module `batch_files`) are written but **never ran**
+  (no Windows here); CI's `windows-latest` job will be their first run. Grandchild liveness: unix
+  `kill(pid, 0)`, Windows `tasklist`, polled up to 5 s because a killed grandchild stays a zombie until
+  init reaps it. Ran the suite three times in a row: green, no `cc-fake-tool` left running.

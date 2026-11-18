@@ -67,8 +67,15 @@ impl TempRepo {
             command.env_remove(name);
         });
         let output = command.output().expect("git runs");
-        assert!(output.status.success(), "git {args:?} failed: {}", String::from_utf8_lossy(&output.stderr));
-        String::from_utf8(output.stdout).expect("git writes UTF-8").trim_end().to_string()
+        assert!(
+            output.status.success(),
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout)
+            .expect("git writes UTF-8")
+            .trim_end()
+            .to_string()
     }
 
     /// Writes `name` with `content`, commits it and returns the full commit hash.
