@@ -37,7 +37,7 @@ label `color` and `border` from the `buildingLabel` palette.
 - [x] 1. Types, registry, render palettes
 - [x] 2. Themes registered in CSS
 - [x] 3. DOM stragglers
-- [ ] 4. Scene background
+- [x] 4. Scene background
 - [ ] 5. Floors and floor labels
 - [ ] 6. Labels, connectors, view cube
 - [ ] 7. Map screenshot
@@ -92,4 +92,11 @@ Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feat
   substring of `className` (the variant contains the text `translate-x-full`).
 - New `explorerTreeItemIcon.component.spec.ts` (the component had none).
 - Full e2e (`e2e:ci`, 149 tests) green after this task.
+
+### 4. Scene background
+
+- As designed: `BACKGROUND_COLOR` deleted, the subscription stores only the flag, `syncClearColor()` runs
+  at the end of `initGL` and at the top of every animation frame and calls `setClearColor` only when
+  the wanted color differs. `clearColor` is now the hex string (or `null` before the first sync); nothing
+  outside the service read it.
 

@@ -5,14 +5,10 @@ import { Camera, Scene, WebGLInfo, WebGLRenderer } from "three"
 import { CSS2DRenderer } from "three/addons/renderers/CSS2DRenderer.js"
 import { CcState } from "../../model/codeCharta.model"
 import { isWhiteBackgroundSelector } from "../../stores/mapState/mapState.read.facade"
+import { activeRenderPalette } from "../../util/theme/activeTheme"
 
 @Injectable({ providedIn: "root" })
 export class ThreeRendererService {
-    static readonly BACKGROUND_COLOR = {
-        white: 0xff_ff_ff,
-        normal: 0xf4_f4_eb
-    }
-
     static readonly CLEAR_ALPHA = 1
 
     /** A phone reports a device pixel ratio of 3 and, lacking a viewport meta tag, a ~980px layout
@@ -23,7 +19,9 @@ export class ThreeRendererService {
     static readonly MAX_PIXEL_RATIO = 2
     static readonly MAX_DRAWING_BUFFER_PIXELS = 2_000_000
 
-    clearColor = ThreeRendererService.BACKGROUND_COLOR.normal
+    clearColor: string | null = null
+
+    private isWhiteBackground = false
 
     renderOptions: WebGLContextAttributes = {
         antialias: true,
@@ -50,12 +48,19 @@ export class ThreeRendererService {
         this.scene = scene
         this.camera = camera
         this.initGL(containerWidth, containerHeight)
-        this.store.select(isWhiteBackgroundSelector).subscribe(isWhiteBackground => this.setBackgroundColorToState(isWhiteBackground))
+        this.store.select(isWhiteBackgroundSelector).subscribe(isWhiteBackground => {
+            this.isWhiteBackground = isWhiteBackground
+        })
     }
 
-    private setBackgroundColorToState(isWhiteBackground: boolean) {
-        this.clearColor = isWhiteBackground ? ThreeRendererService.BACKGROUND_COLOR.white : ThreeRendererService.BACKGROUND_COLOR.normal
-        this.renderer?.setClearColor(this.clearColor, ThreeRendererService.CLEAR_ALPHA)
+    /** Pulled before every frame, so neither a theme switch nor the white background can lag behind the picture. */
+    private syncClearColor() {
+        const { map } = activeRenderPalette()
+        const wantedColor = this.isWhiteBackground ? map.whiteBackground : map.background
+        if (wantedColor !== this.clearColor) {
+            this.clearColor = wantedColor
+            this.renderer?.setClearColor(wantedColor, ThreeRendererService.CLEAR_ALPHA)
+        }
     }
 
     private initGL(containerWidth: number, containerHeight: number) {
@@ -74,6 +79,8 @@ export class ThreeRendererService {
         this.labelRenderer.domElement.style.left = "0"
         this.labelRenderer.domElement.style.pointerEvents = "none"
         this.labelRenderer.domElement.style.isolation = "isolate"
+        this.clearColor = null
+        this.syncClearColor()
     }
 
     setSize(width: number, height: number) {
@@ -121,6 +128,7 @@ export class ThreeRendererService {
         this.renderScheduled = true
         requestAnimationFrame(() => {
             this.renderScheduled = false
+            this.syncClearColor()
             const { scene, camera, renderer, labelRenderer } = this
             renderer?.render(scene, camera)
             labelRenderer?.render(scene, camera)
