@@ -22,7 +22,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 
 | Milestone | Kind | State | Blocked on | Branch | Last verified commit |
 |---|---|---|---|---|---|
-| 01-M0 Spikes | spike | todo | — | throwaway | — |
+| 01-M0 Spikes | spike | in progress | — | feature/studio-01-m0 (throwaway, progress file only) | — |
 | 01-M1 Core skeleton, protocol, contract, CI | core | todo | 01-M0 | feature/studio-01-m1 | — |
 | 01-M2 Process runner, tools, settings, doctor | core | todo | 01-M1 | feature/studio-01-m2 | — |
 | 01-M3 Electron shell | shell | todo | 01-M2 | feature/studio-01-m3 | — |
