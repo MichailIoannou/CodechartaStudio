@@ -33,7 +33,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
 | 02-M1 Dark by default | UI | done | — | feature/studio-02-m1 | 5fadc0ca3 (merged db5d2dc60) |
 | 02-M2 No-flash boot | UI | done | — | feature/studio-02-m2 | bcd46657d (merged 407d7551e) |
-| 02-M3 Radial map and word cloud | UI | todo | 02-M2 | — | — |
+| 02-M3 Radial map and word cloud | UI | in progress | — | feature/studio-02-m3 | — |
 | 02-M4 Dependency graph, color-range diagram | UI | todo | 02-M3 | — | — |
 | 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | todo | 02-M4 | — | — |
 | 02-M6 Native window appearance | UI | todo | plan 01 | — | — |
