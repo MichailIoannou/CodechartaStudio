@@ -1,0 +1,21 @@
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "BSD-3-Clause"
+publish = false
+
+[workspace.dependencies]
+codecharta-core = { path = "crates/codecharta-core" }
+codecharta-core-api = { path = "crates/codecharta-core-api" }
+clap = { version = "4.6.8", features = ["derive"] }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"

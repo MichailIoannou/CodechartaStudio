@@ -28,7 +28,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M1 (the test names to writ
 ## Steps
 
 - [x] 1.1 Commit scope, gitignore, toolchain pin
-- [ ] 1.2 Cargo workspace and crates
+- [x] 1.2 Cargo workspace and crates
 - [ ] 1.3 Protocol envelopes and error codes
 - [ ] 1.4 serve over stdio
 - [ ] 1.5 Contract generation
@@ -51,4 +51,12 @@ node 26.13.0, npm 12.2.2. No `mise`, `cargo-deny` or `cargo-cyclonedx` installed
   fails clearly. `mise.toml` gets `rust = "stable"` to match (mise's tool name is `rust`; mise is not
   installed here, so not run). Owner: switch both to an exact version (e.g. `1.95.0`) once every machine
   and CI may download it.
+
+### 1.2
+- Edition 2024, so `resolver = "3"` (the plan says 2; 3 is the edition-2024 default and MSRV-aware).
+- External crate versions live in `[workspace.dependencies]`; crates use `<name>.workspace = true`.
+- `clippy::unwrap_used = "deny"` with `core/clippy.toml` `allow-unwrap-in-tests = true` (unwrap stays
+  allowed in `#[test]` and `#[cfg(test)]` code only).
+- rustfmt defaults (no `rustfmt.toml`). Biome does not check `.rs`/`.toml`/`.md`, so `core/` adds nothing
+  to `npm run format:check`. `Cargo.lock` is committed (the workspace ships a binary).
 

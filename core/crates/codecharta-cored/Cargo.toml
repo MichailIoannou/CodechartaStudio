@@ -1,0 +1,20 @@
+[package]
+name = "codecharta-cored"
+description = "The codecharta-core executable: JSON-RPC over stdio and command-line subcommands"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "codecharta-core"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+codecharta-core.workspace = true
+codecharta-core-api.workspace = true
+
+[lints]
+workspace = true
