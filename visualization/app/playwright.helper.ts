@@ -2,6 +2,8 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { chromium, expect, Page } from "@playwright/test"
+import { CORE_PROTOCOL_VERSION } from "./codeCharta/model/coreApi/coreApi"
+import { createFakeDesktopBridge, FakeDesktopSeed } from "./codeCharta/util/desktop/desktopBridge.mocks"
 
 // The built app is served over HTTP (see playwright.config.ts webServer) so each parallel browser
 // context gets isolated, persistent origin storage — a file:// origin shares IndexedDB across all
@@ -37,6 +39,11 @@ export async function withDiskBackedPage(run: (page: Page) => Promise<void>) {
         await context.close()
         await rm(userDataDir, { recursive: true, force: true })
     }
+}
+
+export async function standInForTheDesktopBridge(page: Page, seed: FakeDesktopSeed = {}) {
+    const seedWithVersion = { protocolVersion: CORE_PROTOCOL_VERSION, ...seed }
+    await page.addInitScript(`window.codeChartaDesktop = (${createFakeDesktopBridge.toString()})(${JSON.stringify(seedWithVersion)})`)
 }
 
 export async function goto(page: Page, url = CC_URL) {

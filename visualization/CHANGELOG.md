@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 ### Added 🚀
 
 - **Dark theme**: CodeCharta now starts in a dark theme, and you can pick CodeCharta Light or Follow system in the settings; the charts of the Domain and Dependencies views and the radial layouts follow in a later release.
+- **Desktop tools check**: the settings of the desktop app show whether git, ccsh, Java and the GitHub and GitLab command lines were found and in which version, and let you pick another executable.
 
 ### Changed
 

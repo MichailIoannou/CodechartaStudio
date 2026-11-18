@@ -8,6 +8,8 @@ import { _electron, ElectronApplication, expect, Page, test } from "@playwright/
 const BUNDLE_FOLDER = join(__dirname, "..", "dist", "bundler", "browser")
 const BOOT_TIMEOUT_MS = 60_000
 const SECOND_INSTANCE_TIMEOUT_MS = 20_000
+const DOCTOR_TIMEOUT_MS = 60_000
+const TOOL_COUNT = 5
 const BRIDGE_KEYS = [
     "cancel",
     "chooseStoreRoot",
@@ -190,4 +192,17 @@ test("should hand a picked executable to the core", async () => {
     expect(answer.ok).toBe(false)
     expect(answer.error.code).not.toBe("NOT_ALLOWED")
     expect(answer.error.details).toBeDefined()
+})
+
+test("should list five tools from the real core", async () => {
+    // Arrange
+    const page = await bootedWindow()
+
+    // Act
+    await page.getByRole("button", { name: "Settings", exact: true, description: "Global Configuration" }).click()
+
+    // Assert
+    await expect(page.getByTestId("desktop-tools").getByTestId("desktop-tool-name")).toHaveCount(TOOL_COUNT, {
+        timeout: DOCTOR_TIMEOUT_MS
+    })
 })
