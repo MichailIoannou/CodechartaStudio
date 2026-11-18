@@ -33,7 +33,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M3 (tests to write first a
 ## Steps
 
 - [x] 3.0 Electron download on npm 12
-- [ ] 3.1 Copy electron files
+- [x] 3.1 Copy electron files
 - [ ] 3.2 Smoke harness
 - [ ] 3.3 Shell policy
 - [ ] 3.4 Core client
@@ -61,4 +61,15 @@ Known red gates that are not this milestone's:
   then fail with exit 1 when `path.txt` is still missing, so a blocked or failed download can no longer pass
   silently. Works on every npm version (it does not go through npm's script gate). `.npmrc` unchanged.
 - Verified: fresh `npm ci` → `ensureElectron.js` → `path.txt` = `electron`; second run is a no-op (exit 0).
+
+### 3.1
+- Verified: `build` was `npm run patch && ng build && cp electron/* package.json dist/bundler/browser`;
+  `electron/` held `main.js` and `coreMethods.generated.json` (M1), both copied by the glob.
+- `script/copyElectron.js` copies an explicit list (today `electron/main.js`, `electron/coreMethods.generated.json`,
+  `package.json`; later tasks add their files) with `fs.copyFileSync`, and exits 1 naming the folder when
+  `dist/bundler/browser/index.html` is missing (checked by moving it away). An explicit list rather than the old
+  glob so `*.test.js` and `smoke.e2e.ts` never reach the bundle.
+- `npm run build` green; `cmp electron/main.js dist/bundler/browser/main.js` identical. PowerShell not available
+  here: the script uses only Node built-ins and `&&`, which PowerShell 7 and `cmd.exe` both accept (not run on
+  Windows). README: removed the "requires unix tools" note of the build section.
 
