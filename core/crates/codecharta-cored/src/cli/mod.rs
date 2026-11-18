@@ -1,4 +1,5 @@
 mod doctor;
+mod output;
 mod projects;
 
 use std::path::PathBuf;

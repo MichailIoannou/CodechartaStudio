@@ -6,13 +6,13 @@ use codecharta_core::projects::folders::suggested_label;
 use codecharta_core::projects::{FolderToAdd, NewProject, ProjectRepository};
 use codecharta_core::recycle::SystemRecycler;
 use codecharta_core::store::Store;
-use codecharta_core::{Core, CoreError, CoreResult};
+use codecharta_core::{Core, CoreResult};
 use codecharta_core_api::ids::ProjectId;
 use codecharta_core_api::methods::projects::{FolderRole, Project, ProjectSummary};
 use codecharta_core_api::values::{Description, Label, ProjectName};
-use serde::Serialize;
 
-const FAILED: u8 = 1;
+use super::output::{exit_code_of, print_json};
+
 const LABEL_SEPARATOR: char = '=';
 const ROLE_SEPARATOR: char = ':';
 
@@ -78,7 +78,6 @@ pub struct FolderArgument {
     role: FolderRole,
 }
 
-/// Exits 0 when the command did its work, 1 when the core refused it; clap exits 2 for usage errors.
 pub fn run_projects(
     core: &Core,
     runtime: &tokio::runtime::Runtime,
@@ -110,13 +109,7 @@ pub fn run_projects(
             ))
             .and_then(|project| print_project(&project, json, last_folder_id(&project))),
     };
-    match printed {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(error) => {
-            eprintln!("{}", error.to_payload().message);
-            ExitCode::from(FAILED)
-        }
-    }
+    exit_code_of(printed)
 }
 
 fn list(core: &Core) -> CoreResult<Vec<ProjectSummary>> {
@@ -195,13 +188,6 @@ fn print_project(project: &Project, json: bool, id: &str) -> CoreResult<()> {
         return print_json(project);
     }
     println!("{id}");
-    Ok(())
-}
-
-fn print_json<T: Serialize + ?Sized>(value: &T) -> CoreResult<()> {
-    let text = serde_json::to_string_pretty(value)
-        .map_err(|error| CoreError::Internal(format!("could not print JSON: {error}")))?;
-    println!("{text}");
     Ok(())
 }
 
