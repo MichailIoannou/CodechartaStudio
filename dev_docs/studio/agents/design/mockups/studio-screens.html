@@ -238,7 +238,7 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
       <tr><td>Status element shouldn't change length; the animated icon shouldn't bump text</td><td>Fixed width per window size; activity, percentages and badges only change how many characters fit before "…". The icon sits in a fixed-size slot, and the percentage has a fixed-width slot so counting up doesn't jiggle. All states are shown at the same width below.</td></tr>
       <tr><td>No animation and progress bar in History</td><td>Only the status element animates. In History the sync button just says "Pulling…" with Cancel, and the commit list shows "42 %" as plain text. The same applies on the project overview.</td></tr>
       <tr><td>Stale message as a persistent toast above other toasts</td><td>The stale notice is now a persistent toast, first in the top-right stack: ordinary toasts appear below it. It closes only when dismissed or when the analysis arrives. While analysing it shows text and Cancel; the progress stays in the status element. See callouts 4 and 5 in the main screen.</td></tr>
-      <tr><td>Move toasts to the top right</td><td>Toasts were already on the right, but at the very top, covering the theme toggle and Settings. They now stack top right, just below the nav bar (callout 5 in the main screen).</td></tr>
+      <tr><td>Move toasts to the top right</td><td>Toasts were already on the right, but at the very top, covering Settings. They now stack top right, just below the nav bar (callout 5 in the main screen).</td></tr>
       <tr><td>Small blend on the language share bar</td><td>Neighbouring colours blend over 24 px (doubled, as you asked) centred on each boundary, replacing the hard edge and white gap; percentages stay readable. See "The language share bar" in the metrics section.</td></tr>
       <tr><td>Show the metric controls in full, recoloured and modernised</td><td>New section "The metrics bar": today's bar next to the Studio version, with every control kept. It's one rounded rectangle; the Layout and tools tabs move inside, the link button becomes a square, and the LEGEND edge tab becomes a tool in the bar.</td></tr>
       <tr><td>Folders only group things under a project; no combined view</td><td>One <b>working folder</b> at a time. The project menu lists this project's folders at the top. Below are the other projects, each expanding to its folders. Choosing a folder switches project and folder in one step. The multi-folder selector is gone.</td></tr>
@@ -262,13 +262,13 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
 <section>
   <span class="eyebrow">The same screen in Studio (desktop)</span>
   <h2>Two controls replace the 📂 button and the map dropdown</h2>
-  <p>On the left: the project menu (project and working folder), then the workspace status (branch, what the map shows, running work). The view tabs stay centred. On the right, only the theme toggle is new.</p>
+  <p>On the left: the project menu (project and working folder), then the workspace status (branch, what the map shows, running work). The view tabs stay centred. The right side stays as today: Settings only.</p>
   <div class="screen-wrap fit" role="img" aria-label="Studio main screen with callouts on the project menu, the workspace status element, the History tab and the stale notice">
     <div class="screen">
       <div class="nav">
         <div class="start"><b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span><span class="btn outline co" style="max-width:13rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="mute">billing /</span> <b style="font-weight:600">billing-api</b></span><i class="fa-solid fa-caret-down caret"></i><span class="callout">1</span></span><span class="ws co " style="width:22rem;"><span class="fill" style="width:42%"></span><span class="ic"><span class="spin"></span></span><span class="txt"><span class="br">feature/invoice-rounding</span><span class="mp">Analysing · 42 %</span></span><span class="bd"></span><i class="fa-solid fa-caret-down caret"></i><span class="callout">2</span></span></div>
         <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn co">History<span class="callout">3</span></span></div>
-        <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
+        <div class="end"><span class="btn">Settings</span></div>
       </div>
       <div class="stage">
         <div class="explorer"><span class="ph">Explorer</span><div class="seg"><span class="on"><i class="fa-solid fa-folder-tree"></i>Files</span></div><span class="inp"><i class="fa-solid fa-magnifying-glass"></i>*.js, **/app/*</span><span class="mute" style="font-size:12px"><i class="fa-solid fa-folder"></i> root</span></div><div class="city"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="handle"></span>
@@ -339,7 +339,7 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
       <div class="nav">
         <div class="start"><b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span><span class="btn outline co" style="max-width:13rem;background:var(--app-200)"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="mute">billing /</span> <b style="font-weight:600">billing-api</b></span><i class="fa-solid fa-caret-up caret"></i></span><span class="ws co " style="width:22rem;"><span class="ic"><i class="fa-solid fa-code-branch"></i></span><span class="txt"><span class="br">feature/invoice-rounding</span><span class="mp">@ <span class="sha">9f8e7d6</span></span></span><span class="bd"><span class="badge b-warn"><span>stale by 4</span></span></span><i class="fa-solid fa-caret-down caret"></i></span></div>
         <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
-        <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
+        <div class="end"><span class="btn">Settings</span></div>
       </div>
       <div class="menu pm" style="left:150px;top:52px;width:440px">
         <div style="display:flex;align-items:center"><span class="ph">Billing</span><span class="btn sm outline" style="margin-left:auto"><i class="fa-solid fa-circle-info fa-fw"></i>Overview</span></div>
@@ -375,7 +375,7 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
       <div class="nav">
         <div class="start"><b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span><span class="btn outline co" style="max-width:13rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="mute">billing /</span> <b style="font-weight:600">billing-api</b></span><i class="fa-solid fa-caret-down caret"></i></span><span class="ws co " style="width:22rem;background:var(--app-200)"><span class="fill" style="width:42%"></span><span class="ic"><span class="spin"></span></span><span class="txt"><span class="br">feature/invoice-rounding</span><span class="mp">Analysing</span><span class="pct">42 %</span></span><span class="bd"></span><i class="fa-solid fa-caret-down caret"></i></span></div>
         <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
-        <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
+        <div class="end"><span class="btn">Settings</span></div>
       </div>
       <div class="menu" style="left:318px;top:52px;width:500px">
         <span class="ph">Map</span>
@@ -429,7 +429,7 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
       <div class="nav">
         <div class="start"><b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span><span class="btn outline co" style="max-width:13rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="mute">billing /</span> <b style="font-weight:600">billing-api</b></span><i class="fa-solid fa-caret-down caret"></i></span><span class="ws co " style="width:22rem;"><span class="fill" style="width:42%"></span><span class="ic"><span class="spin"></span></span><span class="txt"><span class="br">feature/invoice-rounding</span><span class="mp">Analysing</span><span class="pct">42 %</span></span><span class="bd"></span><i class="fa-solid fa-caret-down caret"></i></span></div>
         <div class="center"><span class="btn">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
-        <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
+        <div class="end"><span class="btn">Settings</span></div>
       </div>
       <div class="ovp">
         <div style="display:flex;align-items:flex-start;gap:12px"><div><div style="font:600 24px var(--font-display)">billing</div><div class="mute">Invoicing services and their deployment scripts.</div></div><span class="btn sm outline" style="margin-left:auto"><i class="fa-solid fa-gear fa-fw"></i>Manage project…</span></div>
@@ -472,7 +472,7 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
       <div class="nav">
         <div class="start"><b style="padding:0 8px;flex-shrink:0">CodeCharta</b><span class="vr"></span><span class="btn outline co" style="max-width:13rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="mute">billing /</span> <b style="font-weight:600">billing-api</b></span><i class="fa-solid fa-caret-down caret"></i></span><span class="ws co " style="width:22rem;"><span class="fill" style="width:75%"></span><span class="ic"><span class="pulse"><i class="fa-solid fa-arrow-down"></i></span></span><span class="txt"><span class="br">feature/invoice-rounding</span><span class="mp">Pulling</span><span class="pct">75 %</span></span><span class="bd"></span><i class="fa-solid fa-caret-down caret"></i></span></div>
         <div class="center"><span class="btn">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn sel">History</span></div>
-        <div class="end"><span class="btn"><i class="fa-solid fa-sun fa-fw"></i></span><span class="btn">Settings</span></div>
+        <div class="end"><span class="btn">Settings</span></div>
       </div>
       <div style="position:absolute;top:64px;right:16px;width:384px;z-index:6;padding:10px 12px;border-radius:10px;background:var(--app-err);color:#2b0606;box-shadow:0 6px 18px #0008;font-size:13px;display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:10px;align-items:flex-start"><i class="fa-solid fa-circle-xmark" style="margin-top:2px"></i><span style="flex:1">The remote has commits you do not have. Pull first, then push.</span><i class="fa-solid fa-xmark" style="opacity:.7;margin-top:2px"></i></div><div style="display:flex;justify-content:flex-end;gap:6px"><span class="btn sm" style="border:1px solid #2b060655;color:#2b0606">Details</span><span class="btn sm" style="background:#2b0606;color:var(--app-err)"><i class="fa-solid fa-arrow-down fa-fw"></i>Pull</span></div></div>
       <div class="toolbar">
@@ -573,6 +573,8 @@ td .tag { display: inline-flex; align-items: center; justify-content: center; mi
       <tr><td>9</td><td>Light theme name</td><td>"Rider Day". Your installed Rider 2026.2 ships both "Rider Day" (new UI) and "Rider Light" (classic UI); Studio follows the new UI</td></tr>
       <tr><td>10</td><td>Panel edges</td><td>Copied from Rider 2026.2's Islands theme (read from its theme files): rounded panels (10 px radius) with 6 px gaps and no divider lines. Zed's themes are compiled into its binary, so its panels couldn't be checked the same way</td></tr>
       <tr><td>11</td><td>Confirm before moving the store folder?</td><td>No confirmation and no restart; the app redraws, and it survives the core going offline</td></tr>
+      <tr><td>OD10</td><td>Theme control in the nav bar?</td><td>None; the theme is chosen only in Settings</td></tr>
+      <tr><td>OD5</td><td>How does the app show the core being offline?</td><td>A persistent toast at the top of the stack ("The CodeCharta core is offline…" with Restart core); a short "Back online" toast when it returns. What is on screen stays</td></tr>
     </tbody>
   </table></div>
 </section>

@@ -33,8 +33,8 @@ the area files; OD1–OD4 are in `owner-decisions.md`.
 
 ```
 ┌ nav bar ──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [logo] │ [▣ billing / billing-api ▾] [⎇ feature/x  @ 9f8e7d6  stale by 4 ▾]   Metric Domain Dependencies History   [☀] Settings │
-│          P1 project + working folder   W1 workspace status                    H1 new tab                    T2 theme      │
+│ [logo] │ [▣ billing / billing-api ▾] [⎇ feature/x  @ 9f8e7d6  stale by 4 ▾]   Metric Domain Dependencies History        Settings │
+│          P1 project + working folder   W1 workspace status                    H1 new tab                                  │
 ├──────────────┬───────────────────────────────────────────────────────────────────────┬────────────────┤
 │ EXPLORER   « │                                   ┌ S2 ⚠ No analysis for a1b2c3d —      ┐│ inspector      │
 │ Files|Changes│                                   │ showing 9f8e7d6, stale by 4 commits. ││ (unchanged)    │
@@ -131,4 +131,4 @@ analyses, recent commits, the project's folders. **Show map** returns to the map
 
 ## 4. Web build
 
-Unchanged from section 1, except the theme picker in Settings and the theme toggle in the nav bar.
+Unchanged from section 1, except the theme picker in Settings.

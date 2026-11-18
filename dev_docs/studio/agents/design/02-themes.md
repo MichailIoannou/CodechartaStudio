@@ -1,14 +1,14 @@
 # 02 — Themes: interface design
 
 Plan: `02-themes.md` ("UI", "Error states and edge cases", M1, M5). Principles:
-`00-design-principles.md`. **Web and desktop**: themes are the one new feature in both builds.
+`00-design-principles.md`. **Web and desktop**: themes are the one new feature in both builds (the picker in Settings only).
 
 ## Elements
 
 | # | Element | Selector | Lives in | Modelled on |
 |---|---|---|---|---|
 | T1 | Theme picker | `cc-theme-picker` | Global Configuration dialog, first row | `cc-setting-toggle` row |
-| T2 | Quick toggle | `cc-theme-quick-toggle` | nav bar, `navbar-end`, before Settings | `cc-settings-button` |
+| T2 | (removed by OD10: no theme control in the nav bar) | — | — | — |
 | T3 | Dark chrome audit | checklist | every existing screen | — |
 | T4 | Metrics bar, refreshed | `cc-metrics-bar`, `ccBarShell` | floating bar above the file extension bar | today's metrics bar |
 | T5 | File extension bar, blended edges | `cc-file-extension-bar`, `cc-file-extension-bar-segment` | full-width bar above the bottom bar | today's file extension bar |
@@ -57,18 +57,10 @@ Light
 
 **Data.** `ThemeReadStore.preference()`, `.themes`, `.activeTheme()`; `ThemeWriteStore.setPreference`.
 
-## T2 Quick toggle
+## T2 (removed)
 
-**Where.** `navBar.component.html`, `navbar-end`, before `cc-settings-button`. Present in both builds.
-
-- `btn btn-ghost btn-sm btn-square`; icon `fa-solid fa-moon` while a light theme is active,
-  `fa-solid fa-sun` while a dark theme is active.
-- `title` / `aria-label` name the destination: "Switch to light theme (CodeCharta Light)" /
-  "Switch to dark theme (CodeCharta Dark)".
-- Click sets the preference to CodeCharta Light / CodeCharta Dark (plan). From an editor scheme it
-  therefore goes to the CodeCharta theme of the other scheme; the Global Configuration dialog brings
-  the editor scheme back. It never sets "Follow system".
-- No state other than the two icons; it never disappears or disables.
+There is no theme control in the nav bar (owner decision OD10). The theme is chosen only in the
+Global Configuration dialog (T1).
 
 ## T3 Dark chrome audit
 
@@ -198,11 +190,8 @@ Studio:  [   kt 42.25% ░░▒▒▓▓ scss 28.17% ░░▒▒▓▓ ts 25.3
    `IntelliJ`), plus "Rider Night" / "Rider Dark"; both light themes use the editor colour scheme
    "Rider Light". Studio follows the new UI, so the label is "Rider Day"; plan 02 takes its chrome tokens
    from `RiderDay.theme.json` and its map/editor-like colours from the "Rider Light" editor scheme.
-2. **Toggle titles name the destination theme** ("Switch to light theme (CodeCharta Light)"), so a user
-   on Nord is not surprised to land on CodeCharta Light.
-3. **Toggle position** as the plan says, before Settings (the analyses indicator that once sat there
-   is now part of the workspace status element, area 05 W1).
-
+2. **No quick toggle (owner decision OD10).** Plan 02 M5 task 4 (`cc-theme-quick-toggle`) is dropped;
+   the theme is chosen only in Settings.
 4. **Metrics bar refresh (T4) and file extension bar blend (T5)** are owner requests (OD6, OD7), not
    part of plan 02; it can ship with plan
    02 M1 (dark by default) or as its own milestone.

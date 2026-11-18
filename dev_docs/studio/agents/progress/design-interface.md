@@ -51,3 +51,4 @@ Produce the interface design for plans 01–06 under `dev_docs/studio/agents/des
 - 2026-11-18 owner review 6: stale notice becomes a persistent toast above other toasts (OD9).
 - 2026-11-18 handed over: owner released the design for a first implementation; OD5 applied to area 01 (no restart, app-wide offline state), Rider Day label; all areas ready.
 - 2026-11-18 after handover: applied open questions 5 (git failures as error toasts), 9 (Rider Day, checked in installed Rider 2026.2) and 10 (Rider Islands panels).
+- 2026-11-18: applied OD10 (no theme control in the nav bar) and the offline persistent toast (OD5 follow-up).

@@ -19,7 +19,8 @@ Enhance the existing interface; do not redesign it.
 - One new top-level view: **History** (area 04). Everything else goes into an existing region.
 - **Web build:** every new desktop element is wrapped in `@if (isDesktop())`
   (`DesktopEnvironment.isDesktop`, plan 01 §3.12) and is *absent*, never disabled. The only new
-  element visible in the web build is the theme picker and theme toggle (plan 02 themes both builds).
+  element visible in the web build is the theme picker in Settings (plan 02 themes both builds; no
+  theme control in the nav bar, OD10).
 - Existing controls are not moved, renamed, restyled or removed unless a plan replaces them. Every
   such change is listed in the area file under "Proposed changes to existing UI".
 
@@ -29,7 +30,7 @@ Enhance the existing interface; do not redesign it.
 |---|---|---|
 | Nav bar, left (`navbar-start`) | `navBar.component.html` | `btn btn-ghost btn-sm` triggers; dropdown = `cc-map-selector` |
 | Nav bar, centre | `viewSwitcher.component.html` | `btn btn-ghost btn-sm` links + `cc-current-underline` |
-| Nav bar, right (`navbar-end`) | `navBar.component.html` | `cc-settings-button` (`btn btn-ghost btn-sm`); gets the theme toggle |
+| Nav bar, right (`navbar-end`) | `navBar.component.html` | `cc-settings-button` (`btn btn-ghost btn-sm`); unchanged, Settings only (OD10) |
 | Hover mode bar under the switcher | `viewModeBar.component.html` | `cc-mode-toggle` (Explore / Compare, `role="tablist"`) |
 | Dropdown | `mapSelector.component.html` | `.dropdown` + `dropdown-open`, content `bg-base-100 rounded-box border border-base-300 shadow-md mt-1 z-[70] p-2`, list `max-h-72 overflow-y-auto`, row `rounded-md px-2 py-1 hover:bg-base-200`, footer `flex justify-end mt-2` with `btn btn-primary btn-sm` |
 | Modal dialog | `globalConfigurationDialog`, `saveScenarioDialog`, `scenarioListDialog` | native `<dialog class="modal">`, `modal-box max-w-{sm,md,xl,2xl}`, `h2 text-xl font-bold mb-4`, `form-control` + `label-text`, `input input-bordered`, `modal-action`, `form method="dialog" class="modal-backdrop"` |
@@ -53,11 +54,11 @@ The nav bar is shared by plans 02–06. This is the single, final order; area fi
 ```
 desktop, project open, map shown
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [logo] │ [▣ billing / billing-api ▾] [⎇ feature/x  @ 9f8e7d6  stale by 4 ▾]   Metric Domain Dependencies History        [☀] Settings │
+│ [logo] │ [▣ billing / billing-api ▾] [⎇ feature/x  @ 9f8e7d6  stale by 4 ▾]   Metric Domain Dependencies History            Settings │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
   start: logo, divider, project menu (03 P1), map slot = workspace status (05 W1) or comparison chip (06)
   centre: view switcher (+ History tab, 04)
-  end: theme toggle (02), Settings
+  end: Settings (unchanged; no theme control, OD10)
 ```
 
 Owner decisions OD1/OD2 (`owner-decisions.md`): the project menu chooses project and working folder;
@@ -100,10 +101,10 @@ never JavaScript measuring:
 nav bar: `features/shared/components/toast/toast.component.html` keeps `toast toast-top toast-end
 z-[2000]` and adds `top-[var(--cc-bars-height,49px)]`, so daisyUI's own 1 rem margin puts the first
 toast 1 rem under the nav bar and 1 rem from the right edge. Today the same classes place it at the
-very top, over the nav bar's right end (theme toggle, Settings).
+very top, over the nav bar's right end (Settings).
 
-Order in the stack, top to bottom: **persistent toasts first** (today only the stale notice, 05 S2,
-owner decision OD9), then ordinary toasts, newest first. Persistent toasts are projected into
+Order in the stack, top to bottom: **persistent toasts first** (the core-offline toast, 01 D4, then
+the stale notice, 05 S2, owner decisions OD5 and OD9), then ordinary toasts, newest first. Persistent toasts are projected into
 `cc-toast` through an `<ng-content />` placed before the `@for` over `messages()`; they have the same
 `alert shadow-lg` shape, a dismiss button where dismissing is allowed, and never close on a timer.
 Ordinary toasts: success and info close after 5 s; **error toasts stay until dismissed** (owner
@@ -212,7 +213,6 @@ Status meaning is fixed across areas:
 | external link (PR) | `fa-arrow-up-right-from-square` |
 | pull request | `fa-code-pull-request` |
 | delete | `fa-trash` |
-| theme toggle | `fa-moon` / `fa-sun` |
 
 ## 8. Wording
 

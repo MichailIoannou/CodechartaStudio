@@ -113,13 +113,21 @@ Second line = purpose + problem:
 The app never closes or restarts because the core stops; it shows that the core is away and recovers
 by itself when the core is back (plan 01's shell respawns it with backoff).
 
-**Everywhere — the workspace status element** (`05-snapshots.md` W1) is the app-wide indicator:
+**Everywhere — a persistent toast** (owner-confirmed, OD5): the same kind as the stale notice
+(`05-snapshots.md` S2): projected into the persistent slot of `cc-toast`, first in the top-right stack
+(above the stale notice, which needs the core anyway), `alert shadow-lg text-sm w-96`, `role="status"`,
+never closed by a timer and without a dismiss button while the core is away.
 
-| `coreState()` | W1 trigger | W1 dropdown |
+| `coreState()` | Persistent toast | Then |
 |---|---|---|
-| `starting` / `restarting` | icon `fa-plug` with the indeterminate sweep, text "Connecting to the core…" | "The CodeCharta core is starting." |
-| `unavailable` (gave up after repeated failures) | icon `fa-plug-circle-xmark text-error`, text "Core offline", `bg-error/15` | "The CodeCharta core is not running. What is on screen stays; projects, git and analyses are paused." + `btn btn-sm` "Restart core" + "Open desktop tools" |
-| back to `ready` after an outage | green flash (as "finished"), toast (success) "Reconnected to the CodeCharta core." | normal content, reloaded |
+| `starting` (first start) | none; the boot screen covers it | — |
+| `restarting` (after a crash) | `alert-info`, `fa-plug`: "Reconnecting to the CodeCharta core…" "What is on screen stays; projects, git and analyses are paused." | — |
+| `unavailable` (gave up) | `alert-warning`, `fa-plug-circle-xmark`: "The CodeCharta core is offline. What is on screen stays; projects, git and analyses are paused." Buttons "Restart core" (`btn btn-sm btn-primary`), "Open desktop tools" | stays until the core is back |
+| back to `ready` after an outage | the persistent toast disappears | ordinary success toast (5 s): "Back online. Data reloaded." |
+
+No spinner or progress in the toast (only the workspace status animates, principles §5). The workspace
+status element (W1) shows `fa-plug-circle-xmark` in its icon slot and "Core offline" while offline, so
+the state is visible even after other toasts pile up.
 
 **What other areas do meanwhile:** keep showing their last data (the map, History lists, the project
 overview); every action that needs the core is disabled with `title` "The CodeCharta core is offline";
