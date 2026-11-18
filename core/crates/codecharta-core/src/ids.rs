@@ -8,6 +8,7 @@ use crate::error::{CoreError, CoreResult};
 const PROJECT_ID_PREFIX: &str = "p-";
 const FOLDER_ID_PREFIX: &str = "f-";
 const RANDOM_ID_BYTES: usize = 8;
+const STAGING_SUFFIX_BYTES: usize = 4;
 const HEX_DIGITS_PER_BYTE: usize = 2;
 
 pub fn new_project_id() -> CoreResult<ProjectId> {
@@ -23,6 +24,11 @@ pub fn new_folder_id() -> CoreResult<FolderId> {
 pub fn new_token() -> CoreResult<PickToken> {
     let token = random_hex("", PICK_TOKEN_LENGTH / HEX_DIGITS_PER_BYTE)?;
     PickToken::try_from(token).map_err(|error| CoreError::Internal(error.to_string()))
+}
+
+/// The random part of a staging directory name: 8 hex digits.
+pub fn new_staging_suffix() -> CoreResult<String> {
+    random_hex("", STAGING_SUFFIX_BYTES)
 }
 
 fn random_hex(prefix: &str, byte_count: usize) -> CoreResult<String> {

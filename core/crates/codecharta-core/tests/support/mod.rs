@@ -6,9 +6,11 @@
 
 pub mod git_fixture;
 pub mod recycler;
+pub mod store_workspace;
 
 pub use git_fixture::TempRepo;
 pub use recycler::RecordingRecycler;
+pub use store_workspace::{StoreWorkspace, folder_ref};
 
 use std::ffi::OsString;
 use std::fs;

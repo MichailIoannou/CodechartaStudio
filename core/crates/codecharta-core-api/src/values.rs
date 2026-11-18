@@ -10,6 +10,9 @@ pub const MAX_LABEL_CHARS: usize = 60;
 pub const MAX_PROJECT_NAME_CHARS: usize = 80;
 pub const MAX_DESCRIPTION_CHARS: usize = 500;
 pub const MAX_EXCLUDE_PATTERN_CHARS: usize = 200;
+pub const MAX_MAP_CHECKSUM_LENGTH: usize = 128;
+pub const MAX_ROOT_NAME_CHARS: usize = 255;
+const PATH_SEPARATOR: char = '/';
 const LABEL_FORBIDDEN_CHARACTERS: [char; 3] = ['/', '\\', ':'];
 const LINE_BREAKS: [char; 2] = ['\n', '\r'];
 
@@ -69,6 +72,18 @@ fn is_description(value: &str) -> bool {
 
 fn is_exclude_pattern(value: &str) -> bool {
     has_chars(value, 1..=MAX_EXCLUDE_PATTERN_CHARS) && !value.contains(LINE_BREAKS)
+}
+
+fn is_map_checksum(value: &str) -> bool {
+    (1..=MAX_MAP_CHECKSUM_LENGTH).contains(&value.len())
+        && value.bytes().all(|byte| byte.is_ascii_alphanumeric())
+}
+
+fn is_root_name(value: &str) -> bool {
+    has_chars(value, 1..=MAX_ROOT_NAME_CHARS)
+        && !value
+            .chars()
+            .any(|character| character.is_control() || character == PATH_SEPARATOR)
 }
 
 /// A text value checked while it is deserialised, so a handler never sees an invalid one. The rule text
@@ -157,6 +172,18 @@ validated_text!(
     ExcludePattern,
     is_exclude_pattern,
     "use 1 to 200 characters without line breaks"
+);
+
+validated_text!(
+    MapChecksum,
+    is_map_checksum,
+    "use 1 to 128 ASCII letters or digits"
+);
+
+validated_text!(
+    RootName,
+    is_root_name,
+    "use 1 to 255 characters without / or control characters"
 );
 
 #[cfg(test)]
@@ -254,5 +281,23 @@ mod tests {
             !error.to_string().contains("secret-looking-value"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn should_accept_a_map_checksum_and_a_root_name_only_without_separators() {
+        // Arrange
+        let checksum = "d41d8cd98f00b204e9800998ecf8427e";
+
+        // Act
+        let accepted = (MapChecksum::try_from(checksum), RootName::try_from("root"));
+        let rejected = (
+            MapChecksum::try_from("../etc"),
+            RootName::try_from("root/sub"),
+            RootName::try_from(""),
+        );
+
+        // Assert
+        assert!(accepted.0.is_ok() && accepted.1.is_ok());
+        assert!(rejected.0.is_err() && rejected.1.is_err() && rejected.2.is_err());
     }
 }

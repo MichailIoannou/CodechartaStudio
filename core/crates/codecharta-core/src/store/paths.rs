@@ -10,7 +10,9 @@ pub const LOCK_FILE_NAME: &str = ".lock";
 pub const PROJECTS_FOLDER_NAME: &str = "projects";
 pub const PROJECT_FILE_NAME: &str = "project.json";
 pub const SNAPSHOTS_FOLDER_NAME: &str = "snapshots";
+pub const SNAPSHOT_FILE_NAME: &str = "snapshot.json";
 pub const MAP_FILE_NAME: &str = "map.cc.json.gz";
+pub const RUN_LOG_FILE_NAME: &str = "run.log";
 pub const STAGING_FOLDER_PREFIX: &str = ".incoming-";
 
 /// The only place that builds paths inside the store.
@@ -83,6 +85,27 @@ impl StorePaths {
     ) -> CoreResult<PathBuf> {
         let snapshot_dir = self.snapshot_dir(project, folder, snapshot)?;
         self.inside_root(snapshot_dir.join(MAP_FILE_NAME))
+    }
+
+    pub fn snapshot_file(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        snapshot: &SnapshotId,
+    ) -> CoreResult<PathBuf> {
+        let snapshot_dir = self.snapshot_dir(project, folder, snapshot)?;
+        self.inside_root(snapshot_dir.join(SNAPSHOT_FILE_NAME))
+    }
+
+    /// A directory a snapshot is built in before it is renamed to its id; `suffix` is generated.
+    pub fn staging_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        suffix: &str,
+    ) -> CoreResult<PathBuf> {
+        let folder_dir = self.folder_snapshots_dir(project, folder)?;
+        self.inside_root(folder_dir.join(format!("{STAGING_FOLDER_PREFIX}{suffix}")))
     }
 
     fn inside_root(&self, candidate: PathBuf) -> CoreResult<PathBuf> {

@@ -6,6 +6,7 @@ pub mod ids;
 pub mod process;
 pub mod projects;
 pub mod recycle;
+pub mod snapshots;
 pub mod store;
 pub mod timestamps;
 pub mod tools;
@@ -26,6 +27,7 @@ use process::env::hardened_env;
 use projects::ProjectRepository;
 use projects::tokens::PickTokens;
 use recycle::SystemRecycler;
+use snapshots::SnapshotRepository;
 use store::Store;
 use store::state::StoreState;
 use tools::{SearchLocations, Tools, ToolsSetup};
@@ -80,6 +82,15 @@ impl Core {
     /// The projects of the store this core opened, with the real git and recycle bin.
     pub fn projects(&self) -> CoreResult<ProjectRepository<'_>> {
         Ok(ProjectRepository::new(
+            self.store()?,
+            &self.tools,
+            &self.recycler,
+        ))
+    }
+
+    /// The snapshots of the store this core opened.
+    pub fn snapshots(&self) -> CoreResult<SnapshotRepository<'_>> {
+        Ok(SnapshotRepository::new(
             self.store()?,
             &self.tools,
             &self.recycler,

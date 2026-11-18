@@ -251,7 +251,7 @@ fn ensure_present(folder: &FolderRecord) -> CoreResult<()> {
     Ok(())
 }
 
-fn existing_folder<'record>(
+pub(crate) fn existing_folder<'record>(
     record: &'record ProjectRecord,
     folder_id: &FolderId,
 ) -> CoreResult<&'record FolderRecord> {
