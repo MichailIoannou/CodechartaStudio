@@ -102,6 +102,10 @@ the milestone is started.
   (`--data-dir` already isolates the store); `paths.setStoreRoot` overlaps plan 03's `store.changeRoot`.
   To check after 01-M3: `pickFolder` returns a path to the renderer vs plan 03's pick-token rule;
   `readSnapshotMap` reads whole files vs plan 03's chunks; bridge call shape.
+- Owner decision OD1 (`design/owner-decisions.md`, README; commit 15c92e430): one working folder at a time.
+  Plan 03's `project.json.view.visibleFolderIds` becomes `workingFolderId`; the multi-folder selector of
+  03-M5 is removed; 04 and 05 read the working folder. Passed to the 03-M1 agent; applies to the store
+  format from whichever 03 milestone first writes `project.json` (03-M2 per the plan).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -140,4 +144,4 @@ Design questions are in `design/open-questions.md`; none are left here.
 - 2026-11-18: 02-M0 verified (format check green, notes read); plan 02 now waits only on design 02-themes.
 - 2026-11-18: 01-M0 verified (format check green, notes read); 01-M1 and 02-M0 started.
 - 2026-11-18: file created; no design folder yet, so all UI work is blocked on design.
-- 2026-11-18: owner answered the five open questions; decisions applied (see above).
+- 2026-11-18: owner answered the five open questions; decisions applied (see above). Orchestrator verified and committed them (af33d0252).
