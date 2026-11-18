@@ -119,10 +119,10 @@ the milestone is started.
    of `license_policy.json`; `deny.toml` has a one-crate exception for now.
 3. `actions/cache@v5` in `test_core.yml` is pinned by tag, not SHA; please confirm a SHA.
 4. Exact Rust toolchain pin (instead of `stable`) once machines and CI may download it.
+5. Node 26 failure of `urlExtractor.spec.ts` (see above): fix the spec, or require Node 24 locally?
 6. Root `npm run format:check` fails on the design mock-up (`design/mockups/studio-screens.html:438`,
    Biome `noForEach`). Logged as O1 in `design/open-questions.md`; until fixed, every branch with the
    mock-up fails this CI check. Milestone verification records it as the only format failure.
-5. Node 26 failure of `urlExtractor.spec.ts` (see above): fix the spec, or require Node 24 locally?
 
 ## Session log
 
