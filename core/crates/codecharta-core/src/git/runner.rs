@@ -9,7 +9,7 @@ use codecharta_core_api::methods::tools::{ToolId, ToolState};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use super::command::{GitCommand, GitInvocation, invocation_of};
+use super::command::{GitCommand, GitInvocation, Limits, invocation_of};
 use super::error::command_failed;
 use crate::error::{CoreError, CoreResult};
 use crate::process::lines::LineSplitter;
@@ -232,6 +232,32 @@ impl<'core> GitCli<'core> {
     ) -> CoreResult<RunOutput> {
         let invocation = invocation_of(command, self.data_dir);
         self.process.execute(invocation, cancel).await
+    }
+}
+
+/// git in one folder for one request: the runner, the folder git runs in and the request's cancellation.
+#[derive(Clone, Copy)]
+pub struct FolderGit<'call> {
+    pub git: &'call GitCli<'call>,
+    pub folder: &'call Path,
+    pub cancel: &'call CancellationToken,
+}
+
+impl FolderGit<'_> {
+    pub fn read(&self, args: &[&str], limits: Limits) -> GitCommand {
+        GitCommand::read(self.folder, args, limits)
+    }
+
+    /// The standard output of a read that must succeed.
+    pub async fn run(&self, args: &[&str], limits: Limits) -> CoreResult<String> {
+        self.git.run(&self.read(args, limits), self.cancel).await
+    }
+
+    /// A read whose exit code is the caller's business.
+    pub async fn run_raw(&self, args: &[&str], limits: Limits) -> CoreResult<RunOutput> {
+        self.git
+            .run_raw(&self.read(args, limits), self.cancel)
+            .await
     }
 }
 

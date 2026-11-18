@@ -13,12 +13,12 @@ use super::changes::RepositoryChanges;
 use super::command::{GitCommand, QUERY_LIMITS};
 use super::details::{ChangedFilesRequest, changed_files, commit_details};
 use super::locator::{Repository, locate};
-use super::log::{LogRequest, log_page};
+use super::log::{LogContext, LogRequest, log_page};
 use super::memory::GitMemory;
 use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
 use super::query::{self, RevListRequest, ShaSink};
 use super::read::{read_refs, status_summary};
-use super::runner::{GitCli, GitProcess};
+use super::runner::{FolderGit, GitCli, GitProcess};
 use crate::error::CoreResult;
 
 const REMOTE_BRANCHES_PREFIX: &str = "refs/remotes/";
@@ -147,7 +147,16 @@ impl<'core> GitService<'core> {
         cancel: &CancellationToken,
     ) -> CoreResult<GitLogPage> {
         let repository = locate(&self.git, &folder.path, cancel).await?;
-        log_page(&self.git, &self.memory, &repository, request, cancel).await
+        let context = LogContext {
+            at_root: FolderGit {
+                git: &self.git,
+                folder: Path::new(&repository.info.root_path),
+                cancel,
+            },
+            memory: &self.memory,
+            repository: &repository,
+        };
+        log_page(context, request).await
     }
 
     /// The commit with its message and the files it changed against its first parent.
@@ -157,7 +166,7 @@ impl<'core> GitService<'core> {
         sha: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<GitCommitDetails> {
-        commit_details(&self.git, &folder.path, sha, cancel).await
+        commit_details(self.at(folder, cancel), sha).await
     }
 
     pub async fn changed_files(
@@ -166,7 +175,7 @@ impl<'core> GitService<'core> {
         request: &ChangedFilesRequest,
         cancel: &CancellationToken,
     ) -> CoreResult<GitChangedFiles> {
-        changed_files(&self.git, &folder.path, request, cancel).await
+        changed_files(self.at(folder, cancel), request).await
     }
 
     pub async fn resolve_commit(
@@ -175,7 +184,7 @@ impl<'core> GitService<'core> {
         revision: &Revision,
         cancel: &CancellationToken,
     ) -> CoreResult<GitCommitSummary> {
-        query::resolve_commit(&self.git, &folder.path, revision, cancel).await
+        query::resolve_commit(self.at(folder, cancel), revision).await
     }
 
     /// The commits reachable from `to` but not from `from`.
@@ -186,7 +195,7 @@ impl<'core> GitService<'core> {
         to: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<u64> {
-        query::rev_list_count(&self.git, &folder.path, from, to, cancel).await
+        query::rev_list_count(self.at(folder, cancel), from, to).await
     }
 
     pub async fn merge_base(
@@ -196,7 +205,7 @@ impl<'core> GitService<'core> {
         right: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<Option<String>> {
-        query::merge_base(&self.git, &folder.path, left, right, cancel).await
+        query::merge_base(self.at(folder, cancel), left, right).await
     }
 
     pub async fn is_ancestor(
@@ -206,7 +215,7 @@ impl<'core> GitService<'core> {
         descendant: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<bool> {
-        query::is_ancestor(&self.git, &folder.path, ancestor, descendant, cancel).await
+        query::is_ancestor(self.at(folder, cancel), ancestor, descendant).await
     }
 
     pub async fn measure_distances(
@@ -216,7 +225,7 @@ impl<'core> GitService<'core> {
         candidates: &[CommitSha],
         cancel: &CancellationToken,
     ) -> CoreResult<Vec<GitCommitDistance>> {
-        query::measure_distances(&self.git, &folder.path, target, candidates, cancel).await
+        query::measure_distances(self.at(folder, cancel), target, candidates).await
     }
 
     pub async fn refs_at(
@@ -225,7 +234,7 @@ impl<'core> GitService<'core> {
         sha: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<RefsAt> {
-        query::refs_at(&self.git, &folder.path, sha, cancel).await
+        query::refs_at(self.at(folder, cancel), sha).await
     }
 
     /// Streams the walked commits to `sink` in batches; see `query::rev_list`.
@@ -236,7 +245,19 @@ impl<'core> GitService<'core> {
         cancel: &CancellationToken,
         sink: &mut ShaSink<'_>,
     ) -> CoreResult<u64> {
-        query::rev_list(&self.git, &folder.path, request, cancel, sink).await
+        query::rev_list(self.at(folder, cancel), request, sink).await
+    }
+
+    fn at<'call>(
+        &'call self,
+        folder: &'call GitFolder,
+        cancel: &'call CancellationToken,
+    ) -> FolderGit<'call> {
+        FolderGit {
+            git: &self.git,
+            folder: &folder.path,
+            cancel,
+        }
     }
 
     /// `status` names the upstream briefly (`origin/main`); its full ref name comes from the branch's

@@ -1,19 +1,16 @@
-use std::path::Path;
-
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::methods::git::{
     GitCommitSummary, GitHead, GitLogFilter, GitLogPage, GitLogParams, GitLogScope, GitRefs,
 };
 use codecharta_core_api::values::{FullRefName, LogCursor};
-use tokio_util::sync::CancellationToken;
 
-use super::command::{GitCommand, LOG_LIMITS, QUERY_LIMITS};
+use super::command::{LOG_LIMITS, QUERY_LIMITS};
 use super::error::{GitError, command_failed};
 use super::locator::Repository;
 use super::memory::GitMemory;
 use super::parse::log::{SUMMARY_FORMAT, commit_sha, parse_log};
 use super::read::read_refs;
-use super::runner::GitCli;
+use super::runner::FolderGit;
 use crate::error::{CoreError, CoreResult};
 use crate::ids::new_log_session_id;
 
@@ -59,18 +56,19 @@ struct PagePosition {
     offset: usize,
 }
 
-pub async fn log_page(
-    git: &GitCli<'_>,
-    memory: &GitMemory,
-    repository: &Repository,
-    request: &LogRequest,
-    cancel: &CancellationToken,
-) -> CoreResult<GitLogPage> {
-    let Some(position) = position_of(git, memory, repository, request, cancel).await? else {
+/// What reading a log page needs: git at the repository root, the core's memory and the repository.
+#[derive(Clone, Copy)]
+pub struct LogContext<'call> {
+    pub at_root: FolderGit<'call>,
+    pub memory: &'call GitMemory,
+    pub repository: &'call Repository,
+}
+
+pub async fn log_page(context: LogContext<'_>, request: &LogRequest) -> CoreResult<GitLogPage> {
+    let Some(position) = position_of(context, request).await? else {
         return Ok(empty_page());
     };
-    let root = Path::new(&repository.info.root_path);
-    let mut commits = read_commits(git, root, &position, cancel).await?;
+    let mut commits = read_commits(context.at_root, &position).await?;
     let has_more = commits.len() > PAGE_SIZE;
     commits.truncate(PAGE_SIZE);
     Ok(GitLogPage {
@@ -82,17 +80,14 @@ pub async fn log_page(
 
 /// `None` when the log has nothing to start from, such as a repository without commits.
 async fn position_of(
-    git: &GitCli<'_>,
-    memory: &GitMemory,
-    repository: &Repository,
+    context: LogContext<'_>,
     request: &LogRequest,
-    cancel: &CancellationToken,
 ) -> CoreResult<Option<PagePosition>> {
-    let repository_id = &repository.info.repository_id;
+    let repository_id = &context.repository.info.repository_id;
     if let Some(cursor) = &request.cursor {
-        return resume(memory, repository_id, cursor).map(Some);
+        return resume(context.memory, repository_id, cursor).map(Some);
     }
-    let tips = tips_of(git, repository, &request.scope, cancel).await?;
+    let tips = tips_of(context, &request.scope).await?;
     if tips.is_empty() {
         return Ok(None);
     }
@@ -101,7 +96,9 @@ async fn position_of(
         filter: request.filter.clone().filter(is_filtering),
     };
     let session_id = new_log_session_id()?;
-    memory.remember_session(repository_id, session_id.clone(), session.clone());
+    context
+        .memory
+        .remember_session(repository_id, session_id.clone(), session.clone());
     Ok(Some(PagePosition {
         session_id,
         session,
@@ -150,30 +147,19 @@ fn is_filtering(filter: &GitLogFilter) -> bool {
     filter.text.is_some() || filter.author.is_some() || filter.path.is_some()
 }
 
-async fn tips_of(
-    git: &GitCli<'_>,
-    repository: &Repository,
-    scope: &GitLogScope,
-    cancel: &CancellationToken,
-) -> CoreResult<Vec<String>> {
-    let root = Path::new(&repository.info.root_path);
+async fn tips_of(context: LogContext<'_>, scope: &GitLogScope) -> CoreResult<Vec<String>> {
+    let at = context.at_root;
+    let refs = || read_refs(at.git, context.repository, at.folder, at.cancel);
     let tips = match scope {
-        GitLogScope::Head => head_commit(git, root, cancel).await?.into_iter().collect(),
-        GitLogScope::All => all_tips(&read_refs(git, repository, root, cancel).await?),
-        GitLogScope::Refs { ref_names } => {
-            named_tips(&read_refs(git, repository, root, cancel).await?, ref_names)?
-        }
+        GitLogScope::Head => head_commit(at).await?.into_iter().collect(),
+        GitLogScope::All => all_tips(&refs().await?),
+        GitLogScope::Refs { ref_names } => named_tips(&refs().await?, ref_names)?,
     };
     Ok(without_duplicates(tips))
 }
 
-async fn head_commit(
-    git: &GitCli<'_>,
-    root: &Path,
-    cancel: &CancellationToken,
-) -> CoreResult<Option<String>> {
-    let command = GitCommand::read(root, &HEAD_COMMIT_ARGS, QUERY_LIMITS);
-    let output = git.run_raw(&command, cancel).await?;
+async fn head_commit(at: FolderGit<'_>) -> CoreResult<Option<String>> {
+    let output = at.run_raw(&HEAD_COMMIT_ARGS, QUERY_LIMITS).await?;
     match output.exit_code {
         0 => commit_sha(output.stdout.trim()).map(Some),
         NO_MATCH_EXIT_CODE => Ok(None),
@@ -238,15 +224,15 @@ fn without_duplicates(tips: Vec<String>) -> Vec<String> {
 
 /// One commit more than a page, so its presence tells whether another page follows.
 async fn read_commits(
-    git: &GitCli<'_>,
-    root: &Path,
+    at_root: FolderGit<'_>,
     position: &PagePosition,
-    cancel: &CancellationToken,
 ) -> CoreResult<Vec<GitCommitSummary>> {
     let args = page_args(position.session.filter.as_ref(), position.offset);
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    let command = GitCommand::read(root, &args, LOG_LIMITS).with_stdin(stdin_of(&position.session));
-    parse_log(&git.run(&command, cancel).await?)
+    let command = at_root
+        .read(&args, LOG_LIMITS)
+        .with_stdin(stdin_of(&position.session));
+    parse_log(&at_root.git.run(&command, at_root.cancel).await?)
 }
 
 pub fn page_args(filter: Option<&GitLogFilter>, offset: usize) -> Vec<String> {

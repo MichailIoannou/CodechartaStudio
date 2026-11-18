@@ -1,15 +1,13 @@
 use std::ops::ControlFlow;
-use std::path::Path;
 
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::methods::git::{GitCommitDistance, GitCommitSummary, RefsAt};
 use codecharta_core_api::values::{CommitSha, Revision};
-use tokio_util::sync::CancellationToken;
 
-use super::command::{DETAILS_LIMITS, GitCommand, QUERY_LIMITS, REV_LIST_LIMITS};
+use super::command::{DETAILS_LIMITS, QUERY_LIMITS, REV_LIST_LIMITS};
 use super::error::{GitError, command_failed, message_for, parse_failed};
 use super::parse::log::{SUMMARY_FORMAT, commit_sha, parse_log};
-use super::runner::GitCli;
+use super::runner::FolderGit;
 use crate::error::{CoreError, CoreResult};
 
 pub const MAX_DISTANCE_CANDIDATES: usize = 200;
@@ -45,33 +43,23 @@ pub struct RevListRequest {
 pub type ShaSink<'sink> = dyn FnMut(&[CommitSha]) -> ControlFlow<()> + Send + 'sink;
 
 pub async fn resolve_commit(
-    git: &GitCli<'_>,
-    folder: &Path,
+    at: FolderGit<'_>,
     revision: &Revision,
-    cancel: &CancellationToken,
 ) -> CoreResult<GitCommitSummary> {
     let peeled = format!("{revision}{AS_COMMIT}");
     let args = [&RESOLVE_ARGS[..], &[peeled.as_str()]].concat();
-    let output = git
-        .run_raw(&GitCommand::read(folder, &args, QUERY_LIMITS), cancel)
-        .await?;
+    let output = at.run_raw(&args, QUERY_LIMITS).await?;
     match output.exit_code {
-        0 => summary_of_commit(git, folder, output.stdout.trim(), cancel).await,
+        0 => summary_of_commit(at, output.stdout.trim()).await,
         NO_ANSWER_EXIT_CODE => Err(unknown_revision()),
         _ => Err(command_failed(&output)),
     }
 }
 
-async fn summary_of_commit(
-    git: &GitCli<'_>,
-    folder: &Path,
-    sha: &str,
-    cancel: &CancellationToken,
-) -> CoreResult<GitCommitSummary> {
+async fn summary_of_commit(at: FolderGit<'_>, sha: &str) -> CoreResult<GitCommitSummary> {
     let sha = commit_sha(sha)?;
     let args = [&SUMMARY_ARGS[..], &[SUMMARY_FORMAT, END_OF_OPTIONS, &sha]].concat();
-    let command = GitCommand::read(folder, &args, DETAILS_LIMITS);
-    parse_log(&git.run(&command, cancel).await?)?
+    parse_log(&at.run(&args, DETAILS_LIMITS).await?)?
         .into_iter()
         .next()
         .ok_or_else(|| parse_failed(WHAT))
@@ -84,31 +72,24 @@ fn unknown_revision() -> CoreError {
 
 /// The commits reachable from `to` but not from `from`.
 pub async fn rev_list_count(
-    git: &GitCli<'_>,
-    folder: &Path,
+    at: FolderGit<'_>,
     from: &CommitSha,
     to: &CommitSha,
-    cancel: &CancellationToken,
 ) -> CoreResult<u64> {
     let range = format!("{from}..{to}");
     let args = [&COUNT_ARGS[..], &[range.as_str()]].concat();
-    let stdout = git
-        .run(&GitCommand::read(folder, &args, QUERY_LIMITS), cancel)
-        .await?;
+    let stdout = at.run(&args, QUERY_LIMITS).await?;
     stdout.trim().parse().map_err(|_| parse_failed(WHAT))
 }
 
 /// `None` when the two commits share no history.
 pub async fn merge_base(
-    git: &GitCli<'_>,
-    folder: &Path,
+    at: FolderGit<'_>,
     left: &CommitSha,
     right: &CommitSha,
-    cancel: &CancellationToken,
 ) -> CoreResult<Option<String>> {
-    let args = [MERGE_BASE, left.as_str(), right.as_str()];
-    let output = git
-        .run_raw(&GitCommand::read(folder, &args, QUERY_LIMITS), cancel)
+    let output = at
+        .run_raw(&[MERGE_BASE, left.as_str(), right.as_str()], QUERY_LIMITS)
         .await?;
     match output.exit_code {
         0 => commit_sha(output.stdout.trim()).map(Some),
@@ -118,11 +99,9 @@ pub async fn merge_base(
 }
 
 pub async fn is_ancestor(
-    git: &GitCli<'_>,
-    folder: &Path,
+    at: FolderGit<'_>,
     ancestor: &CommitSha,
     descendant: &CommitSha,
-    cancel: &CancellationToken,
 ) -> CoreResult<bool> {
     let args = [
         MERGE_BASE,
@@ -130,9 +109,7 @@ pub async fn is_ancestor(
         ancestor.as_str(),
         descendant.as_str(),
     ];
-    let output = git
-        .run_raw(&GitCommand::read(folder, &args, QUERY_LIMITS), cancel)
-        .await?;
+    let output = at.run_raw(&args, QUERY_LIMITS).await?;
     match output.exit_code {
         0 => Ok(true),
         NO_ANSWER_EXIT_CODE => Ok(false),
@@ -142,30 +119,22 @@ pub async fn is_ancestor(
 
 /// Four candidates at a time; a candidate the repository does not contain is left out.
 pub async fn measure_distances(
-    git: &GitCli<'_>,
-    folder: &Path,
+    at: FolderGit<'_>,
     target: &CommitSha,
     candidates: &[CommitSha],
-    cancel: &CancellationToken,
 ) -> CoreResult<Vec<GitCommitDistance>> {
     if candidates.len() > MAX_DISTANCE_CANDIDATES {
         return Err(CoreError::BadRequest(format!(
             "At most {MAX_DISTANCE_CANDIDATES} candidates can be measured at once."
         )));
     }
-    let query = DistanceQuery {
-        git,
-        folder,
-        target,
-        cancel,
-    };
     let mut distances = Vec::with_capacity(candidates.len());
     for group in candidates.chunks(PARALLEL_DISTANCES) {
         let measured = tokio::join!(
-            query.measure(group.first()),
-            query.measure(group.get(1)),
-            query.measure(group.get(2)),
-            query.measure(group.get(3)),
+            measure(at, target, group.first()),
+            measure(at, target, group.get(1)),
+            measure(at, target, group.get(2)),
+            measure(at, target, group.get(3)),
         );
         for result in [measured.0, measured.1, measured.2, measured.3] {
             distances.extend(result?);
@@ -177,34 +146,30 @@ pub async fn measure_distances(
 /// The number of `measure` calls joined in `measure_distances`.
 const PARALLEL_DISTANCES: usize = 4;
 
-struct DistanceQuery<'query, 'core> {
-    git: &'query GitCli<'core>,
-    folder: &'query Path,
-    target: &'query CommitSha,
-    cancel: &'query CancellationToken,
+/// Nothing for an empty slot.
+async fn measure(
+    at: FolderGit<'_>,
+    target: &CommitSha,
+    candidate: Option<&CommitSha>,
+) -> CoreResult<Option<GitCommitDistance>> {
+    match candidate {
+        Some(candidate) => distance(at, target, candidate).await,
+        None => Ok(None),
+    }
 }
 
-impl DistanceQuery<'_, '_> {
-    /// Nothing for an empty slot or a candidate the repository does not contain.
-    async fn measure(
-        &self,
-        candidate: Option<&CommitSha>,
-    ) -> CoreResult<Option<GitCommitDistance>> {
-        match candidate {
-            Some(candidate) => self.distance(candidate).await,
-            None => Ok(None),
-        }
-    }
-
-    async fn distance(&self, candidate: &CommitSha) -> CoreResult<Option<GitCommitDistance>> {
-        let range = format!("{candidate}...{}", self.target);
-        let args = [&DISTANCE_ARGS[..], &[range.as_str()]].concat();
-        let command = GitCommand::read(self.folder, &args, QUERY_LIMITS);
-        match self.git.run(&command, self.cancel).await {
-            Ok(counts) => distance_of(candidate, &counts).map(Some),
-            Err(error) if error.code() == ErrorCode::UnknownRevision => Ok(None),
-            Err(error) => Err(error),
-        }
+/// Nothing for a candidate the repository does not contain.
+pub async fn distance(
+    at: FolderGit<'_>,
+    target: &CommitSha,
+    candidate: &CommitSha,
+) -> CoreResult<Option<GitCommitDistance>> {
+    let range = format!("{candidate}...{target}");
+    let args = [&DISTANCE_ARGS[..], &[range.as_str()]].concat();
+    match at.run(&args, QUERY_LIMITS).await {
+        Ok(counts) => distance_of(candidate, &counts).map(Some),
+        Err(error) if error.code() == ErrorCode::UnknownRevision => Ok(None),
+        Err(error) => Err(error),
     }
 }
 
@@ -221,12 +186,7 @@ fn distance_of(candidate: &CommitSha, counts: &str) -> CoreResult<GitCommitDista
     })
 }
 
-pub async fn refs_at(
-    git: &GitCli<'_>,
-    folder: &Path,
-    sha: &CommitSha,
-    cancel: &CancellationToken,
-) -> CoreResult<RefsAt> {
+pub async fn refs_at(at: FolderGit<'_>, sha: &CommitSha) -> CoreResult<RefsAt> {
     let points_at = format!("--points-at={sha}");
     let args = [
         "for-each-ref",
@@ -235,9 +195,7 @@ pub async fn refs_at(
         BRANCHES_PREFIX,
         TAGS_PREFIX,
     ];
-    let stdout = git
-        .run(&GitCommand::read(folder, &args, QUERY_LIMITS), cancel)
-        .await?;
+    let stdout = at.run(&args, QUERY_LIMITS).await?;
     let short_names = |prefix: &str| -> Vec<String> {
         stdout
             .lines()
@@ -254,10 +212,8 @@ pub async fn refs_at(
 /// Hands the walked commits to `sink` in batches of `REV_LIST_BATCH` as git prints them, newest first
 /// with children before parents; `Break` stops git. Answers how many commits the sink got.
 pub async fn rev_list(
-    git: &GitCli<'_>,
-    folder: &Path,
+    at: FolderGit<'_>,
     request: &RevListRequest,
-    cancel: &CancellationToken,
     sink: &mut ShaSink<'_>,
 ) -> CoreResult<u64> {
     if request.include.is_empty() {
@@ -265,10 +221,12 @@ pub async fn rev_list(
     }
     let args = rev_list_args(request);
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    let command =
-        GitCommand::read(folder, &args, REV_LIST_LIMITS).with_stdin(rev_list_stdin(request));
+    let command = at
+        .read(&args, REV_LIST_LIMITS)
+        .with_stdin(rev_list_stdin(request));
     let mut batcher = ShaBatcher::new(sink);
-    git.stream_lines(&command, cancel, &mut |line| batcher.take(line))
+    at.git
+        .stream_lines(&command, at.cancel, &mut |line| batcher.take(line))
         .await?;
     batcher.finish()
 }
