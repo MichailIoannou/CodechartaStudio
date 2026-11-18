@@ -29,10 +29,10 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 01-M2 Process runner, tools, settings, doctor | core | done (Windows-only tests not yet run) | — | feature/studio-01-m2 | 5169e28c9 (merged a57c8e7e9) |
 | 01-M3 Electron shell | shell | done (Windows/macOS and CI not run) | — | feature/studio-01-m3 | d8cdbfdfd (merged 1ce44fc54) |
 | 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | done | — | feature/studio-01-m4 | bf7736960 (merged 7a539b1a8) |
-| 01-M4.2 Desktop tools panel | UI | in progress | — | feature/studio-01-m4-2 | — |
+| 01-M4.2 Desktop tools panel | UI | done | — | feature/studio-01-m4-2 | b832050a5 (merged caf24b63e) |
 | 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
 | 02-M1 Dark by default | UI | done | — | feature/studio-02-m1 | 5fadc0ca3 (merged db5d2dc60) |
-| 02-M2 No-flash boot | UI | todo | 02-M1 | — | — |
+| 02-M2 No-flash boot | UI | in progress | — | feature/studio-02-m2 | — |
 | 02-M3 Radial map and word cloud | UI | todo | 02-M2 | — | — |
 | 02-M4 Dependency graph, color-range diagram | UI | todo | 02-M3 | — | — |
 | 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | todo | 02-M4 | — | — |
@@ -196,6 +196,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 01-M4.2 verified on the merged integration branch (format, lint, tsc, npm test 657/657, coverage 96.86/90.3/95.46/96.79, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 155/155) — plan 01 complete except owner-hardware items. 04-M2 verified (merge pending). 04-M7 core half and 02-M2 started.
 - 2026-11-19: owner kept the istanbul-ignore comment on the test fake (option 1).
 - 2026-11-19: 01-M4.1 verified on the merged integration branch (format, lint, tsc, npm test 654/654, coverage 96.87/90.26/95.44/96.8) and merged; 01-M4.2 started.
 - 2026-11-19: 02-M1 verified on the merged integration branch (format, lint, tsc, npm test 649/649 with 43 snapshots unchanged, coverage 96.84/90.24/95.43/96.77, build, test:electron 42/42, e2e:desktop 9/9, web e2e:ci 153/153) and merged. After the usage reset (3%): 01-M4.1 and 04-M2 started.
