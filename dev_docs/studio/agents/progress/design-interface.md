@@ -48,3 +48,4 @@ Produce the interface design for plans 01–06 under `dev_docs/studio/agents/des
 - 2026-11-18 owner review 3: fixed-width workspace status (OD2a), animation only there, refreshed metrics bar (OD5, 02 T4).
 - 2026-11-18 owner review 4: blended edges on the file extension bar (OD7, 02 T5).
 - 2026-11-18 owner review 5: blend doubled to 24 px (OKLab), toasts top right below the nav bar (OD8).
+- 2026-11-18 owner review 6: stale notice becomes a persistent toast above other toasts (OD9).

@@ -36,9 +36,11 @@ the area files; OD1–OD4 are in `owner-decisions.md`.
 │ [logo] │ [▣ billing / billing-api ▾] [⎇ feature/x  @ 9f8e7d6  stale by 4 ▾]   Metric Domain Dependencies History   [☀] Settings │
 │          P1 project + working folder   W1 workspace status                    H1 new tab                    T2 theme      │
 ├──────────────┬───────────────────────────────────────────────────────────────────────┬────────────────┤
-│ EXPLORER   « │   ┌ S2 ⚠ No analysis for a1b2c3d — showing 9f8e7d6, stale by 4 commits ┐ │ inspector      │
-│ Files|Changes│   │                                  [▶ Analyse a1b2c3d now]  [✕]   │ │ (unchanged)    │
-│ …            │   └──────────────────────────────────────────────────────────────────┘ │                │
+│ EXPLORER   « │                                   ┌ S2 ⚠ No analysis for a1b2c3d —      ┐│ inspector      │
+│ Files|Changes│                                   │ showing 9f8e7d6, stale by 4 commits. ││ (unchanged)    │
+│ …            │                                   │          [▶ Analyse a1b2c3d now] ✕   ││                │
+│              │                                   └──────────────────────────────────────┘│                │
+│              │                                   (ordinary toasts stack below it)       │                │
 │              │                 3D city of the shown analysis                        │                │
 │              │        metrics bar (unchanged)                                       │                │
 └──────────────┴──────────────────────────────────────────────────────────────────────┴────────────────┘
@@ -48,7 +50,7 @@ the area files; OD1–OD4 are in `owner-decisions.md`.
 |---|---|---|
 | **P1** project menu (replaces 📂) | Which project and which of its folders am I working in? | switch folder (top: this project's folders), switch project (below: other projects, each opens to its folders), Overview, New project…, Open cc.json…, Manage project…, Close project |
 | **W1** workspace status (replaces the map dropdown) | Which branch; which commit the map shows and whether it is current; is anything running? Its icon becomes the activity (analysing, pulling, pushing) and its background fills as a progress bar | pick another commit (Show commit…), back to the current checkout, analyse, Snapshots…, Pull / Push (one contextual button), Open History, see and cancel running work, Project overview |
-| **S2** stale notice | The commit asked for has no analysis, so a nearby one is shown | Analyse that commit; the map switches when it is done |
+| **S2** stale notice (persistent toast, top right, above other toasts) | The commit asked for has no analysis, so a nearby one is shown | Analyse that commit; the map switches when it is done |
 
 The explorer, inspector, metrics bar, legend and bottom bar are unchanged. During a comparison the
 explorer offers one more mode, **Changes** (C8), and the comparison chip (C2) sits next to W1's

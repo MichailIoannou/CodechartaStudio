@@ -124,3 +124,12 @@ percentages. Design: `02-themes.md` T5. Plan impact: small change in `features/f
 Every toast appears at the top right of the window, just below the nav bar (today it sits at the very
 top, covering the nav bar's right end). Design: `00-design-principles.md` §3 "Toasts". Plan impact: one
 class on `features/shared/components/toast/toast.component.html`; shared by every plan.
+
+## OD9 — The stale notice is a persistent toast (2026-11-18)
+
+The "stale by N commits" notice (`05-snapshots.md` S2) is no longer a banner centred under the nav bar:
+it is a persistent toast, always first in the top-right toast stack above every ordinary toast, closed
+only by its dismiss button or when the situation resolves. While an analysis runs it shows static text
+and Cancel; the progress itself stays in the workspace status. Plan impact: plan 05's
+`cc-snapshot-notice` placement (`fixed … z-[70]` under the nav bar) is replaced by projection into
+`cc-toast` (`<ng-content />` added to `features/shared/components/toast/toast.component.html`).

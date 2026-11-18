@@ -41,7 +41,7 @@ Enhance the existing interface; do not redesign it.
 | Panel header | `explorerHeader` | `text-xs font-semibold uppercase tracking-wide`, collapse button `btn btn-ghost btn-xs btn-square` |
 | Segmented control | `explorerModeToggle` | `join` of `btn btn-sm join-item`, `btn-active` + `aria-pressed` |
 | Inline banner inside a panel | `explorerFocusBanner`, `clusterExplorer` alert | `rounded-md bg-secondary/10 text-secondary text-xs`; `alert alert-warning px-2 py-1 text-xs` |
-| Transient message | `ToastService.show(text, severity)` | top right, just below the nav bar (OD8), 5 s, no actions |
+| Transient message | `ToastService.show(text, severity)` | top right, just below the nav bar (OD8), 5 s, no actions; persistent toasts (OD9) above them |
 | Explorer mode | `EXPLORER_CONDITIONAL_MODES` (`provideClustersExplorerMode`) | mode in the explorer's join toggle, body projected as `[modeBody]` |
 | Resizable side pane | `ccColumnResizeHandle` | as the explorer and inspector |
 | Settings row | `cc-setting-toggle` | label + daisyUI `toggle` |
@@ -100,10 +100,15 @@ never JavaScript measuring:
 nav bar: `features/shared/components/toast/toast.component.html` keeps `toast toast-top toast-end
 z-[2000]` and adds `top-[var(--cc-bars-height,49px)]`, so daisyUI's own 1 rem margin puts the first
 toast 1 rem under the nav bar and 1 rem from the right edge. Today the same classes place it at the
-very top, over the nav bar's right end (theme toggle, Settings). Newest toast on top; each
-`alert shadow-lg max-w-sm` with the text wrapping; nothing else changes (5 s, dismiss button,
-`aria-live="polite"`). Toasts sit above the inspector (`z-[60]`) and may cover its header for those
-5 s; the stale notice (05 S2) stays centred under the nav bar, so the two never overlap.
+very top, over the nav bar's right end (theme toggle, Settings).
+
+Order in the stack, top to bottom: **persistent toasts first** (today only the stale notice, 05 S2,
+owner decision OD9), then ordinary toasts, newest first. Persistent toasts are projected into
+`cc-toast` through an `<ng-content />` placed before the `@for` over `messages()`; they have the same
+`alert shadow-lg` shape, a dismiss button where dismissing is allowed, and never close on a timer.
+Ordinary toasts keep 5 s, the dismiss button and `aria-live="polite"`. All toasts are `w-96
+max-w-[calc(100vw-2rem)]` with wrapping text. They sit above the inspector (`z-[60]`) and may cover
+its header.
 
 ## 4. Z-index layers in use
 
@@ -113,11 +118,10 @@ very top, over the nav bar's right end (theme toggle, Settings). Newest toast on
 | `z-10` | bottom bar, resize handles, sticky list headers | sticky group headers in History lists |
 | `z-50` | inline colour picker panel | — |
 | `z-[60]` | explorer, inspector, legend drawer and its button | — (History panes are in-flow, not fixed) |
-| `z-[65]` | *new* | snapshot notice banner (05): above the side panels, below the mode bar |
 | `z-[70]` | nav-bar dropdowns, view mode bar and its handle, file extension bar | project menu, workspace status, branch-chip menu, comparison-chip menu, jobs list |
 | `z-[100]` | floating context menus, file-extension menu | commit, branch, snapshot context menus |
 | `z-[1000]` | loading overlays, code map error | — |
-| `z-[2000]` | toast | — |
+| `z-[2000]` | toast | the stale notice (05 S2), as a persistent toast |
 | top layer | native `<dialog>` and `popover` | every new dialog and popover |
 
 Credential prompts are native dialogs, so they sit in the top layer above everything, including other

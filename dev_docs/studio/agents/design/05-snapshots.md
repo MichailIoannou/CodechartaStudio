@@ -9,7 +9,7 @@ Principles: `00-design-principles.md`. Desktop only.
 | # | Element | Selector | Lives in | Modelled on |
 |---|---|---|---|---|
 | W1 | Workspace status: branch, map status, analyses and git activity, progress fill | `cc-workspace-status` | nav bar map slot | `cc-map-selector` trigger and dropdown |
-| S2 | Stale notice | `cc-snapshot-notice` | `views/codeCharta.component.html`, under the nav bar | `alert` (toast look, but persistent) |
+| S2 | Stale notice, a persistent toast | `cc-snapshot-notice` | first item of the toast stack, top right | `cc-toast` alert |
 | S3 | (merged into W1) | — | — | — |
 | S4 | Snapshots dialog | `cc-snapshots-dialog` | hosted by the nav bar | `scenarioListDialog` |
 | S5 | Analyse actions | buttons and menu items | History, W1, P3, S2, S4 | `cc-context-menu-item`, `btn btn-sm` |
@@ -189,29 +189,46 @@ counts, operationInProgress), `refs()`; `GitOperationService` (running operation
 and `analysis.progress`; `analysis.cancel`, `analysis.cancelBatch`, `analysis.clearFinished`,
 `analysis.enqueue`, `core.cancel`.
 
-## S2 Stale notice
+## S2 Stale notice (persistent toast)
 
-**Where.** `views/codeCharta.component.html`, after `<cc-nav-bar>`, rendered only while a map view
-(metrics, domain, dependencies) is active — not on the project overview, not in History (see Deviations 2).
-Host `fixed left-1/2 -translate-x-1/2 top-[calc(var(--cc-bars-height)+1.75rem)] z-[65] w-max
-max-w-[min(48rem,calc(100vw-2rem))]`: below the mode-bar handle (which sits at `top-full` of the nav
-bar), above the side panels (`z-[60]`), under the opened mode bar (`z-[70]`).
+**Where.** The stale notice is a **persistent toast** (owner decision OD9): it lives in the toast stack
+at the top right, just below the nav bar (principles §3 "Toasts"), always as the **first** item, so
+every ordinary toast appears below it. It does not close by itself.
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│ ⚠  No analysis for a1b2c3d — showing 9f8e7d6 (Release 2.4.0), stale by 4 commits.        │
-│                                                   [▶ Analyse a1b2c3d now]  [✕]           │
-└──────────────────────────────────────────────────────────────────────────────────────────┘
-running:
-│ ⓘ  Analysing a1b2c3d… 42 %   [██████░░░░░░░░]                          [■ Cancel]         │
-failed:
-│ ✖  Analysis of a1b2c3d failed: Java 21 is too old. CodeCharta needs Java 22 or newer.     │
-│    Open desktop tools to pick another Java.        [Show log] [Retry]  [✕]                │
+Mechanism: the toast container gets a slot for persistent items. `views/codeCharta.component.html`
+composes the two features, so neither depends on the other:
+
+```html
+<cc-toast>
+    <cc-snapshot-notice persistent />   <!-- projected first; rendered only over a map view -->
+</cc-toast>
 ```
 
-- `alert alert-warning` (stale, ahead, diverged, none), `alert-info` (running, profile-only), `alert-error`
-  (failed, rejected) with `shadow-lg text-sm py-2`, `role="status"`, `aria-live="polite"`. Icon
-  `fa-triangle-exclamation` / `fa-circle-info` / `fa-circle-xmark`.
+`toast.component.html` adds `<ng-content />` as the first child of its `<output class="toast toast-top
+toast-end …">`, before the `@for` over `messages()`. The notice renders only while a map view
+(metrics, domain, dependencies) is active — not on the project overview, not in History (see
+Deviations 2) — and only while there is something to say.
+
+```
+                                                ┌──────────────────────────────────────────┐
+  nav bar ......................................│ ⚠ No analysis for a1b2c3d — showing      │ ← persistent, first
+                                                │   9f8e7d6 (Release 2.4.0), stale by 4    │
+                                                │   commits.                               │
+                                                │                [▶ Analyse a1b2c3d now] ✕ │
+                                                └──────────────────────────────────────────┘
+                                                ┌──────────────────────────────────────────┐
+                                                │ ✓ Pushed 2 commits to origin/feature/x ✕ │ ← ordinary toast, 5 s
+                                                └──────────────────────────────────────────┘
+running:   ⓘ Analysing a1b2c3d… (progress in the status at the top)            [■ Cancel]
+failed:    ✖ Analysis of a1b2c3d failed: Java 21 is too old. CodeCharta needs Java 22 or newer.
+             Open desktop tools to pick another Java.        [Show log] [Retry]  ✕
+```
+
+- Same shape as a toast: `alert shadow-lg text-sm w-96 max-w-[calc(100vw-2rem)]`, text wraps,
+  actions on their own line right-aligned (`flex justify-end gap-2`). Tone: `alert-warning` (stale,
+  ahead, diverged, none), `alert-info` (running, profile-only), `alert-error` (failed, rejected). Icon
+  `fa-triangle-exclamation` / `fa-circle-info` / `fa-circle-xmark`. `role="status"`; the toast
+  container's `aria-live="polite"` announces changes.
 - Text exactly as plan 05's "Notice wording" table (built by `noticeText`); SHAs `font-mono`, subjects
   in parentheses, plurals per principles §8. Additions this design makes:
   - "none" for a plain folder without analyses: "No analysis yet for '<folder>'." — action "Analyse
@@ -220,17 +237,21 @@ failed:
     action "Open desktop tools".
   - commit not in the repository: "This commit is not in the local repository." `alert-warning`,
     dismissible, no action.
-- Action button `btn btn-primary btn-sm`; dismiss `btn btn-ghost btn-sm btn-square fa-xmark`
-  `aria-label` "Dismiss notice". Running: `progress progress-primary w-40` (no `value` when
-  indeterminate), `btn btn-ghost btn-sm` "Cancel" (`fa-stop`).
+- Action button `btn btn-primary btn-sm`; dismiss `btn btn-ghost btn-xs btn-square fa-xmark`
+  `aria-label` "Dismiss notice" (same as ordinary toasts).
+- **Running**: "Analysing a1b2c3d…" with `text-xs text-base-content/70` "Progress shows in the status
+  at the top." and `btn btn-ghost btn-sm` "Cancel" (`fa-stop`). No progress bar and no spinner: only the
+  workspace status animates (principles §5 "One place animates").
 - Failed: message + hint (second line, `text-xs`), "Show log" (S9), "Retry"; tool-related codes add
-  "Open desktop tools". Rejected (preflight): S6 list inside the alert.
-- Dismissal per plan (`folderId|targetKey|shownSnapshotId`, session only).
-- Long subjects truncate at `max-w-64` inside the sentence; the whole sentence is in `title`.
-- **Analysis finished for the target**: the notice disappears, the map switches (plan step 5), toast
-  (success) "Showing the analysis of a1b2c3d". Finished for another target: toast "Analysis of a1b2c3d
-  finished" with no switch.
-- Keyboard: the notice is not focus-trapping; Tab reaches its buttons after the nav bar. No shortcut.
+  "Open desktop tools". Rejected (preflight): S6 list inside the toast.
+- Dismissal per plan (`folderId|targetKey|shownSnapshotId`, session only); a different target or shown
+  snapshot brings it back. The W1 badge never goes away.
+- Long subjects are not truncated: the toast wraps (`break-words`); the toast never grows wider than
+  `w-96`.
+- **Analysis finished for the target**: the persistent toast disappears, the map switches (plan step
+  5), ordinary toast (success) "Showing the analysis of a1b2c3d". Finished for another target: toast
+  "Analysis of a1b2c3d finished" with no switch.
+- Keyboard: not focus-trapping; reachable with Tab after the page content (toast container order).
 
 ## S3 (merged into W1)
 
@@ -424,8 +445,9 @@ H9 details pane, one commit selected, adds under the SHA line a resolution line 
 4. **Log of a failed job.** `snapshots.readLog` takes a `SnapshotRef`, but a failed job has no
    snapshot. Data need: `analysis.readLog { jobId }` reading `.failed-<jobId>/run.log` (the plan
    already keeps that file). Until it exists, "Show log" is offered only for snapshots.
-5. **Notice position** `top + 1.75rem`, `z-[65]` instead of `top + 0.5rem`, `z-[70]`: the plan's
-   position covers the view-switcher's mode-bar handle and would sit above the opened mode bar.
+5. **The notice is a persistent toast (owner decision OD9)** instead of a banner centred under the
+   nav bar: it sits first in the top-right toast stack, above every ordinary toast, and stays until
+   dismissed or resolved.
 6. **Snapshots dialog is shared with plan 03** (area 03 deviation 2) and gets a folder select for its
    header actions, which the plan leaves unspecified.
 
