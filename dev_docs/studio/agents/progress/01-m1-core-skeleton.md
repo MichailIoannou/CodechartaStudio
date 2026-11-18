@@ -29,7 +29,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M1 (the test names to writ
 
 - [x] 1.1 Commit scope, gitignore, toolchain pin
 - [x] 1.2 Cargo workspace and crates
-- [ ] 1.3 Protocol envelopes and error codes
+- [x] 1.3 Protocol envelopes and error codes
 - [ ] 1.4 serve over stdio
 - [ ] 1.5 Contract generation
 - [ ] 1.6 CI
@@ -59,4 +59,19 @@ node 26.13.0, npm 12.2.2. No `mise`, `cargo-deny` or `cargo-cyclonedx` installed
   allowed in `#[test]` and `#[cfg(test)]` code only).
 - rustfmt defaults (no `rustfmt.toml`). Biome does not check `.rs`/`.toml`/`.md`, so `core/` adds nothing
   to `npm run format:check`. `Cargo.lock` is committed (the workspace ships a binary).
+
+### 1.3
+- Crates (latest compatible with Rust 1.95, via `cargo add`): serde 1.0.229, serde_json 1.0.154,
+  ts-rs 12.0.1 (`serde-json-impl`, `no-serde-warnings`), thiserror 2.0.21; for 1.4 also added here:
+  tokio 1.54.1, tokio-util 0.7.20, tracing 0.1.44, tracing-subscriber 0.3.23, clap 4.6.8.
+- `registry.rs`: `Method` (NAME, AUDIENCE, Params, Result) and `Event` (NAME, AUDIENCE, Params) traits;
+  `MethodSpec`/`EventSpec` store ts-rs function pointers (`TypeExport { name, export_all, output_path }`),
+  as S6 proposed, instead of the `&'static str` type names in plan 3.3 (ts-rs names are not const).
+  Lists: `METHODS`, `EVENTS` (core → client) and `CLIENT_NOTIFICATIONS` (client → core, holds
+  `core.cancel`, audience shell) — the plan did not say where `core.cancel` is registered.
+- `ToolId` (api `methods/tools.rs`) arrived early because `CoreError::ToolNotFound/ToolFailed` need it.
+- `CoreError::to_payload`: message is the `Display` text, except `Io` (only its `context`) and
+  `Internal` (a fixed sentence); details carry `tool`, `afterMs` or `limitBytes` where present.
+- Framing faults carry `data.code`: `BAD_REQUEST` for -32700/-32600/-32602, `NOT_FOUND` for -32601
+  (`ResponseError::framing`). Failures whose id is unknown answer with `"id": null`.
 

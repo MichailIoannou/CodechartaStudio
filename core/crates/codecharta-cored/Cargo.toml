@@ -15,6 +15,11 @@ path = "src/main.rs"
 clap.workspace = true
 codecharta-core.workspace = true
 codecharta-core-api.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [lints]
 workspace = true
