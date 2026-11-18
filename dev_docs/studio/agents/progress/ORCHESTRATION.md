@@ -23,8 +23,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | Milestone | Kind | State | Blocked on | Branch | Last verified commit |
 |---|---|---|---|---|---|
 | 01-M0 Spikes | spike | done (Linux); Windows/macOS items open for owner | owner hardware for S1/S2/S3/S4/S5 remainder | feature/studio-01-m0 | 977074f72 |
-| 01-M1 Core skeleton, protocol, contract, CI | core | in progress | — | feature/studio-01-m1 | — |
-| 01-M2 Process runner, tools, settings, doctor | core | todo | 01-M1 | feature/studio-01-m2 | — |
+| 01-M1 Core skeleton, protocol, contract, CI | core | done | — | feature/studio-01-m1 | c6b3d9a7f (merged 8688edb53) |
+| 01-M2 Process runner, tools, settings, doctor | core | in progress | — | feature/studio-01-m2 | — |
 | 01-M3 Electron shell | shell | todo | 01-M2 | feature/studio-01-m3 | — |
 | 01-M4.1 Renderer seam (desktop bridge port, fake) | renderer, no UI | todo | 01-M3 | feature/studio-01-m4 | — |
 | 01-M4.2 Desktop tools panel | UI | blocked | design 01-desktop-tools; 01-M4.1 | — | — |
@@ -86,8 +86,32 @@ the milestone is started.
   also set label `color` and `border` from the `buildingLabel` palette. E2E on this Linux machine
   needs a temporary `channel: "chromium"` override (no Google Chrome installed); not a repo change.
 
+- 01-M1 (see `01-m1-core-skeleton.md`): `rust-toolchain.toml` channel `stable` + `rust-version = "1.95"`
+  (an exact pin made rustup download); workspace `resolver = "3"`; `serve` requires `--data-dir` until
+  2.1; licences checked by a `cargo-deny` job in `test_core.yml` (not run locally); Rust prerequisite
+  documented in `dev_docs/DEV_START_GUIDE.md` (root README has no prerequisites section).
+
+## Known environment issues (not caused by the milestones)
+
+- This machine runs Node 26.13 while `mise.toml` and CI pin Node 24. On Node 26,
+  `app/codeCharta/stores/fileStore/loaders/ccJson/util/urlExtractor.spec.ts` fails 9 tests
+  (`Cannot delete property 'location' of #<Window>`). The spec and everything it imports are
+  identical to `main`; the rest of the suite (4852 tests) and the coverage gate pass. Needs Node 24
+  locally, or a fix of the spec for Node 26 (owner decision).
+
+## Open questions for the owner
+
+1. Windows/macOS spike items of 01-M0 (S1, S2, S3 Gatekeeper, S4, S5) need your hardware; procedures
+   are in `01-m0-spikes.md`.
+2. `Unicode-3.0` licence (needed by `unicode-ident`, pulled in by every proc macro) is in neither list
+   of `license_policy.json`; `deny.toml` has a one-crate exception for now.
+3. `actions/cache@v5` in `test_core.yml` is pinned by tag, not SHA; please confirm a SHA.
+4. Exact Rust toolchain pin (instead of `stable`) once machines and CI may download it.
+5. Node 26 failure of `urlExtractor.spec.ts` (see above): fix the spec, or require Node 24 locally?
+
 ## Session log
 
+- 2026-11-18: 01-M1 verified (cargo fmt/clippy/test, contract drift, format, lint, tsc, npm test with the Node 26 caveat) and merged; 01-M2 started.
 - 2026-11-18: 02-M0 verified (format check green, notes read); plan 02 now waits only on design 02-themes.
 - 2026-11-18: 01-M0 verified (format check green, notes read); 01-M1 and 02-M0 started.
 - 2026-11-18: file created; no design folder yet, so all UI work is blocked on design.
