@@ -5,8 +5,10 @@
 )]
 
 pub mod git_fixture;
+pub mod recycler;
 
 pub use git_fixture::TempRepo;
+pub use recycler::RecordingRecycler;
 
 use std::ffi::OsString;
 use std::fs;

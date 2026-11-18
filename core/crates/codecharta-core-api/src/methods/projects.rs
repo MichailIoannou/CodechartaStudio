@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Deserializer, Serialize};
 use ts_rs::TS;
 
-use crate::ids::FolderId;
-use crate::values::{ExcludePattern, FullCommit, Label, PickToken};
+use crate::ids::{FolderId, ProjectId, SnapshotId};
+use crate::values::{Description, ExcludePattern, FullCommit, Label, PickToken, ProjectName};
 
 pub const MAX_EXCLUDE_PATTERNS: usize = 50;
 
@@ -116,6 +118,78 @@ pub struct NewFolder {
     pub pick_token: PickToken,
     pub label: Label,
     pub role: FolderRole,
+}
+
+/// Derived on every read: whether the folder is still where the project says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum FolderStatus {
+    Ok,
+    Missing,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectFolder {
+    pub id: FolderId,
+    pub path: String,
+    pub label: Label,
+    pub role: FolderRole,
+    pub kind: FolderKind,
+    pub git: Option<FolderGitFacts>,
+    pub added_at: String,
+    pub status: FolderStatus,
+    pub relationships: Vec<FolderRelationship>,
+    pub snapshot_count: u32,
+}
+
+/// The user works in one folder at a time (owner decision OD1); each folder remembers what it showed.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectView {
+    pub working_folder_id: Option<FolderId>,
+    pub shown_snapshot_id_by_folder: BTreeMap<FolderId, SnapshotId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct Project {
+    pub id: ProjectId,
+    pub name: ProjectName,
+    pub description: Option<Description>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub folders: Vec<ProjectFolder>,
+    pub analysis_profile: AnalysisProfile,
+    pub view: ProjectView,
+}
+
+/// `problem` names why a project could not be read; the list shows it instead of failing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectSummary {
+    pub id: ProjectId,
+    pub name: String,
+    pub folder_count: u32,
+    pub missing_folder_count: u32,
+    pub snapshot_count: u32,
+    pub problem: Option<String>,
+}
+
+/// Fields left out stay as they are; an empty description removes it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpdateProjectParams {
+    pub project_id: ProjectId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub name: Option<ProjectName>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub description: Option<Description>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub analysis_profile: Option<AnalysisProfile>,
 }
 
 #[cfg(test)]

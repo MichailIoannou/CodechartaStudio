@@ -42,7 +42,7 @@ store API of `03-m1-store-core.md` apply. Git fixtures go in `tests/support/git_
 - [x] 1. Relationships
 - [x] 2. Fixture and inspector
 - [x] 3. Pick tokens
-- [ ] 4. Repository
+- [x] 4. Repository
 - [ ] 5. Folder operations
 - [ ] 6. JSON-RPC
 - [ ] 7. CLI
@@ -110,3 +110,30 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0, nod
   both succeed. A token of the wrong kind, an unknown or an expired one is `TOKEN_EXPIRED`. Lifetime
   `PICK_TOKEN_LIFETIME` = 15 min (`with_lifetime` for tests); expired entries are dropped whenever a new
   token is issued. Tokens live only in the serving process's memory.
+
+### 4. Repository
+- Crate `trash` 5.4.0 (MIT; its transitive packages passed the licence check in 03-M0 item 3.1; `cargo deny`
+  itself is not installed here). `recycle.rs`: `Recycler`, `SystemRecycler` (a missing path is `NOT_FOUND`
+  before `trash` is asked, 03-M0 item 3.2), `delete_permanently` (`remove_dir_all`).
+- Api: `FolderStatus`, `ProjectFolder`, `ProjectView { workingFolderId, shownSnapshotIdByFolder }` (OD1),
+  `Project`, `ProjectSummary`, `UpdateProjectParams` (optional fields are `field?: T` in TypeScript through
+  `#[ts(optional)]`).
+- Core: `projects/record.rs` (`ProjectRecord`, `FolderRecord`: `project.json` as stored, without the derived
+  fields; `PROJECT_SCHEMA_VERSION` = 1), `projects/derived.rs` (`to_project`, `to_summary`: status from
+  `is_dir`, relationships, snapshot counts = directories named like a snapshot id under
+  `snapshots/<folderId>/`), `projects/folders.rs` (`FolderToAdd { path, label, role }`, `suggested_label`,
+  `attach_folder`: first folder primary, a new primary demotes the old one to helper, the working folder
+  defaults to the first folder), `projects/repository.rs` (`ProjectRepository::new(&Store, &dyn GitRunner,
+  &dyn Recycler)`: `list`, `get`, `create(NewProject)`, `update(UpdateProjectParams)`, `delete(id,
+  permanently)`).
+- Rules: every write holds `ProjectLocks` and needs a writable store; folder paths are stored absolute
+  (`std::path::absolute`, not canonicalised, so no `\\?\` prefix on Windows). `get` re-inspects every
+  folder that exists and writes `project.json` only when a fact other than `detectedAt` changed and the
+  store is writable; an inspection that finds no git keeps the cached facts. A `project.json` with a newer
+  `schemaVersion` is `CONFLICT` for `get` and a `problem` in `list` (name taken from the raw file when
+  possible); the list is sorted by name, case-insensitive. An empty description is stored as none.
+  `delete` recycles `projects/<id>/` (or deletes it when `permanently`) and clears `session.json` when it
+  named this project. A project may have no folders (`workingFolderId` is then null).
+- Tests (`tests/projects.rs`, real git through `FixtureGit`, `RecordingRecycler` in `tests/support`): the plan's
+  five plus `should_derive_kind_status_and_counts_when_getting_a_project`,
+  `should_update_name_description_and_profile`, unit `should_suggest_the_folder_name_as_label`.

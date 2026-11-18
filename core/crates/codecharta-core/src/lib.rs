@@ -5,6 +5,7 @@ pub mod git;
 pub mod ids;
 pub mod process;
 pub mod projects;
+pub mod recycle;
 pub mod store;
 pub mod timestamps;
 pub mod tools;
