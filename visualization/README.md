@@ -94,6 +94,7 @@ $ npm run build
 **Package** the electron application to produce the standalone versions for Windows, Linux and MacOS for distribution and testing. The different versions are inside the `dist/applications` folder.
 
 > Make sure to run the [build](#build) task beforehand <br>
+> Every application ships the core binary: `package:local` takes `../core/target/release/codecharta-core` (run `cargo build --release` in `core/` first), `package` takes one binary per target from `../core/dist/<platform>-<arch>/`, which CI builds on each OS <br>
 > This process might require administrative rights/sudo depending on the OS <br>
 > For UNIX-based systems you probably need to install [Wine](https://www.winehq.org/) to package the Windows application <br>
 > The MacOS version usually can't be packaged while using Windows

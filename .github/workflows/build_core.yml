@@ -1,0 +1,66 @@
+name: Build Core Binaries
+
+# Called by the packaging and release workflows: one release build of codecharta-core per desktop target,
+# uploaded as artifact codecharta-core-<platform>-<arch>. Targets match visualization/script/appConfig.json.
+# macOS builds both architectures on a macOS runner, so Apple's linker adds the ad-hoc signature that an
+# arm64 executable needs to run.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build_core:
+    name: Build core (${{ matrix.platform }}-${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: linux, arch: x64, runner: ubuntu-latest, target: x86_64-unknown-linux-gnu, executable: codecharta-core }
+          - { platform: linux, arch: arm64, runner: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, executable: codecharta-core }
+          - { platform: win32, arch: x64, runner: windows-latest, target: x86_64-pc-windows-msvc, executable: codecharta-core.exe }
+          - { platform: win32, arch: arm64, runner: windows-latest, target: aarch64-pc-windows-msvc, executable: codecharta-core.exe }
+          - { platform: darwin, arch: x64, runner: macos-latest, target: x86_64-apple-darwin, executable: codecharta-core }
+          - { platform: darwin, arch: arm64, runner: macos-latest, target: aarch64-apple-darwin, executable: codecharta-core }
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: ./core
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # rustup is preinstalled on the hosted runners; without arguments it installs the toolchain that
+      # core/rust-toolchain.toml names
+      - name: Install the Rust toolchain
+        run: |
+          rustup toolchain install
+          rustup target add ${{ matrix.target }}
+
+      - name: Cache cargo registry and build output
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            core/target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-release-${{ hashFiles('core/Cargo.lock', 'core/rust-toolchain.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-release-
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} --bin codecharta-core
+
+      - name: Upload the core binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: codecharta-core-${{ matrix.platform }}-${{ matrix.arch }}
+          path: core/target/${{ matrix.target }}/release/${{ matrix.executable }}
+          if-no-files-found: error
+          retention-days: 7

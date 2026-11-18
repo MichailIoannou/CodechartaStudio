@@ -1,6 +1,6 @@
 ---
 name: 01-M3 Electron shell
-state: progress
+state: complete
 version: 1
 ---
 
@@ -39,7 +39,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M3 (tests to write first a
 - [x] 3.4 Core client
 - [x] 3.5 Preload, relay, lifecycle
 - [x] 3.6 Pickers and reveal
-- [ ] 3.7 Packaging
+- [x] 3.7 Packaging
 
 ## Notes
 
@@ -185,4 +185,35 @@ Known red gates that are not this milestone's:
   `electronApp.evaluate` — "should answer null when the native picker is cancelled", "should hand a picked
   executable to the core" (the core answers with its own error for a file that is not a tool). A real native
   picker was not clicked through.
+
+### 3.7
+- `script/appBuild.js`: `coreBinaryFor(platform, arch, isLocal)` → `../core/dist/<platform>-<arch>/codecharta-core[.exe]`,
+  or with `--local` `../core/target/release/codecharta-core[.exe]`; every target's binary is checked **before**
+  packaging starts and a missing one fails naming the absolute path; passed to `@electron/packager` as
+  `extraResource`. `appMain.js` passes `--local` through and gains step 4/4.
+- New `script/appCheckCoreModes.js` (Node built-ins only): reads the central directory of every
+  `*-linux-*.zip` / `*-darwin-*.zip` in `dist/packages` and fails packaging unless exactly one
+  `resources/codecharta-core` (`Contents/Resources/` on macOS) entry exists, was written by a Unix host and has an
+  executable bit. No ZIP64 support (the zips are far below 4 GB / 65535 entries).
+- Verified here: `cargo build --release --locked`, `npm run build`, `npm run package:local` → step 4 printed
+  `codecharta-visualization-linux-x64/resources/codecharta-core mode 100755`; the packaged app
+  (`dist/applications/codecharta-visualization-linux-x64/codecharta-visualization`, `isPackaged: true`) answered
+  `core.ping` with `{ ok: true, value: { coreVersion: "0.1.0" } }` through the bridge (scratch Playwright script).
+  Negative case: a bestzip'd 0644 `codecharta-core` made the check fail with `… is not executable (mode 100644)`.
+- CI: new reusable workflow `.github/workflows/build_core.yml` (`workflow_call`), matrix of the six targets of
+  `appConfig.json`, `cargo build --release --locked --target <triple> --bin codecharta-core`, artifact
+  `codecharta-core-<platform>-<arch>`. `test_packaging.yml` (now also triggered by `core/**` and
+  `build_core.yml`) and `release-visualization.yml` (job `build_core` with the same `if` as `build`) call it, then
+  download with `pattern: codecharta-core-*` into `core/dist`, rename the folders to `<platform>-<arch>` and
+  `chmod +x` the Linux/macOS binaries before `npm run package`. One reusable workflow instead of the plan's two
+  copies of the matrix.
+- **Runner labels and cross-compiles are UNVERIFIED** (no CI here): `ubuntu-24.04-arm` for linux-arm64 (GitHub's
+  arm64 runner, free for public repositories only — a private fork may need another label or a cross-compile);
+  win32-arm64 cross-compiled on `windows-latest` with `aarch64-pc-windows-msvc` (needs the MSVC ARM64 build tools on
+  the image); both darwin targets on `macos-latest` (arm64 runner; x64 via `--target x86_64-apple-darwin`).
+  Action references: `actions/checkout` pinned by the SHA already used in `test_core.yml`; `actions/cache@v5`,
+  `actions/upload-artifact@v7`, `actions/download-artifact@v8` by the tags the existing workflows use. No SHA was
+  invented. YAML parsed with PyYAML; none of the jobs has run.
+- Not verified: Windows and macOS packages (an `.exe` core next to the app, the macOS
+  `Contents/Resources/codecharta-core` placement and Gatekeeper, S3), and the release workflow end to end.
 

@@ -3,6 +3,7 @@
 const { prepareApplications } = require("./appBuild")
 const { prepareBinaries } = require("./appDownload")
 const { prepareZips } = require("./appZip")
+const { checkCoreModes } = require("./appCheckCoreModes")
 const config = require("./appConfig.json")
 const assert = require("assert")
 
@@ -13,18 +14,21 @@ const localCombo = {}
 const localArch = process.arch
 localCombo[process.platform] = [localArch]
 
-var distributions = localFlag === "--local" ? localCombo : config.distributions
+const isLocal = localFlag === "--local"
+var distributions = isLocal ? localCombo : config.distributions
 
 async function main() {
     console.log(`Codecharta-Visualization package utility. Targets: ${JSON.stringify(distributions)}`)
     assert(versionRegex.test(electronVersion), "Error: Please specify exact version of electron in package.json without caret etc.")
 
-    console.log("Build Step 1/3: Downloading binaries...")
+    console.log("Build Step 1/4: Downloading binaries...")
     const downloadPath = await prepareBinaries(electronVersion, distributions)
-    console.log("Build Step 2/3: Building applications...")
-    await prepareApplications(electronVersion, distributions, downloadPath)
-    console.log("Build Step 3/3: Zipping packages...")
+    console.log("Build Step 2/4: Building applications...")
+    await prepareApplications(electronVersion, distributions, downloadPath, isLocal)
+    console.log("Build Step 3/4: Zipping packages...")
     await prepareZips()
+    console.log("Build Step 4/4: Checking that the core stays executable...")
+    checkCoreModes()
 }
 
 let finished = false
