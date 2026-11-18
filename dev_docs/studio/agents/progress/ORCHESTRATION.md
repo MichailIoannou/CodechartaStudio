@@ -37,8 +37,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M5 Editor schemes and quick toggle | UI | blocked | design 02-themes; 02-M4 | — | — |
 | 02-M6 Native window appearance | UI | blocked | design 02-themes; plan 01 | — | — |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
-| 03-M1 Store core | core | in progress | — | feature/studio-03-m1 | — |
-| 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | todo | 03-M1 | — | — |
+| 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
+| 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | in progress (part A: tasks 1–7) | part B (tasks 8–9): 01-M3, 01-M4.1 | feature/studio-03-m2 | — |
 | 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | todo | 03-M2 | — | — |
 | 03-M4 Renderer load path | renderer | todo | 03-M3; check for visible parts first | — | — |
 | 03-M5 Projects UI | UI | blocked | design 03-projects | — | — |
@@ -106,6 +106,10 @@ the milestone is started.
   Plan 03's `project.json.view.visibleFolderIds` becomes `workingFolderId`; the multi-folder selector of
   03-M5 is removed; 04 and 05 read the working folder. Passed to the 03-M1 agent; applies to the store
   format from whichever 03 milestone first writes `project.json` (03-M2 per the plan).
+- 03-M1 (see `03-m1-store-core.md`): new error codes `STORE_NEWER_SCHEMA`, `STORE_LOCKED`; store problem
+  code `Io`; only `ProjectId`/`FolderId`/`SnapshotId` newtypes so far; the leftover sweep removes only
+  `.tmp-*` files and `.incoming-*` folders in the store's own folders. Plan 03 text corrected by the
+  agent (names from plan 01, module table, error codes, crate list).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -135,6 +139,7 @@ Design questions are in `design/open-questions.md`; none are left here.
 
 ## Session log
 
+- 2026-11-18: 03-M1 verified on the merged integration branch (cargo fmt/clippy/test 164, contract drift, format, lint, tsc, npm test 636/636, coverage 96.71/90.1/95.33/96.62) and merged; 03-M2 part A started.
 - 2026-11-18: 03-M1 started in the core lane (plan 01 core done; 03-M0 store items answered on Linux).
 - 2026-11-18: design files appeared (all areas blocked for owner review); format check now fails on the mock-up (O1). 03-M0 part A verified (notes read) and recorded.
 - 2026-11-18: 03-M0 part A (reconciliation + core-only spike item 3) started in parallel with 01-M3.
