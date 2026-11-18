@@ -150,7 +150,8 @@ the milestone is started.
   Domain/Dependencies charts and radial layouts follow later (M3/M4).
 - 01-M4.1 (see `01-m4-1-renderer-seam.md`): `createFakeDesktopBridge` carries `/* istanbul ignore next */`
   because coverage counters break the "rebuilt from its own source text" test (the fake is injected into
-  Playwright pages as source). First coverage exclusion in `visualization/app` — owner question 1.
+  Playwright pages as source). First coverage exclusion in `visualization/app`; owner decision
+  2026-11-19: keep it (option 1). Later fakes may use the same single-function comment for the same reason.
   `shell.coreState` is typed locally (not in the generated contract). The fake's body must stay
   self-contained (no imports, no outer helpers, no async/await).
 - 04-M2 (see `04-M2-core-log-details.md` on `feature/studio-04-m2`): `git.measureDistances` returns
@@ -189,14 +190,13 @@ the milestone is started.
 
 ## Open questions for the owner
 
-1. `/* istanbul ignore next */` on `createFakeDesktopBridge` (test fake, `util/desktop/desktopBridge.mocks.ts`):
-   accept it, or exclude `*.mocks.ts` in `jestUnit.config.json`, or require another way to inject the fake?
-   CLAUDE.md says never suppress warnings; this is a coverage exclusion on test code, not a threshold.
+None open.
 
 Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: owner kept the istanbul-ignore comment on the test fake (option 1).
 - 2026-11-19: 01-M4.1 verified on the merged integration branch (format, lint, tsc, npm test 654/654, coverage 96.87/90.26/95.44/96.8) and merged; 01-M4.2 started.
 - 2026-11-19: 02-M1 verified on the merged integration branch (format, lint, tsc, npm test 649/649 with 43 snapshots unchanged, coverage 96.84/90.24/95.43/96.77, build, test:electron 42/42, e2e:desktop 9/9, web e2e:ci 153/153) and merged. After the usage reset (3%): 01-M4.1 and 04-M2 started.
 - 2026-11-19: 04-M1 verified on a scratch merge of integration + 04-M1 (cargo fmt/clippy/test 354, cargo-deny, contract drift, format, lint, tsc, test:electron 42/42, npm test 636/636). Merge pending, as for 03-M2.
