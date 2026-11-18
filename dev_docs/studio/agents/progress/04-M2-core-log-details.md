@@ -26,7 +26,7 @@ git errors are `ErrorCode` values with git's text in `details.detail`; runner is
 ## Steps
 
 - [x] 1. Log pages
-- [ ] 2. Details and changed files
+- [x] 2. Details and changed files
 - [ ] 3. Queries and stream
 - [ ] 4. Caching, RPC, CLI
 
@@ -69,4 +69,29 @@ Branched from `feature/studio-04-m1`.
 - Fixture: `RecordingGit` (wraps `FixtureGit`, records every `GitInvocation`).
 - Tests: the plan's (captured, `git/parse/log.rs`; fixture, `tests/git_log.rs`), plus
   `should_refuse_a_ref_the_repository_does_not_have` and three value tests in the api.
+
+### 2. Details and changed files
+- Api: `GitFileChange`, `GitChangedFile`, `ChangeTotals`, `GitCommitDetails` (`#[serde(flatten)] summary`),
+  `ChangedFilesMode`, `GitChangedFiles`. Error code appended: `UNKNOWN_REVISION`.
+- Classification (`failure.rs`), verified with git 2.56 for an unknown full sha: `show` / `diff-tree` /
+  `rev-list --stdin` say `bad object`, `rev-list A..B` `Invalid revision range`, `A...B` `Invalid symmetric
+  difference expression`, `merge-base` (also `--is-ancestor`) `Not a valid commit name`, plus `unknown
+  revision` and `expected commit type` (a sha naming a blob or tree, see below) → `UNKNOWN_REVISION`.
+  `for-each-ref --points-at <unknown>` exits 0 with nothing.
+- `git/parse/log.rs` `DETAILS_FORMAT` / `parse_details` (exactly ten fields; message without trailing
+  newlines). `git/parse/changed_files.rs`: `DIFF_TREE_ARGS`, `parse_name_status` (first letter A/M/D/R/C/T,
+  another upper-case letter `Unknown`, anything else `PARSE_FAILED`; R/C consume old and new path),
+  `parse_numstat` (keyed by the new path; `-` = binary = null counts), `join_changed_files` (at most
+  `MAX_LISTED_FILES` = 5000, totals over all). Captured: `show_details.txt`, `diff_tree_name_status.txt`,
+  `diff_tree_numstat.txt`, `diff_tree_root_name_status.txt` (`capture.sh`).
+- `git/details.rs` (plan's `read.rs` part): `commit_details`, `changed_files` + `ChangedFilesRequest`.
+  `DETAILS_LIMITS` 30 s / 8 MiB. Name-status and numstat run in parallel. **Every sha goes to `show` /
+  `diff-tree` as `<sha>^{commit}`**: `show -s <blob sha>` prints the blob, so without the peel a valid-looking
+  sha of a blob or tree would be read as something else; with it git refuses (`UNKNOWN_REVISION`) and an
+  annotated tag's sha is peeled to its commit. `SinceMergeBase` answers the merge base as `from`.
+- `git/query.rs` starts with `merge_base` (needed here; task 3 adds the rest).
+- Tests: the plan's (captured in `git/parse/changed_files.rs`, `git/parse/log.rs`; fixture in
+  `tests/git_details.rs`), plus `should_list_every_file_of_a_root_commit_as_added`,
+  `should_fail_parse_on_a_missing_path_or_count`, the classification test and an unknown sha in the
+  unrelated-histories test.
 

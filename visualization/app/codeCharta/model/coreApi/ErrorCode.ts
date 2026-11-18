@@ -31,3 +31,4 @@ export type ErrorCode =
     | "PARSE_FAILED"
     | "COMMAND_FAILED"
     | "LOG_SESSION_EXPIRED"
+    | "UNKNOWN_REVISION"

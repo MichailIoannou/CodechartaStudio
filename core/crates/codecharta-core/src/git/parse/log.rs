@@ -8,6 +8,36 @@ use crate::git::nul::{chunk_records, split_nul_fields};
 /// One commit per record: sha, parents, author name and email, author and committer time, subject.
 pub const SUMMARY_FORMAT: &str = "--format=tformat:%H%x00%P%x00%aN%x00%aE%x00%at%x00%ct%x00%s";
 pub const SUMMARY_FIELDS: usize = 7;
+/// `SUMMARY_FORMAT`, then committer name and email and the whole message.
+pub const DETAILS_FORMAT: &str =
+    "--format=tformat:%H%x00%P%x00%aN%x00%aE%x00%at%x00%ct%x00%s%x00%cN%x00%cE%x00%B";
+const DETAILS_FIELDS: usize = 10;
+const MESSAGE_END: char = '\n';
+
+/// One commit as `show` prints it in `DETAILS_FORMAT`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommitText {
+    pub summary: GitCommitSummary,
+    pub committer_name: String,
+    pub committer_email: String,
+    pub message: String,
+}
+
+pub fn parse_details(stdout: &str) -> CoreResult<CommitText> {
+    let fields = split_nul_fields(stdout);
+    let [.., committer_name, committer_email, message] = fields.as_slice() else {
+        return Err(parse_failed(WHAT));
+    };
+    if fields.len() != DETAILS_FIELDS {
+        return Err(parse_failed(WHAT));
+    }
+    Ok(CommitText {
+        summary: summary_of(&fields)?,
+        committer_name: clean_text(committer_name),
+        committer_email: clean_text(committer_email),
+        message: clean_text(message.trim_end_matches(MESSAGE_END)),
+    })
+}
 
 const WHAT: &str = "the commit history";
 const KEPT_CONTROL_CHARACTERS: [char; 2] = ['\t', '\n'];
@@ -133,6 +163,26 @@ mod tests {
 
         // Assert
         assert_eq!(commits[2].subject, "Quote \"it\"\tand tab – ü 日本");
+    }
+
+    #[test]
+    fn should_parse_details_with_committer_and_message_without_trailing_newlines() {
+        // Arrange
+        let stdout = include_str!("testdata/show_details.txt");
+
+        // Act
+        let details = parse_details(stdout).unwrap();
+
+        // Assert
+        assert_eq!(details.summary.subject, "Change files");
+        assert_eq!(details.summary.parents.len(), 1);
+        assert_eq!(details.committer_name, "Carl Committer");
+        assert_eq!(details.committer_email, "carl@example.test");
+        assert_eq!(details.message, "Change files\n\nWith a body line.");
+        assert_eq!(
+            parse_details(HISTORY).unwrap_err().code(),
+            ErrorCode::ParseFailed
+        );
     }
 
     #[test]

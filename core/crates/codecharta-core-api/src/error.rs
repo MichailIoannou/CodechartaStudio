@@ -36,10 +36,11 @@ pub enum ErrorCode {
     ParseFailed,
     CommandFailed,
     LogSessionExpired,
+    UnknownRevision,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 30] = [
+    pub const ALL: [ErrorCode; 31] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -70,6 +71,7 @@ impl ErrorCode {
         ErrorCode::ParseFailed,
         ErrorCode::CommandFailed,
         ErrorCode::LogSessionExpired,
+        ErrorCode::UnknownRevision,
     ];
 }
 
@@ -119,6 +121,7 @@ mod tests {
             ErrorCode::ParseFailed,
             ErrorCode::CommandFailed,
             ErrorCode::LogSessionExpired,
+            ErrorCode::UnknownRevision,
         ];
 
         // Act
@@ -135,7 +138,8 @@ mod tests {
                 "INDEX_LOCKED",
                 "PARSE_FAILED",
                 "COMMAND_FAILED",
-                "LOG_SESSION_EXPIRED"
+                "LOG_SESSION_EXPIRED",
+                "UNKNOWN_REVISION"
             ])
         );
     }

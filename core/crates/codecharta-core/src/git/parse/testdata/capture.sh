@@ -104,4 +104,20 @@ git -C history switch -q main; commit history "$(printf 'Bell\a here')" b.txt b
 tick; git -C history merge -q --no-ff -m "Merge side" side
 git -C history rev-parse HEAD | "${G[@]}" -C history "${LOG[@]}" --stdin > "$OUT/log_history.txt"
 
+# commit details: added, modified, deleted, renamed (non-ASCII name with a space), binary; root commit
+SHOW=(show -s -z '--format=tformat:%H%x00%P%x00%aN%x00%aE%x00%at%x00%ct%x00%s%x00%cN%x00%cE%x00%B' --end-of-options)
+DIFF=(diff-tree -r -z --no-ext-diff --no-textconv -M)
+git init -q changes
+commit changes "Base" a.txt "$(printf 'a\nb\nc\n')" b.txt "gone" c.txt "$(seq 1 50)" d.bin "$(printf 'x\001y')"
+printf 'a\nB\nc\nd\n' > changes/a.txt
+git -C changes rm -q b.txt
+git -C changes mv c.txt "c renamed ü.txt"
+printf 'x\000y\003' > changes/d.bin
+git -C changes add a.txt d.bin
+commit changes "$(printf 'Change files\n\nWith a body line.\n')" e.txt "$(printf 'new\nfile\n')"
+"${G[@]}" -C changes "${SHOW[@]}" HEAD > "$OUT/show_details.txt"
+"${G[@]}" -C changes "${DIFF[@]}" --name-status HEAD~1 HEAD > "$OUT/diff_tree_name_status.txt"
+"${G[@]}" -C changes "${DIFF[@]}" --numstat HEAD~1 HEAD > "$OUT/diff_tree_numstat.txt"
+"${G[@]}" -C changes "${DIFF[@]}" --root --no-commit-id --name-status HEAD~1 > "$OUT/diff_tree_root_name_status.txt"
+
 for file in "$OUT"/*; do sed -i "s#$WORK#/fixture#g" "$file"; done

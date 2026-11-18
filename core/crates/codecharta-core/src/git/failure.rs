@@ -1,10 +1,19 @@
 use codecharta_core_api::error::ErrorCode;
 
 /// git's English messages (reads run with `LC_ALL=C`) and the code each one means; the first match wins.
-const RULES: [(&str, ErrorCode); 3] = [
+const RULES: [(&str, ErrorCode); 9] = [
     ("dubious ownership", ErrorCode::DubiousOwnership),
     ("not a git repository", ErrorCode::NotARepository),
     ("index.lock", ErrorCode::IndexLocked),
+    ("bad object", ErrorCode::UnknownRevision),
+    ("Invalid revision range", ErrorCode::UnknownRevision),
+    (
+        "Invalid symmetric difference expression",
+        ErrorCode::UnknownRevision,
+    ),
+    ("Not a valid commit name", ErrorCode::UnknownRevision),
+    ("unknown revision", ErrorCode::UnknownRevision),
+    ("expected commit type", ErrorCode::UnknownRevision),
 ];
 
 pub fn classify(stderr: &str) -> ErrorCode {
@@ -55,6 +64,29 @@ mod tests {
 
         // Assert
         assert_eq!(code, ErrorCode::IndexLocked);
+    }
+
+    #[test]
+    fn should_classify_an_unknown_commit_of_every_read_as_unknown_revision() {
+        // Arrange
+        let unknown = "0123456789abcdef0123456789abcdef01234567";
+        let stderrs = [
+            format!("fatal: bad object {unknown}"),
+            format!("fatal: Invalid revision range {unknown}..{unknown}"),
+            format!("fatal: Invalid symmetric difference expression {unknown}...{unknown}"),
+            format!("fatal: Not a valid commit name {unknown}"),
+            "fatal: ambiguous argument 'x': unknown revision or path not in the working tree."
+                .to_string(),
+            format!(
+                "error: {unknown}^{{commit}}: expected commit type, but the object dereferences to blob type"
+            ),
+        ];
+
+        // Act
+        let codes: Vec<ErrorCode> = stderrs.iter().map(|stderr| classify(stderr)).collect();
+
+        // Assert
+        assert_eq!(codes, vec![ErrorCode::UnknownRevision; stderrs.len()]);
     }
 
     #[test]

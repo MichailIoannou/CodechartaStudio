@@ -72,6 +72,7 @@ pub fn message_for(code: ErrorCode) -> &'static str {
         }
         ErrorCode::BareRepository => "The folder is a bare repository without a working tree.",
         ErrorCode::IndexLocked => "Another git process is using this repository.",
+        ErrorCode::UnknownRevision => "The repository does not contain that commit.",
         _ => "git failed.",
     }
 }

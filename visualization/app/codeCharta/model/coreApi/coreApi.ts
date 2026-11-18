@@ -87,7 +87,8 @@ export const CORE_ERROR_CODES = [
     "INDEX_LOCKED",
     "PARSE_FAILED",
     "COMMAND_FAILED",
-    "LOG_SESSION_EXPIRED"
+    "LOG_SESSION_EXPIRED",
+    "UNKNOWN_REVISION"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {

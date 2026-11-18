@@ -82,6 +82,11 @@ pub const LOG_LIMITS: Limits = Limits {
     max_stdout_bytes: 8 * MEBIBYTE,
 };
 
+pub const DETAILS_LIMITS: Limits = Limits {
+    timeout: Duration::from_secs(30),
+    max_stdout_bytes: 8 * MEBIBYTE,
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandKind {
     Read,

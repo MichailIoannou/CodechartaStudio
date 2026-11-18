@@ -1,6 +1,7 @@
 pub mod cache;
 pub mod changes;
 pub mod command;
+pub mod details;
 pub mod error;
 pub mod failure;
 pub mod fingerprint;
@@ -9,6 +10,7 @@ pub mod log;
 pub mod memory;
 pub mod nul;
 pub mod parse;
+pub mod query;
 pub mod read;
 pub mod runner;
 pub mod service;

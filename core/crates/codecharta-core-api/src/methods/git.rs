@@ -215,6 +215,76 @@ pub struct GitLogPage {
     pub is_graph_available: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum GitFileChange {
+    Added,
+    Modified,
+    Deleted,
+    Renamed,
+    Copied,
+    TypeChanged,
+    Unknown,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitChangedFile {
+    pub change: GitFileChange,
+    /// Relative to the repository root, with `/` separators.
+    pub path: String,
+    /// The path before a rename or copy.
+    pub previous_path: Option<String>,
+    /// Null for a binary file.
+    pub insertions: Option<u32>,
+    /// Null for a binary file.
+    pub deletions: Option<u32>,
+}
+
+/// Counts every changed file, also those a truncated list leaves out.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeTotals {
+    pub files_changed: u32,
+    pub insertions: u32,
+    pub deletions: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCommitDetails {
+    #[serde(flatten)]
+    pub summary: GitCommitSummary,
+    pub committer_name: String,
+    pub committer_email: String,
+    /// The whole message without trailing newlines.
+    pub message: String,
+    /// The first parent the files are compared with; null for a root commit.
+    pub compared_to_parent: Option<String>,
+    pub files: Vec<GitChangedFile>,
+    pub are_files_truncated: bool,
+    pub totals: ChangeTotals,
+}
+
+/// `sinceMergeBase` compares `to` with the newest commit both `from` and `to` contain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum ChangedFilesMode {
+    Direct,
+    SinceMergeBase,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitChangedFiles {
+    /// The commit compared with: the requested one, or the merge base for `sinceMergeBase`.
+    pub from: String,
+    pub to: String,
+    pub files: Vec<GitChangedFile>,
+    pub are_files_truncated: bool,
+    pub totals: ChangeTotals,
+}
+
 method!(
     GitRepositoryInfoMethod,
     "git.repositoryInfo",

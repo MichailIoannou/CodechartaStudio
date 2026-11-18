@@ -2,13 +2,16 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use codecharta_core_api::methods::git::{
-    GitHead, GitLogPage, GitRefs, GitRepositoryInfo, GitStatus, GitUpstream, OperationInProgress,
+    GitChangedFiles, GitCommitDetails, GitHead, GitLogPage, GitRefs, GitRepositoryInfo, GitStatus,
+    GitUpstream, OperationInProgress,
 };
 use codecharta_core_api::methods::projects::FolderRef;
+use codecharta_core_api::values::CommitSha;
 use tokio_util::sync::CancellationToken;
 
 use super::changes::RepositoryChanges;
 use super::command::{GitCommand, QUERY_LIMITS};
+use super::details::{ChangedFilesRequest, changed_files, commit_details};
 use super::locator::{Repository, locate};
 use super::log::{LogRequest, log_page};
 use super::memory::GitMemory;
@@ -144,6 +147,25 @@ impl<'core> GitService<'core> {
     ) -> CoreResult<GitLogPage> {
         let repository = locate(&self.git, &folder.path, cancel).await?;
         log_page(&self.git, &self.memory, &repository, request, cancel).await
+    }
+
+    /// The commit with its message and the files it changed against its first parent.
+    pub async fn commit_details(
+        &self,
+        folder: &GitFolder,
+        sha: &CommitSha,
+        cancel: &CancellationToken,
+    ) -> CoreResult<GitCommitDetails> {
+        commit_details(&self.git, &folder.path, sha, cancel).await
+    }
+
+    pub async fn changed_files(
+        &self,
+        folder: &GitFolder,
+        request: &ChangedFilesRequest,
+        cancel: &CancellationToken,
+    ) -> CoreResult<GitChangedFiles> {
+        changed_files(&self.git, &folder.path, request, cancel).await
     }
 
     /// `status` names the upstream briefly (`origin/main`); its full ref name comes from the branch's
