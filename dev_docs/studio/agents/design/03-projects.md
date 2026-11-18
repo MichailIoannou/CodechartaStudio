@@ -470,7 +470,7 @@ toast (warning) "Only .cc.json and .cc.json.gz files can be opened." Absent in t
 1. **Folder selector and snapshot chip are one control (P2).** Plan 03 puts `cc-project-folder-selector`
    in the map slot and plan 05 adds `cc-snapshot-chip` right after it; both name the shown snapshot.
    Two adjacent triggers for the same thing crowd `navbar-start` (which also gets the project
-   switcher and the branch chip) and break at 1280 px. Resolution: P2's trigger carries the staleness
+   switcher) and break at 1280 px. Resolution: P2's trigger carries the staleness
    badge of area 05, and its "Snapshots…" button is the chip's click. Area 05 designs the badge and the
    dialog; it does not add a second nav-bar element.
 2. **Manage dialog has no "Snapshots" tab.** Plan 03 lists snapshots (delete, move, bind) in the

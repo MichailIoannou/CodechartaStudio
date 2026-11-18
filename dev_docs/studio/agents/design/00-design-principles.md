@@ -29,7 +29,7 @@ Enhance the existing interface; do not redesign it.
 |---|---|---|
 | Nav bar, left (`navbar-start`) | `navBar.component.html` | `btn btn-ghost btn-sm` triggers; dropdown = `cc-map-selector` |
 | Nav bar, centre | `viewSwitcher.component.html` | `btn btn-ghost btn-sm` links + `cc-current-underline` |
-| Nav bar, right (`navbar-end`) | `navBar.component.html` | `cc-settings-button` (`btn btn-ghost btn-sm`) |
+| Nav bar, right (`navbar-end`) | `navBar.component.html` | `cc-settings-button` (`btn btn-ghost btn-sm`); gets the branch chip, jobs indicator, theme toggle |
 | Hover mode bar under the switcher | `viewModeBar.component.html` | `cc-mode-toggle` (Explore / Compare, `role="tablist"`) |
 | Dropdown | `mapSelector.component.html` | `.dropdown` + `dropdown-open`, content `bg-base-100 rounded-box border border-base-300 shadow-md mt-1 z-[70] p-2`, list `max-h-72 overflow-y-auto`, row `rounded-md px-2 py-1 hover:bg-base-200`, footer `flex justify-end mt-2` with `btn btn-primary btn-sm` |
 | Modal dialog | `globalConfigurationDialog`, `saveScenarioDialog`, `scenarioListDialog` | native `<dialog class="modal">`, `modal-box max-w-{sm,md,xl,2xl}`, `h2 text-xl font-bold mb-4`, `form-control` + `label-text`, `input input-bordered`, `modal-action`, `form method="dialog" class="modal-backdrop"` |
@@ -52,13 +52,19 @@ The nav bar is shared by plans 02–06. This is the single, final order; area fi
 
 ```
 desktop, project open, map shown
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [logo] │ [▣ billing ▾] [codecharta @ a1b2c3d  stale 4 ▾] [⎇ feature/x ↑2 ●]   Metric Domain Dependencies History   [⟳ 1] [☾] Settings │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-  start: logo, divider, project switcher (03), map slot (03/05/06), branch chip (04)
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [logo] │ [▣ billing ▾] [⎇ billing-api @ 9f8e7d6  stale by 4 ▾]   Metric Domain Dependencies History   [⎇ feature/x ↑2 ●] [⟳ 1] [☀] Settings │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  start: logo, divider, project switcher (03), map slot (03/05/06)
   centre: view switcher (+ History tab, 04)
-  end: analysis jobs indicator (05), theme toggle (02), Settings
+  end: branch chip (04), analysis jobs indicator (05), theme toggle (02), Settings
 ```
+
+The daisyUI `navbar` gives `navbar-start` and `navbar-end` half of the space left beside the centred
+view switcher each. At 1280 px that is about 485 px per half, of which the logo and divider take about
+90: room for two triggers, not three. The branch chip therefore sits at the start of `navbar-end`,
+which today holds only Settings (owner review 2026-11-18; the first draft put it in `navbar-start`
+and the mock-up overlapped).
 
 Map slot, first match wins:
 
@@ -75,19 +81,19 @@ Map slot, first match wins:
 Web build left side stays exactly: logo, divider, `cc-nav-bar-folder-button`, map/delta selector.
 
 **Narrow window.** Supported down to 1024 px wide (the Electron window minimum is set by plan 01; if
-none is set, this design assumes 1024). The mock-up (`mockups/history.html`) shows the three new
-`navbar-start` controls touching the view switcher already at 1440 px with generous widths, so the
-widths are capped by breakpoint, each step a Tailwind class on the element, never JavaScript
-measuring:
+none is set, this design assumes 1024). Budgets per half (window minus about 310 px of view tabs,
+halved, minus the logo on the left), widths capped by breakpoint, each step a Tailwind class on the
+element, never JavaScript measuring:
 
-| Window | Project switcher | Map slot trigger | Branch chip |
-|---|---|---|---|
-| ≥ 1536 (`2xl`) | `max-w-64` | `max-w-80` | name `max-w-56`, ahead/behind numbers |
-| 1280–1535 (`xl`) | `max-w-40` | `max-w-60` | name `max-w-32`, arrows without numbers |
-| 1024–1279 | `max-w-32` | `max-w-48` | icon + dirty dot only (name in `title`) |
+| Window | Left budget | Project switcher | Map slot trigger | Right half: branch chip |
+|---|---|---|---|---|
+| ≥ 1536 (`2xl`) | ≈ 520 px | `max-w-48` | `max-w-80` | name `max-w-56`, ahead/behind numbers |
+| 1280–1535 (`xl`) | ≈ 395 px | `max-w-36` | `max-w-60` | name `max-w-48`, ahead/behind numbers |
+| 1024–1279 | ≈ 265 px | `max-w-24` | `max-w-40`, status badge as icon only | name `max-w-32`, arrows without numbers |
 
-- `navbar-start` gets `min-w-0 flex-1 overflow-hidden` and its children `min-w-0`, so it shrinks
-  instead of running under `navbar-center`; the view switcher never shrinks.
+- `navbar-start` and `navbar-end` keep their halves and get `min-w-0 overflow-hidden`; their children
+  `min-w-0`, so a trigger shortens its text with "…" instead of running under `navbar-center`; the view
+  switcher never shrinks.
 - Below 1280 the analysis jobs indicator shows only the spinner; the theme toggle and Settings stay.
 - Text inside every trigger is `truncate`; the full text is always in `title`.
 
@@ -120,6 +126,13 @@ open dialogs (the browser stacks a later `showModal()` on top).
 - List rows: 28 px (`h-7`) in History lists (virtualised, fixed height); dropdown rows `py-1`.
 - Secondary text: `text-xs text-base-content/60`; tertiary `text-base-content/40`. Never below
   `/40` for anything a user must read.
+- **Icon buttons.** An icon next to text is a direct child of the `btn` with `fa-fw`; the button's
+  `inline-flex items-center gap-2` centres it. No margins on icons, no Unicode glyphs as icons.
+- **Badges never cut off.** A badge with variable text is `inline-flex max-w-<n>` with the text in an
+  inner `<span class="truncate">`; the badge keeps both rounded ends and the text ends in "…".
+  Full text in `title`.
+- **Words over codes.** Status is said in a word ("modified", "analysed"), not a letter or a bare
+  icon; an icon may accompany the word.
 - Monospace (`font-mono`) only for short SHAs, refs in sentences, paths and commands to copy.
 
 ## 6. Colour

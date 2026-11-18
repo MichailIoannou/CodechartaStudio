@@ -28,6 +28,7 @@ selection changes (see Deviations 1):
 |---|---|---|
 | opens a project | the commit of the restored shown snapshot (plan 03), or "current checkout" when the folder has no remembered snapshot | restored snapshot; no notice unless the target has none |
 | uses "Show in map" on a commit (History details, primary commit action, Enter / double-click) | that commit | its exact or nearest snapshot; navigates to the metrics view |
+| picks a commit with "Show commit…" (S1) on the map screen | that commit | as "Show in map", without leaving the map |
 | uses "Show in map" on "Uncommitted changes", or "Show current checkout" (S1) | current checkout (working tree) | its snapshot, else nearest of HEAD |
 | clicks Open on a snapshot (S4) | that snapshot's commit (or the snapshot itself for imports and working-tree snapshots) | that snapshot exactly |
 | switches branch, commits, pulls (History) | unchanged; if it is "current checkout" it re-resolves against the new HEAD | nearest for the new HEAD, never analysed automatically |
@@ -63,12 +64,18 @@ full text in `title`.
 ```
 Showing   9f8e7d6  Release 2.4.0                     stale by 4
 For       a1b2c3d  Fix invoice rounding   (current checkout)
-          [Show current checkout]  [▶ Analyse a1b2c3d]
+          [Show commit…]  [Show current checkout]  [▶ Analyse a1b2c3d]
 ──────────────────────────────────────────────────────────────
 (folder rows as area 03 P2)
 ```
 
 - `text-xs`, labels `text-base-content/60 w-16`, SHAs `font-mono`, subjects `truncate`.
+- **"Show commit…"** (`btn btn-ghost btn-xs`, `fa-code-branch`) is how the map screen picks a commit
+  without visiting History: it opens the ref picker (area 06 C4, owned by `features/gitHistory`) in a
+  popover under the dropdown. Branches, tags and commits are listed with their analysis state; picking
+  one sets the target exactly as "Show in map" in History does (exact snapshot, or nearest + S2
+  notice with "Analyse"). Placeholder "Branch, tag or commit"; `aria-label` "Show a commit in the map".
+  Absent for plain (non-git) folders, where "Snapshots…" lists the analyses instead.
 - "Show current checkout" (`btn btn-ghost btn-xs`) only when the target is not already the current
   checkout. "Analyse <short>" (`btn btn-primary btn-xs`) only when the target has no exact snapshot;
   while a job runs it becomes the S2 progress row in small.
@@ -317,12 +324,9 @@ snapshot exists: see Deviations 4.
 
 Area 04 H8's analysed column and H9's actions, filled by this area's providers:
 
-| Marker | Icon | `title` |
-|---|---|---|
-| analysed | `fa-cube text-success` | "Analysed 3 Nov 14:10" (+ " — other profile" / " — imported map, analysis time unknown") |
-| running | `loading-spinner loading-xs text-info` | "Analysis running — 42 %" / "Analysis queued" |
-| failed | `fa-triangle-exclamation text-error` | "Analysis failed: <message>" |
-| in the map now | `ring-1 ring-primary rounded-sm` around the icon | adds "\nShown in the map" |
+The markers are the worded badges of area 04 H8's "Analysis" column ("analysed", "in map",
+"queued", "42 %", "failed"); this area supplies their state and `title` text from
+`SnapshotCatalogService` and `AnalysisJobsService` (job state wins over snapshot state).
 
 H9 details pane, one commit selected, adds under the SHA line a resolution line (cheap
 `snapshots.resolveForCommit`, no map load):

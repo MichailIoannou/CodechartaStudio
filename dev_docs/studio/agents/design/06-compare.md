@@ -141,6 +141,10 @@ Native dialog, `modal-box max-w-3xl`, title "Compare".
 
 ## C4 Ref picker
 
+Shared component: it lives in `features/gitHistory` (the feature that owns refs), exported through
+its facade, and is used here and by area 05 S1 ("Show commit…"). Dependencies stay one-way
+(`compare → gitHistory`, `snapshots → gitHistory`).
+
 Combobox: `input input-bordered input-sm w-full font-mono` with `role="combobox"`,
 `aria-expanded`, `aria-controls`; result list in a dropdown (`z-[70]`, map-selector content classes,
 `max-h-72`).
@@ -260,10 +264,10 @@ rloc +1 240 · complexity −35                             current area and hei
 [toggle] Only changed files                              cc-setting-toggle pattern, compact
 Files changed in git                                      text-xs text-base-content/60 source line
 ──────────────────────────────────────────
- M  invoice.ts          src/billing       +12   [⌖]
- A  currency.ts         src/billing      +80   [⌖]
- R  old.ts → money.ts   src/billing             [⌖]
- D  legacy.ts           src/old          (not part of the analysis)   greyed
+ modified  invoice.ts         src/billing   +12   [⌖]
+ added     currency.ts        src/billing   +80   [⌖]
+ renamed   old.ts → money.ts  src/billing         [⌖]
+ deleted   legacy.ts          src/old       (not part of the analysis)   greyed
 ```
 
 - Header block `px-2 py-2 border-b border-base-300 flex flex-col gap-1`.
@@ -272,7 +276,7 @@ Files changed in git                                      text-xs text-base-cont
 - Source line: "Files changed in git" or "Files with metric changes" (fallback, plan 8), with `title`
   explaining the fallback: "No clone has both commits, so the list shows files whose metrics
   changed."
-- Rows 28 px, virtualised (`ListViewport`): status badge (as area 04 H9 letters), file name, folder
+- Rows 28 px, virtualised (`ListViewport`): worded change badge (as area 04 H9), file name, folder
   `text-xs text-base-content/60 truncate`, height-metric delta `tabular-nums` (`text-success` /
   `text-error` per the delta colours' meaning), "Focus folder" `btn btn-ghost btn-xs btn-square
   fa-crosshairs` (`aria-label` "Focus folder src/billing"). Click selects the building
@@ -307,6 +311,9 @@ upload delta mode.
    was looking at.
 5. **Compare from the "Uncommitted changes" row** ("Compare with HEAD") is added: it is the
    working-tree row of plan 06's table, reached where the working tree appears in History.
+
+6. **Ref picker lives in `features/gitHistory`**, not `features/compare` (plan 5), because the map
+   screen's "Show commit…" (area 05 S1) needs it too and `snapshots` may not depend on `compare`.
 
 ## Proposed changes to existing UI (not assumed approved)
 

@@ -1,6 +1,6 @@
 ---
 name: Studio interface design (designer agent)
-state: complete
+state: progress
 version: 1
 ---
 
@@ -38,3 +38,7 @@ Produce the interface design for plans 01–06 under `dev_docs/studio/agents/des
 - The repository `CLAUDE.md` asks for a plan file in `plans/`; the studio README (rule 5) redirects
   that to this folder, so this file is it.
 - Status per area lives in `design/STATUS.md`, which the orchestrator reads.
+- 2026-11-18 owner review 1: nav bar overlap (branch chip moved to `navbar-end`), History toolbar,
+  filters, graph, worded badges, icon alignment; added `design/journeys.md` and
+  `mockups/studio-screens.html` (replaces `mockups/history.html`). All areas held "blocked" until
+  the owner finishes reviewing.

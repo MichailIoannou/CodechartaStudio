@@ -1,14 +1,15 @@
 # 04 — History view and git workflow: interface design
 
 Plan: `04-git-branches-and-history.md` (sections 3, 4.7, 4.8, milestones M3–M12).
-Principles: `00-design-principles.md`. Desktop only. Mock-up: `mockups/history.html`.
+Principles: `00-design-principles.md`. Desktop only. Mock-up: `mockups/studio-screens.html`
+(section "History"; also published as the review page).
 
 ## Elements
 
 | # | Element | Selector | Lives in | Modelled on |
 |---|---|---|---|---|
 | H1 | History tab | entry in `VIEW_TABS` | nav bar centre | the three existing tabs |
-| H2 | Branch chip | `cc-current-branch-chip` | nav bar, end of `navbar-start` | `cc-settings-button` (ghost button) |
+| H2 | Branch chip | `cc-current-branch-chip` | nav bar, start of `navbar-end` | `cc-settings-button` (ghost button) |
 | H3 | History view frame | `cc-history-view` → `cc-git-history-panel` | new route `history` | metrics view (explorer left, inspector right) |
 | H4 | Toolbar | `cc-history-toolbar` | top of H3 | explorer search bar, `cc-mode-toggle` |
 | H5 | Sync buttons and operation progress | `cc-sync-buttons` | right end of H4 | ghost buttons, `loading` |
@@ -43,7 +44,7 @@ Principles: `00-design-principles.md`. Desktop only. Mock-up: `mockups/history.h
 
 ## H2 Branch chip
 
-**Where.** `navbar-start`, after the map slot (principles §3). Rendered only when the active folder is
+**Where.** First child of `navbar-end`, before the analysis jobs indicator (principles §3). Rendered only when the active folder is
 a git repository and `GitRepositoryService.status()` is ready.
 
 ```
@@ -74,24 +75,27 @@ Host `block h-[calc(100vh-var(--cc-bars-height))] overflow-hidden bg-base-100` (
 metrics bar, no legend). Layout, all in-flow (not fixed panes):
 
 ```
-┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ H4 toolbar: [billing-api ▾]  Log | Changes 3      [🔍 Search commits ] [Author] [Path]  [⟳]  [⇣ Fetch][↓ Pull 1][↑ Push 2] │
-├───────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ H6 banners (only when needed)                                                                      │
-├──────────────────┬──────────────────────────────────────────────────────────┬─────────────────────┤
-│ H7 BRANCHES   «  │ H8 commit list                                           │ H9 DETAILS        » │
-│ [filter      ]   │ ✎ Uncommitted changes (3)                                │ Fix invoice rounding│
-│ ◉ All branches   │ ●─ Fix invoice rounding  [feature/x] [origin/feature/x] ▣│ a1b2c3d  ⧉          │
-│ ▾ LOCAL          │ │● Add currency table                                    │ Mia Chen · 3 Nov    │
-│   ✓ feature/x ↑2 │ ●┘ Merge branch 'main'                                   │ …message…           │
-│     main         │ ●  Release 2.4.0  [main] [🏷 v2.4.0]                      │ 4 files  +120 −8    │
-│ ▾ REMOTE         │ …                                                        │ M src/invoice.ts    │
-│   ▸ origin       │                                                          │ A src/currency.ts   │
-│ ▸ TAGS (42)      │                                                          │                     │
-└──────────────────┴──────────────────────────────────────────────────────────┴─────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ H4: Repository [billing-api ▾]  on ⎇ feature/invoice-rounding  [⇣ Fetch ▾] [↓ Pull 1] [↑ Push 2]     Log | Changes 3   [⟳] │
+├────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ H6 banners (only when needed)                                                                       │
+├──────────────────┬───────────────────────────────────────────────────────────┬─────────────────────┤
+│ BRANCHES       « │ COMMITS  [All branches]                               (?) │ DETAILS           » │
+│ [Filter branches]│ [🔍 Search messages and hashes ] [Author ] [Path       ]   │ Fix invoice rounding│
+│ ◉ All branches   │ GRAPH  COMMIT                         ANALYSIS AUTHOR DATE │ a1b2c3d  ⧉          │
+│ ▾ LOCAL          │ ┆○  Uncommitted changes (3)                              │ Mia Chen · 3 Nov    │
+│   ✓ feature/x ↑2 │ ◉   Fix invoice rounding (feature/inv…) (origin/f…)  …     │ …message…           │
+│     main         │ ●╮  Merge branch 'main' into feature/x                     │ 4 files  +120 −8    │
+│ ▾ REMOTE         │ ● │ Add currency table                                     │ modified invoice.ts │
+│   ▸ origin       │ │ ● Release 2.4.0 (main) (v2.4.0)              analysed  │ added    currency.ts│
+│ ▸ TAGS (42)      │ ●─╯ Start the invoice module                    in map   │                     │
+└──────────────────┴───────────────────────────────────────────────────────────┴─────────────────────┘
    260 px (180–480)                                                              380 px (280–640)
 ```
 
+- Three panes, each with its own header in the explorer's header style. Each pane holds the controls
+  that act on it: the branch filter sits in BRANCHES, the commit search and filters sit in COMMITS
+  (H8), so nothing in the top toolbar filters a list.
 - Pane borders `border-r` / `border-l border-base-300`; widths via `ccColumnResizeHandle`
   (double-click resets, arrow keys move, as the explorer). Widths remembered in
   `codeChartaHistoryLayout`.
@@ -99,42 +103,41 @@ metrics bar, no legend). Layout, all in-flow (not fixed panes):
   `fa-angle-double-left` "Collapse branches" / `fa-angle-double-right` "Collapse details"; collapsed
   = a 2.5 rem strip with the expand button (`fa-code-branch` "Expand branches", `fa-circle-info`
   "Expand details"). Below `xl` (1280 px) both start collapsed unless the user expanded them before.
-- Tabs **Log** and **Changes** sit in the toolbar (H4). The Changes tab replaces the three panes with
-  H11 + H13.
+- Tabs **Log** and **Changes** sit at the right of the toolbar (H4). The Changes tab replaces the three
+  panes with H11 + H13.
 - **Keep-alive.** The view keeps scroll, selection and filters across view switches (route reuse).
 - **Window focus** refreshes (throttled, plan G5); no visual change unless something changed.
 
 ## H4 Toolbar
 
-`flex items-center gap-2 px-2 py-1 border-b border-base-300 min-h-10`.
+One row, `flex items-center gap-2 px-2 py-1 border-b border-base-300 min-h-10 whitespace-nowrap`.
+Left to right, the toolbar answers "which repository, which branch, in sync?"; it holds no filters.
 
 | Control | Look | Behaviour |
 |---|---|---|
-| Folder select | `select select-sm select-bordered max-w-48`, options = git folders of the project by label; `aria-label` "Repository folder" | hidden when the project has one git folder; sets the active folder (`ProjectsService.setActiveFolder`, area 03 deviation 3) |
-| Tabs | `role="tablist"`, two `btn btn-ghost btn-sm` with `cc-current-underline` (as `cc-mode-toggle`): "Log", "Changes" + `badge badge-sm` count of changed files (hidden at 0; `badge-warning` when conflicts) | tab per project in `codeChartaHistoryTab.<projectId>` |
-| Search | `input input-bordered input-sm w-56` placeholder "Search commits", `aria-label` "Search commit messages and hashes", leading `fa-magnifying-glass` | debounced 300 ms; Log tab only |
-| Author | `input input-bordered input-sm w-36` placeholder "Author" | same |
-| Path | `input input-bordered input-sm w-44 font-mono` placeholder "Path, e.g. src/app" | same |
-| Clear filters | `btn btn-ghost btn-xs` "Clear" | only while a filter is set |
+| Repository | caption `text-xs text-base-content/60` "Repository", then `select select-sm select-bordered w-auto min-w-36 max-w-56` (`aria-label` "Repository folder"). The native select keeps its arrow on the same line at every width. With one git folder: the folder label as plain `font-medium` text, no select. | A **repository** is a project folder that is a git clone (project 'billing' has folders 'billing-api', 'billing-web'). It is *not* a branch or a commit. Changing it sets the active folder (`ProjectsService.setActiveFolder`, area 03 deviation 3); `title` "Folder C:\work\billing-api of project 'billing'". |
+| Current branch | `text-sm` "on" + `fa-code-branch` + branch name `font-medium truncate max-w-56` (+ `badge badge-warning badge-xs` "merging" / "rebasing"); detached: "at `a1b2c3d` (detached)" | read-only; click scopes the commit list to that branch (as clicking it in H7) |
+| Sync | H5, directly after the branch | — |
+| Tabs | `ml-auto`, `role="tablist"`, two `btn btn-ghost btn-sm` with `cc-current-underline` (as `cc-mode-toggle`): "Log", "Changes" + `badge badge-sm` count of changed files (hidden at 0; `badge-warning` when conflicts) | tab per project in `codeChartaHistoryTab.<projectId>` |
 | Refresh | `btn btn-ghost btn-sm btn-square fa-rotate`, `title`/`aria-label` "Refresh (F5)" | spins (`fa-spin`) while refreshing |
-| H5 | right end, `ml-auto` | — |
 
-While a filter is set: a line under the toolbar `text-xs text-base-content/60 px-2` "Filtered — the
-graph is hidden while searching." (plan G6). Narrow: Author and Path collapse into a
-`btn btn-ghost btn-sm` "Filters" (`fa-filter`, badge with the count of set filters) opening a popover
-(`cc-settings-popover-shell`) holding the two inputs; below `lg` Search shrinks to `w-36`.
+Narrow (< 1280 px): the "Repository" caption and the word "on" hide; the branch name shrinks to
+`max-w-32`; sync buttons drop their words and keep icon + count (titles unchanged).
 
 ## H5 Sync buttons and operation progress
 
+Placed right after the current branch, because they act on it.
+
 ```
-idle:      [⇣ Fetch ▾] [↓ Pull 1] [↑ Push 2]
-no upstream:[⇣ Fetch ▾] [↓ Pull] [↑ Publish branch]
-running:   (spinner) Receiving objects: 45% (2034/4520)        [■ Cancel]
+idle:        [⇣ Fetch ▾] [↓ Pull 1] [↑ Push 2]
+no upstream: [⇣ Fetch ▾] [↓ Pull] [↑ Publish branch]
+running:     (spinner) Receiving objects: 45% (2034/4520)  [██████░░]  [■ Cancel]
 ```
 
-- Buttons `btn btn-ghost btn-sm` with icon + text; counts as `badge badge-sm` (`behind` on Pull,
-  `ahead` on Push). Titles: "Fetch from all remotes", "Pull 1 commit from origin/main (fast-forward
-  only)", "Push 2 commits to origin/main", "Publish 'feature/x' to origin and track it".
+- Buttons `btn btn-ghost btn-sm gap-1.5` with `fa-fw` icon + text (principles §5 "Icon buttons");
+  counts as `badge badge-sm` (`behind` on Pull, `ahead` on Push). Titles: "Fetch from all remotes",
+  "Pull 1 commit from origin/main (fast-forward only)", "Push 2 commits to origin/main", "Publish
+  'feature/x' to origin and track it".
 - Fetch caret opens a small dropdown (map-selector style): `checkbox checkbox-xs` "Remove branches
   deleted on the remote (prune)", remembered per project.
 - Push without anything to push: disabled, title "Nothing to push". Pull with no upstream: disabled,
@@ -246,37 +249,85 @@ Pane header as `explorerHeader`: "BRANCHES" + collapse button. Then:
 
 ## H8 Commit list
 
-`role="listbox"`, `tabindex="0"`, `aria-label` "Commits", `aria-activedescendant`. Rows 28 px,
-virtualised (plan 4.7). Columns:
+**Pane header** (`px-2 py-2 border-b border-base-300 flex flex-col gap-2`):
 
 ```
-graph │ subject + ref labels                                          │ ▣ │ author        │ date
- ●─   │ Fix invoice rounding  [feature/x] [☁ origin/feature/x]          │ ▣ │ Mia Chen      │ 2 hours ago
- │●   │ Add currency table                                            │   │ Mia Chen      │ yesterday
+COMMITS  [All branches]                                                    (?)
+[🔍 Search messages and hashes          ] [Author        ] [Path, e.g. src/app ]  [Clear]
 ```
 
-- **Uncommitted changes row** (when dirty): first row, `fa-pen text-warning` in the graph column,
-  "Uncommitted changes (3)" `italic`, no author, no date. Selection item `workingTree`.
-- **Graph cell**: inline SVG per row, lane pitch 14 px, dot r 4, `stroke="currentColor"`. Lane colour
-  classes in this order: `text-primary`, `text-secondary`, `text-accent`, `text-info`,
-  `text-success`, `text-warning`, `text-error`, `text-base-content/60` (see Deviations: not
-  `text-neutral`). HEAD commit dot is filled with `base-100` and ringed (stroke 2) so the current
-  commit is visible without colour. More than 24 lanes: `+n` `text-xs`.
+- "COMMITS" in the explorer header style, then the **scope chip**: `badge badge-ghost badge-sm`
+  "All branches", or the scoped refs from H7 ("feature/invoice-rou…" with a `fa-xmark` button
+  "Show all branches"). The chip shows what the list is limited to, next to the list.
+- The three filters belong to this pane and filter **only the commit list** (`git.log` filter): the
+  branches tree has its own filter, the Changes tab is not filtered. Inputs `input input-bordered
+  input-sm`: Search `flex-1 min-w-40` (leading `fa-magnifying-glass`, placeholder "Search messages and
+  hashes", `aria-label` the same), Author `w-36` ("Author"), Path `w-44 font-mono` ("Path, e.g.
+  src/app"); each has `title` "Filters the commit list". Debounced 300 ms. "Clear" `btn btn-ghost
+  btn-xs` while any filter is set.
+- While a filter is set: line `text-xs text-base-content/60` "Filtered — the graph is hidden while
+  searching." (plan G6).
+- Narrow pane (< 640 px, container query): Author and Path collapse into `btn btn-ghost btn-sm`
+  "Filters" (`fa-filter`, badge with the number set) opening a popover with the two inputs.
+- **(?)** `btn btn-ghost btn-xs btn-square fa-circle-question` "How to read the commit list" opens the
+  graph legend popover (below).
+
+**Column header** (sticky, `z-10 bg-base-100 text-xs uppercase tracking-wide text-base-content/60`,
+28 px): "Graph", "Commit", "Analysis", "Author", "Date". The Analysis column exists only when area
+05's `ANALYSED_COMMITS` port is provided.
+
+**Rows.** `role="listbox"`, `tabindex="0"`, `aria-label` "Commits", `aria-activedescendant`. Rows 28
+px, virtualised (plan 4.7), CSS grid with the same columns as the header.
+
+```
+GRAPH  COMMIT                                                     ANALYSIS     AUTHOR      DATE
+┆○     Uncommitted changes (3)
+◉      Fix invoice rounding  (✓ feature/invoice-rou…) (☁ origin/fe…)  analysing 42 %  Mia Chen  2 hours ago
+●╮     Merge branch 'main' into feature/invoice-rounding                           Mia Chen  2 days ago
+● │    Add currency table                                                          Mia Chen  3 days ago
+│ ●    Release 2.4.0  (main) (v2.4.0)                              analysed       Jo Park   5 days ago
+●─╯    Start the invoice module                                    analysed·in map Jo Park  1 week ago
+```
+
+- **Uncommitted changes row** (when dirty): first row; in HEAD's lane a dashed hollow circle
+  (`stroke-dasharray="2 2"`) joined to the HEAD commit below by a dashed line, so it reads as "changes
+  on top of this commit". Text "Uncommitted changes (3)" `italic`, no author, no date. Selection item
+  `workingTree`.
+- **Graph cell**: inline SVG per row, lane pitch 14 px, row 28 px, dot r 4, `stroke-width 2`,
+  `stroke="currentColor"`. Edges per plan 4.8: a lane line runs from the top edge to the dot when a
+  child waits for this commit, and from the dot to the bottom edge toward the first parent; a merge
+  opens a curve from its dot down into the second parent's lane; a fork point receives a curve from
+  the other lane's top into its dot; every other open lane passes straight through. Lane colour
+  classes in order: `text-primary`, `text-secondary`, `text-accent`, `text-info`, `text-success`,
+  `text-warning`, `text-error`, `text-base-content/60`. **HEAD** (the checked-out commit) is drawn as a
+  ring (fill `base-100`, stroke 2) with a second outer ring, so it is recognisable without colour.
+  More than 24 lanes: `+n` `text-xs`. The worked example in `mockups/studio-screens.html` draws these
+  rows.
 - **Subject** `truncate min-w-40`: it keeps at least 10 rem before labels take space.
-- **Ref labels**, after the subject, `shrink-0`, max 3 (max 1 while the list pane is narrower than
-  640 px, a container query `@container` / `@2xl:`) then `badge badge-ghost badge-xs` "+2" (title lists
-  all):
-  - current branch: `badge badge-primary badge-xs` with `fa-check`;
-  - other local branch: `badge badge-outline badge-primary badge-xs`;
-  - remote branch: `badge badge-ghost badge-xs` with `fa-cloud`;
-  - tag: `badge badge-outline badge-accent badge-xs` with `fa-tag`;
-  - `HEAD` when detached: `badge badge-warning badge-xs` "HEAD".
-- **Analysed column** (only when area 05's `ANALYSED_COMMITS` port is provided): 24 px; `fa-cube
-  text-success` analysed, `loading loading-spinner loading-xs` running, `fa-triangle-exclamation
-  text-error` failed; `ring-1 ring-primary rounded-sm` around the icon when that snapshot is the one
-  in the map. Titles from area 05.
-- Author `truncate w-32` (title: name and e-mail), date `w-28 text-right tabular-nums
-  text-base-content/60` relative (title absolute).
+- **Ref labels** after the subject, `shrink-0`, max 3 (max 1 while the pane is narrower than 640 px)
+  then `badge badge-ghost badge-xs` "+2" (title lists all). A label never cuts off: it is an
+  `inline-flex badge badge-xs max-w-40 gap-1` whose icon stays and whose name is an inner
+  `<span class="truncate">`, so a long name ends in "…" inside the rounded badge
+  ("feature/invoice-rou…") and the full ref is in `title`:
+  - current branch: `badge-primary` with `fa-check`;
+  - other local branch: `badge-outline badge-primary` with `fa-code-branch`;
+  - remote branch: `badge-ghost` with `fa-cloud`;
+  - tag: `badge-outline badge-accent` with `fa-tag`;
+  - `HEAD` when detached: `badge-warning` "HEAD".
+- **Analysis column** (6.5 rem): a worded `badge badge-soft badge-xs`, never a bare icon — the column
+  says what the analysis state of that commit is:
+
+  | State | Badge | `title` |
+  |---|---|---|
+  | analysed | `badge-success` "analysed" | "Analysed 3 Nov 14:10" (+ " — other profile" / " — imported map, analysis time unknown") |
+  | analysed and shown in the map now | `badge-primary` "in map" | "This analysis is shown in the map" |
+  | queued | `badge-ghost` "queued" | "Waiting for another analysis to finish" |
+  | running | `badge-info` with `loading-spinner loading-xs` "42 %" | "Analysis running" |
+  | failed | `badge-error` "failed" | "Analysis failed: <message>" |
+  | not analysed | empty cell | — |
+
+- Author `truncate` (title: name and e-mail), date `text-right tabular-nums text-base-content/60`
+  relative (title absolute).
 - Hover `bg-base-200`; selected `bg-primary/20 font-semibold`; second selection the same plus a left
   `border-l-2 border-primary`.
 - **Filtered list**: no graph column; matches of the search text are not highlighted (plain).
@@ -287,9 +338,25 @@ graph │ subject + ref labels                                          │ ▣ 
   "Clear filters".
 - **Loading first page**: 8 skeleton rows (`skeleton h-4`) instead of a spinner.
 
+**Graph legend popover** (from "(?)", `cc-settings-popover-shell`, `w-80 p-3 text-sm`), drawn with the
+same SVG pieces:
+
+| Mark | Meaning |
+|---|---|
+| ● dot | a commit |
+| ◉ ringed dot | HEAD — the commit your folder has checked out |
+| ┆○ dashed circle | your uncommitted changes, on top of HEAD |
+| coloured line | a line of development; a line that splits off is a branch, two lines joining at a dot is a merge |
+| ( ✓ name ) filled badge | the branch you are on |
+| ( name ) outlined badge | another local branch |
+| ( ☁ name ) grey badge | a branch on a remote (origin) |
+| ( 🏷 name ) | a tag |
+| analysed / in map / failed | whether CodeCharta has an analysis of that commit, and whether the map shows it |
+
 **Keyboard** (plan 4.7): ↑/↓ select; Shift+↑/↓ or Ctrl+click set the second selection; Home/End,
-PageUp/PageDown; Enter / double-click run the primary commit action ("Show in map", area 05 S5); Ctrl+C copies the full SHA (toast "Copied a1b2c3d"); Menu or Shift+F10 opens the context
-menu; Ctrl+F or `/` focuses Search; F5 refreshes; Escape drops the second selection. Handled keys call
+PageUp/PageDown; Enter / double-click run the primary commit action ("Show in map", area 05 S5);
+Ctrl+C copies the full SHA (toast "Copied a1b2c3d"); Menu or Shift+F10 opens the context menu;
+Ctrl+F or `/` focuses Search; F5 refreshes; Escape drops the second selection. Handled keys call
 `stopPropagation()` (principles §9).
 
 ## H9 Commit details
@@ -306,20 +373,26 @@ a1b2c3d4e5  ⧉                                          font-mono; copy button 
 Mia Chen <mia@example.com> · 3 Nov 2026, 14:03          committer line only when different
 Parents  9f8e7d6  (link buttons, select that commit)
 
-[▶ Show in map] [⇄ Compare with…]                      contributed actions (areas 05, 06), btn btn-sm
+↺ Not analysed — nearest is 9f8e7d6, 4 commits older   resolution line (area 05 S10)
+[▦ Show in map] [▶ Analyse this commit] [⇄ Compare with…]   btn btn-sm gap-2, fa-fw icons
 
-4 files changed  +120 −8                                 text-xs
- M  src/invoice.ts                       +40 −8         letter badge, file name, folder /60, counts
- A  src/currency.ts                      +80
- R  src/old.ts → src/money.ts
+CHANGED FILES  4 files  +120 −8                          text-xs
+ modified  invoice.ts      src/billing      +40 −8      worded change badge, file name, folder /60
+ added     currency.ts     src/billing      +80
+ renamed   old.ts → money.ts  src/billing
  …  and 812 more files (list truncated)
 ```
 
-- Change letters: `badge badge-xs font-mono` M (`badge-info`), A (`badge-success`), D
-  (`badge-error`), R / C (`badge-accent`), T / ? (`badge-ghost`). Binary: counts replaced by "binary".
+- Action buttons: `btn btn-sm gap-2`, the Font Awesome icon a direct child with `fa-fw` (fixed width,
+  vertically centred by the button's `inline-flex items-center`), no margins on the icon. Same rule for
+  every icon + text button in all areas (principles §5).
+- **Change type** is a worded `badge badge-soft badge-xs w-16 justify-center` (fixed width so file
+  names line up), never a bare letter: "added" (`badge-success`), "modified" (`badge-info`),
+  "deleted" (`badge-error`), "renamed" / "copied" (`badge-accent`), "type" (`badge-ghost`, title "File
+  type changed, e.g. file to symlink"). Binary: counts replaced by "binary".
 - Merge commit: line `text-xs text-base-content/60` "Changes compared with the first parent".
 - File with a node in the loaded map (`LOADED_MAP_LOCATOR`): the file name is a
-  `btn btn-link btn-xs` "Show in map" behaviour (hand over + navigate), `title` "Show
+  `btn btn-link btn-xs` that shows it in the map (hand over + navigate), `title` "Show
   src/invoice.ts in the map"; otherwise plain text with `title` "Not in the map shown now".
 - **Two commits**: both subjects with short SHAs, then "a1b2c3d is 3 commits ahead of and 1 behind
   9f8e7d6" (`git.measureDistances`), then the two-commit actions (area 06 "Compare").
@@ -366,20 +439,21 @@ Left pane of the Changes tab, 360 px (260–640). Header "CHANGES" + `btn btn-gh
 
 ```
 ▾ CONFLICTED (1)                                   group header, badge-warning count
-   U  invoice.ts      src/billing                 [+]
+   conflict  invoice.ts   src/billing             [+]
 ▾ STAGED (2)                                       [Unstage all]
-   M  currency.ts     src/billing                 [−] 
-   A  money.ts        src/billing                 [−]
+   modified  currency.ts  src/billing             [−]
+   added     money.ts     src/billing             [−]
 ▾ CHANGES (3)                                      [Stage all]
-   M  app.ts          src                         [+] [↺]
-   D  legacy.ts       src/old                     [+] [↺]
+   modified  app.ts       src                     [+] [↺]
+   deleted   legacy.ts    src/old                 [+] [↺]
 ▾ UNTRACKED (1)
-   ?  notes.md                                    [+] [↺]
+   untracked notes.md                             [+] [↺]
 ──────────────────────────────────────────────
 H12 commit box
 ```
 
-- Rows 28 px: letter badge (as H9, `U` `badge-warning`, `?` `badge-ghost`), file name, folder
+- Rows 28 px: worded change badge (as H9, plus "conflict" `badge-warning` and "untracked"
+  `badge-ghost`), file name, folder
   `text-xs text-base-content/60 truncate`; renamed: "old.ts → money.ts". Row buttons appear on
   hover/focus: Stage `fa-plus` ("Stage <file>"), Unstage `fa-minus` ("Unstage <file>"), Discard
   `fa-rotate-left` ("Discard changes to <file>"); `btn btn-ghost btn-xs btn-square`.
@@ -519,6 +593,21 @@ the files, then commit. The stash is kept."
    gives fixed widths that leave the commit list under 400 px at 1024 px.
 8. **Branch rows: click scopes, double-click switches.** The plan lists actions but not the click
    meaning; this follows Rider.
+
+9. **Uncommitted changes join the graph.** Plan 4.7 gives the working-tree row no graph lane. The
+   design draws a dashed circle in HEAD's lane linked to HEAD, so the row reads as changes on top of
+   the checked-out commit (owner review, 2026-11-18).
+10. **Filters live in the commit pane, sync next to the branch.** The plan puts search, author, path
+    and the sync buttons in one toolbar; the owner review found it unclear what the filters act on.
+    Filters now sit in the COMMITS pane header (they filter only that list), and Fetch / Pull / Push sit
+    next to the repository and current branch they act on.
+11. **Words instead of letters and icons.** Plan 4.7 shows change letters (`M A D R U ?`) and icon-only
+    analysis markers; the owner review could not tell what they meant. Both are worded badges now
+    ("modified", "analysed", "in map"), plus a graph legend behind "(?)".
+12. **The repository select is always visible** (as plain text with one git folder), labelled
+    "Repository", so it is never mistaken for a branch or commit picker.
+13. **Branch chip in `navbar-end`.** Plan 4.7 puts it at the end of `navbar-start`; with the project
+    switcher and the map slot there, the left half has no room for it (principles §3).
 
 ## Proposed changes to existing UI (not assumed approved)
 
