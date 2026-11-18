@@ -1,9 +1,11 @@
 pub mod config;
 pub mod error;
 pub mod folders;
+pub mod git;
 pub mod ids;
 pub mod process;
 pub mod store;
+pub mod timestamps;
 pub mod tools;
 
 pub use config::paths::{CoreConfig, Paths};

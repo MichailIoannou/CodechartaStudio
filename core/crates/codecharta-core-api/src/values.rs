@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 pub const FULL_COMMIT_LENGTH: usize = 40;
+pub const SHORTEST_COMMIT_HASH_LENGTH: usize = 7;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InvalidValue {
@@ -28,6 +29,10 @@ fn is_lowercase_hex(value: &str, lengths: std::ops::RangeInclusive<usize>) -> bo
 
 fn is_full_commit(value: &str) -> bool {
     is_lowercase_hex(value, FULL_COMMIT_LENGTH..=FULL_COMMIT_LENGTH)
+}
+
+fn is_commit_hash(value: &str) -> bool {
+    is_lowercase_hex(value, SHORTEST_COMMIT_HASH_LENGTH..=FULL_COMMIT_LENGTH)
 }
 
 /// A text value checked while it is deserialised, so a handler never sees an invalid one. The rule text
@@ -90,6 +95,12 @@ validated_text!(
     "use the 40 lowercase hexadecimal digits of a commit"
 );
 
+validated_text!(
+    CommitHash,
+    is_commit_hash,
+    "use 7 to 40 lowercase hexadecimal digits of a commit"
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,6 +126,22 @@ mod tests {
         // Assert
         assert_eq!(accepted.unwrap().as_str(), full);
         assert_eq!(rejected, vec![true, true, true]);
+    }
+
+    #[test]
+    fn should_refuse_a_commit_hash_that_could_be_an_option() {
+        // Arrange
+        let candidates = ["--output=x", "-abcdef0", "abc", "ABCDEF0", "abcdef0^"];
+
+        // Act
+        let accepted: Vec<bool> = candidates
+            .into_iter()
+            .map(|candidate| CommitHash::try_from(candidate).is_ok())
+            .collect();
+
+        // Assert
+        assert_eq!(accepted, vec![false; candidates.len()]);
+        assert!(CommitHash::try_from("abcdef0").is_ok());
     }
 
     #[test]

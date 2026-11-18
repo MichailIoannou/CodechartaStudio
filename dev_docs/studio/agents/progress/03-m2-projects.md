@@ -40,7 +40,7 @@ store API of `03-m1-store-core.md` apply. Git fixtures go in `tests/support/git_
 ## Steps
 
 - [x] 1. Relationships
-- [ ] 2. Fixture and inspector
+- [x] 2. Fixture and inspector
 - [ ] 3. Pick tokens
 - [ ] 4. Repository
 - [ ] 5. Folder operations
@@ -68,4 +68,29 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0, nod
   `sameRemote` (both have `origin`). The upstream of a fork therefore sees `sharesHistoryWith`, the fork
   sees `forkOf`. Extra tests: `should_keep_local_paths_apart_from_hosts`,
   `should_report_same_remote_for_equal_origins`.
+
+### 2. Fixture and inspector
+- `git/runner.rs` (new module `git/`, plan 04 extends it): `GitRunner` trait, object-safe through a boxed
+  future (`fn run(&self, cwd, args: &[&str]) -> GitFuture`), `GitOutput { exit_code, stdout }` (a non-zero
+  exit is an answer), `GIT_TIMEOUT` = 15 s. `Tools` implements it over `Tools::run(ToolId::Git, ..)`; git
+  missing is `TOOL_NOT_FOUND`, which the inspector turns into `plain`.
+- `tests/support/git_fixture.rs` extended (not a new `fixture_repo.rs`): `TempRepo::clone_full`,
+  `clone_shallow` (`--depth 1` over a `file://` url), `add_remote`, `subfolder`, `runner()` -> `FixtureGit`,
+  a `GitRunner` over the core's own `ProcessRunner` with the system git and the repository's hermetic
+  variables. The plan's `create()` / `commit(message, files)` are the existing `new()` / `commit_file`.
+- `folders/inspector.rs`: `inspect_folder(&dyn GitRunner, path) -> FolderInspection { kind, git }` (async)
+  and `resolve_commit(.., &CommitHash) -> CoreResult<Option<ResolvedCommit>>`. `kind` comes from
+  `--show-toplevel` alone; `is_repository_root` canonicalises both sides (case-insensitive on Windows, no
+  `dunce`). Shallow: `rootCommits` stays empty (03-M0 item 3.5 finding 1). Default branch: `origin/HEAD`,
+  else the current branch from `rev-parse --abbrev-ref HEAD` whatever its exit code; empty or `HEAD` is
+  none. Remotes: first url per name, credentials stripped before anything else sees them
+  (`strip_credentials`: http/https lose the whole user part, since a token is often the user name; other
+  scheme urls lose only the password; scp-like urls are unchanged). `resolve_commit` uses
+  `rev-parse --verify --quiet <hash>^{commit}` (any non-zero exit, including an ambiguous short hash, is
+  `None`) and `show -s --format=%H%x00%h%x00%s%x00%an%x00%aI`; the plan's `%cI` and `%P` fields are for
+  binding imports (03-M3), which adds them. Note: git 2.56 writes `%aI` for UTC as `...Z`.
+- Api additions: `FolderKind`, `ResolvedCommit`, `CommitHash` (7-40 lowercase hex). `timestamps::now()`
+  (RFC 3339 UTC seconds) is shared by the inspector and the repository.
+- Extra tests: `should_report_no_root_commits_for_a_shallow_clone`, `should_read_the_fields_of_a_shown_commit`,
+  `should_refuse_a_commit_hash_that_could_be_an_option`. The stub-runner test is a unit test.
 

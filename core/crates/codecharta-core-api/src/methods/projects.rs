@@ -39,6 +39,23 @@ pub struct FolderRelationship {
     pub folder_id: FolderId,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum FolderKind {
+    Git,
+    Plain,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedCommit {
+    pub commit: FullCommit,
+    pub short_commit: String,
+    pub subject: String,
+    pub author_name: String,
+    pub author_date: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
