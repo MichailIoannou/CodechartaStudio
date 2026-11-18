@@ -39,6 +39,9 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features
 ```
 
+CI also runs `cargo deny check licenses sources` (`deny.toml`): every dependency must carry a licence
+that `../license_policy.json` allows and come from crates.io. Check a new crate's licence before adding it.
+
 `--all-features` switches on `test-methods`, which adds test-only protocol methods (`core.sleep`) that the
 protocol tests need. They never ship and never appear in the contract.
 

@@ -9,6 +9,7 @@ on:
       - 'visualization/app/codeCharta/model/coreApi/**'
       - 'visualization/electron/coreMethods.generated.json'
       - '.github/workflows/test_core.yml'
+      - 'license_policy.json'
   pull_request:
     branches:
       - main
@@ -17,6 +18,7 @@ on:
       - 'visualization/app/codeCharta/model/coreApi/**'
       - 'visualization/electron/coreMethods.generated.json'
       - '.github/workflows/test_core.yml'
+      - 'license_policy.json'
 
 permissions:
   contents: read
@@ -115,3 +117,35 @@ jobs:
             echo "::error::The generated contract is out of date. Run 'npm run contract' in visualization/ and commit the result."
             exit 1
           fi
+
+  core_licences:
+    name: Core licences
+    runs-on: ubuntu-latest
+    env:
+      CARGO_DENY_VERSION: '0.21.0'
+    defaults:
+      run:
+        working-directory: ./core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install the Rust toolchain
+        run: rustup toolchain install
+
+      - name: Cache cargo-deny
+        id: cache-cargo-deny
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/cargo-deny
+          key: ${{ runner.os }}-cargo-deny-${{ env.CARGO_DENY_VERSION }}
+
+      - name: Install cargo-deny
+        if: steps.cache-cargo-deny.outputs.cache-hit != 'true'
+        run: cargo install cargo-deny --version "$CARGO_DENY_VERSION" --locked
+
+      # deny.toml allows exactly the licences license_policy.json allows; crates.io is the only source
+      - name: Check licences and sources of the core dependencies
+        run: cargo deny check licenses sources

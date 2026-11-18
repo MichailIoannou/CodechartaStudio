@@ -1,6 +1,6 @@
 ---
 name: 01-M1 core skeleton, protocol, contract, CI
-state: progress
+state: complete
 version: 1
 ---
 
@@ -34,7 +34,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M1 (the test names to writ
 - [x] 1.5 Contract generation
 - [x] 1.6 CI
 - [x] 1.7 Docs
-- [ ] 1.8 Licences
+- [x] 1.8 Licences
 
 ## Notes
 
@@ -149,4 +149,42 @@ node 26.13.0, npm 12.2.2. No `mise`, `cargo-deny` or `cargo-cyclonedx` installed
 - **Deviation:** the root `README.md` is the user-facing product page and has no developer-prerequisites
   section; the prerequisites live in `dev_docs/DEV_START_GUIDE.md` "Requirements", which gets the Rust line
   instead.
+
+### 1.8
+- **Choice: `cargo-deny` in `test_core.yml` (job `core_licences`), not `cargo-cyclonedx` + `purl-patrol`.**
+  Why: `check-licenses.yml` runs only on `MaibornWolff/codecharta` pushes to `main` with
+  `BREAK_ENABLED: false`, so in this fork it never runs and upstream it never fails; `cargo-deny` gates
+  every PR that touches `core/` or `license_policy.json`. An SBOM job for secobserve can be added
+  beside the other two later if the owner wants the core in that dashboard.
+- `core/deny.toml`: `[licenses] allow` = the 96 `usagePolicy: "allow"` ids of `license_policy.json`
+  minus `Nunit` and `StandardML-NJ` — both deprecated SPDX ids that the `spdx` crate (0.13.6, which
+  cargo-deny uses) refuses to parse as a licensee ("a deprecated license identifier was used"); checked in
+  a throwaway scratch crate. `unused-allowed-license = "allow"`, private (workspace) crates ignored,
+  `[sources]` crates.io only.
+- **Finding for the owner:** `unicode-ident` (pulled in by every proc macro: serde, clap, thiserror,
+  ts-rs, tokio-macros) is `(MIT OR Apache-2.0) AND Unicode-3.0`, and `Unicode-3.0` is in neither list of
+  `license_policy.json`. `deny.toml` carries a single-crate exception for it with a comment; remove it once
+  `Unicode-3.0` is added to the policy (it is OSI-approved and permissive). `license_policy.json` itself was
+  not changed.
+- cargo-deny is installed in CI with `cargo install cargo-deny --version 0.21.0 --locked` (cached in
+  `~/.cargo/bin`), so no new third-party action and no SHA to confirm. **Not run locally** (it would need a
+  global install). Local substitute: a script over `cargo metadata --all-features` evaluated every
+  third-party crate's licence expression (60 packages) against the `deny.toml` allow list plus the
+  exception: all pass. Licences seen: MIT, Apache-2.0, Unlicense, and Unicode-3.0 (exception).
+
+### For M2 and later plans
+- Replace the M1 data-dir stopgap (`serve` requires `--data-dir`, `Core::new(CoreConfig { data_dir })`)
+  with `CoreConfig::resolve` + `Core::open` (task 2.1); `HelloResult.dataDir` reads `Core::data_dir()`.
+- Add a method: api types + `impl Method` + `METHODS` entry → `npm run contract` → `codecharta-core`
+  function → a `Route` in `codecharta-cored/src/serve/dispatch.rs` (`read_params::<M>` /
+  `write_result::<M>` / `domain_error`). `should_handle_exactly_the_registered_methods` fails until both
+  sides exist. Events: `impl Event` + `EVENTS`; emit with `context.notifier.emit(E::NAME, &payload)`.
+- Cancellation is cooperative: long handlers must watch `context.cancel` (M2's runner kills the process
+  tree on it). `Session::finish` cancels every token at shutdown; M2 adds `Core::shutdown` (kill
+  children) to that path.
+- `CoreError` already has every plan-01 variant; `CoreError::to_payload` keeps Io/Internal detail out of
+  the payload and logs them via `domain_error`.
+- New crates: check licences against `core/deny.toml` (CI `core_licences`).
+- Owner to-dos: exact toolchain pin instead of `stable` (1.1); SHA for `actions/cache@v5` (1.6);
+  `Unicode-3.0` in `license_policy.json` (1.8); the Node 26 `urlExtractor.spec.ts` failure (1.5).
 
