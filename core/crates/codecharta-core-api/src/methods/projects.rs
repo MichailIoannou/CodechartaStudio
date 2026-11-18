@@ -176,6 +176,13 @@ pub struct ProjectSummary {
     pub problem: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FolderRef {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+}
+
 /// Fields left out stay as they are; an empty description removes it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

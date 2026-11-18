@@ -43,7 +43,7 @@ store API of `03-m1-store-core.md` apply. Git fixtures go in `tests/support/git_
 - [x] 2. Fixture and inspector
 - [x] 3. Pick tokens
 - [x] 4. Repository
-- [ ] 5. Folder operations
+- [x] 5. Folder operations
 - [ ] 6. JSON-RPC
 - [ ] 7. CLI
 - [ ] 8. Shell (part B)
@@ -137,3 +137,25 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0, nod
 - Tests (`tests/projects.rs`, real git through `FixtureGit`, `RecordingRecycler` in `tests/support`): the plan's
   five plus `should_derive_kind_status_and_counts_when_getting_a_project`,
   `should_update_name_description_and_profile`, unit `should_suggest_the_folder_name_as_label`.
+
+### 5. Folder operations
+- New error codes (appended; `ErrorCode::ALL` now 20): `DUPLICATE_FOLDER`, `DUPLICATE_LABEL`,
+  `FOLDER_UNAVAILABLE`, `DIFFERENT_HISTORY`; contract regenerated. `NOT_A_COMMIT` and `TOO_LARGE` join with
+  their first user (03-M3 bind-to-commit, task 6). Api `FolderRef { projectId, folderId }`.
+- `projects/folder_operations.rs` (a second `impl ProjectRepository`): `add_folder`, `update_folder(FolderRef,
+  FolderChanges { label, role })`, `remove_folder(FolderRef, permanently)`, `relink_folder(FolderRef, Relink
+  { path, accept_different_history })`, `refresh_folder`, `resolve_folder -> ResolvedFolder { path, kind,
+  status }` (for plans 04/05/06), `set_view(project, ProjectView)`, `resolve_commit(FolderRef, &CommitHash)`.
+- Rules as built: duplicate paths compare canonicalised when the folder exists (else the stored text without
+  a trailing separator), case-insensitive on Windows; labels case-insensitive. Making a folder primary
+  demotes the old one to helper; turning the primary folder into another role is `BAD_REQUEST` (a project
+  keeps one primary). Removing a folder recycles `snapshots/<folderId>/` first (or deletes it), drops its
+  `shownSnapshotIdByFolder` entry, promotes the first remaining folder when the primary left and moves the
+  working folder to the primary (or null). Relink: `DIFFERENT_HISTORY` when both old and new facts have root
+  commits and they share none (shallow clones and repositories without commits have none, so they pass);
+  the folder id, and with it the snapshots, stays. `refresh_folder` on a missing folder and
+  `resolve_commit` outside an `ok` git folder are `FOLDER_UNAVAILABLE`. `set_view` refuses (`NOT_FOUND`) a
+  working folder or a shown snapshot that is not in the project (snapshot = its directory exists).
+- Tests: the plan's six plus `should_refuse_to_leave_a_project_without_a_primary_folder`,
+  `should_recycle_the_snapshots_of_a_removed_folder`, `should_refuse_a_view_naming_a_folder_outside_the_project`,
+  `should_resolve_commits_only_in_git_folders`.

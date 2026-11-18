@@ -38,7 +38,7 @@ pub struct NewProject {
 pub struct ProjectRepository<'deps> {
     pub(crate) store: &'deps Store,
     pub(crate) git: &'deps dyn GitRunner,
-    recycler: &'deps dyn Recycler,
+    pub(crate) recycler: &'deps dyn Recycler,
 }
 
 impl<'deps> ProjectRepository<'deps> {
@@ -82,7 +82,7 @@ impl<'deps> ProjectRepository<'deps> {
         let mut record = empty_record(id, new.name, new.description);
         for folder in new.folders {
             let folder = self.new_folder_record(folder).await?;
-            self.attach(&mut record, folder)?;
+            attach_folder(&mut record, folder)?;
         }
         self.write_record(&record)?;
         Ok(self.to_project(record))
@@ -132,15 +132,6 @@ impl<'deps> ProjectRepository<'deps> {
         record.updated_at = timestamps::now();
         self.write_record(&record)?;
         Ok(self.to_project(record))
-    }
-
-    pub(crate) fn attach(
-        &self,
-        record: &mut ProjectRecord,
-        folder: FolderRecord,
-    ) -> CoreResult<()> {
-        attach_folder(record, folder);
-        Ok(())
     }
 
     pub(crate) async fn new_folder_record(&self, folder: FolderToAdd) -> CoreResult<FolderRecord> {

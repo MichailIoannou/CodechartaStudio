@@ -22,10 +22,14 @@ pub enum ErrorCode {
     StoreNewerSchema,
     StoreLocked,
     TokenExpired,
+    DuplicateFolder,
+    DuplicateLabel,
+    FolderUnavailable,
+    DifferentHistory,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 16] = [
+    pub const ALL: [ErrorCode; 20] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -42,6 +46,10 @@ impl ErrorCode {
         ErrorCode::StoreNewerSchema,
         ErrorCode::StoreLocked,
         ErrorCode::TokenExpired,
+        ErrorCode::DuplicateFolder,
+        ErrorCode::DuplicateLabel,
+        ErrorCode::FolderUnavailable,
+        ErrorCode::DifferentHistory,
     ];
 }
 

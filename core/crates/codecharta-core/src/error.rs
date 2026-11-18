@@ -41,6 +41,16 @@ pub enum CoreError {
     StoreLocked { store_root: String },
     #[error("The choice has expired or was used already; choose the {what} again.")]
     TokenExpired { what: &'static str },
+    #[error("The folder {path} is already part of this project.")]
+    DuplicateFolder { path: String },
+    #[error("Another folder of this project is already called {label:?}.")]
+    DuplicateLabel { label: String },
+    #[error("{0}")]
+    FolderUnavailable(String),
+    #[error(
+        "The folder at {path} has a different history; relink anyway only if this is intended."
+    )]
+    DifferentHistory { path: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;
@@ -62,6 +72,10 @@ impl CoreError {
             CoreError::StoreNewerSchema { .. } => ErrorCode::StoreNewerSchema,
             CoreError::StoreLocked { .. } => ErrorCode::StoreLocked,
             CoreError::TokenExpired { .. } => ErrorCode::TokenExpired,
+            CoreError::DuplicateFolder { .. } => ErrorCode::DuplicateFolder,
+            CoreError::DuplicateLabel { .. } => ErrorCode::DuplicateLabel,
+            CoreError::FolderUnavailable(_) => ErrorCode::FolderUnavailable,
+            CoreError::DifferentHistory { .. } => ErrorCode::DifferentHistory,
         }
     }
 
@@ -153,6 +167,28 @@ mod tests {
             (
                 CoreError::TokenExpired { what: "folder" },
                 ErrorCode::TokenExpired,
+            ),
+            (
+                CoreError::DuplicateFolder {
+                    path: "/src/app".into(),
+                },
+                ErrorCode::DuplicateFolder,
+            ),
+            (
+                CoreError::DuplicateLabel {
+                    label: "app".into(),
+                },
+                ErrorCode::DuplicateLabel,
+            ),
+            (
+                CoreError::FolderUnavailable("gone".into()),
+                ErrorCode::FolderUnavailable,
+            ),
+            (
+                CoreError::DifferentHistory {
+                    path: "/src/other".into(),
+                },
+                ErrorCode::DifferentHistory,
             ),
         ]
     }

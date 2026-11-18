@@ -35,7 +35,11 @@ export const CORE_ERROR_CODES = [
     "INTERNAL",
     "STORE_NEWER_SCHEMA",
     "STORE_LOCKED",
-    "TOKEN_EXPIRED"
+    "TOKEN_EXPIRED",
+    "DUPLICATE_FOLDER",
+    "DUPLICATE_LABEL",
+    "FOLDER_UNAVAILABLE",
+    "DIFFERENT_HISTORY"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {

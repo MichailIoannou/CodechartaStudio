@@ -17,3 +17,7 @@ export type ErrorCode =
     | "STORE_NEWER_SCHEMA"
     | "STORE_LOCKED"
     | "TOKEN_EXPIRED"
+    | "DUPLICATE_FOLDER"
+    | "DUPLICATE_LABEL"
+    | "FOLDER_UNAVAILABLE"
+    | "DIFFERENT_HISTORY"
