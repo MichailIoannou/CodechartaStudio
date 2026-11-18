@@ -35,7 +35,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M3 (tests to write first a
 - [x] 3.0 Electron download on npm 12
 - [x] 3.1 Copy electron files
 - [x] 3.2 Smoke harness
-- [ ] 3.3 Shell policy
+- [x] 3.3 Shell policy
 - [ ] 3.4 Core client
 - [ ] 3.5 Preload, relay, lifecycle
 - [ ] 3.6 Pickers and reveal
@@ -85,4 +85,19 @@ Known red gates that are not this milestone's:
   triggers on `core/**`, since the smoke suite starts the core. Action references copied from the same file
   (tag style, as in its other jobs); the Rust toolchain comes from preinstalled `rustup` like `test_core.yml`.
   YAML parsed with PyYAML; the job itself has not run (no CI here).
+
+### 3.3
+- `electron/shellPolicy.js` (pure, CommonJS, Node built-ins only): `describeTrustedPage`, `isTrustedSender`,
+  `judgeNavigation`, `resolveCoreExecutable`, `planCoreRestart`, `isRendererMethod`, plus `isRendererEvent` and
+  `isValidOperationId` (the relay needs both; one test each beyond the plan list).
+- Sender snapshot shape: `{ hasFrame, isMainFrame, frameUrl, webContentsId }`, which main captures synchronously
+  from `event.senderFrame` / `event.sender` before any `await` (S1).
+- A dev server is trusted only when unpackaged and `CODECHARTA_DEV_SERVER_URL` is `http://localhost:<port>` or
+  `http://127.0.0.1:<port>`; otherwise the bundled `index.html` is the trusted page. File URLs are compared with
+  `fileURLToPath(url, { windows })` + `path.win32`/`path.posix.normalize`, lower-cased on Windows; query and
+  hash are ignored. The Windows case is unit tested with a `win32` path on Linux; not run on Windows.
+- Backoff reading: failures 1-5 inside 60 s get 0.5/1/2/4/8 s, the sixth gives up (`delayMs: null`), which
+  matches manual step 6 ("kill it six times quickly → unavailable").
+- `test:electron` = `node --test "electron/*.test.js"` (quoted glob, Node >= 21), and a step in
+  `build_visualization_test`. 17 tests green.
 

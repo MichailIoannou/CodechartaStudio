@@ -45,6 +45,7 @@
     "test:auto": "npm test -- --watch",
     "test:autoNoCoverage": "npm run test:auto -- --coverage false",
     "test:updateSnaps": "npm test -- --updateSnapshot",
+    "test:electron": "node --test \"electron/*.test.js\"",
     "test:createCoverageFile": "jest --config conf/jestUnit.config.json --coverage --coverageReporters=lcov --coverageDirectory=coverage",
     "e2e": "npx playwright test",
     "e2e:auto": "npx playwright test --ui",
