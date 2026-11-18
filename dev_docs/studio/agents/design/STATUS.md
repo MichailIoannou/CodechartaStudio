@@ -1,7 +1,9 @@
 # Design status
 
 **Owner review in progress (2026-11-18).** Every area is held as "blocked" until the owner
-has reviewed the revised design; do not start UI milestones.
+has reviewed the revised design; do not start UI milestones. The owner changed plan scope during the
+review (`owner-decisions.md` OD1: one working folder at a time, which changes plan 03's store format
+now in 03-M1).
 
 States: draft · ready · blocked. An area is "ready" when every element has placement, all states,
 wording and data needs. Where a design file and its plan disagree about the interface, the design
