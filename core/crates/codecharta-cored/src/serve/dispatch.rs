@@ -11,6 +11,7 @@ use codecharta_core_api::methods::core::{
 };
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
+use codecharta_core_api::methods::store::StoreGetStatus;
 use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 use codecharta_core_api::protocol::{
     INVALID_PARAMS, METHOD_NOT_FOUND, Notification, RequestId, ResponseError,
@@ -21,7 +22,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
-use super::tools_routes;
+use super::{store_routes, tools_routes};
 
 pub type DispatchResult = Result<Value, ResponseError>;
 pub type HandlerFuture<'core> = Pin<Box<dyn Future<Output = DispatchResult> + Send + 'core>>;
@@ -72,6 +73,10 @@ const ROUTES: &[Route] = &[
     Route {
         name: ShellResolvePath::NAME,
         handler: shell_resolve_path,
+    },
+    Route {
+        name: StoreGetStatus::NAME,
+        handler: store_routes::status,
     },
 ];
 

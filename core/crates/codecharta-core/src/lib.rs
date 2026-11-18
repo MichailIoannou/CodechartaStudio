@@ -10,13 +10,16 @@ pub use config::settings::{CoreSettings, SettingsStore};
 pub use error::{CoreError, CoreResult};
 
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use codecharta_core_api::methods::core::Platform;
+use codecharta_core_api::methods::store::StoreStatus;
 
 use config::settings::SETTINGS_FILE_NAME;
 use process::ProcessRunner;
 use process::env::hardened_env;
+use store::Store;
+use store::state::StoreState;
 use tools::{SearchLocations, Tools, ToolsSetup};
 
 pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -25,6 +28,7 @@ pub struct Core {
     paths: Paths,
     runner: Arc<ProcessRunner>,
     tools: Tools,
+    store: OnceLock<StoreState>,
 }
 
 impl Core {
@@ -47,7 +51,28 @@ impl Core {
             paths: Paths::new(config.data_dir, settings),
             runner,
             tools,
+            store: OnceLock::new(),
         })
+    }
+
+    /// Opens the store for writing, once; a problem is kept and answered by every store request.
+    pub fn open_store(&self) {
+        self.store
+            .get_or_init(|| StoreState::open(&self.paths.store_root()));
+    }
+
+    pub fn store(&self) -> CoreResult<&Store> {
+        self.store_state()?.store()
+    }
+
+    pub fn store_status(&self) -> CoreResult<StoreStatus> {
+        Ok(self.store_state()?.status())
+    }
+
+    fn store_state(&self) -> CoreResult<&StoreState> {
+        self.store
+            .get()
+            .ok_or_else(|| CoreError::Internal("the store was not opened".to_string()))
     }
 
     pub fn data_dir(&self) -> &Path {
@@ -123,5 +148,28 @@ mod tests {
         // Assert
         assert_eq!(core.data_dir(), data_dir.as_path());
         assert!(!data_dir.exists());
+    }
+
+    #[test]
+    fn should_open_the_store_in_the_store_root() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+        let core = Core::open(CoreConfig {
+            data_dir: folder.path().to_path_buf(),
+        })
+        .unwrap();
+        let unopened = core.store_status();
+
+        // Act
+        core.open_store();
+
+        // Assert
+        assert!(matches!(unopened, Err(CoreError::Internal(_))));
+        assert_eq!(core.store_status().unwrap().problem, None);
+        assert_eq!(
+            core.store().unwrap().paths().root(),
+            folder.path().join("store")
+        );
+        assert!(folder.path().join("store").join("store.json").is_file());
     }
 }

@@ -4,6 +4,9 @@ use std::sync::mpsc::{self, Receiver};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use codecharta_core::CoreError;
+use codecharta_core::store::Store;
+use codecharta_core::store::lock::StoreLock;
 use serde_json::{Value, json};
 
 const CORE_EXECUTABLE: &str = env!("CARGO_BIN_EXE_codecharta-core");
@@ -25,7 +28,13 @@ impl ServingCore {
     }
 
     fn start_with(configure: impl FnOnce(&mut Command)) -> Self {
-        let data_dir = tempfile::tempdir().expect("a temporary data folder");
+        Self::launch(
+            tempfile::tempdir().expect("a temporary data folder"),
+            configure,
+        )
+    }
+
+    fn launch(data_dir: tempfile::TempDir, configure: impl FnOnce(&mut Command)) -> Self {
         let mut command = Command::new(CORE_EXECUTABLE);
         configure(&mut command);
         let mut child = command
@@ -59,6 +68,16 @@ impl ServingCore {
         let mut core = Self::start();
         core.request(0, "core.hello", hello_params(PROTOCOL_VERSION));
         core
+    }
+
+    fn started_and_greeted_in(data_dir: tempfile::TempDir) -> Self {
+        let mut core = Self::launch(data_dir, |_| {});
+        core.request(0, "core.hello", hello_params(PROTOCOL_VERSION));
+        core
+    }
+
+    fn store_root(&self) -> std::path::PathBuf {
+        self.data_dir.path().join("store")
     }
 
     fn send_line(&mut self, line: &str) {
@@ -409,4 +428,58 @@ fn should_resolve_shell_path_targets() {
     let logs_dir = core.data_dir.path().join("logs");
     assert_eq!(logs["result"]["path"], json!(logs_dir.to_str().unwrap()));
     assert_eq!(error_data_code(&map), &json!("NOT_FOUND"));
+}
+
+#[test]
+fn should_answer_store_status_with_null_for_a_healthy_store() {
+    // Arrange
+    let mut core = ServingCore::started_and_greeted();
+
+    // Act
+    let answer = core.request(1, "store.status", json!({}));
+
+    // Assert
+    assert_eq!(answer["result"], json!({ "problem": null }));
+    let store_root = core.store_root();
+    assert!(store_root.join("store.json").is_file());
+    assert!(store_root.join(".lock").is_file());
+    let second_writer = Store::open(&store_root);
+    assert!(matches!(second_writer, Err(CoreError::StoreLocked { .. })));
+}
+
+#[test]
+fn should_report_store_newer_schema_and_still_answer_paths_get() {
+    // Arrange
+    let data_dir = tempfile::tempdir().unwrap();
+    let store_root = data_dir.path().join("store");
+    std::fs::create_dir_all(&store_root).unwrap();
+    std::fs::write(store_root.join("store.json"), r#"{ "schemaVersion": 999 }"#).unwrap();
+    let mut core = ServingCore::started_and_greeted_in(data_dir);
+
+    // Act
+    let status = core.request(1, "store.status", json!({}));
+    let paths = core.request(2, "paths.get", json!({}));
+
+    // Assert
+    assert_eq!(status["result"], json!({ "problem": "STORE_NEWER_SCHEMA" }));
+    assert_eq!(
+        paths["result"]["storeRoot"],
+        json!(store_root.to_str().unwrap())
+    );
+}
+
+#[test]
+fn should_report_store_locked_while_another_process_holds_the_store() {
+    // Arrange
+    let data_dir = tempfile::tempdir().unwrap();
+    let store_root = data_dir.path().join("store");
+    let _holder = StoreLock::acquire(&store_root).unwrap();
+    let mut core = ServingCore::started_and_greeted_in(data_dir);
+
+    // Act
+    let status = core.request(1, "store.status", json!({}));
+
+    // Assert
+    assert_eq!(status["result"], json!({ "problem": "STORE_LOCKED" }));
+    assert!(!store_root.join("store.json").exists());
 }

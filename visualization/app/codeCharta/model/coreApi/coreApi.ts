@@ -14,6 +14,7 @@ import type { ResolvePathParams } from "./ResolvePathParams"
 import type { ResolvePathResult } from "./ResolvePathResult"
 import type { SetStoreRootParams } from "./SetStoreRootParams"
 import type { SetToolPathParams } from "./SetToolPathParams"
+import type { StoreStatus } from "./StoreStatus"
 import type { ToolsReport } from "./ToolsReport"
 
 export const CORE_PROTOCOL_VERSION = 1
@@ -47,6 +48,7 @@ export type CoreMethods = {
     "tools.setPath": { params: SetToolPathParams; result: ToolsReport }
     "tools.clearPath": { params: ClearToolPathParams; result: ToolsReport }
     "shell.resolvePath": { params: ResolvePathParams; result: ResolvePathResult }
+    "store.status": { params: EmptyParams; result: StoreStatus }
 }
 
 export type CoreEvents = {
@@ -62,7 +64,8 @@ export const RENDERER_METHODS = [
     "paths.get",
     "paths.resetStoreRoot",
     "tools.doctor",
-    "tools.clearPath"
+    "tools.clearPath",
+    "store.status"
 ] as const satisfies ReadonlyArray<keyof CoreMethods>
 
 export type RendererMethod = (typeof RENDERER_METHODS)[number]

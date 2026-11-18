@@ -2,6 +2,7 @@ pub mod atomic;
 pub mod lock;
 pub mod paths;
 pub mod session;
+pub mod state;
 mod sweep;
 
 use std::path::Path;

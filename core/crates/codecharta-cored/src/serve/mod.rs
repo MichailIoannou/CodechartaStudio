@@ -2,6 +2,7 @@ pub mod dispatch;
 pub mod framing;
 pub mod output;
 pub mod session;
+mod store_routes;
 mod test_methods;
 mod tools_routes;
 

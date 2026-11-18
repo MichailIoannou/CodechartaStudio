@@ -73,6 +73,7 @@ fn run_serve(data_dir: Option<PathBuf>) -> ExitCode {
     let Some(core) = open_core(data_dir) else {
         return ExitCode::FAILURE;
     };
+    core.open_store();
     let Some(runtime) = start_runtime() else {
         return ExitCode::FAILURE;
     };

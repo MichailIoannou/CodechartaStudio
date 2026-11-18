@@ -1,6 +1,6 @@
 ---
 name: 03-M1 store core
-state: progress
+state: complete
 version: 1
 ---
 
@@ -32,7 +32,7 @@ codes need an `ErrorCode` variant, `ErrorCode::ALL`, a `CoreError` variant and i
 - [x] 3. Open, migrations, sweep
 - [x] 4. Lock
 - [x] 5. Session
-- [ ] 6. store.status and degraded serve
+- [x] 6. store.status and degraded serve
 
 ## Notes
 
@@ -113,4 +113,47 @@ compiles the `cfg(windows)` code; nothing ran on Windows.
   blocks start-up. Writes need a writable store (`Store::ensure_writable`, `NOT_ALLOWED` otherwise).
 - Not here: checking that the project exists (`projects.setActive` in M2 must do it, and clear a stale id
   when a project is deleted), and the RPC methods `projects.getActive` / `projects.setActive` (M2).
+
+### 6. store.status and degraded serve
+- Api: `methods/store.rs` with `StoreProblemCode { StoreLocked, StoreNewerSchema, Io }` (wire
+  `STORE_LOCKED`, `STORE_NEWER_SCHEMA`, `IO`; **the plan's `IoError` is `Io`**, matching plan 01's `IO` code),
+  `StoreStatus { problem }` and `store.status` (renderer, `EmptyParams`). Contract regenerated
+  (`StoreProblemCode.ts`, `StoreStatus.ts`, `coreApi.ts`, `store.status` in the renderer allow-list).
+- Core: `store/state.rs` `StoreState::{Open(Store), Unavailable(CoreError)}`; `Core` holds it in a
+  `OnceLock`. `Core::open` still creates nothing; `Core::open_store()` opens the store for writing once
+  (only `serve` calls it, so `doctor` never locks or creates a store); `Core::store() -> CoreResult<&Store>`
+  answers the start-up error again on every call (`STORE_LOCKED`, `STORE_NEWER_SCHEMA`, `IO` with the same
+  context; anything else `INTERNAL`) — **this is the hook every store method of M2/M3 must go through**;
+  `Core::store_status()`. A store that was never opened is `INTERNAL`.
+- `serve` logs the problem as a warning and keeps serving; `paths.*`, `tools.*`, `core.*` are unaffected.
+  The lock is released when the `Core` is dropped at the end of `serve` or the process ends. A store root
+  changed through `paths.setStoreRoot` takes effect on the next start (the shell relaunches; M6).
+- Protocol tests (`codecharta-cored/tests/protocol.rs`): the two of the plan plus
+  `should_report_store_locked_while_another_process_holds_the_store`; the healthy test also checks that
+  `store.json` and `.lock` exist and that a second writer gets `STORE_LOCKED` while `serve` runs.
+  `ServingCore::launch(data_dir, configure)` / `started_and_greeted_in(data_dir)` let a test prepare the
+  data folder first.
+- Acceptance "starting the app creates store.json and .lock": checked through
+  `codecharta-core --data-dir <tmp> serve` over stdio (hello, `store.status` → `{"problem":null}`, then
+  `<tmp>/store` held `.lock` and `store.json` `{ "schemaVersion": 1, "createdAt": "…Z" }`), not through the
+  app: the Electron shell (01-M3) is not on this branch. Not checked on Windows / `%APPDATA%`.
+- Plan 03 text corrected in this commit: "Required from plan 01" (store root and data-dir names), the
+  module table (`store/mod.rs`, new `store/state.rs`), the error/`StoreProblemCode` block, the crate list.
+
+### Owner decision OD1 (one working folder)
+- Recorded on `feature/studio-integration` in commit 15c92e430 (`design/owner-decisions.md`): the
+  project view keeps `workingFolderId: FolderId | null` instead of `visibleFolderIds: FolderId[]`.
+  03-M1 writes no `project.json` and no project view type (only `store.json`, `session.json`, `.lock`,
+  the store id newtypes and `StorePaths::project_file`), so **OD1 applies from 03-M2**, which first defines
+  `ProjectView`.
+
+### Gates (final run)
+- `core/`: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings` (also for
+  `x86_64-pc-windows-gnu`), `cargo test --all-features` green (164 tests); `npm run contract` leaves no
+  diff once the generated files are committed.
+- `visualization/`: `npm run lint` and `npx tsc --noEmit -p tsconfig.json` green; `npm test`: 635 of 636
+  suites, 4852 passed, 9 failed — all in `urlExtractor.spec.ts`, the known Node 26 failure (resolved on the
+  integration branch by af33d0252, not rebased here).
+- Root `npm run format:check`: only the known `design/mockups/studio-screens.html:438` (`noForEach`),
+  fixed on the integration branch.
 
