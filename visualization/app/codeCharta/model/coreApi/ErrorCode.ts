@@ -14,3 +14,5 @@ export type ErrorCode =
     | "PROTOCOL_MISMATCH"
     | "CORE_UNAVAILABLE"
     | "INTERNAL"
+    | "STORE_NEWER_SCHEMA"
+    | "STORE_LOCKED"

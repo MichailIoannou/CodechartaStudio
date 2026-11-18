@@ -19,10 +19,12 @@ pub enum ErrorCode {
     ProtocolMismatch,
     CoreUnavailable,
     Internal,
+    StoreNewerSchema,
+    StoreLocked,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 13] = [
+    pub const ALL: [ErrorCode; 15] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -36,6 +38,8 @@ impl ErrorCode {
         ErrorCode::ProtocolMismatch,
         ErrorCode::CoreUnavailable,
         ErrorCode::Internal,
+        ErrorCode::StoreNewerSchema,
+        ErrorCode::StoreLocked,
     ];
 }
 

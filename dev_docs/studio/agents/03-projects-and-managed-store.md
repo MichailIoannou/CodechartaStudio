@@ -67,7 +67,7 @@ Core
 - `core/` workspace with crates `codecharta-core` (library), `codecharta-core-api` (serde contract types, `ts-rs` derive), `codecharta-cored` (binary `codecharta-core`: `serve`, `askpass`, CLI). The JSON-RPC dispatcher with a method table, per-request error mapping to the stable `ErrorCode` of `codecharta-core-api`, and the notification channel. This plan only registers methods in that table.
 - `ErrorCode` / `CoreError` (`codecharta-core-api/src/error.rs`) with at least `BAD_REQUEST`, `NOT_FOUND`, `IO_ERROR`, `TOOL_NOT_FOUND`, `INTERNAL`; codes are append-only. This plan appends the store codes (section 3).
 - A tool runner in `codecharta-core/src/tools/` that runs the system `git` with an argument vector (no shell), stdin closed, timeout, hardened environment (`GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never`, `GIT_OPTIONAL_LOCKS=0`, `GIT_PAGER=cat`, `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` removed), `TOOL_NOT_FOUND` when git is missing. This plan writes against a `trait GitRunner` seam (`fn run(&self, cwd: &Path, args: &[&str]) -> Result<GitOutput, CoreError>`) and adapts to plan 01's real type.
-- Settings and paths in the core: a settings file with `store_root: Option<PathBuf>`, `AppPaths::default_store_root()` (Windows `%APPDATA%\codecharta-visualization\store`; crate candidate `directories`), a `--store-root` flag / `CODECHARTA_STORE_ROOT` environment variable for CLI and tests, and the JSON-RPC methods `paths.get`, `paths.resetStoreRoot`. This plan implements `store.changeRoot` beside them.
+- Settings and paths in the core: a settings file with `store_root: Option<PathBuf>`, `AppPaths::default_store_root()` (Windows `%APPDATA%\codecharta-visualization\store`; crate candidate `directories`), a `--store-root` flag / `CODECHARTA_STORE_ROOT` environment variable for CLI and tests, and the JSON-RPC methods `paths.get`, `paths.resetStoreRoot`. This plan implements `store.changeRoot` beside them. As built (03-M0 item 0): `Paths::store_root()` (setting, else `<dataDir>/store`), `store_root: Option<String>`, no `directories` crate, and no `--store-root` / `CODECHARTA_STORE_ROOT` — CLI and tests isolate the store with `--data-dir` / `CODECHARTA_DATA_DIR`.
 - The method gate: methods flagged **shell-only** in the method table are refused when they come from the renderer (the shell relays renderer requests by name; it never relays shell-only names). This plan adds `projects.inspectFolder`, `projects.folderPath`, `projects.sourceFileLocation`, `snapshots.inspectImportFile`, `snapshots.mapLocation`, `store.changeRoot`.
 - Shell-composed bridge methods: the `DesktopBridge` offers a few methods that exist only in the shell because they combine a native dialog or a file read with core calls. Plan 01 defines how they appear in the generated contract (this plan assumes request/result types for them live in `codecharta-core-api/src/shell.rs`, marked "never served by the core"). This plan's shell-composed methods: `projects.pickFolder`, `projects.readSourceFile`, `snapshots.pickImportFile`, `snapshots.readMapChunk`, `store.chooseRoot`.
 - Test support: `cargo test` workspace setup, `tempfile` as dev-dependency, a way for integration tests to start the binary (`env!("CARGO_BIN_EXE_codecharta-core")` from `codecharta-cored/tests/`). This plan creates the temporary-git-repository fixture (M2.2).
@@ -149,7 +149,8 @@ Modules in `core/crates/codecharta-core/src/` (no function bodies here; signatur
 | Module | Holds |
 | --- | --- |
 | `ids.rs` | `new_project_id()`, `new_folder_id()`, `new_token()`, `imported_snapshot_id(sha256: &str, commit: Option<&FullCommit>) -> SnapshotId` |
-| `store/mod.rs` | `Store`, `Store::open(root: &Path) -> Result<Store, CoreError>`, `STORE_SCHEMA_VERSION`, `Migration { to_version: u32, migrate: fn(&Path) -> Result<(), CoreError> }`, `MIGRATIONS`, leftover sweep |
+| `store/mod.rs` | `Store`, `Store::open(root: &Path) -> Result<Store, CoreError>` (writing: lock, create, sweep, migrate), `Store::open_read_only`, `Store::session()`, `STORE_SCHEMA_VERSION`, `Migration { to_version: u32, migrate: fn(&Path) -> Result<(), CoreError> }`, `MIGRATIONS` (as built in 03-M1; the leftover sweep is in `store/sweep.rs`) |
+| `store/state.rs` | `StoreState::{Open, Unavailable}` held by `Core` (`Core::open_store`, `Core::store()`, `Core::store_status()`); the degraded `serve` start |
 | `store/paths.rs` | `StorePaths`, `confine_to_folder(folder: &Path, relative: &str) -> Result<PathBuf, CoreError>` |
 | `store/atomic.rs` | `read_json<T: DeserializeOwned>(path: &Path) -> Result<T, CoreError>`, `write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), CoreError>`, `ProjectLocks` |
 | `store/lock.rs` | `StoreLock::acquire(root: &Path) -> Result<StoreLock, CoreError>` (released on drop) |
@@ -169,8 +170,9 @@ Types in `core/crates/codecharta-core-api/src/{error,store,projects,snapshots,sh
 ```rust
 // error.rs — appended to plan 01's ErrorCode (serialised SCREAMING_SNAKE_CASE, stable)
 TokenExpired, DuplicateFolder, DuplicateLabel, FolderUnavailable, NotACommit,
-DifferentHistory, StoreLocked, StoreNewerSchema, TooLarge
-pub enum StoreProblemCode { StoreLocked, StoreNewerSchema, IoError }
+DifferentHistory, StoreLocked, StoreNewerSchema, TooLarge      // 03-M1 appended StoreNewerSchema, StoreLocked
+pub enum StoreProblemCode { StoreLocked, StoreNewerSchema, Io }   // methods/store.rs; plan 01's IO code is `IO`
+// ids.rs — ProjectId, FolderId, SnapshotId (03-M1); the other newtypes join with their first user
 
 // newtypes: ProjectId, FolderId, SnapshotId  (^[a-z0-9-]{1,96}$);  CommitHash (^[0-9a-f]{7,40}$);
 // FullCommit (^[0-9a-f]{40}$);  PickToken (32 hex);  Label (1–60 chars, none of / \ : or control characters);
@@ -546,7 +548,7 @@ Acceptance: in the desktop app, create a project with two folders, restart, land
 - **Commits**: commitlint scopes `core` (core work, added by plan 01) and `visualization` (Angular and shell), subject ≤ 72 characters; structural commits separate and first (M4.1).
 - **Security**: every id, hash, label and token is a validated newtype before a handler runs; ids match `^[a-z0-9-]{1,96}$` before any path join; every store path goes through `StorePaths`; source reads through `confine_to_folder` (canonicalised); shell-only methods are refused from the renderer; the shell reads only paths the core returned and checks them against the store root or folder root; git arguments are arrays and every user-derived value is validated hex or a generated id, so none starts with `-`; remote URLs lose embedded credentials before they are cached, logged or returned; no token, password or credential is ever stored.
 - **Changelog**: one bold title + one sentence per user-visible change, under `## [unreleased]`, sections in header order; rewrite an entry instead of adding a second one.
-- **Lockfile / dependencies**: no npm dependency added. Cargo dependencies (candidates, all UNVERIFIED): `serde`, `serde_json`, `thiserror`, `ts-rs`, `sha2`, `flate2`, `tempfile`, `trash`, `directories`, `dunce`, a file-lock crate (`fs4`), a time crate (`time`), `rand`/`getrandom`; keep `Cargo.lock` committed.
+- **Lockfile / dependencies**: no npm dependency added. Cargo dependencies: in use `serde`, `serde_json`, `thiserror`, `ts-rs`, `tempfile`, `humantime` (timestamps) and `getrandom` (ids, 03-M1); candidates `sha2`, `flate2`, `trash`, `dunce`. Not used: `directories` (pulls MPL-2.0 `option-ext`, refused by `core/deny.toml`) and `fs4` (std `File::try_lock` suffices; 03-M0 item 3). Keep `Cargo.lock` committed.
 
 ## Manual verification (packaged app, Windows)
 

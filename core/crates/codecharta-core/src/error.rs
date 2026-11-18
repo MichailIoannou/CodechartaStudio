@@ -33,6 +33,12 @@ pub enum CoreError {
     },
     #[error("internal error: {0}")]
     Internal(String),
+    #[error(
+        "The store was written by a newer CodeCharta (schema {found}); this version reads up to schema {supported}."
+    )]
+    StoreNewerSchema { found: u64, supported: u32 },
+    #[error("Another CodeCharta process is using the store at {store_root}.")]
+    StoreLocked { store_root: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;
@@ -51,6 +57,8 @@ impl CoreError {
             CoreError::OutputTooLarge { .. } => ErrorCode::OutputTooLarge,
             CoreError::Io { .. } => ErrorCode::Io,
             CoreError::Internal(_) => ErrorCode::Internal,
+            CoreError::StoreNewerSchema { .. } => ErrorCode::StoreNewerSchema,
+            CoreError::StoreLocked { .. } => ErrorCode::StoreLocked,
         }
     }
 
@@ -125,6 +133,19 @@ mod tests {
             (
                 CoreError::Internal("broken invariant".into()),
                 ErrorCode::Internal,
+            ),
+            (
+                CoreError::StoreNewerSchema {
+                    found: 2,
+                    supported: 1,
+                },
+                ErrorCode::StoreNewerSchema,
+            ),
+            (
+                CoreError::StoreLocked {
+                    store_root: "/data/store".into(),
+                },
+                ErrorCode::StoreLocked,
             ),
         ]
     }
