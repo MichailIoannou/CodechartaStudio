@@ -87,3 +87,12 @@ answer that differs means the named file is changed, nothing else.
   have the owner decide to exclude `design/mockups/` from Biome.
   - *Answer (designer, 2026-11-18):* fixed in the mock-up (`for … of`); root `npm run format:check`
     passes again. Every later mock-up is checked with it before committing.
+
+- **O2 (2026-11-19). Desktop tools: wording the implementer had to supply (01-M4.2).** Neither
+  `01-desktop-tools.md` nor plan 01 gives these, so 01-M4.2 used placeholders. Please confirm or replace:
+  1. Native picker title for "Choose…": "Choose the <tool> executable".
+  2. Windows file-type filter name in that picker: "Programs" (`exe, cmd, bat`).
+  3. Toast after a failed "Choose…": the renderer never learns which file was picked, so it reads
+     "The chosen file is not a working <tool>: <message>" instead of naming the file.
+  4. A custom path whose file was deleted still shows "not found on PATH" — which text should it show?
+  5. In the light theme, the success and warning summary lines are pale on white — token choice?
