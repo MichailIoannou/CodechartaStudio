@@ -28,7 +28,7 @@ Store location ("Change…", "Use default") is designed in area 01 (desktop tool
 **Where.** `navBar.component.html`, `navbar-start`, after the divider, in place of
 `<cc-nav-bar-folder-button>` when `isDesktop()`. The web build keeps the folder button (D1).
 
-**Trigger.** `btn btn-ghost btn-sm justify-between min-w-[10rem] max-w-56 xl:max-w-64` with
+**Trigger.** `btn btn-ghost btn-sm justify-between min-w-0` (widths per principles §3) with
 `fa-solid fa-layer-group`, the project name (`truncate`), `fa fa-caret-down ml-2`.
 `title`: "Project: <name> — switch, create or manage projects". No project: label "No project"
 (`text-base-content/60`).
@@ -65,7 +65,7 @@ Store location ("Change…", "Use default") is designed in area 01 (desktop tool
 | many projects | list scrolls (`max-h-72`); projects sorted by name, case-insensitive |
 | long name | `truncate` everywhere, full name in `title` |
 | bridge error on open | dropdown closes; toast (error) "Could not open the project '<name>': <message>"; signals keep the last good value |
-| narrow (< `xl`) | trigger `max-w-40` |
+| narrow window | trigger widths per principles §3 |
 
 **Keyboard.** Trigger `aria-haspopup="menu"`, `aria-expanded`. ArrowDown opens and focuses the first
 row; ArrowUp/Down move; Enter activates; Escape closes and refocuses the trigger. `Ctrl+O`
@@ -92,7 +92,7 @@ imported, unbound:     [📥 billing · imported                       ▾]
 several folders:       [⎇ codecharta @ a1b2c3d  +1 folder           ▾]
 ```
 
-`btn btn-ghost btn-sm justify-between min-w-[14rem] max-w-56 xl:max-w-80`; icon `fa-code-branch`
+`btn btn-ghost btn-sm justify-between min-w-0` (widths per principles §3); icon `fa-code-branch`
 (git folder) / `fa-folder` (plain) / `fa-file-import` (imported unbound); text = display name of the
 active folder's shown snapshot (`snapshotDisplayName`, D7) with the short SHA in `font-mono`; `+n
 folder(s)` in `text-base-content/60` when more than one folder is shown. `title`:

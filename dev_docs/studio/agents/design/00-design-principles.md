@@ -75,13 +75,21 @@ Map slot, first match wins:
 Web build left side stays exactly: logo, divider, `cc-nav-bar-folder-button`, map/delta selector.
 
 **Narrow window.** Supported down to 1024 px wide (the Electron window minimum is set by plan 01; if
-none is set, this design assumes 1024). Collapse order as the bar runs out of room, each step a
-Tailwind breakpoint class on the element, never JavaScript measuring:
-1. below `xl` (1280): branch chip drops the ahead/behind numbers, keeps arrows; project switcher
-   `max-w-40`; map slot `max-w-56`;
-2. below `lg` (1024): branch chip shows only the icon and the dirty dot (name in `title`);
-   analysis jobs indicator shows only the spinner; theme toggle stays;
-3. text inside every trigger is `truncate`; the full text is always in `title`.
+none is set, this design assumes 1024). The mock-up (`mockups/history.html`) shows the three new
+`navbar-start` controls touching the view switcher already at 1440 px with generous widths, so the
+widths are capped by breakpoint, each step a Tailwind class on the element, never JavaScript
+measuring:
+
+| Window | Project switcher | Map slot trigger | Branch chip |
+|---|---|---|---|
+| ≥ 1536 (`2xl`) | `max-w-64` | `max-w-80` | name `max-w-56`, ahead/behind numbers |
+| 1280–1535 (`xl`) | `max-w-40` | `max-w-60` | name `max-w-32`, arrows without numbers |
+| 1024–1279 | `max-w-32` | `max-w-48` | icon + dirty dot only (name in `title`) |
+
+- `navbar-start` gets `min-w-0 flex-1 overflow-hidden` and its children `min-w-0`, so it shrinks
+  instead of running under `navbar-center`; the view switcher never shrinks.
+- Below 1280 the analysis jobs indicator shows only the spinner; the theme toggle and Settings stay.
+- Text inside every trigger is `truncate`; the full text is always in `title`.
 
 ## 4. Z-index layers in use
 

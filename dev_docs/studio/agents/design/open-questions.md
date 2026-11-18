@@ -14,6 +14,13 @@ answer that differs means the named file is changed, nothing else.
    folders without analyses.
 3. **How many folders side by side?** (plan 03 open question 2) *Default:* no limit, no warning.
 
+## Area 04 — history
+
+4. **Confirm a branch switch?** Plan 04 words a confirmation for every switch. *Default:* only when
+   the working tree has changes; a clean switch happens at once, as in Rider and VS Code.
+5. **Where do git failures show?** *Default:* an error notice inside the History view with a
+   "Details" disclosure (toasts close after 5 s and cannot hold buttons); successes stay toasts.
+
 ## From orchestration
 
 (The orchestrator appends questions here.)

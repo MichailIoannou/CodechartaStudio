@@ -26,7 +26,7 @@ Produce the interface design for plans 01–06 under `dev_docs/studio/agents/des
 - [x] Read README, overview, DESIGNER brief, UI sections of plans 01–06, existing UI source
 - [x] Task 1: principles
 - [x] Task 2: area 03 projects
-- [ ] Task 2: area 04 history
+- [x] Task 2: area 04 history
 - [ ] Task 2: area 05 snapshots
 - [ ] Task 2: area 06 compare
 - [ ] Task 2: area 02 themes
