@@ -11,6 +11,7 @@ Plan: `02-themes.md` ("UI", "Error states and edge cases", M1, M5). Principles:
 | T2 | Quick toggle | `cc-theme-quick-toggle` | nav bar, `navbar-end`, before Settings | `cc-settings-button` |
 | T3 | Dark chrome audit | checklist | every existing screen | — |
 | T4 | Metrics bar, refreshed | `cc-metrics-bar`, `ccBarShell` | floating bar above the file extension bar | today's metrics bar |
+| T5 | File extension bar, blended edges | `cc-file-extension-bar`, `cc-file-extension-bar-segment` | full-width bar above the bottom bar | today's file extension bar |
 
 ## T1 Theme picker
 
@@ -153,6 +154,35 @@ Studio (dark, one rounded rectangle, nothing protrudes):
   every icon-only button has `title` = `aria-label`.
 - **Domain bar** (`features/domainBar`) uses the same shell and gets the same shape and tools cell.
 
+## T5 File extension bar, blended edges (owner decision OD7)
+
+The coloured bar under the metrics bar that shows each file type's share
+(`features/fileExtensionBar`) keeps its segments, colours, labels ("kt 42.25%"), click (absolute
+values), hover (highlights the buildings) and context menu. Only the edges between segments change:
+instead of a hard edge with a 1 px white gap (`gap-px`), neighbouring colours blend over a short
+distance, so the shares still read as exact proportions.
+
+```
+today:   [   kt 42.25%   |   scss 28.17%   |   ts 25.35%   |html]
+Studio:  [   kt 42.25%  ░▒▓  scss 28.17%  ░▒▓  ts 25.35%  ░▒▓html]   ← 12 px blend centred on each boundary
+```
+
+- **Mechanism (per segment, so it stays correct whatever width flex gives each segment):** the
+  container drops `gap-px`; each `cc-file-extension-bar-segment` paints
+  `background: linear-gradient(to right, <mixPrev> 0, <own> 6px, <own> calc(100% - 6px), <mixNext> 100%)`
+  where `<mixPrev>` = `color-mix(in oklab, <previous colour> 50%, <own colour>)` and `<mixNext>` the same
+  with the next colour. Both sides of a boundary end on the same 50 % mix, so the blend is seamless and
+  exactly centred on the true share boundary. The first segment has no left blend, the last none on
+  the right. The segment component gets `previousColor` / `nextColor` inputs from the visible list
+  (`fileExtensionBar.component.html` already iterates it in order).
+- **Width:** 6 px on each side (12 px per boundary). Segments narrower than 24 px blend over a third of
+  their width per side instead, so a tiny share never turns into pure mix colour.
+- **Labels** unchanged (`text-[10px]`, centred); because a label never sits in the outer 6 px, the blend
+  never lowers its contrast. Hovered segment: unchanged highlight, blend kept.
+- **Themes:** segment colours are map data (not themed, plan 02 decision 5); the blend uses only those
+  colours, so it looks the same in every theme. Screenshots include the blend.
+- **Reduced motion / print:** nothing animates; no change needed.
+
 ---
 
 ## Deviations from the plan
@@ -166,7 +196,8 @@ Studio (dark, one rounded rectangle, nothing protrudes):
 3. **Toggle position** as the plan says, before Settings (the analyses indicator that once sat there
    is now part of the workspace status element, area 05 W1).
 
-4. **Metrics bar refresh (T4)** is an owner request (OD6), not part of plan 02; it can ship with plan
+4. **Metrics bar refresh (T4) and file extension bar blend (T5)** are owner requests (OD6, OD7), not
+   part of plan 02; it can ship with plan
    02 M1 (dark by default) or as its own milestone.
 
 ## Proposed changes to existing UI (not assumed approved)

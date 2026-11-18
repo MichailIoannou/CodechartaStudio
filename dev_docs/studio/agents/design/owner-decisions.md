@@ -111,3 +111,10 @@ square inside it, and the rotated LEGEND edge tab becomes a Legend tool in the b
 `02-themes.md` T4. Plan impact: a new milestone (or part of plan 02 M1) touching `metricsBar`,
 `shared/barShell`, `shared/barToolsTab`, `shared/barTool`, `legend/legendDrawer` and `domainBar`; their
 specs and e2e page objects that locate the tabs and the legend button change.
+
+## OD7 — Blended edges in the file extension bar (2026-11-18)
+
+The bar showing each language's share blends neighbouring colours over a short distance (12 px per
+boundary, centred on it) instead of a hard edge with a white gap; shares stay readable as exact
+percentages. Design: `02-themes.md` T5. Plan impact: small change in `features/fileExtensionBar`
+(segment inputs for the neighbouring colours, container `gap-px` removed); can ship with OD6.
