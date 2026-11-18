@@ -34,7 +34,7 @@ label `color` and `border` from the `buildingLabel` palette.
 
 ## Steps
 
-- [ ] 1. Types, registry, render palettes
+- [x] 1. Types, registry, render palettes
 - [ ] 2. Themes registered in CSS
 - [ ] 3. DOM stragglers
 - [ ] 4. Scene background
@@ -47,4 +47,20 @@ label `color` and `border` from the `buildingLabel` palette.
 - [ ] 11. Visual check and changelog
 
 ## Notes
+
+Environment: Linux, node 26.13, npm 12. Branch `feature/studio-02-m1` from `feature/studio-integration` (8a0a66571).
+
+### 1. Types, registry, render palettes
+
+- Files as planned. Differences: `ThemePreference` and `MapPaletteSeed` are not in this commit (knip:
+  no consumer yet; `ThemePreference` arrives with the preference slice in task 8, the seed with the
+  builders in M5). The sub-palette interfaces (`MapRenderPalette` …) are not exported, only
+  `RenderPalette`, `ChromeTokens`, `ThemeDefinition`, `ColorScheme`, `ThemeId`, `SYSTEM_THEME`.
+- `lowestContrastAlongGradient` is not added yet (first consumer: the word-cloud spec in M3).
+- Added `defaultThemeDefinition()` to `themes.ts` so `resolveTheme` and the signal's start value share
+  one fallback.
+- `map.floorLabel.outline` is `rgba(0, 0, 0, 0.5)` as the plan's table says, which is not six-digit
+  hex; "should keep every render palette color a six digit hex" therefore exempts exactly that path
+  (it is a canvas stroke style, never parsed as hex).
+- `darkRenderPalette.dependencyGraph` holds the light constants as the plan's M4 placeholder.
 
