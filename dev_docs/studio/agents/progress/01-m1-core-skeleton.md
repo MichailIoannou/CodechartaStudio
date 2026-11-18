@@ -33,7 +33,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M1 (the test names to writ
 - [x] 1.4 serve over stdio
 - [x] 1.5 Contract generation
 - [x] 1.6 CI
-- [ ] 1.7 Docs
+- [x] 1.7 Docs
 - [ ] 1.8 Licences
 
 ## Notes
@@ -140,4 +140,13 @@ node 26.13.0, npm 12.2.2. No `mise`, `cargo-deny` or `cargo-cyclonedx` installed
 - Validated with Python `yaml.safe_load` (no actionlint here). Not run on GitHub.
 - `merge-gatekeeper.yml` waits for every check of a PR, so the new jobs are covered without changes;
   `quality_gate.yml` is the reusable `ccsh gate` workflow and unrelated. Neither changed.
+
+### 1.7
+- Root `CLAUDE.md`: third component (Core), Rust requirement, "Core (Rust)" commands and the
+  registration order, `npm run contract`, scope `core`, core gates in "Checks Before Committing", key
+  file locations, `test_core.yml` under CI/CD. `visualization/TARGET-ARCHITECTURE.md`: section "Desktop
+  shell and core". `dev_docs/CONTRIBUTING.md` scope list gains `core` (it mirrors `commitlint.config.js`).
+- **Deviation:** the root `README.md` is the user-facing product page and has no developer-prerequisites
+  section; the prerequisites live in `dev_docs/DEV_START_GUIDE.md` "Requirements", which gets the Rust line
+  instead.
 

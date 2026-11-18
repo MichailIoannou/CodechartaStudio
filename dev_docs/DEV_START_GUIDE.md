@@ -16,6 +16,7 @@ To work on CodeCharta, please ensure your system includes:
 - Git (with bash utilities for Windows)
 - Java >= 22 to run `ccsh`; the build compiles with JDK 25, which Gradle downloads when it is missing
 - Node >= 22.19 (working on the visualization needs 22.x from 22.22.3, 24.x from 24.15, or >= 26)
+- Rust stable >= 1.95 with `rustfmt` and `clippy` (install through [rustup](https://rustup.rs), which reads `core/rust-toolchain.toml`), to work on the desktop app's core in `core/` — see `core/README.md`
 
 ## Install guide
 
