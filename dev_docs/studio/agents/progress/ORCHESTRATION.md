@@ -40,7 +40,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | part A (tasks 1–7) verified, **merge pending**; part B todo | merge: uncommitted owner/designer edits to plan 03 in the main checkout; part B (tasks 8–9): 01-M4.1 | feature/studio-03-m2 | 168d4fa21 (verified, not merged) |
-| 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | in progress (part A: tasks 1–5, branched from feature/studio-03-m2) | part B (task 6): 03-M2 merge, 01-M4.1 | feature/studio-03-m3 | — |
+| 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | part A (tasks 1–5) verified, **merge pending** (after 03-M2; resolve the add/add conflict on `03-m3-snapshots.md` with the branch's version); part B todo | merge: same as 03-M2; part B (task 6): 01-M4.1 | feature/studio-03-m3 | f93165d40 (verified, not merged) |
 | 03-M4 Renderer load path | renderer | todo | 03-M3; check for visible parts first | — | — |
 | 03-M5 Projects UI | UI | todo | 03-M4 | — | — |
 | 03-M6 Import and store settings | UI | todo | 03-M5 | — | — |
@@ -130,6 +130,12 @@ the milestone is started.
   `projects.inspectFolder` → token), the renderer sends only tokens; plan 01's path-returning
   `pickFolder` stays for the shell's own uses. Shell-only methods are absent from the renderer allow-list
   (checked). For 03-M3: `NOT_A_COMMIT` not yet appended; `resolve_commit` lacks `%cI` and `%P`.
+- 03-M3 part A (see `03-m3-snapshots.md` on `feature/studio-03-m3`): `snapshot.json` gains `createdAt`
+  (addition to overview section 5); `snapshots.list` answers `SnapshotList`; `NOT_A_COMMIT` appended;
+  `flate2` and `sha2` added (cargo-deny passes); `Store::open` repairs a half-moved snapshot; CLI errors
+  print `CODE: message`. Shell-only `snapshots.inspectImportFile` and `snapshots.mapLocation` are absent
+  from the renderer allow-list (checked). For the shell: compare the map's realpath against the store root
+  before reading chunks; `checksum`/`rootName` stay null until `recordMapFacts`. Imports have no size limit.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -159,6 +165,7 @@ Design questions are in `design/open-questions.md`; none are left here.
 
 ## Session log
 
+- 2026-11-18: 03-M3 part A verified on a scratch merge of integration + 03-M2 + 03-M3 (cargo fmt/clippy/test 282, cargo-deny, contract drift, format, lint, tsc, test:electron 42/42, npm test 636/636). Merge pending, as for 03-M2.
 - 2026-11-18 22:40: design ready for all areas. 02-M1 started (visualization lane) and 03-M3 part A started (core lane, from feature/studio-03-m2). 03-M2 merge still pending on the uncommitted plan 03 edit.
 - 2026-11-18, end of session: 03-M2 part A verified on a scratch merge of `feature/studio-integration` +
   `feature/studio-03-m2` (cargo fmt/clippy/test 230, cargo-deny, contract drift, format, lint, tsc,
