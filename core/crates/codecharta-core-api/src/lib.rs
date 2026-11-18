@@ -1,5 +1,6 @@
 pub mod error;
 pub mod events;
+pub mod ids;
 pub mod methods;
 pub mod protocol;
 pub mod registry;

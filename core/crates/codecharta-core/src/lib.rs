@@ -1,6 +1,8 @@
 pub mod config;
 pub mod error;
+pub mod ids;
 pub mod process;
+pub mod store;
 pub mod tools;
 
 pub use config::paths::{CoreConfig, Paths};

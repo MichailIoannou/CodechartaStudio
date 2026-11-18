@@ -121,6 +121,7 @@ name = "codecharta-core"
 version = "0.1.0"
 dependencies = [
  "codecharta-core-api",
+ "getrandom",
  "humantime",
  "nix",
  "serde",
