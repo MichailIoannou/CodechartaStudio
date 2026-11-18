@@ -389,3 +389,24 @@ fn should_emit_progress_during_doctor() {
     assert_eq!(counts.len(), 5);
     assert!(counts.iter().all(|(_, total)| **total == json!(5)));
 }
+
+#[test]
+fn should_resolve_shell_path_targets() {
+    // Arrange
+    let mut core = ServingCore::started_and_greeted();
+    let snapshot_map =
+        json!({ "kind": "snapshotMap", "projectId": "p", "folderId": "f", "snapshotId": "s" });
+
+    // Act
+    let logs = core.request(
+        1,
+        "shell.resolvePath",
+        json!({ "target": { "kind": "logsFolder" } }),
+    );
+    let map = core.request(2, "shell.resolvePath", json!({ "target": snapshot_map }));
+
+    // Assert
+    let logs_dir = core.data_dir.path().join("logs");
+    assert_eq!(logs["result"]["path"], json!(logs_dir.to_str().unwrap()));
+    assert_eq!(error_data_code(&map), &json!("NOT_FOUND"));
+}

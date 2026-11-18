@@ -6,6 +6,7 @@ use ts_rs::{Config, ExportError, TS};
 use crate::events::CoreProgress;
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
 use crate::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use crate::methods::shell::ShellResolvePath;
 use crate::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,6 +96,7 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<ToolsDoctor>(),
     MethodSpec::of::<ToolsSetPath>(),
     MethodSpec::of::<ToolsClearPath>(),
+    MethodSpec::of::<ShellResolvePath>(),
 ];
 
 pub const EVENTS: &[EventSpec] = &[EventSpec::of::<CoreProgress>()];

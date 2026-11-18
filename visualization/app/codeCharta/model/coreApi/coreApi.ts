@@ -10,6 +10,8 @@ import type { HelloResult } from "./HelloResult"
 import type { PathsInfo } from "./PathsInfo"
 import type { PingResult } from "./PingResult"
 import type { ProgressParams } from "./ProgressParams"
+import type { ResolvePathParams } from "./ResolvePathParams"
+import type { ResolvePathResult } from "./ResolvePathResult"
 import type { SetStoreRootParams } from "./SetStoreRootParams"
 import type { SetToolPathParams } from "./SetToolPathParams"
 import type { ToolsReport } from "./ToolsReport"
@@ -42,6 +44,7 @@ export type CoreMethods = {
     "tools.doctor": { params: DoctorParams; result: ToolsReport }
     "tools.setPath": { params: SetToolPathParams; result: ToolsReport }
     "tools.clearPath": { params: ClearToolPathParams; result: ToolsReport }
+    "shell.resolvePath": { params: ResolvePathParams; result: ResolvePathResult }
 }
 
 export type CoreEvents = {

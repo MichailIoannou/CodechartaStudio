@@ -1,6 +1,6 @@
 ---
 name: 01-M2 process runner, tools, settings, doctor
-state: progress
+state: complete
 version: 1
 ---
 
@@ -29,7 +29,7 @@ Copied from `01-core-and-desktop-shell.md` section 4, M2 (tests to write first a
 - [x] 2.3 Fake tool and temp repo helpers
 - [x] 2.4 Runner and tree kill
 - [x] 2.5 Tools and doctor
-- [ ] 2.6 shell.resolvePath
+- [x] 2.6 shell.resolvePath
 
 ## Notes
 
@@ -176,3 +176,40 @@ The `x86_64-pc-windows-gnu` std is installed here, so every task also ran
   folder. The protocol and CLI tests point `PATH` and `HOME` at an empty temp folder and remove `JAVA_HOME`;
   the CLI test makes git missing deterministically through a custom path to a file that does not exist.
 - Docs: `core/README.md` (data dir lookup, `doctor`, child-process rule), root `CLAUDE.md` core commands.
+
+### 2.6
+- Api `methods/shell.rs`: `ShellPathTarget` (`#[serde(tag = "kind", rename_all = "camelCase",
+  rename_all_fields = "camelCase")]`; ts-rs 12 renders the fields camelCase too), `ResolvePathParams
+  { target }`, `ResolvePathResult { path }`, method `shell.resolvePath` (shell).
+- `Paths::resolve(&ShellPathTarget) -> CoreResult<PathBuf>`: data folder, `<dataDir>/logs`, the current store
+  root; `snapshotMap` → `NOT_FOUND` until plan 03. Nothing is created on disk (a reveal of a folder that does
+  not exist yet is the shell's case to handle: open the parent, plan 3.12 "or its parent").
+- Tests: `should_resolve_the_store_root`, `should_answer_not_found_for_snapshot_maps_without_a_store`, plus
+  `should_resolve_the_data_and_logs_folders`, api parsing tests and protocol `should_resolve_shell_path_targets`.
+
+### Gates at the end of M2 (Linux)
+- `core/`: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings` (also for
+  `--target x86_64-pc-windows-gnu`), `cargo test --all-features` green; `npm run contract` leaves no diff;
+  root `npm run format:check` green; `visualization/`: `npm run lint`, `npx tsc --noEmit -p tsconfig.json`
+  green. `npm test`: 636 suites / 4863 tests, 9 failures, all in the known
+  `stores/fileStore/loaders/ccJson/util/urlExtractor.spec.ts` (Node 26 / jsdom, see 01-M1 notes); coverage
+  gate met (96.66 / 89.93 / 95.28 / 96.57). M2 touches no app code; only generated `model/coreApi/` types.
+
+### For 01-M3 (Electron shell) and plan 03
+- Start the core: `codecharta-core serve --data-dir <app.getPath("userData")>` (global flags may come before
+  or after the subcommand). Without `--data-dir` the core uses `CODECHARTA_DATA_DIR`, else
+  `<appData>/codecharta-visualization`, the same folder as Electron's default `userData`.
+- Methods now registered (`METHODS` order): `core.hello` (shell), `core.ping`, `core.shutdown` (shell),
+  `paths.get`, `paths.setStoreRoot` (shell), `paths.resetStoreRoot`, `tools.doctor`, `tools.setPath` (shell),
+  `tools.clearPath`, `shell.resolvePath` (shell). Event `core.progress` (renderer); client notification
+  `core.cancel` (shell). `electron/coreMethods.generated.json` lists the renderer ones.
+- `tools.setPath` / `paths.setStoreRoot` take the path from the native picker in main. Errors: `TOOL_FAILED`
+  (file does not answer like the tool), `BAD_REQUEST` (relative store path), `NOT_FOUND` (store folder does
+  not exist).
+- Rust for later plans: `Core::open(CoreConfig::resolve(cli, env))`, `core.paths().store_root()`,
+  `core.tools().run(ToolId::Git, args, ToolRunOptions { cwd, env, askpass, .. }, &cancel)`,
+  `ProcessRunner` (`RunRequest` has a `tool` field), `SettingsStore::update`, `Paths::resolve` (extend
+  `ShellPathTarget` and its match there), `tests/support` (`TempRepo`, `install_fake_command`,
+  `answer_version_with`, `is_gone_soon`, `read_pid_file`).
+- Still open: S4 (batch argument set and job-object race) and every Windows-only test have not run on
+  Windows; the first `windows-latest` CI run is their first execution.

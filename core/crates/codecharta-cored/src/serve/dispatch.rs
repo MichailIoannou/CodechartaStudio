@@ -10,6 +10,7 @@ use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
 use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 use codecharta_core_api::protocol::{
     INVALID_PARAMS, METHOD_NOT_FOUND, Notification, RequestId, ResponseError,
@@ -67,6 +68,10 @@ const ROUTES: &[Route] = &[
     Route {
         name: ToolsClearPath::NAME,
         handler: tools_routes::clear_path,
+    },
+    Route {
+        name: ShellResolvePath::NAME,
+        handler: shell_resolve_path,
     },
 ];
 
@@ -222,6 +227,15 @@ fn paths_reset_store_root(
         read_params::<PathsResetStoreRoot>(params)?;
         let info = core.paths().reset_store_root().await;
         write_result::<PathsResetStoreRoot>(info.map_err(domain_error)?)
+    })
+}
+
+fn shell_resolve_path(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<ShellResolvePath>(params)?;
+        let resolved = core.paths().resolve(&params.target).map_err(domain_error)?;
+        let path = path_to_wire(&resolved).map_err(domain_error)?;
+        write_result::<ShellResolvePath>(ResolvePathResult { path })
     })
 }
 

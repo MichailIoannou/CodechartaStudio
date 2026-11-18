@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use codecharta_core_api::methods::paths::PathsInfo;
+use codecharta_core_api::methods::shell::ShellPathTarget;
 
 use crate::config::settings::SettingsStore;
 use crate::error::{CoreError, CoreResult};
@@ -140,6 +141,18 @@ impl Paths {
         self.info()
     }
 
+    /// Snapshot maps live in the store, which arrives with plan 03; until then none can be found.
+    pub fn resolve(&self, target: &ShellPathTarget) -> CoreResult<PathBuf> {
+        match target {
+            ShellPathTarget::DataFolder => Ok(self.data_dir.clone()),
+            ShellPathTarget::LogsFolder => Ok(self.logs_dir()),
+            ShellPathTarget::StoreRoot => Ok(self.store_root()),
+            ShellPathTarget::SnapshotMap { snapshot_id, .. } => Err(CoreError::NotFound(format!(
+                "There is no map of the snapshot {snapshot_id}."
+            ))),
+        }
+    }
+
     fn default_store_root(&self) -> PathBuf {
         self.data_dir.join(STORE_FOLDER_NAME)
     }
@@ -262,5 +275,56 @@ mod tests {
         assert!(matches!(relative, Err(CoreError::BadRequest(_))));
         assert!(matches!(missing, Err(CoreError::NotFound(_))));
         assert!(paths.info().unwrap().is_default_store_root);
+    }
+
+    #[tokio::test]
+    async fn should_resolve_the_store_root() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+        let chosen = tempfile::tempdir().unwrap();
+        let paths = paths_in(&folder);
+        let default_root = paths.resolve(&ShellPathTarget::StoreRoot).unwrap();
+        paths.set_store_root(chosen.path()).await.unwrap();
+
+        // Act
+        let chosen_root = paths.resolve(&ShellPathTarget::StoreRoot).unwrap();
+
+        // Assert
+        assert_eq!(default_root, folder.path().join("store"));
+        assert_eq!(chosen_root, chosen.path());
+    }
+
+    #[test]
+    fn should_resolve_the_data_and_logs_folders() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+        let paths = paths_in(&folder);
+
+        // Act
+        let resolved = [ShellPathTarget::DataFolder, ShellPathTarget::LogsFolder]
+            .map(|target| paths.resolve(&target).unwrap());
+
+        // Assert
+        assert_eq!(
+            resolved,
+            [folder.path().to_path_buf(), folder.path().join("logs")]
+        );
+    }
+
+    #[test]
+    fn should_answer_not_found_for_snapshot_maps_without_a_store() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+        let target = ShellPathTarget::SnapshotMap {
+            project_id: "project".to_string(),
+            folder_id: "folder".to_string(),
+            snapshot_id: "snapshot".to_string(),
+        };
+
+        // Act
+        let result = paths_in(&folder).resolve(&target);
+
+        // Assert
+        assert!(matches!(result, Err(CoreError::NotFound(_))), "{result:?}");
     }
 }
