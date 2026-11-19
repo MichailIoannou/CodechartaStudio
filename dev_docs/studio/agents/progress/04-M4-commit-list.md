@@ -40,7 +40,7 @@ Parallel work note: 05-M4 (snapshots/analyse UI) and 02-M7 (metrics bar) run at 
 
 ## Steps
 
-- [ ] 1. Graph layout
+- [x] 1. Graph layout
 - [ ] 2. Graph cell
 - [ ] 3. Virtual window
 - [ ] 4. Log service
@@ -49,4 +49,20 @@ Parallel work note: 05-M4 (snapshots/analyse UI) and 02-M7 (metrics bar) run at 
 - [ ] 7. Commit details
 
 ## Notes
+
+Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/studio-04-m4` from `feature/studio-stack`
+(`3e549a2e7`).
+
+### 1. Graph layout
+- `util/graphLayout.ts`: `layoutGraph(commits, state)`, `EMPTY_GRAPH_STATE`, `GraphLayoutState`, `GraphRow` as plan 4.8.
+- **Design over plan (step 4).** Plan 4.8 step 4 joins a first parent into a lane that already waits for it at the
+  child's row. Design H8 ("a fork point receives a curve from the other lane's top into its dot") and the mock-up
+  (the "Start the invoice module" row receives the curve) join lanes at the fork point instead. So a commit always
+  keeps its lane for its first parent; several lanes may wait for one SHA and step 2 merges them into the fork's dot.
+  The plan's test "branch tip opens a second lane and joins at the fork" holds as written.
+- **Uncommitted changes in the graph (design deviation 9).** `stateWaitingForHead(headSha)` starts the layout with
+  lane 0 waiting for HEAD in the colour `WORKING_TREE_COLOR` (-1), so the dashed line from the uncommitted-changes
+  row passes through any newer rows and ends in HEAD's dot; a commit reached by that lane takes a fresh colour.
+- Tests: the plan's ten cases (every split point of a 12-commit fixture), plus a merge into an already waiting lane,
+  colour cycling and the working-tree start.
 
