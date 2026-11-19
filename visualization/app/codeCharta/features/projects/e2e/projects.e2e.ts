@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { gzipSync } from "node:zlib"
 import { expect, test } from "@playwright/test"
 import { goto, standInForTheDesktopBridge } from "../../../../playwright.helper"
-import { aFolder, aPickedFolder, aProject, aSnapshot } from "../projects.mocks"
+import { aFolder, aPickedFolder, aPickedImportFile, aProject, aSnapshot } from "../projects.mocks"
 import { ProjectsPageObject } from "./projects.po"
 
 const ASSETS = join(__dirname, "..", "..", "..", "assets")
@@ -63,6 +63,27 @@ test.describe("Projects", () => {
         await expect(projects.overview().getByRole("heading", { name: "billing" })).toBeVisible()
         await expect(projects.overviewFolders()).toHaveText(["billing-api", "billing-web"])
         await expect(projects.viewSwitcher()).toHaveCount(0)
+    })
+
+    test("should open a cc.json file with Ctrl+O into a new project and show its map", async ({ page }) => {
+        // Arrange
+        const projects = new ProjectsPageObject(page)
+        const firstImportedId = "imported-0000000000000003"
+        await standInForTheDesktopBridge(page, {
+            pickedImportFile: aPickedImportFile("Downloads"),
+            snapshotMaps: { [firstImportedId]: SAMPLE1 }
+        })
+        await goto(page)
+        await expect(projects.overview()).toContainText("No projects yet.")
+
+        // Act
+        await projects.openFileWithShortcut()
+        await expect(projects.openFileDialog()).toContainText("Imported snapshot — analysis time unknown")
+        await projects.openFileDialog().getByTestId("open-file-submit").click()
+
+        // Assert
+        await expect(projects.switcherTrigger()).toContainText("Downloads")
+        await expect(page.locator("cc-sidebar-explorer")).toContainText("sample1OnlyLeaf.scss")
     })
 
     test("should keep the upload button and no project menu without a bridge", async ({ page }) => {

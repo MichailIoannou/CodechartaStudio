@@ -9,6 +9,7 @@ import type { PickedFolder } from "../../model/coreApi/PickedFolder"
 import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { Project } from "../../model/coreApi/Project"
 import type { ProjectView } from "../../model/coreApi/ProjectView"
+import type { ResolvedCommit } from "../../model/coreApi/ResolvedCommit"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 import type { UpdateProjectParams } from "../../model/coreApi/UpdateProjectParams"
 import type { BridgeMethod, CoreState, DesktopBridge } from "./desktopBridge"
@@ -37,6 +38,7 @@ export interface FakeDesktopSeed {
     snapshotMaps?: Record<string, number[]>
     gitStatuses?: Record<string, GitStatus>
     gitLogs?: Record<string, GitCommitSummary[]>
+    commits?: Record<string, ResolvedCommit[]>
     now?: string
 }
 
@@ -65,6 +67,8 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     importToken?: string
     target?: FolderRef | null
     bindToCommit?: string | null
+    toFolderId?: string
+    hash?: string
     offset?: number
     length?: number
     repo?: FolderRef
@@ -99,6 +103,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         snapshotMaps: { ...seed.snapshotMaps },
         gitStatuses: { ...seed.gitStatuses },
         gitLogs: { ...seed.gitLogs },
+        commits: { ...seed.commits },
         createdIds: 0
     }
 
@@ -367,8 +372,15 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return succeed(picked ? JSON.parse(JSON.stringify(picked)) : null)
     }
 
-    function importedSnapshot(file: PickedImportFile, ref: FolderRef, bindToCommit?: string | null): SnapshotSummary {
-        const commit = bindToCommit ? file.hintCommit : null
+    function commitOf(folderId: string, hash: string): ResolvedCommit | null {
+        return (store.commits[folderId] ?? []).find(candidate => candidate.commit.startsWith(hash)) ?? null
+    }
+
+    function bindableCommit(file: PickedImportFile, folderId: string, bindToCommit: string): ResolvedCommit | null {
+        return file.hintCommit?.commit === bindToCommit ? file.hintCommit : commitOf(folderId, bindToCommit)
+    }
+
+    function importedSnapshot(file: PickedImportFile, ref: FolderRef, commit: ResolvedCommit | null): SnapshotSummary {
         return {
             ref: { ...ref, snapshotId: nextId("imported") },
             source: "imported",
@@ -391,14 +403,15 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
     }
 
     function importInto(file: PickedImportFile, ref: FolderRef, bindToCommit?: string | null) {
-        if (bindToCommit && file.hintCommit?.commit !== bindToCommit) {
+        const commit = bindToCommit ? bindableCommit(file, ref.folderId, bindToCommit) : null
+        if (bindToCommit && !commit) {
             return refuse("NOT_A_COMMIT", `The folder has no commit ${bindToCommit}.`)
         }
         const contentKey = `${ref.projectId}/${file.fileName}/${file.sizeBytes}`
         const earlierImport = store.importedContent.get(contentKey) ?? file.duplicateOf
         const existing = earlierImport?.projectId === ref.projectId ? findSnapshot(earlierImport) : undefined
         store.pickedImportFiles.delete(file.importToken)
-        const snapshot = existing ?? importedSnapshot(file, ref, bindToCommit)
+        const snapshot = existing ?? importedSnapshot(file, ref, commit)
         if (!existing) {
             store.snapshots.push(snapshot)
             store.importedContent.set(contentKey, snapshot.ref)
@@ -455,6 +468,36 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return opened.ok ? succeed((opened.value as { snapshot: SnapshotSummary }).snapshot) : opened
     }
 
+    function resolveCommit(params: FakeRequestParams) {
+        return succeed({ commit: commitOf(params.folderId ?? "", params.hash ?? "") })
+    }
+
+    function moveSnapshot(params: FakeRequestParams) {
+        const snapshot = findSnapshot(params)
+        const project = store.projects.find(candidate => candidate.id === params.projectId)
+        const toFolderId = params.toFolderId ?? ""
+        if (!(snapshot && project?.folders.some(folder => folder.id === toFolderId))) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no snapshot ${String(params.snapshotId)} or folder ${toFolderId}.`)
+        }
+        const commit = params.bindToCommit ? commitOf(toFolderId, params.bindToCommit) : null
+        if (params.bindToCommit && !commit) {
+            return refuse("NOT_A_COMMIT", `The folder has no commit ${params.bindToCommit}.`)
+        }
+        const fromFolderId = snapshot.ref.folderId
+        const wasShown = project.view.shownSnapshotIdByFolder[fromFolderId] === snapshot.ref.snapshotId
+        Object.assign(snapshot, {
+            ref: { ...snapshot.ref, folderId: toFolderId, snapshotId: nextId("imported") },
+            commit: commit?.commit ?? null,
+            shortCommit: commit?.shortCommit ?? null,
+            subject: commit?.subject ?? null
+        })
+        if (wasShown) {
+            delete project.view.shownSnapshotIdByFolder[fromFolderId]
+            project.view.shownSnapshotIdByFolder[toFolderId] = snapshot.ref.snapshotId
+        }
+        return succeed(JSON.parse(JSON.stringify(snapshot)))
+    }
+
     function readMapChunk(params: FakeRequestParams) {
         const snapshotId = params.snapshotId ?? ""
         if (!Object.hasOwn(store.snapshotMaps, snapshotId)) {
@@ -505,12 +548,14 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "projects.pickFolder": pickProjectFolder,
         "projects.readSourceFile": () => succeed(null),
         "projects.revealFolder": () => succeed(null),
+        "projects.resolveCommit": resolveCommit,
         "snapshots.list": listSnapshots,
         "snapshots.delete": deleteSnapshot,
         "snapshots.recordMapFacts": recordMapFacts,
         "snapshots.pickImportFile": pickImportFile,
         "snapshots.openFile": openFile,
         "snapshots.import": importSnapshot,
+        "snapshots.move": moveSnapshot,
         "snapshots.readMapChunk": readMapChunk,
         "snapshots.usage": storeUsage,
         "git.status": params => seededGitAnswer(store.gitStatuses, params),

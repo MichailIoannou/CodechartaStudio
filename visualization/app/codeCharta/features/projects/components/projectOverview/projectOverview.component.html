@@ -106,6 +106,26 @@
                                         Work here
                                     </button>
                                 }
+                                <div class="dropdown dropdown-end">
+                                    <button
+                                        type="button"
+                                        tabindex="0"
+                                        class="btn btn-ghost btn-xs"
+                                        title="More actions"
+                                        aria-label="More actions"
+                                        [attr.data-testid]="'project-overview-folder-more-' + row.folder.label"
+                                    >
+                                        <i class="fa-solid fa-ellipsis"></i>
+                                    </button>
+                                    <ul tabindex="0" class="menu dropdown-content z-[70] w-48 rounded-box border border-base-300 bg-base-100 p-1 shadow-md">
+                                        <li>
+                                            <button type="button" [attr.data-testid]="'project-overview-import-' + row.folder.label" (click)="importFile(row.folder)">
+                                                <i class="fa-solid fa-file-import fa-fw"></i>
+                                                Import cc.json…
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
                             </div>
                             @if (row.showsPlainHint) {
                                 <p class="pl-6 text-xs text-base-content/60">Imported maps only. Add the repository folder and move the snapshot to it.</p>
@@ -123,6 +143,10 @@
                 <button type="button" class="btn" data-testid="project-overview-new-project" (click)="createDialog.open()">
                     <i class="fa-solid fa-plus fa-fw"></i>
                     New project…
+                </button>
+                <button type="button" class="btn" data-testid="project-overview-open-file" (click)="openFile()">
+                    <i class="fa-solid fa-folder-open fa-fw"></i>
+                    Open cc.json…
                 </button>
                 <button type="button" class="btn" data-testid="project-overview-samples" (click)="showSampleFiles()">Show sample maps</button>
             </div>

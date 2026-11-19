@@ -86,6 +86,16 @@ export function shortDate(timestamp: string): string {
     return new Date(timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
 }
 
+export function longDate(timestamp: string): string {
+    return new Date(timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+}
+
+export function fileDate(timestamp: string): string {
+    const date = new Date(timestamp)
+    const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+    return `${longDate(timestamp)}, ${time}`
+}
+
 export function durationText(milliseconds: number): string {
     const seconds = Math.round(milliseconds / MS_PER_SECOND)
     const hours = Math.floor(seconds / SECONDS_PER_HOUR)

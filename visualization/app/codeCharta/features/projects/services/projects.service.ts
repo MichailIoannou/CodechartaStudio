@@ -2,12 +2,15 @@ import { computed, Injectable, inject, signal } from "@angular/core"
 import { Router } from "@angular/router"
 import { LoadFilesUseCase, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad } from "../../../load/load.facade"
 import type { ErrorCode } from "../../../model/coreApi/ErrorCode"
+import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../../model/coreApi/FolderRole"
 import type { NewFolder } from "../../../model/coreApi/NewFolder"
 import type { PickedFolder } from "../../../model/coreApi/PickedFolder"
 import type { Project } from "../../../model/coreApi/Project"
 import type { ProjectFolder } from "../../../model/coreApi/ProjectFolder"
 import type { ProjectSummary } from "../../../model/coreApi/ProjectSummary"
+import type { ResolveCommitResult } from "../../../model/coreApi/ResolveCommitResult"
+import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import type { StoreProblemCode } from "../../../model/coreApi/StoreProblemCode"
 import type { StoreUsage } from "../../../model/coreApi/StoreUsage"
@@ -97,6 +100,21 @@ export class ProjectsService {
         } finally {
             this.busyFolder.set(null)
         }
+    }
+
+    async showSnapshot(ref: SnapshotRef): Promise<void> {
+        await this.request("projects.setActive", { projectId: ref.projectId })
+        await this.readProject(ref.projectId)
+        await this.rememberView({ workingFolderId: ref.folderId })
+        await this.refreshProjects()
+        const folder = this.workingFolder()
+        const snapshot = this.findSnapshot(ref)
+        const result = folder && snapshot ? await this.loadFilesUseCase.loadProjectSnapshots(this.toLoad([{ folder, snapshot }])) : null
+        if (result && (await this.acceptLoadResult(result))) {
+            this.showMap()
+            return
+        }
+        await this.showWorkingFolder()
     }
 
     snapshotsToShow(): Promise<ProjectSnapshotToLoad[]> {
@@ -249,6 +267,10 @@ export class ProjectsService {
         }
     }
 
+    resolveCommit(folder: FolderRef, hash: string): Promise<ResolveCommitResult> {
+        return this.request("projects.resolveCommit", { ...folder, hash })
+    }
+
     async readStoreUsage(): Promise<StoreUsage | null> {
         const project = this.project()
         return project ? this.request("snapshots.usage", { projectId: project.id }) : null
@@ -332,7 +354,7 @@ export class ProjectsService {
         return snapshotDisplayName(origin.folderLabel, this.findSnapshot(origin))
     }
 
-    private findSnapshot(origin: ProjectSnapshotOrigin): SnapshotSummary {
+    private findSnapshot(origin: SnapshotRef): SnapshotSummary {
         const snapshots = this.snapshots()[origin.folderId] ?? []
         return snapshots.find(snapshot => snapshot.ref.snapshotId === origin.snapshotId) as SnapshotSummary
     }

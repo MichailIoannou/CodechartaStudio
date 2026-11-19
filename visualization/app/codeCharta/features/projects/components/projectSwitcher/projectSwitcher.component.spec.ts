@@ -2,7 +2,7 @@ import { TestBed } from "@angular/core/testing"
 import { screen } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
-import { aFolder, aGitStatus, aProject, aSnapshot } from "../../projects.mocks"
+import { aFolder, aGitStatus, aPickedImportFile, aProject, aSnapshot } from "../../projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../projectsTestBed.mocks"
 import { ProjectSwitcherComponent } from "./projectSwitcher.component"
 
@@ -226,5 +226,58 @@ describe("ProjectSwitcherComponent", () => {
 
         // Assert
         expect(screen.queryByTestId("project-switcher-menu")).toBeNull()
+    })
+
+    it("should pick a cc.json file from the menu and show the open dialog", async () => {
+        // Arrange
+        await renderSwitcher({ ...SEED, pickedImportFile: aPickedImportFile("Downloads") })
+        await openMenu()
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-switcher-open-file"))
+        await settle()
+
+        // Assert
+        expect(screen.queryByTestId("project-switcher-menu")).toBeNull()
+        expect(testBed.requestsOf("snapshots.pickImportFile")).toEqual([
+            { title: "Open cc.json", filters: [{ name: "cc.json files", extensions: ["json", "gz"] }] }
+        ])
+        expect(screen.getByTestId("open-file-dialog").textContent).toContain("Downloads.cc.json")
+        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled()
+    })
+
+    it("should open a cc.json file with Ctrl+O but not while typing or while a dialog is open", async () => {
+        // Arrange
+        await renderSwitcher()
+        const input = document.createElement("input")
+        document.body.append(input)
+        const openDialog = document.createElement("dialog")
+        openDialog.setAttribute("open", "")
+
+        // Act
+        input.dispatchEvent(new KeyboardEvent("keydown", { key: "o", ctrlKey: true, bubbles: true }))
+        document.body.append(openDialog)
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "o", ctrlKey: true }))
+        openDialog.remove()
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "O", metaKey: true }))
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", ctrlKey: true }))
+        await settle()
+        input.remove()
+
+        // Assert
+        expect(testBed.requestsOf("snapshots.pickImportFile")).toHaveLength(1)
+    })
+
+    it("should toast when the file cannot be picked", async () => {
+        // Arrange
+        await renderSwitcher()
+        testBed.bridge.failWith("snapshots.pickImportFile", { code: "IO", message: "No dialog", details: {} })
+
+        // Act
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "o", ctrlKey: true }))
+        await settle()
+
+        // Assert
+        expect(testBed.toastService.show).toHaveBeenCalledWith("No dialog", "error")
     })
 })

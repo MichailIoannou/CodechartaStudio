@@ -6,6 +6,7 @@ import type { ProjectSummary } from "../../../../model/coreApi/ProjectSummary"
 import type { SnapshotSummary } from "../../../../model/coreApi/SnapshotSummary"
 import type { StoreProblemCode } from "../../../../model/coreApi/StoreProblemCode"
 import { FolderGitService, isGitStatus } from "../../services/folderGit.service"
+import { OpenFileService } from "../../services/openFile.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted, relativeTime, shortSha } from "../../util/folderWording"
 import { AnalysesCardComponent } from "../analysesCard/analysesCard.component"
@@ -55,6 +56,7 @@ interface FolderRow {
 export class ProjectOverviewComponent {
     private readonly projects = inject(ProjectsService)
     private readonly folderGit = inject(FolderGitService)
+    private readonly openFileService = inject(OpenFileService)
     private lastRefreshAt = 0
 
     readonly now = signal(Date.now())
@@ -100,6 +102,19 @@ export class ProjectOverviewComponent {
 
     addFolder() {
         void this.projects.addPickedFolder("Add folder")
+    }
+
+    openFile() {
+        void this.openFileService.pickToOpen().catch(error => this.projects.toastUnlessSilent(error, (error as Error).message))
+    }
+
+    importFile(folder: ProjectFolder) {
+        const project = this.project()
+        if (project) {
+            ;(document.activeElement as HTMLElement | null)?.blur()
+            const target = { projectId: project.id, folderId: folder.id }
+            void this.openFileService.pickToImport(target).catch(error => this.projects.toastUnlessSilent(error, (error as Error).message))
+        }
     }
 
     showSampleFiles() {

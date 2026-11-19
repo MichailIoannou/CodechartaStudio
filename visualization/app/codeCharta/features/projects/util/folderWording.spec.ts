@@ -5,6 +5,8 @@ import {
     changesSentence,
     counted,
     durationText,
+    fileDate,
+    longDate,
     relativeTime,
     remoteDisplay,
     shortDate,
@@ -124,6 +126,16 @@ describe("folderWording", () => {
 
         // Assert
         expect(date).toBe("28 Oct")
+    })
+
+    it("should write a date with the year and a file date with the time", () => {
+        // Arrange & Act
+        const date = longDate("2026-11-12T12:00:00Z")
+        const withTime = fileDate("2026-11-12T12:00:00Z")
+
+        // Assert
+        expect(date).toBe("12 Nov 2026")
+        expect(withTime).toMatch(/^12 Nov 2026, \d{2}:\d{2}$/)
     })
 
     it("should write how long an analysis took", () => {

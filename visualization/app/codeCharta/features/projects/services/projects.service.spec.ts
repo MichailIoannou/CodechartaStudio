@@ -213,6 +213,33 @@ describe("ProjectsService", () => {
         expect(service.isBusy()).toBe(false)
     })
 
+    it("should show a given snapshot in its project and folder on the map", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-dots" })
+        await service.initialise()
+
+        // Act
+        await service.showSnapshot(WEB.ref)
+
+        // Assert
+        expect(requestsOf("projects.setActive")).toEqual([{ projectId: "p-billing" }])
+        expect(service.workingFolder()?.id).toBe("f-web")
+        expect(service.shownSnapshot()?.ref).toEqual(WEB.ref)
+        expect(router.navigateByUrl).toHaveBeenLastCalledWith("/")
+    })
+
+    it("should show the working folder when the given snapshot is not in the store", async () => {
+        // Arrange
+        const service = createService()
+
+        // Act
+        await service.showSnapshot({ ...WEB.ref, snapshotId: "s-gone" })
+
+        // Assert
+        expect(loadedSnapshotIds()).toEqual([["s-web"]])
+        expect(service.shownSnapshot()?.ref).toEqual(WEB.ref)
+    })
+
     it("should do nothing when the current working folder is chosen", async () => {
         // Arrange
         const service = createService({ activeProjectId: "p-billing" })
