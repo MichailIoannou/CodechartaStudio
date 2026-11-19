@@ -423,6 +423,37 @@ async fn should_use_the_merge_base_by_default() {
 }
 
 #[tokio::test]
+async fn should_keep_the_target_name_when_the_merge_base_is_its_tip() {
+    // Arrange
+    let history = branch_history();
+    history.repo.branch("released");
+    history
+        .repo
+        .git(&["branch", "-f", "released", &history.fork_point]);
+
+    // Act
+    let comparison = resolve(
+        &history.repo,
+        &branch("feature", Some("released"), BaseMode::MergeBase),
+    )
+    .await;
+
+    // Assert
+    assert_eq!(comparison.status, ResolveStatus::Ready);
+    assert_eq!(
+        comparison.base.requested.commit.as_str(),
+        history.fork_point
+    );
+    assert_eq!(
+        comparison.base.requested.label,
+        RefLabel {
+            kind: RefLabelKind::Branch,
+            name: "released".to_string(),
+        }
+    );
+}
+
+#[tokio::test]
 async fn should_use_the_target_tip_in_tip_mode() {
     // Arrange
     let history = branch_history();

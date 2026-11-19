@@ -236,7 +236,8 @@ pub(super) fn tips(base: Picked, head: Picked) -> Pair {
     }
 }
 
-/// The merge base of `tip` and `head`, else the tip itself when the two share no history.
+/// The merge base of `tip` and `head`, else the tip itself when the two share no history; a merge base that
+/// is the tip keeps the tip's name.
 pub(super) async fn from_merge_base(
     history: &History<'_, '_>,
     origin_tip: Picked,
@@ -245,8 +246,8 @@ pub(super) async fn from_merge_base(
 ) -> CoreResult<Pair> {
     let merge_base = history.merge_base(&origin_tip.commit, &head.commit).await?;
     let base = match &merge_base {
-        Some(sha) => history.pick(&revision_of(sha)?).await?,
-        None => origin_tip.clone(),
+        Some(sha) if sha != origin_tip.commit.as_str() => history.pick(&revision_of(sha)?).await?,
+        _ => origin_tip.clone(),
     };
     let origin = MergeBaseOrigin {
         tip: origin_tip,
