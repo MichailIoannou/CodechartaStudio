@@ -122,6 +122,7 @@ store_id!(ProjectId);
 store_id!(FolderId);
 store_id!(SnapshotId, is_snapshot_id);
 store_id!(JobId);
+store_id!(BatchId);
 
 #[cfg(test)]
 mod tests {

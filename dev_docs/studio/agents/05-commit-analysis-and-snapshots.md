@@ -399,6 +399,8 @@ enqueue ─► queued ──start──► running ──exit 0 + record written
 - Dedupe key `folderId + targetKey + profileHash` (`targetKey` = sha or `workingTree`). A key that is queued or running returns `AlreadyQueued`; a commit key that already has a snapshot returns `AlreadyAnalysed` unless `force`. Working-tree targets always create a new snapshot.
 - Terminal jobs stay listed until `clear_finished`; at most the 100 newest are kept. Every transition emits the matching `analysis.*` notification with the whole job.
 
+As built (05-M3): `AnalysisQueue::{new, subscribe, enqueue(NewJob { folder, target, profile_hash, batch_id, force }, existing: Option<SnapshotId>) -> CoreResult<EnqueueOutcome>, cancel(&JobId) -> CoreResult<()>, list, clear_finished -> Vec<AnalysisJob>, shutdown, drive(&impl JobExecutor), wait_for(&JobId)>}`. No `concurrency` parameter and no `Priority`: one `drive` loop runs one job at a time, and a job without `batch_id` is the direct one. The queue does not hold the executor; whoever owns it calls `drive` (the serving core in a task, the CLI beside its wait), so the executor may borrow the core. `JobExecutor::execute(&JobRequest, &RunHooks, &cancel) -> impl Future<Output = Result<SnapshotId, JobFailure>> + Send` (no `async_trait`). The caller looks up the existing snapshot and passes it as `existing`. Events are `AnalysisEvent` on a `tokio::sync::broadcast` channel (`Queued`, `Started`, `Progress { job_id, progress }` at most every 250 ms per job, `Finished`, `Failed`, `Cancelled`, then `SnapshotsChanged(folder)` after `Finished`); the serving core turns them into notifications.
+
 ### Identical trees and profiles
 
 - Two commits can produce the same `meta.checksum`. Each still gets its own snapshot; the store does not deduplicate bytes.

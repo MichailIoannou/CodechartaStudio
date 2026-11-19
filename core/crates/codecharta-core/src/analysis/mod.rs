@@ -5,6 +5,7 @@ pub mod output;
 pub mod preflight;
 pub mod profile;
 pub mod progress;
+pub mod queue;
 mod run_log;
 pub mod runner;
 pub mod service;

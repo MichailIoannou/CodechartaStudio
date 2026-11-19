@@ -34,7 +34,7 @@ custom ccsh path pointing at fake-ccsh (plan 01's `tools.setPath`). Gates with a
 ## Steps
 
 - [x] 1. Preflight
-- [ ] 2. Queue
+- [x] 2. Queue
 - [ ] 3. RPC
 - [ ] 4. CLI
 - [ ] 5. Fake bridge (later)
@@ -65,3 +65,20 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
 - Tests (`tests/preflight.rs`, temporary repositories, stub `DiskSpace`): one per table row (java missing and java
   too old as two), plus `should_pass_a_commit_of_a_healthy_repository`; unit
   `should_read_the_free_space_of_an_existing_folder`.
+
+### 2. Queue
+- Api: `JobState` (`is_finished`), `AnalysisJob` (the plan's fields; `id: JobId`, `batchId: BatchId | null`, flat
+  `projectId` / `folderId`, `folder()`), new store id `BatchId` (plan: `String`). Core `ids::new_job_id` (`job-<16 hex>`).
+- `analysis/queue.rs`: see the "As built" paragraph under "Job queue" in plan 05. **Deviations:** no `concurrency`
+  parameter or `Priority` argument (one `drive` loop; a job without `batch_id` is direct); the queue does not own
+  the executor but is driven by its owner, so `AnalysisService<'core>` (which borrows the core) can execute without
+  `Arc` cycles; the caller passes the existing snapshot (`existing`) because the queue knows no store.
+- Progress: the job always holds the latest `JobProgress`; notifications are throttled with plan 04's
+  `ProgressThrottle` at `PROGRESS_INTERVAL` 250 ms. Updates that arrive with the end of the run are applied before
+  the job finishes (found by `should_emit_a_notification_on_every_transition`, which failed once without it).
+- `MAX_FINISHED_JOBS` 100: the oldest finished (by finishing order, not queue order) are dropped. `shutdown` cancels
+  queued jobs at once and running ones through their token; `drive` returns after the running job ended; `enqueue`
+  then answers `NOT_ALLOWED`. `cancel` of an unknown job is `NOT_FOUND`, of a finished one a no-op.
+- Tests (`tests/queue.rs`, scripted executor): the plan's eight names plus
+  `should_cancel_queued_and_running_jobs_on_shutdown`, `should_throttle_progress_notifications_but_keep_the_latest_progress`,
+  `should_forget_finished_jobs_on_clear`; 30 repeated runs green.

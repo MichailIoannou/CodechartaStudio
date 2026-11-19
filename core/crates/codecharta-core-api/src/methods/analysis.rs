@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::ids::{BatchId, FolderId, JobId, ProjectId, SnapshotId};
+use crate::methods::projects::FolderRef;
 use crate::values::CommitSha;
 
 /// What one analysis maps: a commit, checked out by ccsh in a temporary worktree, or the folder as it is.
@@ -82,6 +84,54 @@ impl JobError {
         Self {
             hint: Some(hint.into()),
             ..self
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum JobState {
+    Queued,
+    Running,
+    Done,
+    Failed,
+    Cancelled,
+}
+
+impl JobState {
+    pub fn is_finished(self) -> bool {
+        matches!(
+            self,
+            JobState::Done | JobState::Failed | JobState::Cancelled
+        )
+    }
+}
+
+/// One analysis in the core's queue. `snapshotId` is set when it is done, `error` when it failed; a job
+/// of a batch has its `batchId`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisJob {
+    pub id: JobId,
+    pub batch_id: Option<BatchId>,
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub target: AnalysisTarget,
+    pub profile_hash: String,
+    pub state: JobState,
+    pub progress: JobProgress,
+    pub queued_at: String,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+    pub snapshot_id: Option<SnapshotId>,
+    pub error: Option<JobError>,
+}
+
+impl AnalysisJob {
+    pub fn folder(&self) -> FolderRef {
+        FolderRef {
+            project_id: self.project_id.clone(),
+            folder_id: self.folder_id.clone(),
         }
     }
 }
