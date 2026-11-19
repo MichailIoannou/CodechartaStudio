@@ -16,3 +16,7 @@ export function loadStateOf<Value>(result: GitResult<Value>): LoadState<Value> {
 export function readyValueOf<Value>(state: LoadState<Value>): Value | null {
     return state.kind === "ready" ? state.value : null
 }
+
+export function failureOf(state: LoadState<unknown>): GitError | null {
+    return state.kind === "failed" ? state.error : null
+}

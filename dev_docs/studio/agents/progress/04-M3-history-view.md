@@ -41,7 +41,7 @@ metrics bar / file extension bar / toasts at the same time. Keep changes to shar
 - [x] 1. Tidy first
 - [x] 2. Route
 - [x] 3. Repository state
-- [ ] 4. Panel shell
+- [x] 4. Panel shell
 - [ ] 5. Branches tree
 - [x] 6. Branch chip — replaced by the design (W1)
 
@@ -98,4 +98,43 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   answers `git.repositoryInfo`, `git.status`, `git.branches`, `git.refsFingerprint`, `git.log`; a missing value is
   `NOT_A_REPOSITORY`, `failures[method]` fails one method. 03-M5's `gitStatuses` / `gitLogs` stay as shorthands folded
   into `git` (no projects spec had to change).
+
+### 4. Panel shell and problems
+- Structural commit first: `util/wording.ts` (kernel) takes `counted`, `shortSha`, `relativeTime` from
+  `features/projects/util/folderWording.ts`, which re-exports them (git cannot import the projects feature).
+- `components/gitHistoryPanel` (`cc-git-history-panel`): H4 toolbar, then either the H6 problem notice or the shallow
+  notice and the three H3 islands (`bg-base-200 p-1.5 gap-1.5`, panes `rounded-[10px] bg-base-100`), side panes with
+  `ccColumnResizeHandle` (drag, arrow keys, double-click resets) and the collapse strip (2.5 rem, `fa-code-branch`
+  "Expand branches", `fa-circle-info` "Expand details"). F5 inside the panel refreshes (`stopPropagation`).
+- `services/historyLayout.service.ts` + `repos/historyLayout.repo.ts` (`codeChartaHistoryLayout`): widths 260
+  (180–480) and 380 (280–640), clamped; collapsed group ids; below `xl` (1280 px) both side panes start collapsed
+  unless the user chose otherwise — only a user's choice is stored, so a narrow start does not stick.
+- `components/historyToolbar` (H4 without the sync button and the tabs): "Repository" caption (hidden below `xl`),
+  working-folder label with the design's `title`, "on" + branch (`max-w-32 xl:max-w-56`) as a button that scopes the
+  commit list, detached "at `a1b2c3d` (detached)", "merging"/"rebasing" badge, Refresh (`fa-spin` while refreshing).
+- `components/gitProblemNotice` + `util/gitErrorText.ts`: the six H6 notices by error code (`TOOL_NOT_FOUND`,
+  `GIT_TOO_OLD`, `NOT_A_REPOSITORY`, `NOT_FOUND`/`FOLDER_UNAVAILABLE`, `DUBIOUS_OWNERSHIP`, `BARE_REPOSITORY`) with the
+  copy block for `git config --global --add safe.directory <path>` (`details.repositoryPath`, else the folder path).
+  `gitErrorSentence` has the read-relevant H6 sentences (`indexLocked`, `timeout`, `commandFailed`/others).
+- `services/gitLog.service.ts` (`GitLogService`): only the scope for now (`scope`, `scopedRefNames`, `scopeTo(ref,
+  { isAdded })`, `showAllBranches`; back to All when the repository changes); M4 adds the pages.
+  `components/commitScopeChip`: "All branches" or the scoped refs with `fa-xmark` "Show all branches".
+- The view composes what the panel cannot import: `cc-relink-folder` (projects facade now exports
+  `RelinkFolderComponent`) and `cc-global-configuration-dialog` (globalSettings imports projects, so git may not
+  import it); the panel only emits `relinkFolder` / `openDesktopTools`.
+- **Design gaps, not improvised:**
+  - "Open desktop tools" opens the Global Configuration dialog; it has no way to jump to its desktop-tools section.
+  - `notARepository`'s "folder select if another git folder exists" is not offered: design deviation 3 says History has
+    no folder select (the project menu chooses the working folder). Open for the owner which one wins.
+  - `gitTooOld`: the core names the version only in its message ("git 2.30.9 is older than the minimum 2.31.0."), so
+    the renderer reads it from there and shows the core's sentence when it cannot.
+  - Merge / rebase / other-operation banners are not built: they need "Abort merge…" (M11) and the branch being
+    rebased, which git reports as a detached head and the core does not expose. The toolbar badge shows the state.
+    The slow-first-page banner belongs to the commit list (M4).
+  - Tabs **Log** / **Changes** and the sync button (H5) are not shown: Changes comes with M9, sync with M8 (plan: unbuilt
+    features are not shown). The commits pane has its header and scope chip, the list comes with M4; the details pane
+    shows the "nothing selected" sentence.
+  - A refs failure that is not a repository-level problem shows inside the branches pane (task 5) as
+    `alert alert-error text-xs` with the H6 sentence and "Retry", borrowed from H9's error state, because error toasts
+    with Details (deviation 4) do not exist on this branch yet.
 

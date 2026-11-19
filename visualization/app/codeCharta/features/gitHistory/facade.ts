@@ -1,3 +1,4 @@
+export { GitHistoryPanelComponent } from "./components/gitHistoryPanel/gitHistoryPanel.component"
 export { isGitStatus } from "./model/folderGitStatus"
 export { WORKING_FOLDER_SOURCE } from "./ports/workingFolderSource.port"
 export { GitHistoryAvailability } from "./services/gitHistoryAvailability.service"
