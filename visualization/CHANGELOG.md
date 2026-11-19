@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **Open cc.json files**: the desktop app files a cc.json you open from the project menu, with Ctrl+O or by dropping it on the window into a project for its folder, marked as imported with an unknown analysis time, and can tie it to the commit its name points to.
 - **Store folder**: the desktop settings can move where analyses are kept to another folder.
 - **Analyses in the app**: the desktop app analyses the current checkout or the HEAD commit of a project folder, shows the progress in the nav bar, opens the new map when it is done and lists every analysis of a project to reopen later.
+- **Nearest analysis**: when the current checkout of a desktop project has no analysis, the map shows the closest analysed commit, a notice and the nav bar say how many commits it is off, and the notice offers to analyse the checkout.
 
 ### Changed
 
