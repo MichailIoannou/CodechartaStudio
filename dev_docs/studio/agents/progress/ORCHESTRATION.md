@@ -59,8 +59,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
 | 05-M0 Spikes on a real Windows machine | spike | done (Linux); Windows items W1–W5 open for owner | owner hardware (W1–W5) | feature/studio-05-m0 | 071cfd98a |
 | 05-M1 Run one analysis from the core | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m1 | a6eff44c7 (verified, not merged) |
-| 05-M2 Snapshot records | core | in progress (from feature/studio-05-m1) | — | feature/studio-05-m2 | — |
-| 05-M3 Queue, preflight, RPC, CLI | core | todo | 05-M2 | — | — |
+| 05-M2 Snapshot records | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m2 | 3eff64af5 (verified, not merged) |
+| 05-M3 Queue, preflight, RPC, CLI | core (+ fake bridge) | in progress (tasks 1–4, from feature/studio-05-m2) | task 5 (fake bridge): core stack merge | feature/studio-05-m3 | — |
 | 05-M4 Analyse from the UI, browse snapshots | UI | todo | 05-M3; 04 UI | — | — |
 | 05-M5 Nearest snapshot and stale notice | core + UI | todo | 05-M3 | — | — |
 | 05-M6 Batches, retention, cleanup | core + UI | todo | 05-M5 | — | — |
@@ -229,6 +229,12 @@ the milestone is started.
   validated `setColorScheme` shell action (`nativeTheme.themeSource`, saved in `shell.json`, default dark)
   instead of the plan's `NATIVE_APPEARANCE` token; default window background `#1e2329`. **Plan 02 is
   complete** (pending owner/designer answers to O3).
+- 05-M2 (see `05-m2-snapshot-records.md` on `feature/studio-05-m2`): extended 03-M3's `SnapshotRepository`
+  (no parallel module); sweep also repairs `.replaced-*` and deletes `.failed-*` inside per-folder
+  snapshot directories only (checked); `SnapshotSummary` gained `target`, `finishedAt`, `durationMs`,
+  `notInMap`; `SnapshotId` accepts the overview's working-tree id form; `execute` returns
+  `JobFailure::{Cancelled, Failed}`; `branchesAtRun` lists local branches only. No real ccsh through
+  `execute` yet; `gh`/`glab` flags unverified (W5).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -260,6 +266,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 05-M2 verified on a scratch merge (clippy and cargo test with and without features: 682/686, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 05-M3 tasks 1–4 started.
 - 2026-11-19: 02-M6 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 663/663, build, test:electron 45/45, e2e:desktop 10/10, web e2e:ci 165/165). Plan 02 complete. The visualization lane now has no allowed work until the core stack (03-M2…05-M1) is merged into integration.
 - 2026-11-19: 05-M1 verified on a scratch merge (clippy and cargo test with and without features: 642/646, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 02-M6 merged; web e2e running. 05-M2 started.
 - 2026-11-19: 02-M5 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 663/663, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 165/165). 02-M6 started (reusing the shell's `setWindowBackground`).
