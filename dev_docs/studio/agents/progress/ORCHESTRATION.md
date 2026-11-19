@@ -71,8 +71,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
 | 04-M7 Operation queue, progress, prompts | core + UI | core and task 5 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
 | 04-M8 Fetch and branches | core + UI | core and task 2 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
-| 04-M9 Changes and diff | core + UI | core on the stack; task 2 in progress with 04-M10 task 2 (feature/studio-04-m9m10-ui) | — | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
-| 04-M10 Commit | core + UI | core on the stack; task 2 in progress with 04-M9 task 2 (feature/studio-04-m9m10-ui) | — | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
+| 04-M9 Changes and diff | core + UI | core and task 2 merged into `feature/studio-stack`; **web e2e pending** (paused) | — | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
+| 04-M10 Commit | core + UI | core and task 2 merged into `feature/studio-stack`; **web e2e pending** (paused) | — | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
 | 04-M11 Pull, push, abort | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
 | 05-M0 Spikes on a real Windows machine | spike | done (Linux); Windows items W1–W5 open for owner | owner hardware (W1–W5) | feature/studio-05-m0 | 071cfd98a |
@@ -85,8 +85,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
 | 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
 | 06-M1 Compare core: commit vs commit | core + UI | done on `feature/studio-stack` (renderer web e2e 180/180) | integration merge: as 03-M2 | feature/studio-06-m1 | 698643e98 (verified, not merged) |
-| 06-M2 Entry points (+ core tasks 1–2) | core + UI | in progress with 06-M3 (feature/studio-06-m2m3) | — | feature/studio-06-m2m3 | — |
-| 06-M3 Missing snapshots and staleness | UI (no core tasks) | in progress with 06-M2 (feature/studio-06-m2m3) | — | feature/studio-06-m2m3 | — |
+| 06-M2 Entry points (+ core tasks 1–2) | core + UI | merged into `feature/studio-stack` (417ef52b9, fix 8a409bed3); **web e2e pending** (paused); PR segment and branch-menu compare entries open | — | feature/studio-06-m2m3 | 96232878b |
+| 06-M3 Missing snapshots and staleness | UI (no core tasks) | merged into `feature/studio-stack` with 06-M2; **web e2e pending** (paused) | — | feature/studio-06-m2m3 | 96232878b |
 | 06-M4 Changed files | core + UI | core task 1 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: 06-M3 | feature/studio-06-m4 | 919fb2972 (verified, not merged) |
 | 06-M5 PRs and merge requests | core + UI | core tasks 1, 4 verified, **merge pending** (top of the unmerged stack); tasks 2, 3, 8 blocked; UI todo | merge: as 03-M2; tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner); UI: core stack merge | feature/studio-06-m5 | fc5e4f3a1 (verified, not merged) |
 | 06-M6 Polish and stretch | UI | todo | 06-M5 | — | — |
@@ -388,6 +388,17 @@ the milestone is started.
   owner's pending edits there are committed):** at ~900 px with both panels open only 236 px are free; the bar stops
   at 30rem and its right part (tools incl. Legend) lies under the inspector until it closes; Layout and metric cells
   stay reachable. Options: a compact bar mode, or a z-order change.
+- 04-M9/M10 renderer (see `04-M9-M10-ui-changes-commit.md` on the stack): worded badges, Log/Changes tabs in the
+  toolbar, commit box at the bottom of the changes panel, Discard only on unstaged/untracked rows, diff always
+  virtualised, >1000 paths sent in chunks under one operation id; "Open changes" link added. Design gaps:
+  identity commands as plain lines in a toast (H6 wants copy blocks); `CONFLICTS`/`OUTPUT_TOO_LARGE` fall back to
+  "Git failed: …"; the mock-up has no Changes tab. Merged cleanly.
+- 06-M2/M3 (see `06-m2-m3-entry-points-missing.md` on the stack): core branch and explicit intents; ref picker in
+  `features/gitHistory`; `explicit` intent keeps Base as base; base mode remembered per project; History Compare
+  entries incl. disabled Compare with Parent via the new `disabledReasonFor?`; `BRANCH_ACTIONS` port (branch-menu
+  entries appear once rendered); Pull requests segment left out (no `hosting.list*`, no design state). Merge
+  conflict in the shared `contextMenuItem`: 04-M7/M8's `disabled` (real `disabled` attribute) and 06's
+  `disabledReason` (`aria-disabled` + title) both kept (8a409bed3).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -419,6 +430,16 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19, **paused by the owner**: 04-M9/M10 renderer and 06-M2/M3 merged into `feature/studio-stack`;
+  gates on the final stack (8a409bed3): cargo fmt/clippy/test with and without features 853/857, contract drift,
+  format, tsc, lint, npm test 766/766, build, test:electron 80/80, e2e:desktop 16/16. **Not yet run: web e2e:ci on
+  the final stack** — run it first when resuming. For the owner: a sample repository (scratchpad `sample-shop`,
+  built from `sample-projects/`, with a merged feature branch, a tag `v1.0` and one uncommitted change) was added
+  as project "sample shop" to the real store (`~/.config/codecharta-visualization`) with two analyses (ec16692,
+  c96efe2), and the current stack build was launched with the real ccsh. Remaining when resuming: 04-M6, 04-M11
+  renderer, 04-M12; 05-M6 renderer (with O4 answers) and 05-M7; 06-M4/M5 renderer, 06-M6; 03-M7; integration merge of
+  `feature/studio-stack` once the owner's plan edits are committed; design follow-ups (900 px bar limit, O-answers
+  needing design edits).
 - 2026-11-19: O2/O3/O5 fixes passed web e2e 185/185 on the stack. 02-M7 merged; the toast conflict resolved as 02-M7's positioned container with the stack's `<ng-content />` (stale notice) first, both sides' specs kept (one missing brace fixed); gates: format, tsc, lint, npm test 752/752, build, test:electron 80/80, e2e:desktop 16/16; web e2e running.
 - 2026-11-19: fixes for O2/O3/O5 merged cleanly into the stack; gates: format, tsc, lint, npm test 749/749, build, test:electron 80/80, e2e:desktop 16/16; web e2e running. 02-M7 resumed to commit its option-A work.
 - 2026-11-19: owner answered O2–O7; resumed 02-M7 for option A, started a Sonnet fixes agent for O2/O3/O5. Closed the old CodeCharta window (opened by the orchestrator) and launched the current stack build with the real ccsh on PATH for the owner.
