@@ -11,8 +11,8 @@ use codecharta_core_api::methods::core::{
 };
 use codecharta_core_api::methods::git::{
     GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod, GitBranchesMethod,
-    GitChangedFilesMethod, GitCommitDetailsMethod, GitDiffFileMethod, GitDiscardMethod,
-    GitFetchMethod, GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod,
+    GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitMethod, GitDiffFileMethod,
+    GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod,
     GitMergeBaseMethod, GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod,
     GitResolveCommitMethod, GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod,
     GitStatusMethod, GitSwitchMethod, GitUnstageMethod, GitWorkingTreeMethod,
@@ -294,6 +294,10 @@ const ROUTES: &[Route] = &[
     Route {
         name: GitDiscardMethod::NAME,
         handler: git_routes::discard,
+    },
+    Route {
+        name: GitCommitMethod::NAME,
+        handler: git_routes::commit,
     },
     Route {
         name: PromptAnswerMethod::NAME,

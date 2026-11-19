@@ -1,4 +1,5 @@
 use codecharta_core::git::branch::{BranchCreateRequest, BranchRenameRequest, SetUpstreamRequest};
+use codecharta_core::git::commit::CommitRequest;
 use codecharta_core::git::details::ChangedFilesRequest;
 use codecharta_core::git::log::LogRequest;
 use codecharta_core::git::operation::OperationContext;
@@ -8,12 +9,12 @@ use codecharta_core::{Core, CoreResult};
 use codecharta_core_api::events::ProgressParams;
 use codecharta_core_api::methods::git::{
     GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod, GitBranchesMethod,
-    GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitDistances, GitDiffFileMethod,
-    GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod,
-    GitMergeBaseMethod, GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod,
-    GitResolveCommitMethod, GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod,
-    GitStatusMethod, GitSwitchMethod, GitUnstageMethod, GitWorkingTreeMethod, RepositoryChanged,
-    RepositoryChangedEvent,
+    GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitDistances, GitCommitMethod,
+    GitDiffFileMethod, GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod,
+    GitMeasureDistancesMethod, GitMergeBaseMethod, GitRefsAtMethod, GitRefsFingerprintMethod,
+    GitRepositoryInfoMethod, GitResolveCommitMethod, GitRevListCountMethod, GitSetUpstreamMethod,
+    GitStageMethod, GitStatusMethod, GitSwitchMethod, GitUnstageMethod, GitWorkingTreeMethod,
+    RepositoryChanged, RepositoryChangedEvent,
 };
 use codecharta_core_api::registry::{Event, Method};
 use serde_json::Value;
@@ -251,6 +252,10 @@ operation_route!(
     GitDiscardMethod,
     |git, folder, params, operation| git.discard(&folder, &params.entries, operation)
 );
+
+operation_route!(commit, GitCommitMethod, |git, folder, params, operation| {
+    git.commit(&folder, CommitRequest::from(params.clone()), operation)
+});
 
 /// Sends every repository change the core announces as a `repository.changed` notification.
 pub async fn forward_repository_changes(

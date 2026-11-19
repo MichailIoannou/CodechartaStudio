@@ -4,8 +4,8 @@ use ts_rs::TS;
 use crate::methods::projects::{FolderRef, GitRemote};
 use crate::registry::{Audience, Event, method};
 use crate::values::{
-    BranchName, CommitSha, FullRefName, LogCursor, LogFilterText, RepoRelativePath, Revision,
-    WorkingTreePath,
+    BranchName, CommitBody, CommitSha, CommitSubject, FullRefName, LogCursor, LogFilterText,
+    RepoRelativePath, Revision, WorkingTreePath,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -576,6 +576,20 @@ pub struct GitDiscardParams {
     pub entries: Vec<DiscardEntry>,
 }
 
+/// Commits the staged changes with `subject`, a blank line and `body` (empty for none) as its message,
+/// kept as written apart from surrounding whitespace, so a body line starting with `#` stays. During a
+/// merge the commit concludes it. `amend` replaces the last commit, also with nothing staged. The user's
+/// configured identity only: without one the commit fails with `IDENTITY_UNKNOWN`; a failing hook gives
+/// `HOOK_FAILED` with its output as the detail.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitCreateCommitParams {
+    pub repo: FolderRef,
+    pub subject: CommitSubject,
+    pub body: CommitBody,
+    pub amend: bool,
+}
+
 method!(
     GitRepositoryInfoMethod,
     "git.repositoryInfo",
@@ -740,6 +754,13 @@ method!(
     GitDiscardParams,
     GitWorkingTree
 );
+method!(
+    GitCommitMethod,
+    "git.commit",
+    Renderer,
+    GitCreateCommitParams,
+    GitOperationResult
+);
 
 pub struct RepositoryChangedEvent;
 
@@ -855,5 +876,27 @@ mod tests {
                 change: GitFileChange::Added,
             }]
         );
+    }
+
+    #[test]
+    fn should_read_commit_params_and_refuse_a_multi_line_subject_or_unknown_fields() {
+        // Arrange
+        let repo = json!({ "projectId": "p-0123456789abcdef", "folderId": "f-0123456789abcdef" });
+        let commit = json!({ "repo": repo, "subject": "Fix", "body": "# kept", "amend": false });
+        let multi_line = json!({ "repo": repo, "subject": "a\nb", "body": "", "amend": false });
+        let smuggled = json!({
+            "repo": repo, "subject": "Fix", "body": "", "amend": false, "noVerify": true
+        });
+
+        // Act
+        let parsed = serde_json::from_value::<GitCreateCommitParams>(commit);
+        let refused = [multi_line, smuggled]
+            .map(|params| serde_json::from_value::<GitCreateCommitParams>(params).is_err());
+
+        // Assert
+        let parsed = parsed.unwrap();
+        assert_eq!(parsed.subject.as_str(), "Fix");
+        assert_eq!(parsed.body.as_str(), "# kept");
+        assert_eq!(refused, [true, true]);
     }
 }

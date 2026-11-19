@@ -96,6 +96,12 @@ pub fn message_for(code: ErrorCode) -> &'static str {
         ErrorCode::ChangedSinceListed => {
             "The changes are no longer as listed; look at them again before you retry."
         }
+        ErrorCode::IdentityUnknown => {
+            "git does not know who you are: set your name and email in your git configuration."
+        }
+        ErrorCode::NothingToCommit => "Nothing is staged to commit.",
+        ErrorCode::HookFailed => "A git hook of this repository stopped the commit.",
+        ErrorCode::Conflicts => "Some files still have conflicts; resolve and stage them first.",
         _ => "git failed.",
     }
 }

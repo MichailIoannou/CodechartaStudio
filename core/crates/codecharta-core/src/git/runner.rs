@@ -190,6 +190,11 @@ impl<'core> GitCli<'core> {
         Self { user, ..self }
     }
 
+    /// The core's own folder git starts in; files git reads from the core go below it.
+    pub fn data_dir(&self) -> &Path {
+        self.data_dir
+    }
+
     pub async fn version(&self) -> CoreResult<String> {
         self.process.version().await
     }

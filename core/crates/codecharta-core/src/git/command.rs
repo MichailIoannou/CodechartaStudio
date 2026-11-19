@@ -146,6 +146,12 @@ pub const WORKING_TREE_LIMITS: Limits = Limits {
     max_stdout_bytes: MEBIBYTE,
 };
 
+/// Hooks and gpg may run for a while, and gpg may wait for its passphrase.
+pub const COMMIT_LIMITS: Limits = Limits {
+    timeout: Duration::from_secs(600),
+    max_stdout_bytes: MEBIBYTE,
+};
+
 /// A longer diff fails with `OUTPUT_TOO_LARGE`; a shorter one is cut to `MAX_DIFF_TEXT_BYTES`.
 pub const DIFF_LIMITS: Limits = Limits {
     timeout: Duration::from_secs(30),

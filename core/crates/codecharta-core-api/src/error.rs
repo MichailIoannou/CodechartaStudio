@@ -46,10 +46,14 @@ pub enum ErrorCode {
     AuthenticationRequired,
     NetworkUnavailable,
     ChangedSinceListed,
+    IdentityUnknown,
+    NothingToCommit,
+    HookFailed,
+    Conflicts,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 40] = [
+    pub const ALL: [ErrorCode; 44] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -90,6 +94,10 @@ impl ErrorCode {
         ErrorCode::AuthenticationRequired,
         ErrorCode::NetworkUnavailable,
         ErrorCode::ChangedSinceListed,
+        ErrorCode::IdentityUnknown,
+        ErrorCode::NothingToCommit,
+        ErrorCode::HookFailed,
+        ErrorCode::Conflicts,
     ];
 }
 
@@ -149,6 +157,10 @@ mod tests {
             ErrorCode::AuthenticationRequired,
             ErrorCode::NetworkUnavailable,
             ErrorCode::ChangedSinceListed,
+            ErrorCode::IdentityUnknown,
+            ErrorCode::NothingToCommit,
+            ErrorCode::HookFailed,
+            ErrorCode::Conflicts,
         ];
 
         // Act
@@ -175,7 +187,11 @@ mod tests {
                 "OPERATION_IN_PROGRESS",
                 "AUTHENTICATION_REQUIRED",
                 "NETWORK_UNAVAILABLE",
-                "CHANGED_SINCE_LISTED"
+                "CHANGED_SINCE_LISTED",
+                "IDENTITY_UNKNOWN",
+                "NOTHING_TO_COMMIT",
+                "HOOK_FAILED",
+                "CONFLICTS"
             ])
         );
     }

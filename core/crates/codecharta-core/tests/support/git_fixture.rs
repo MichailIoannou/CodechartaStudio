@@ -210,6 +210,18 @@ impl TempRepo {
             runner: ProcessRunner::new(hardened_env(std::env::vars_os(), &[])),
             program: self.git.clone(),
             env: self.env(),
+            removed_env: Vec::new(),
+        }
+    }
+
+    /// Like `runner`, without any author or committer identity in git's environment.
+    pub fn runner_without_identity(&self) -> FixtureGit {
+        let mut env = self.env();
+        env.retain(|(name, _)| !IDENTITY_VARIABLES.iter().any(|identity| name == identity));
+        FixtureGit {
+            env,
+            removed_env: IDENTITY_VARIABLES.iter().map(OsString::from).collect(),
+            ..self.runner()
         }
     }
 
@@ -220,6 +232,11 @@ impl TempRepo {
     /// An existing folder outside the repository, to stand in for the core's data folder.
     pub fn data_dir(&self) -> &Path {
         self.home.path()
+    }
+
+    /// The file git reads as the global and the system configuration.
+    pub fn global_config(&self) -> PathBuf {
+        self.home.path().join(EMPTY_CONFIG_FILE)
     }
 
     pub fn git_executable(&self) -> &Path {
@@ -362,6 +379,7 @@ pub struct FixtureGit {
     runner: ProcessRunner,
     program: PathBuf,
     env: Vec<(OsString, OsString)>,
+    removed_env: Vec<OsString>,
 }
 
 impl GitRunner for FixtureGit {
@@ -426,10 +444,12 @@ impl FixtureGit {
     fn request_of(&self, invocation: GitInvocation, output: OutputMode) -> RunRequest {
         let mut env = self.env.clone();
         env.extend(invocation.env);
+        let mut env_remove = invocation.removed_env;
+        env_remove.extend(self.removed_env.iter().cloned());
         RunRequest {
             cwd: Some(invocation.cwd),
             env,
-            env_remove: invocation.removed_env,
+            env_remove,
             max_output_bytes: invocation.limits.max_stdout_bytes,
             stdin: invocation.stdin,
             askpass: invocation.askpass,

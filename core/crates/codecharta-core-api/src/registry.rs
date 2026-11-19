@@ -7,8 +7,8 @@ use crate::events::CoreProgress;
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
 use crate::methods::git::{
     GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod, GitBranchesMethod,
-    GitChangedFilesMethod, GitCommitDetailsMethod, GitDiffFileMethod, GitDiscardMethod,
-    GitFetchMethod, GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod,
+    GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitMethod, GitDiffFileMethod,
+    GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod,
     GitMergeBaseMethod, GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod,
     GitResolveCommitMethod, GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod,
     GitStatusMethod, GitSwitchMethod, GitUnstageMethod, GitWorkingTreeMethod,
@@ -186,6 +186,7 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<GitStageMethod>(),
     MethodSpec::of::<GitUnstageMethod>(),
     MethodSpec::of::<GitDiscardMethod>(),
+    MethodSpec::of::<GitCommitMethod>(),
     MethodSpec::of::<PromptAnswerMethod>(),
     MethodSpec::of::<PromptCancelMethod>(),
 ];

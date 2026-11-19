@@ -631,6 +631,32 @@ fn should_reject_malformed_working_tree_params_without_touching_the_index() {
 }
 
 #[test]
+fn should_commit_staged_changes_over_stdio_and_refuse_a_multi_line_subject() {
+    // Arrange
+    let repo = TempRepo::new();
+    repo.commit("Add a", &[("a.txt", "a\n")]);
+    repo.write_file("a.txt", "changed\n");
+    repo.git(&["add", "--", "a.txt"]);
+    let mut core = GitCore::start(&repo);
+    let folder = core.project_of(repo.path());
+    let multi_line = json!({ "repo": folder, "subject": "a\nb", "body": "", "amend": false });
+    let commit = json!({ "repo": folder, "subject": "Change a", "body": "# kept", "amend": false });
+
+    // Act
+    let refused = core.request("git.commit", multi_line);
+    let (committed, changed) = core.request_awaiting("git.commit", commit, REPOSITORY_CHANGED);
+
+    // Assert
+    assert_eq!(error_data_code(&refused), &json!("BAD_REQUEST"));
+    assert_eq!(committed["result"]["status"]["counts"]["staged"], 0);
+    assert_eq!(changed["method"], REPOSITORY_CHANGED);
+    assert_eq!(
+        repo.git(&["log", "-1", "--format=%B"]),
+        "Change a\n\n# kept"
+    );
+}
+
+#[test]
 fn should_print_three_log_lines_from_cli_with_limit() {
     // Arrange
     let repo = TempRepo::new();

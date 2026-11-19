@@ -3,6 +3,7 @@ pub mod branch;
 pub mod cache;
 pub mod changes;
 pub mod command;
+pub mod commit;
 pub mod details;
 pub mod error;
 pub mod failure;

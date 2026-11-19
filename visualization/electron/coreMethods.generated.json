@@ -52,6 +52,7 @@
     "git.stage",
     "git.unstage",
     "git.discard",
+    "git.commit",
     "prompt.answer",
     "prompt.cancel"
   ]

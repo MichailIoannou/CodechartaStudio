@@ -129,7 +129,7 @@ pub struct Settled<T> {
 }
 
 impl Settled<()> {
-    fn into_operation_result(self) -> GitOperationResult {
+    pub(super) fn into_operation_result(self) -> GitOperationResult {
         GitOperationResult {
             status: self.status,
             refs: self.refs,

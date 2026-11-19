@@ -22,6 +22,8 @@ pub const MAX_LOG_FILTER_CHARS: usize = 200;
 pub const MAX_REPO_PATH_LENGTH: usize = 1024;
 pub const MAX_BRANCH_NAME_CHARS: usize = 200;
 pub const MAX_WORKING_TREE_PATH_LENGTH: usize = 4096;
+pub const MAX_COMMIT_SUBJECT_CHARS: usize = 200;
+pub const MAX_COMMIT_BODY_CHARS: usize = 20_000;
 const LOCAL_BRANCH_PREFIX: &str = "refs/heads/";
 const OPTION_PREFIX: char = '-';
 const PARENT_SEGMENT: &str = "..";
@@ -143,6 +145,17 @@ fn is_prompt_id(value: &str) -> bool {
 
 fn is_log_filter_text(value: &str) -> bool {
     has_chars(value, 1..=MAX_LOG_FILTER_CHARS) && !value.chars().any(char::is_control)
+}
+
+/// One line that is not only spaces: git would drop a blank message and refuse the commit.
+fn is_commit_subject(value: &str) -> bool {
+    has_chars(value, 1..=MAX_COMMIT_SUBJECT_CHARS)
+        && !value.trim().is_empty()
+        && !value.chars().any(char::is_control)
+}
+
+fn is_commit_body(value: &str) -> bool {
+    has_chars(value, 0..=MAX_COMMIT_BODY_CHARS) && !value.contains(NUL_CHARACTER)
 }
 
 /// A path git reads from its standard input one per line: relative, inside the repository, one line.
@@ -353,6 +366,18 @@ validated_text!(
     WorkingTreePath,
     is_working_tree_path,
     "use a path of the working-tree listing: relative, at most 4096 bytes, no .. segment, no drive and no NUL"
+);
+
+validated_text!(
+    CommitSubject,
+    is_commit_subject,
+    "use 1 to 200 characters on one line, not only spaces, without control characters"
+);
+
+validated_text!(
+    CommitBody,
+    is_commit_body,
+    "use at most 20000 characters without NUL"
 );
 
 validated_text!(
@@ -689,5 +714,28 @@ mod tests {
         assert_eq!(rejected, vec![true; rejected.len()]);
         assert!(BranchName::try_from("feature/login-form").is_ok());
         assert!(BranchName::try_from("fix-ü").is_ok());
+    }
+
+    #[test]
+    fn should_reject_blank_multi_line_and_long_commit_subjects_and_bodies_with_nul() {
+        // Arrange
+        let long_subject = "x".repeat(MAX_COMMIT_SUBJECT_CHARS + 1);
+        let long_body = "x".repeat(MAX_COMMIT_BODY_CHARS + 1);
+
+        // Act
+        let rejected = [
+            CommitSubject::try_from("").is_err(),
+            CommitSubject::try_from("   ").is_err(),
+            CommitSubject::try_from("two\nlines").is_err(),
+            CommitSubject::try_from(long_subject).is_err(),
+            CommitBody::try_from("nul\0inside").is_err(),
+            CommitBody::try_from(long_body).is_err(),
+        ];
+
+        // Assert
+        assert_eq!(rejected, [true; 6]);
+        assert!(CommitSubject::try_from("Fix \"quoted\" bug in ü").is_ok());
+        assert!(CommitBody::try_from("").is_ok());
+        assert!(CommitBody::try_from("# kept\r\n\nsecond paragraph").is_ok());
     }
 }

@@ -21,6 +21,7 @@ import type { GitCommitDetails } from "./GitCommitDetails"
 import type { GitCommitDistances } from "./GitCommitDistances"
 import type { GitCommitParams } from "./GitCommitParams"
 import type { GitCommitSummary } from "./GitCommitSummary"
+import type { GitCreateCommitParams } from "./GitCreateCommitParams"
 import type { GitDiff } from "./GitDiff"
 import type { GitDiffFileParams } from "./GitDiffFileParams"
 import type { GitDiscardParams } from "./GitDiscardParams"
@@ -129,7 +130,11 @@ export const CORE_ERROR_CODES = [
     "OPERATION_IN_PROGRESS",
     "AUTHENTICATION_REQUIRED",
     "NETWORK_UNAVAILABLE",
-    "CHANGED_SINCE_LISTED"
+    "CHANGED_SINCE_LISTED",
+    "IDENTITY_UNKNOWN",
+    "NOTHING_TO_COMMIT",
+    "HOOK_FAILED",
+    "CONFLICTS"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {
@@ -193,6 +198,7 @@ export type CoreMethods = {
     "git.stage": { params: GitStageParams; result: GitWorkingTree }
     "git.unstage": { params: GitUnstageParams; result: GitWorkingTree }
     "git.discard": { params: GitDiscardParams; result: GitWorkingTree }
+    "git.commit": { params: GitCreateCommitParams; result: GitOperationResult }
     "prompt.answer": { params: PromptAnswerParams; result: null }
     "prompt.cancel": { params: PromptCancelParams; result: null }
 }
@@ -259,6 +265,7 @@ export const RENDERER_METHODS = [
     "git.stage",
     "git.unstage",
     "git.discard",
+    "git.commit",
     "prompt.answer",
     "prompt.cancel"
 ] as const satisfies ReadonlyArray<keyof CoreMethods>
