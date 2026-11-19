@@ -35,6 +35,12 @@ export interface CompareState {
     error: CompareError | null
 }
 
+/** The checksums of the two maps now in the store; `base` is null when its content equals the head's and only the head was kept. */
+export interface PairLoad {
+    base: string | null
+    head: string | null
+}
+
 export interface ComparePrefill {
     folder?: FolderRef
     base?: string

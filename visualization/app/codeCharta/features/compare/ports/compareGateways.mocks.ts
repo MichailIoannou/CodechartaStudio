@@ -1,6 +1,14 @@
 import { aSnapshot } from "../../projects/projects.mocks"
-import type { ComparedCommit, CompareIntent, FolderRef, ResolvedComparison, ResolvedSide, SnapshotSummary } from "../model/compare.model"
-import type { CoreGateway, PairLoad, SnapshotGateway } from "./compareGateways"
+import type {
+    ComparedCommit,
+    CompareIntent,
+    FolderRef,
+    PairLoad,
+    ResolvedComparison,
+    ResolvedSide,
+    SnapshotSummary
+} from "../model/compare.model"
+import type { CoreGateway, SnapshotGateway } from "./compareGateways"
 
 export const FOLDER: FolderRef = { projectId: "p-billing", folderId: "f-api" }
 export const BASE_SHA = "9f8e7d6".padEnd(40, "0")

@@ -1,5 +1,6 @@
 import type { AnalysisJob } from "../../model/coreApi/AnalysisJob"
 import type { AnalysisTarget } from "../../model/coreApi/AnalysisTarget"
+import type { CompareIntent } from "../../model/coreApi/CompareIntent"
 import type { ErrorCode } from "../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
 import type { FolderRef } from "../../model/coreApi/FolderRef"
@@ -123,6 +124,8 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     scope?: GitLogParams["scope"]
     filter?: GitLogParams["filter"]
     cursor?: string | null
+    intent?: CompareIntent
+    shownCommit?: string | null
 }
 
 type FakeAnswer = { ok: true; value: unknown } | { ok: false; error: ErrorPayload }
@@ -812,6 +815,79 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         )
     }
 
+    function commitAtRevision(folderId: string, revision: string) {
+        const repository = Object.hasOwn(store.git, folderId) ? store.git[folderId] : undefined
+        if (revision === "HEAD") {
+            return repository?.status?.head.commit ?? repository?.refs?.head.commit ?? revision
+        }
+        const refs = repository?.refs
+        const named = [...(refs?.localBranches ?? []), ...(refs?.remoteBranches ?? []), ...(refs?.tags ?? [])].find(
+            ref => ref.refName === revision
+        )
+        return named ? named.commit : revision
+    }
+
+    function labelOfRevision(revision: string, sha: string) {
+        const prefixes = [
+            ["refs/heads/", "branch"],
+            ["refs/remotes/", "branch"],
+            ["refs/tags/", "tag"]
+        ]
+        const prefix = prefixes.find(([start]) => revision.startsWith(start))
+        return prefix ? { kind: prefix[1], name: revision.slice(prefix[0].length) } : { kind: "commit", name: sha.slice(0, 7) }
+    }
+
+    function comparedSide(folder: FolderRef, revision: string) {
+        const sha = commitAtRevision(folder.folderId, revision)
+        const snapshot = snapshotsOf(folder.projectId, folder.folderId).find(candidate => candidate.commit === sha)
+        const requested = { folder, commit: sha, shortCommit: sha.slice(0, 7), label: labelOfRevision(revision, sha) }
+        const status = snapshot ? { status: "exact", snapshot: JSON.parse(JSON.stringify(snapshot)) } : { status: "missing", nearest: null }
+        return { requested, status }
+    }
+
+    function comparedRevisions(intent: CompareIntent, shownCommit: string | null) {
+        const commits = Object.hasOwn(store.git, intent.folder.folderId) ? (store.git[intent.folder.folderId].commits ?? []) : []
+        const positionOf = (revision: string) =>
+            commits.findIndex(commit => commit.sha === commitAtRevision(intent.folder.folderId, revision))
+        switch (intent.kind) {
+            case "commits":
+                return positionOf(intent.b) > positionOf(intent.a) ? [intent.b, intent.a] : [intent.a, intent.b]
+            case "withParent": {
+                const parent = commits[positionOf(intent.commit)]?.parents[0]
+                return parent ? [parent, intent.commit] : null
+            }
+            case "withCurrent":
+                return [intent.commit, shownCommit ?? "HEAD"]
+            default:
+                return null
+        }
+    }
+
+    function resolveComparison(params: FakeRequestParams) {
+        const intent = params.intent as CompareIntent
+        const revisions = comparedRevisions(intent, params.shownCommit ?? null)
+        if (!revisions) {
+            return refuse("UNKNOWN_REVISION", "The commit has no parent to compare with.")
+        }
+        const [base, head] = revisions.map(revision => comparedSide(intent.folder, revision))
+        const shown = [base, head].map(side => (side.status.status === "exact" ? (side.status.snapshot as SnapshotSummary) : null))
+        const checksums = shown.map(snapshot => snapshot?.checksum ?? null)
+        const isSameCommit = base.requested.commit === head.requested.commit
+        return succeed({
+            status: { kind: isSameCommit ? "sameCommit" : "ready" },
+            baseMode: "tip",
+            base,
+            head,
+            baseTip: null,
+            preflight: {
+                identicalChecksums: checksums[0] !== null && checksums[0] === checksums[1],
+                profilesDiffer: false,
+                combinedBytes: shown.reduce((total, snapshot) => total + (snapshot?.mapBytes ?? 0), 0),
+                sizeVerdict: "ok"
+            }
+        })
+    }
+
     function startJob(jobId: string) {
         const job = findJob(jobId)
         if (job) {
@@ -885,6 +961,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "git.log": gitAnswer("git.log", gitLogPage),
         "snapshots.readLog": readSnapshotLog,
         "snapshots.resolveForCommit": resolveForCommit,
+        "compare.resolve": resolveComparison,
         "analysis.preflight": () => succeed({ ok: true, problems: [] }),
         "analysis.enqueue": enqueueAnalysis,
         "analysis.cancel": cancelAnalysis,

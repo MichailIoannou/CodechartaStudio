@@ -243,6 +243,52 @@ describe("ProjectsService", () => {
         expect(router.navigateByUrl).not.toHaveBeenCalled()
     })
 
+    it("should load several snapshots in one step and show the first", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+
+        // Act
+        const result = await service.loadSnapshots([API_NEW.ref, API_OLD.ref])
+
+        // Assert
+        expect(loadedSnapshotIds()).toEqual([["s-new", "s-old"]])
+        expect(result.loaded.map(facts => facts.origin.snapshotId)).toEqual(["s-new", "s-old"])
+        expect(service.shownSnapshot()?.ref).toEqual(API_NEW.ref)
+        expect(requestsOf("snapshots.recordMapFacts")).toHaveLength(2)
+        expect(toastService.show).not.toHaveBeenCalled()
+    })
+
+    it("should load nothing when a snapshot to load is not in the store", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        const unknown = { ...API_OLD.ref, snapshotId: "s-unknown" }
+
+        // Act
+        const result = await service.loadSnapshots([API_NEW.ref, unknown])
+
+        // Assert
+        expect(result).toEqual({ loaded: [], identicalContent: [], unreadable: [] })
+        expect(loadFilesUseCase.loadProjectSnapshots).not.toHaveBeenCalled()
+    })
+
+    it("should report an unreadable snapshot of several without showing it", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        loadFilesUseCase.loadProjectSnapshots.mockImplementation((toLoad: ProjectSnapshotToLoad[]) =>
+            Promise.resolve({ loaded: [], identicalContent: [], unreadable: toLoad.map(({ origin }) => origin) })
+        )
+
+        // Act
+        await service.loadSnapshots([API_NEW.ref])
+
+        // Assert
+        expect(toastService.show).toHaveBeenCalledWith("The analysis of 'billing-api' could not be read", "error")
+        expect(service.shownSnapshot()).toBeNull()
+    })
+
     it("should read the folder's snapshots again before loading one it does not know yet", async () => {
         // Arrange
         const service = createService({ activeProjectId: "p-billing" })

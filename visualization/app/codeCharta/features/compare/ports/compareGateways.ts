@@ -1,11 +1,7 @@
-import { InjectionToken } from "@angular/core"
-import type { CompareIntent, FolderRef, ResolvedComparison, SnapshotSummary } from "../model/compare.model"
-
-/** The checksums of the two maps now in the store; `base` is null when its content equals the head's and only the head was kept. */
-export interface PairLoad {
-    base: string | null
-    head: string | null
-}
+import { InjectionToken, inject } from "@angular/core"
+import { CoreGatewayAdapter } from "../adapters/coreGateway.adapter"
+import { SnapshotGatewayAdapter } from "../adapters/snapshotGateway.adapter"
+import type { CompareIntent, FolderRef, PairLoad, ResolvedComparison, SnapshotSummary } from "../model/compare.model"
 
 export interface SnapshotGateway {
     /** Replaces the loaded maps with the two snapshots in one step. */
@@ -22,6 +18,12 @@ export interface CoreGateway {
     toRevision(folder: FolderRef, input: string): Promise<string | null>
 }
 
-export const SNAPSHOT_GATEWAY = new InjectionToken<SnapshotGateway>("SNAPSHOT_GATEWAY")
+export const SNAPSHOT_GATEWAY = new InjectionToken<SnapshotGateway>("SNAPSHOT_GATEWAY", {
+    providedIn: "root",
+    factory: () => inject(SnapshotGatewayAdapter)
+})
 
-export const CORE_GATEWAY = new InjectionToken<CoreGateway>("CORE_GATEWAY")
+export const CORE_GATEWAY = new InjectionToken<CoreGateway>("CORE_GATEWAY", {
+    providedIn: "root",
+    factory: () => inject(CoreGatewayAdapter)
+})

@@ -1,4 +1,5 @@
 import { computed, Injectable, inject } from "@angular/core"
+import type { ProjectSnapshotsLoadResult } from "../../../load/load.facade"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
 import { ProjectsService } from "./projects.service"
@@ -20,6 +21,10 @@ export class ProjectsFacade {
 
     loadSnapshot(ref: SnapshotRef): Promise<boolean> {
         return this.projects.loadSnapshot(ref)
+    }
+
+    loadSnapshots(refs: SnapshotRef[]): Promise<ProjectSnapshotsLoadResult> {
+        return this.projects.loadSnapshots(refs)
     }
 
     showMap(): void {
