@@ -1,0 +1,142 @@
+<div class="dropdown min-w-0" [class.dropdown-open]="isOpen()">
+    <button
+        #trigger
+        type="button"
+        class="btn btn-ghost btn-sm min-w-0 max-w-24 justify-between xl:max-w-28 2xl:max-w-52"
+        aria-haspopup="menu"
+        data-testid="project-switcher-trigger"
+        [attr.aria-expanded]="isOpen()"
+        [title]="triggerTitle()"
+        (click)="toggle()"
+        (keydown.arrowdown)="openWithKeyboard($event)"
+    >
+        <i class="fa-solid fa-layer-group fa-fw shrink-0"></i>
+        @if (activeProject(); as project) {
+            <span class="flex min-w-0 items-center gap-1">
+                <span class="hidden min-w-0 shrink-[100] truncate text-base-content/60 2xl:inline">{{ project.name }}</span>
+                <span class="hidden shrink-0 text-base-content/60 2xl:inline">/</span>
+                <span class="min-w-0 max-w-32 truncate font-medium">{{ workingFolder()?.label ?? "" }}</span>
+            </span>
+        } @else {
+            <span class="truncate text-base-content/60">No project</span>
+        }
+        <i class="fa fa-caret-down shrink-0"></i>
+    </button>
+
+    @if (isOpen()) {
+        <div
+            #menu
+            role="menu"
+            class="dropdown-content z-[70] mt-1 w-[26rem] max-w-[32rem] rounded-box border border-base-300 bg-base-100 p-2 shadow-md"
+            data-testid="project-switcher-menu"
+            (keydown)="handleMenuKey($event)"
+        >
+            <div class="flex max-h-[70vh] flex-col gap-0.5 overflow-y-auto">
+                @if (activeProject(); as project) {
+                    <div class="flex items-center gap-2 px-2 py-1">
+                        <span class="min-w-0 truncate text-xs font-semibold uppercase tracking-wide" [title]="project.name">{{ project.name }}</span>
+                        <button type="button" class="btn btn-ghost btn-xs ml-auto" data-menu-item data-testid="project-switcher-overview" (click)="showOverview()">
+                            <i class="fa-solid fa-circle-info fa-fw"></i>
+                            Overview
+                        </button>
+                    </div>
+                    @for (entry of currentFolders(); track entry.folder.id) {
+                        <ng-container *ngTemplateOutlet="folderRow; context: { $implicit: entry, indented: false }" />
+                    }
+                } @else if (!hasNoProjects()) {
+                    <p class="px-2 py-1 text-xs text-base-content/60">No project open.</p>
+                }
+
+                @if (hasNoProjects()) {
+                    <p class="px-2 py-1 text-xs text-base-content/60">No projects yet.</p>
+                } @else if (otherProjects().length > 0) {
+                    @if (activeProject()) {
+                        <div class="my-1 border-t border-base-300"></div>
+                    }
+                    <span class="px-2 py-1 text-xs font-semibold uppercase tracking-wide">{{ activeProject() ? "Other projects" : "Projects" }}</span>
+                    @for (entry of otherProjects(); track entry.project.id) {
+                        <button
+                            type="button"
+                            role="menuitem"
+                            class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200"
+                            data-menu-item
+                            [attr.data-project-row]="entry.project.id"
+                            [attr.aria-expanded]="entry.isExpanded"
+                            [attr.data-testid]="'project-switcher-project-' + entry.project.name"
+                            [disabled]="isBusy()"
+                            (click)="toggleProject(entry.project.id)"
+                        >
+                            <i class="fa-solid fa-fw text-base-content/60" [class.fa-caret-right]="!entry.isExpanded" [class.fa-caret-down]="entry.isExpanded"></i>
+                            <span class="min-w-0 truncate font-medium" [title]="entry.project.name">{{ entry.project.name }}</span>
+                            <span class="shrink-0 text-xs text-base-content/60">{{ counted(entry.project.folderCount, "folder") }}</span>
+                            @if (entry.project.missingFolderCount > 0) {
+                                <i
+                                    class="fa-solid fa-triangle-exclamation text-warning"
+                                    [title]="counted(entry.project.missingFolderCount, 'folder') + ' missing'"
+                                ></i>
+                            }
+                        </button>
+                        @for (folderEntry of entry.folders; track folderEntry.folder.id) {
+                            <ng-container *ngTemplateOutlet="folderRow; context: { $implicit: folderEntry, indented: true }" />
+                        }
+                    }
+                }
+            </div>
+
+            <div class="my-1 border-t border-base-300"></div>
+            <div class="grid grid-cols-2">
+                <button type="button" class="flex items-center gap-3 rounded-md px-4 py-2 text-left text-sm font-medium hover:bg-base-200" data-menu-item data-testid="project-switcher-new" (click)="newProject(createDialog)">
+                    <i class="fa-solid fa-plus w-4 text-center"></i>
+                    New project…
+                </button>
+                <span></span>
+                <button
+                    type="button"
+                    class="flex items-center gap-3 rounded-md px-4 py-2 text-left text-sm font-medium hover:bg-base-200 disabled:opacity-40"
+                    data-menu-item
+                    data-testid="project-switcher-close"
+                    [disabled]="!activeProject()"
+                    (click)="closeProject()"
+                >
+                    <i class="fa-solid fa-xmark w-4 text-center"></i>
+                    Close project
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+<ng-template #folderRow let-entry let-indented="indented">
+    <button
+        type="button"
+        role="menuitemradio"
+        class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200"
+        data-menu-item
+        [class]="(indented ? 'pl-6 ' : '') + (entry.isWorking ? 'bg-primary/20' : '')"
+        [attr.aria-checked]="entry.isWorking"
+        [attr.data-parent-project]="indented ? entry.projectId : null"
+        [attr.data-testid]="'project-switcher-folder-' + entry.folder.label"
+        [disabled]="isBusy() && busyFolderId() !== entry.folder.id"
+        (click)="chooseFolder(entry)"
+    >
+        @if (busyFolderId() === entry.folder.id) {
+            <span class="loading loading-spinner loading-xs"></span>
+        } @else {
+            <i class="fa-circle text-[0.6rem]" [class]="entry.isWorking ? 'fa-solid text-primary' : 'fa-regular text-base-content/60'"></i>
+        }
+        <span class="min-w-0 max-w-40 shrink-0 truncate font-medium" [title]="entry.folder.label">{{ entry.folder.label }}</span>
+        <span class="badge badge-ghost badge-xs shrink-0">{{ entry.folder.role }}</span>
+        @if (entry.folder.status === "missing") {
+            <span class="shrink-0 text-xs text-warning"><i class="fa-solid fa-triangle-exclamation"></i> missing</span>
+        } @else if (entry.folder.kind === "plain") {
+            <span class="shrink-0 text-xs text-base-content/60"><i class="fa-solid fa-folder"></i> plain folder</span>
+        } @else if (entry.branch) {
+            <span class="min-w-0 truncate text-xs text-base-content/60" [title]="entry.branch"><i class="fa-solid fa-code-branch"></i> {{ entry.branch }}</span>
+        }
+        @if (entry.path) {
+            <span class="ml-auto min-w-0 max-w-40 shrink-[2] truncate font-mono text-xs text-base-content/60" [title]="entry.path">{{ entry.path }}</span>
+        }
+    </button>
+</ng-template>
+
+<cc-create-project-dialog #createDialog />

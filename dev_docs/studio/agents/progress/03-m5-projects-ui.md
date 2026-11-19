@@ -44,7 +44,7 @@ Retire `readSnapshotMap` if nothing uses it.
 - [x] 1. Projects service
 - [x] 2. Boot and overview page
 - [x] 3. Create project
-- [ ] 4. Project menu
+- [x] 4. Project menu
 - [x] 5. Folder selector — removed by OD1
 - [ ] 6. Manage project
 - [ ] 7. Reset seam

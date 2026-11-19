@@ -36,10 +36,10 @@
                         <span class="text-base-content/70">{{ upstream.name ? " · " : "" }}{{ upstream.sentence }}</span>
                     } @else {
                         @if (upstream.toPush > 0) {
-                            <span> · <i class="fa-solid fa-arrow-up"></i> {{ upstream.toPush }} to push</span>
+                            <span class="whitespace-nowrap"> · <i class="fa-solid fa-arrow-up"></i> {{ upstream.toPush }} to push</span>
                         }
                         @if (upstream.toPull > 0) {
-                            <span> · <i class="fa-solid fa-arrow-down"></i> {{ upstream.toPull }} to pull</span>
+                            <span class="whitespace-nowrap"> · <i class="fa-solid fa-arrow-down"></i> {{ upstream.toPull }} to pull</span>
                         }
                     }
                 </dd>

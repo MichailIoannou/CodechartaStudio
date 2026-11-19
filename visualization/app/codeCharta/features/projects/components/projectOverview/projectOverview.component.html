@@ -35,12 +35,11 @@
                     <ul class="flex flex-col overflow-hidden rounded-[10px] bg-base-100 py-1">
                         @for (commit of recentCommits(); track commit.sha) {
                             <li class="grid grid-cols-[1rem_4.5rem_minmax(0,1fr)_8rem_6rem_5rem] items-center gap-3 px-4 py-1 text-sm">
-                                <i
-                                    class="fa-circle-dot text-primary"
-                                    [class.fa-regular]="commit.isHead"
-                                    [class.fa-solid]="!commit.isHead"
-                                    [title]="commit.isHead ? 'Current checkout' : ''"
-                                ></i>
+                                @if (commit.isHead) {
+                                    <i class="fa-regular fa-circle-dot text-primary" title="Current checkout"></i>
+                                } @else {
+                                    <i class="fa-solid fa-circle text-[0.5rem] text-primary"></i>
+                                }
                                 <span class="font-mono">{{ commit.sha }}</span>
                                 <span class="truncate" [title]="commit.subject">{{ commit.subject }}</span>
                                 <span class="truncate text-base-content/60" [title]="commit.author">{{ commit.author }}</span>
@@ -114,7 +113,7 @@
             <h1 class="text-2xl font-bold">CodeCharta</h1>
             <p class="text-base-content/70">Open a project to see its code as a city.</p>
             <div class="flex flex-wrap justify-center gap-2">
-                <button type="button" class="btn btn-primary" data-testid="project-overview-new-project" (click)="createDialog.open()">
+                <button type="button" class="btn" data-testid="project-overview-new-project" (click)="createDialog.open()">
                     <i class="fa-solid fa-plus fa-fw"></i>
                     New project…
                 </button>

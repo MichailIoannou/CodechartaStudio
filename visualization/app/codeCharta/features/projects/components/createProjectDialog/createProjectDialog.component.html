@@ -10,7 +10,7 @@
                 id="create-project-name"
                 class="input input-bordered w-full"
                 autofocus
-                [maxlength]="nameMaxLength"
+                [attr.maxlength]="nameMaxLength"
                 [value]="name()"
                 (input)="typeName($any($event.target).value)"
                 (blur)="isNameTouched.set(true)"
@@ -29,7 +29,7 @@
                 id="create-project-description"
                 class="textarea textarea-bordered w-full"
                 rows="2"
-                [maxlength]="descriptionMaxLength"
+                [attr.maxlength]="descriptionMaxLength"
                 [value]="description()"
                 (input)="description.set($any($event.target).value)"
             ></textarea>

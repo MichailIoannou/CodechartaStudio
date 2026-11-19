@@ -12,7 +12,7 @@
                         type="text"
                         class="input input-ghost input-sm min-w-0 flex-1 font-medium"
                         aria-label="Folder label"
-                        [maxlength]="labelMaxLength"
+                        [attr.maxlength]="labelMaxLength"
                         [value]="editedLabels()[row.key]"
                         (input)="editLabel(row, $any($event.target).value)"
                         (blur)="commitLabel(row)"
