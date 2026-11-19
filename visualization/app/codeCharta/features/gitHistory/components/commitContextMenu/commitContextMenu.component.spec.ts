@@ -124,7 +124,9 @@ describe("CommitContextMenuComponent", () => {
 
     it("should focus the first item when opened from the keyboard and move with the arrows", async () => {
         // Arrange
-        await renderMenu(aTarget({ isFromKeyboard: true }), [anAction("analyse", "Analyse This Commit")])
+        const { detectChanges } = await renderMenu(aTarget({ isFromKeyboard: true }), [anAction("analyse", "Analyse This Commit")])
+        await new Promise(resolve => requestAnimationFrame(resolve))
+        detectChanges()
         const firstFocused = document.activeElement?.textContent?.trim()
         const menu = screen.getByTestId("commit-context-menu")
 

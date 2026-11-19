@@ -1,4 +1,5 @@
-<cc-floating-menu class="w-64" data-testid="commit-context-menu" [anchor]="target().anchor" (dismissed)="dismiss()" (keydown)="onKeydown($event)">
+<cc-floating-menu class="w-64" data-testid="commit-context-menu" [anchor]="target().anchor" (dismissed)="dismiss()"
+    (positioned)="focusFirstItemIfFromKeyboard()" (keydown)="onKeydown($event)">
     @for (action of actions(); track action.id) {
         <cc-context-menu-item [icon]="action.icon" [hoverHint]="action.hoverHint" (itemClick)="runAction(action)">{{ action.label }}</cc-context-menu-item>
     }

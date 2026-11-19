@@ -87,6 +87,7 @@ describe("CommitListComponent", () => {
 
     beforeEach(() => {
         jest.spyOn(globalThis, "requestAnimationFrame").mockImplementation(callback => Number(setTimeout(() => callback(0))))
+        jest.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(id => clearTimeout(id))
         sizeViewport({ width: 1000, height: 280 })
     })
 
@@ -333,7 +334,7 @@ describe("CommitListComponent", () => {
             RELEASE.sha,
             START.sha
         ])
-        expect(release.className).toContain("border-l-2 border-primary")
+        expect(["border-l-2", "border-primary", "pl-1.5"].every(name => release.classList.contains(name))).toBe(true)
         expect(start.className).toContain("bg-primary/20")
         expect(start.className).not.toContain("border-l-2")
         expect(release.getAttribute("aria-selected")).toBe("true")
@@ -625,6 +626,7 @@ describe("CommitListComponent", () => {
             const menuKey = press("ContextMenu")
             detectChanges()
             await new Promise(resolve => setTimeout(resolve))
+            detectChanges()
             const menu = screen.getByTestId("commit-context-menu")
             const focusedInMenu = document.activeElement?.textContent?.trim()
             fireEvent.keyDown(menu, { key: "Escape" })

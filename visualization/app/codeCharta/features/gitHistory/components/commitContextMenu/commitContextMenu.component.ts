@@ -1,4 +1,4 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, output } from "@angular/core"
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, ElementRef, Injector, inject, input, output } from "@angular/core"
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
 import { ContextMenuItemComponent, FloatingMenuAnchor, FloatingMenuComponent } from "../../../shared/facade"
 import type { CommitSelection, SelectionItem } from "../../model/commitSelection"
@@ -31,6 +31,7 @@ export class CommitContextMenuComponent {
     private readonly actionsService = inject(CommitActionsService)
     private readonly clipboard = inject(CommitClipboardService)
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
+    private readonly injector = inject(Injector)
 
     readonly target = input.required<CommitMenuTarget>()
     readonly closed = output<CommitMenuClosing>()
@@ -41,12 +42,11 @@ export class CommitContextMenuComponent {
         return item.kind === "commit" ? item.commit : null
     })
 
-    constructor() {
-        afterNextRender(() => {
-            if (this.target().isFromKeyboard) {
-                this.buttons()[0]?.focus()
-            }
-        })
+    /** A hidden element takes no focus, so the first item is focused once the positioned menu has rendered visible. */
+    focusFirstItemIfFromKeyboard() {
+        if (this.target().isFromKeyboard) {
+            afterNextRender(() => this.buttons()[0]?.focus(), { injector: this.injector })
+        }
     }
 
     runAction(action: CommitAction) {

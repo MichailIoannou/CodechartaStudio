@@ -36,7 +36,8 @@ const LABEL_ICONS: Record<RefLabel["kind"], string | null> = {
 }
 const ROW_CLASS = "grid h-7 cursor-pointer select-none items-center gap-2 whitespace-nowrap px-2 text-sm hover:bg-base-200"
 const SELECTED_ROW_CLASS = "bg-primary/20 font-semibold"
-const SECOND_ROW_CLASS = `${SELECTED_ROW_CLASS} border-l-2 border-primary`
+// pl-1.5 + the 2 px border keep the px-2 inset, so the graph lanes stay in line with the rows around it
+const SECOND_ROW_CLASS = `${SELECTED_ROW_CLASS} border-l-2 border-primary pl-1.5`
 
 /** The element id `aria-activedescendant` names for the row of a selection key. */
 export function rowIdOf(key: string): string {
