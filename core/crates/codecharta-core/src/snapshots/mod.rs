@@ -4,6 +4,7 @@ pub mod hosting;
 pub mod import;
 pub mod map_head;
 pub mod move_snapshot;
+pub mod nearest;
 pub mod open_file;
 pub mod record;
 pub mod repository;

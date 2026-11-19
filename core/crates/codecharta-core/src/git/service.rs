@@ -19,7 +19,7 @@ use super::memory::{GitMemory, QueryKey, Remembered};
 use super::operation::Operations;
 use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
 use super::query::check_candidate_count;
-use super::query::{self, RevListRequest, ShaSink};
+use super::query::{self, RevListRequest, ShaSink, WalkSink};
 use super::read::{read_refs, remotes, status_summary};
 use super::runner::{FolderGit, GitCli, GitProcess};
 use super::worktrees::{self, WorktreeEntry};
@@ -354,6 +354,17 @@ impl<'core> GitService<'core> {
         sink: &mut ShaSink<'_>,
     ) -> CoreResult<u64> {
         query::rev_list(self.at(folder, cancel), request, sink).await
+    }
+
+    /// Streams the walked commits with whether each is a merge; see `query::rev_list_with_parents`.
+    pub async fn rev_list_with_parents(
+        &self,
+        folder: &GitFolder,
+        request: &RevListRequest,
+        cancel: &CancellationToken,
+        sink: &mut WalkSink<'_>,
+    ) -> CoreResult<u64> {
+        query::rev_list_with_parents(self.at(folder, cancel), request, sink).await
     }
 
     /// For operations that move refs or fetch: see `GitMemory::fetched` and `GitMemory::forget_logs`.

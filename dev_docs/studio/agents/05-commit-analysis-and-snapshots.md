@@ -436,6 +436,8 @@ pub struct ResolutionCache { /* keyed by repo + commit + snapshot-set version */
 
 CLI `codecharta-core snapshots resolve` and the RPC method call this same function.
 
+As built (05-M5): `resolve_snapshot(git: &GitService, cache: &ResolutionCache, request: &ResolutionRequest, cancel) -> CoreResult<SnapshotResolution>` with `ResolutionRequest { folder: ResolutionFolder (Plain | Git(&GitFolder) | MissingGit), target, snapshots: &[SnapshotSummary], current_profile_hash: Option<&str> }` (`SnapshotEntry` is the built `SnapshotSummary`, `Sha` the built `CommitSha`; no `SnapshotError`). The walk of step 5 is `GitService::rev_list_with_parents` (`rev-list --parents --stdin`, git's default order): `--date-order` makes git walk the whole history before the first line (0.37 s on 100 000 commits), so the walk runs without it, which also drops the topological promise; a hit met before any merge is the answer at its stream position (one line of parents, whatever the dates), otherwise every candidate is counted. `Exact` and `Nearest` carry `isCurrentProfile`; `Latest` a `reason` (`PLAIN_FOLDER`, `GIT_UNAVAILABLE`, `REPOSITORY_UNAVAILABLE`); `None` a `reason` (`NO_SNAPSHOTS`, `NO_COMMITS`, `UNKNOWN_COMMIT`, `UNRELATED`) instead of an `errorMessage`. The cache key is repository path + target kind + `C` + a fingerprint of the snapshot set + current profile hash, so imports, moves and deletions (which emit no `snapshots.changed`) invalidate it too; an `UNKNOWN_COMMIT` answer is not cached. The git fallback (`GIT_UNAVAILABLE`, `REPOSITORY_UNAVAILABLE`) never shows an unbound import; a plain folder's `Latest` may, when it has no analysed snapshot.
+
 ### Renderer: state and flow
 
 ```ts

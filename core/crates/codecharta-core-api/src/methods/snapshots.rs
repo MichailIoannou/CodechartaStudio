@@ -48,6 +48,64 @@ pub struct SnapshotSummary {
     pub not_in_map: Vec<String>,
 }
 
+/// How the shown snapshot's commit relates to the asked one: `behind` counts the asked commit's commits
+/// the snapshot lacks, `ahead` the snapshot's commits the asked one lacks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum SnapshotRelation {
+    Ancestor,
+    Descendant,
+    Diverged,
+}
+
+/// Why the newest snapshot is shown instead of one chosen by commit. Append-only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum LatestReason {
+    PlainFolder,
+    GitUnavailable,
+    RepositoryUnavailable,
+}
+
+/// Why no snapshot fits. Append-only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum NoSnapshotReason {
+    NoSnapshots,
+    NoCommits,
+    UnknownCommit,
+    Unrelated,
+}
+
+/// Which snapshot to show for a commit or the working tree. `isCurrentProfile` is false for a snapshot
+/// of another analysis profile and for an import, which has none.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum SnapshotResolution {
+    Exact {
+        snapshot: SnapshotSummary,
+        is_current_profile: bool,
+    },
+    Nearest {
+        snapshot: SnapshotSummary,
+        is_current_profile: bool,
+        relation: SnapshotRelation,
+        behind: u32,
+        ahead: u32,
+    },
+    Latest {
+        snapshot: SnapshotSummary,
+        reason: LatestReason,
+    },
+    None {
+        reason: NoSnapshotReason,
+    },
+}
+
 /// The commit a file name starts with, the way `ccsh analyse --commit` names its output.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -244,10 +302,8 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    #[test]
-    fn should_write_the_snapshot_reference_as_ref() {
-        // Arrange
-        let summary = SnapshotSummary {
+    fn imported_summary() -> SnapshotSummary {
+        SnapshotSummary {
             snapshot_ref: SnapshotRef {
                 project_id: ProjectId::try_from("p-1").unwrap(),
                 folder_id: FolderId::try_from("f-1").unwrap(),
@@ -269,7 +325,13 @@ mod tests {
             finished_at: None,
             duration_ms: None,
             not_in_map: Vec::new(),
-        };
+        }
+    }
+
+    #[test]
+    fn should_write_the_snapshot_reference_as_ref() {
+        // Arrange
+        let summary = imported_summary();
 
         // Act
         let json = serde_json::to_value(summary).unwrap();
@@ -281,5 +343,35 @@ mod tests {
         );
         assert_eq!(json["source"], json!("imported"));
         assert_eq!(json["originalFileName"], json!("map.cc.json"));
+    }
+
+    #[test]
+    fn should_write_a_resolution_with_its_kind_and_camel_case_fields() {
+        // Arrange
+        let nearest = SnapshotResolution::Nearest {
+            snapshot: imported_summary(),
+            is_current_profile: false,
+            relation: SnapshotRelation::Diverged,
+            behind: 2,
+            ahead: 3,
+        };
+        let none = SnapshotResolution::None {
+            reason: NoSnapshotReason::UnknownCommit,
+        };
+
+        // Act
+        let nearest_json = serde_json::to_value(nearest).unwrap();
+        let none_json = serde_json::to_value(none).unwrap();
+
+        // Assert
+        assert_eq!(nearest_json["kind"], json!("nearest"));
+        assert_eq!(nearest_json["isCurrentProfile"], json!(false));
+        assert_eq!(nearest_json["relation"], json!("diverged"));
+        assert_eq!(nearest_json["behind"], json!(2));
+        assert_eq!(nearest_json["ahead"], json!(3));
+        assert_eq!(
+            none_json,
+            json!({ "kind": "none", "reason": "UNKNOWN_COMMIT" })
+        );
     }
 }
