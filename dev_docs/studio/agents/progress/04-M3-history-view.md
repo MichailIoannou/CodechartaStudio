@@ -38,12 +38,64 @@ metrics bar / file extension bar / toasts at the same time. Keep changes to shar
 
 ## Steps
 
-- [ ] 1. Tidy first
-- [ ] 2. Route
-- [ ] 3. Repository state
+- [x] 1. Tidy first
+- [x] 2. Route
+- [x] 3. Repository state
 - [ ] 4. Panel shell
 - [ ] 5. Branches tree
 - [x] 6. Branch chip — replaced by the design (W1)
 
 ## Notes
+
+Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/studio-04-m3` from `feature/studio-stack`
+(`974d2d0e7`).
+
+### 1. Tidy first
+- `JUMP_TARGETS` is `Partial<Record<ViewId, JumpTarget>>`; `jumpTargets` keeps the views that have one.
+  `ViewTab.hasModes` (all `true` in this commit); `openModeBar` previews nothing for a tab without modes and
+  `isModeBarHandleShown` hides the handle while such a view is active (design proposed change 1).
+
+### 2. Route
+- `routePaths.history = "history"`, lazy route without `showSpinnerBeforeBuildingView` (the history never calls
+  `markReady`), `views/historyView` (`cc-history-view`, host classes per H3). Web build: the H1 sentence and "Show
+  the map"; no tab (availability is false without a bridge).
+- The four `ViewId` tables: `VIEW_TABS` (+ `hasModes: false`), `isViewAvailable.history`, `groupLabels.history`,
+  `DRAWING_PHASE_OF_VIEW.history`; `JUMP_TARGETS` has no history entry.
+- `GitHistoryAvailability.isAvailable` = desktop and the active project has a folder of kind `git` (design deviation
+  1, not the plan's "a project is active"). It also leaves History for the metrics view (`replaceUrl`) when the
+  history is lost while shown; in the web build the route stays (it explains the desktop app). The plan's test
+  "leaves History when the project closes" moved here from task 3.
+- **Dependency direction (deviation).** The plan has `features/gitHistory` read `ProjectsService`; but the projects
+  feature shows git state (P1, P3, and later H5 on the overview card), and features may not form cycles. So
+  `projects → gitHistory`, and git reads the projects through the port `ports/workingFolderSource.port.ts`
+  (`WORKING_FOLDER_SOURCE { activeProject, workingFolder }`), provided in `app.config.ts` as
+  `useExisting: ProjectsFacade` (which now exposes those two signals). Without a provider (web, specs) the source is
+  empty.
+- Shared files touched: `app.config.ts` (route + one provider), `viewSwitcher.component.ts|html`,
+  `viewModeBar.component.ts`, `loadingFileProgressSpinner.service.ts`, `nodeContextMenu.component.ts`, `routePaths.ts`,
+  `projectsFacade.ts`.
+
+### 3. Repository state
+- `services/gitApi.service.ts` (the only `git.*` caller; `GitResult<T>`; RPC errors → `GitError { code, message,
+  detail, repositoryPath }` from `details.detail` / `details.repositoryPath`; a rejected request or a missing bridge
+  → `COMMAND_FAILED` with its text). `model/loadState.ts`, `model/gitError.ts`, `services/gitApi.mocks.ts`.
+- `services/gitRepository.service.ts` (`GitRepositoryService`): `activeRepository` follows the working folder (OD1,
+  design deviation 3; no `selectFolder`, no `activeFolder.repo.ts` — the plan's tests "opens the first repository
+  folder" / "remembers the folder per project" became "opens the working folder" / "follows the working folder").
+  `repository`, `status`, `refs` (`LoadState`), `isRefreshing`, `refresh("manual" | "focus" | "afterWrite")`;
+  `repository.changed` reloads the named parts (`workingTree` counts as status). Late answers are dropped per part
+  (a ticket per repository / status / refs read) rather than by one generation counter, so a refs-only change does
+  not orphan a status read in flight. A re-linked folder (same id, new path or status) is read again.
+  Focus: window `focus`, at most every `FOCUS_REFRESH_THROTTLE_MS = 5 s` (plan 4.7), `git.status` +
+  `git.refsFingerprint`, refs re-read only on a new fingerprint; while the repository has a problem a focus re-reads
+  everything (git may have been installed meanwhile).
+- **`FolderGitService` taken over (moved, not delegated).** Its cache and calls now live in `GitRepositoryService`
+  (`statusOf`, `refreshFolders` (was `refresh`), `recentCommits`, `RECENT_COMMIT_COUNT`), built on `GitApiService`;
+  the status read for the working folder also fills that cache. `features/projects/services/folderGit.service.ts`
+  and its spec are gone; P1, P3 and the working-folder card inject `GitRepositoryService` from the git facade.
+  The projects overview keeps its own 10 s focus refresh of the folder rows.
+- Fake bridge: the 04-M1 seed `git?: Record<folderId, FakeGitRepository { info, status, refs, commits, failures }>`
+  answers `git.repositoryInfo`, `git.status`, `git.branches`, `git.refsFingerprint`, `git.log`; a missing value is
+  `NOT_A_REPOSITORY`, `failures[method]` fails one method. 03-M5's `gitStatuses` / `gitLogs` stay as shorthands folded
+  into `git` (no projects spec had to change).
 

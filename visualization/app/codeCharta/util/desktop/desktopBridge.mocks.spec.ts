@@ -5,7 +5,7 @@ import type { Project } from "../../model/coreApi/Project"
 import type { ProjectFolder } from "../../model/coreApi/ProjectFolder"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 import type { BridgeMethod, DesktopBridge } from "./desktopBridge"
-import { createFakeDesktopBridge, FakeDesktopSeed } from "./desktopBridge.mocks"
+import { createFakeDesktopBridge, FakeDesktopBridge, FakeDesktopSeed } from "./desktopBridge.mocks"
 
 const TOOL_FAILURE = { code: "TOOL_FAILED" as const, message: "git failed", details: {} }
 const NOW = "2026-11-19T08:00:00Z"
@@ -506,6 +506,47 @@ describe("createFakeDesktopBridge", () => {
         expect(answeredStatus).toEqual(status)
         expect(log).toEqual({ commits: [commit], nextCursor: null, isGraphAvailable: true })
         expect(unseeded).toEqual({ ok: false, error: expect.objectContaining({ code: "NOT_A_REPOSITORY" }) })
+    })
+
+    it("should answer the repository, refs and fingerprint of a seeded git folder and fail a seeded method", async () => {
+        // Arrange
+        const head = { kind: "branch" as const, name: "main", commit: "a".repeat(40) }
+        const info = {
+            repositoryId: "/work/api/.git",
+            rootPath: "/work/api",
+            folderPrefix: "",
+            isShallow: false,
+            isLinkedWorktree: false,
+            gitVersion: "2.56.0"
+        }
+        const refs = { fingerprint: "f1", head, localBranches: [], remoteBranches: [], tags: [], remotes: [] }
+        const failure = { code: "INDEX_LOCKED" as const, message: "locked", details: {} }
+        const seed: FakeDesktopSeed = { git: { "f-1": { info, refs, failures: { "git.status": failure } } } }
+        const rebuild = new Function(`return (${createFakeDesktopBridge.toString()})(${JSON.stringify(seed)})`)
+        const repo = { projectId: "p-1", folderId: "f-1" }
+
+        // Act
+        const answers = await Promise.all(
+            [createFakeDesktopBridge(seed), rebuild() as FakeDesktopBridge].map(bridge =>
+                Promise.all([
+                    bridge.request("git.repositoryInfo", { repo }),
+                    bridge.request("git.branches", { repo }),
+                    bridge.request("git.refsFingerprint", { repo }),
+                    bridge.request("git.status", { repo }),
+                    bridge.request("git.log", { repo, scope: { kind: "all" }, filter: null, cursor: null })
+                ])
+            )
+        )
+
+        // Assert
+        const expected = [
+            { ok: true, value: info },
+            { ok: true, value: refs },
+            { ok: true, value: "f1" },
+            { ok: false, error: failure },
+            { ok: false, error: expect.objectContaining({ code: "NOT_A_REPOSITORY" }) }
+        ]
+        expect(answers).toEqual([expected, expected])
     })
 
     it("should sum the map sizes of each folder as its store usage", async () => {

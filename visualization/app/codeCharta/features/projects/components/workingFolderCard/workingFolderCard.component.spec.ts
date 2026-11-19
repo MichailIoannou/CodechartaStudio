@@ -2,16 +2,16 @@ import { TestBed } from "@angular/core/testing"
 import { screen } from "@testing-library/angular"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
+import { GitRepositoryService } from "../../../gitHistory/facade"
 import { aFolder, aGitStatus, aProject } from "../../projects.mocks"
 import { settle, setUpProjects } from "../../projectsTestBed.mocks"
-import { FolderGitService } from "../../services/folderGit.service"
 import { WorkingFolderCardComponent } from "./workingFolderCard.component"
 
 describe("WorkingFolderCardComponent", () => {
     async function renderCard(folder: ProjectFolder, seed: FakeDesktopSeed = {}, { fetchStatus = true } = {}) {
         await setUpProjects({ projects: [aProject("p-1", [folder])], activeProjectId: "p-1", ...seed })
         if (fetchStatus) {
-            await TestBed.inject(FolderGitService).refresh([{ projectId: "p-1", folderId: folder.id }])
+            await TestBed.inject(GitRepositoryService).refreshFolders([{ projectId: "p-1", folderId: folder.id }])
         }
         const fixture = TestBed.createComponent(WorkingFolderCardComponent)
         fixture.componentRef.setInput("folder", folder)
