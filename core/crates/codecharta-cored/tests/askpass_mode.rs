@@ -14,7 +14,9 @@ use codecharta_core_api::secret::Secret;
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
-use support::{CORE_EXECUTABLE, PROTOCOL_VERSION, ServingCore, error_data_code, hello_params};
+use support::{CORE_EXECUTABLE, ServingCore, error_data_code};
+#[cfg(feature = "test-methods")]
+use support::{PROTOCOL_VERSION, hello_params};
 
 const EVENT_TIMEOUT: Duration = Duration::from_secs(10);
 const SHORT_WAIT: Duration = Duration::from_millis(300);
@@ -288,11 +290,13 @@ async fn should_pass_the_passphrase_to_ssh_keygen() {
 }
 
 /// Keeps the notifications that arrive while waiting for an answer, so none is lost to the wait.
+#[cfg(feature = "test-methods")]
 #[derive(Default)]
 struct Inbox {
     notifications: std::collections::VecDeque<Value>,
 }
 
+#[cfg(feature = "test-methods")]
 impl Inbox {
     fn request(&mut self, core: &mut ServingCore, id: i64, method: &str, params: Value) -> Value {
         core.send(json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }));

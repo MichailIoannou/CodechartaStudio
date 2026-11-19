@@ -1,12 +1,15 @@
 mod support;
 
+#[cfg(feature = "test-methods")]
 use std::time::Instant;
 
 use codecharta_core::CoreError;
 use codecharta_core::store::Store;
 use codecharta_core::store::lock::StoreLock;
 use serde_json::{Value, json};
-use support::{ANSWER_TIMEOUT, PROTOCOL_VERSION, ServingCore, error_data_code, hello_params};
+#[cfg(feature = "test-methods")]
+use support::ANSWER_TIMEOUT;
+use support::{PROTOCOL_VERSION, ServingCore, error_data_code, hello_params};
 
 #[test]
 fn should_answer_hello_with_versions() {

@@ -215,6 +215,16 @@ small launcher with `CREATE_NO_WINDOW` and closed stdin, as in S5):
   95.33 / 96.62) green. Only generated `model/coreApi/` files and `electron/coreMethods.generated.json`
   changed in `visualization/`. No changelog entry: nothing user-visible until task 5. Not run on Windows.
 
+### Fix: tests build without the `test-methods` feature
+- Verification found that `cargo clippy --all-targets -- -D warnings` (no `--all-features`, the gate of README
+  rule 4) failed: `tests/protocol.rs` imported `Instant` / `ANSWER_TIMEOUT` used only by its
+  `test-methods` tests (came in earlier in the 03-M2…04-M2 stack), and `tests/askpass_mode.rs` imported
+  `PROTOCOL_VERSION` / `hello_params` and defined `Inbox` used only by its stdio tests. Those imports and
+  `Inbox` are now `#[cfg(feature = "test-methods")]`; no lint changed, no test removed.
+- Both forms now pass: `cargo clippy --all-targets [--all-features] -- -D warnings` (also for
+  `x86_64-pc-windows-gnu`), `cargo test` (471 passed) and `cargo test --all-features` (475 passed; the four
+  extra are the `test-methods` protocol tests).
+
 ### Prompt protocol for task 5 (renderer)
 - Subscribe to `prompt.requested` (`PromptRequested`) and `prompt.closed` (`PromptClosed`) in a root service.
   `requestId` arrives already mapped to the `operationId` the renderer passed to `bridge.request` (shell
