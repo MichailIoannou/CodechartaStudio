@@ -1,0 +1,62 @@
+<span class="badge badge-soft badge-xs w-16 shrink-0 justify-center font-normal" [class]="badge().toneClass" [title]="badge().title ?? ''">{{
+    badge().label
+}}</span>
+<span class="truncate" [title]="row().entry.path">{{ name() }}</span>
+<span class="min-w-0 flex-1 truncate text-xs font-normal text-base-content/60">{{ folder() }}</span>
+<span
+    class="flex shrink-0 gap-0.5 group-focus-within/row:opacity-100 group-hover/row:opacity-100"
+    [class.opacity-0]="!isActive()"
+    data-testid="change-row-actions"
+>
+    @if (isStageable()) {
+        <button
+            type="button"
+            class="btn btn-ghost btn-xs btn-square"
+            [title]="titleOf('Stage')"
+            [attr.aria-label]="titleOf('Stage')"
+            [disabled]="isBusy()"
+            data-testid="change-row-stage"
+            (click)="run($event, 'stage')"
+        >
+            <i class="fa-solid fa-plus"></i>
+        </button>
+    }
+    @if (isStaged()) {
+        <button
+            type="button"
+            class="btn btn-ghost btn-xs btn-square"
+            [title]="titleOf('Unstage')"
+            [attr.aria-label]="titleOf('Unstage')"
+            [disabled]="isBusy()"
+            data-testid="change-row-unstage"
+            (click)="run($event, 'unstage')"
+        >
+            <i class="fa-solid fa-minus"></i>
+        </button>
+    }
+    @if (isDiscardable()) {
+        <button
+            type="button"
+            class="btn btn-ghost btn-xs btn-square"
+            [title]="titleOf('Discard changes to')"
+            [attr.aria-label]="titleOf('Discard changes to')"
+            [disabled]="isBusy()"
+            data-testid="change-row-discard"
+            (click)="run($event, 'discard')"
+        >
+            <i class="fa-solid fa-rotate-left"></i>
+        </button>
+    } @else if (isConflicted()) {
+        <span [title]="conflictDiscardTitle">
+            <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-square"
+                [attr.aria-label]="conflictDiscardTitle"
+                disabled
+                data-testid="change-row-discard"
+            >
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+        </span>
+    }
+</span>

@@ -3,10 +3,16 @@ import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { GitBranchCreateParams } from "../../../model/coreApi/GitBranchCreateParams"
 import type { GitBranchDeleteParams } from "../../../model/coreApi/GitBranchDeleteParams"
 import type { GitBranchRenameParams } from "../../../model/coreApi/GitBranchRenameParams"
+import type { GitCreateCommitParams } from "../../../model/coreApi/GitCreateCommitParams"
+import type { GitDiffFileParams } from "../../../model/coreApi/GitDiffFileParams"
+import type { GitDiscardParams } from "../../../model/coreApi/GitDiscardParams"
 import type { GitFetchParams } from "../../../model/coreApi/GitFetchParams"
+import type { GitIsAncestorParams } from "../../../model/coreApi/GitIsAncestorParams"
 import type { GitLogParams } from "../../../model/coreApi/GitLogParams"
 import type { GitSetUpstreamParams } from "../../../model/coreApi/GitSetUpstreamParams"
+import type { GitStageParams } from "../../../model/coreApi/GitStageParams"
 import type { GitSwitchParams } from "../../../model/coreApi/GitSwitchParams"
+import type { GitUnstageParams } from "../../../model/coreApi/GitUnstageParams"
 import type { ProgressParams } from "../../../model/coreApi/ProgressParams"
 import type { PromptClosed } from "../../../model/coreApi/PromptClosed"
 import type { PromptRequested } from "../../../model/coreApi/PromptRequested"
@@ -78,6 +84,34 @@ export class GitApiService {
 
     setUpstream(params: GitSetUpstreamParams, operationId: string) {
         return this.call("git.setUpstream", params, operationId)
+    }
+
+    workingTree(repo: FolderRef) {
+        return this.call("git.workingTree", { repo })
+    }
+
+    diffFile(params: GitDiffFileParams) {
+        return this.call("git.diffFile", params)
+    }
+
+    stage(params: GitStageParams, operationId: string) {
+        return this.call("git.stage", params, operationId)
+    }
+
+    unstage(params: GitUnstageParams, operationId: string) {
+        return this.call("git.unstage", params, operationId)
+    }
+
+    discard(params: GitDiscardParams, operationId: string) {
+        return this.call("git.discard", params, operationId)
+    }
+
+    commit(params: GitCreateCommitParams, operationId: string) {
+        return this.call("git.commit", params, operationId)
+    }
+
+    isAncestor(params: GitIsAncestorParams) {
+        return this.call("git.isAncestor", params)
     }
 
     answerPrompt(promptId: string, answer: string) {

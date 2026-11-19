@@ -141,6 +141,42 @@ describe("gitErrorText", () => {
         expect(sentence).toBe("Sign-in cancelled. Nothing was changed.")
     })
 
+    it("should give the identity instructions with both commands", () => {
+        // Arrange & Act
+        const sentence = gitErrorSentence(anError("IDENTITY_UNKNOWN"), { operation: "commit" })
+
+        // Assert
+        expect(sentence.split("\n")).toEqual([
+            "Git does not know who you are. Run these in a terminal, then commit again:",
+            'git config --global user.name "Your Name"',
+            'git config --global user.email "you@example.com"'
+        ])
+    })
+
+    it("should word nothing to commit and a failed hook, naming the commit where it stopped one", () => {
+        // Arrange & Act
+        const sentences = [
+            gitErrorSentence(anError("NOTHING_TO_COMMIT"), { operation: "commit" }),
+            gitErrorSentence(anError("HOOK_FAILED"), { operation: "commit" }),
+            gitErrorSentence(anError("HOOK_FAILED"))
+        ]
+
+        // Assert
+        expect(sentences).toEqual([
+            "Nothing to commit. Stage files first.",
+            "A git hook stopped the commit.",
+            "A git hook stopped the operation."
+        ])
+    })
+
+    it("should say that the list is refreshed when the files changed since they were listed", () => {
+        // Arrange & Act
+        const sentence = gitErrorSentence(anError("CHANGED_SINCE_LISTED"))
+
+        // Assert
+        expect(sentence).toBe("The files changed since they were listed. The list is refreshed — check it and try again.")
+    })
+
     it("should list git's files when a switch would overwrite local changes, at most ten", () => {
         // Arrange
         const files = Array.from({ length: 12 }, (_, index) => `\tsrc/file${index}.ts`)

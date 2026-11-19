@@ -1,5 +1,6 @@
 import type { GitCommitDistance } from "../../../model/coreApi/GitCommitDistance"
 import type { GitFileChange } from "../../../model/coreApi/GitFileChange"
+import type { GitWorkingTreeEntry } from "../../../model/coreApi/GitWorkingTreeEntry"
 import type { StatusCounts } from "../../../model/coreApi/StatusCounts"
 import { counted, shortSha } from "../../../util/wording"
 
@@ -19,9 +20,25 @@ const CHANGE_BADGES: Record<GitFileChange, ChangeBadge> = {
     unknown: { label: "unknown", toneClass: "badge-ghost", title: null }
 }
 
+const CONFLICT_BADGE: ChangeBadge = { label: "conflict", toneClass: "badge-warning", title: null }
+const UNTRACKED_BADGE: ChangeBadge = { label: "untracked", toneClass: "badge-ghost", title: null }
+
 /** The worded change of design H9, never a bare letter. */
 export function changeBadgeOf(change: GitFileChange): ChangeBadge {
     return CHANGE_BADGES[change]
+}
+
+/** Design H11: a changes-panel row says "conflict" or "untracked" where that is what matters, else its change. */
+export function entryBadgeOf({ kind, change }: Pick<GitWorkingTreeEntry, "kind" | "change">): ChangeBadge {
+    if (kind === "conflicted") {
+        return CONFLICT_BADGE
+    }
+    return kind === "untracked" ? UNTRACKED_BADGE : changeBadgeOf(change)
+}
+
+/** "old.ts → money.ts" for a rename or copy, else the file name. */
+export function displayNameOf(path: string, previousPath: string | null): string {
+    return previousPath ? `${fileNameOf(previousPath)} → ${fileNameOf(path)}` : fileNameOf(path)
 }
 
 export function fileNameOf(path: string): string {

@@ -8,7 +8,18 @@ import { GitApiService } from "./gitApi.service"
 import { GitConfirmationService } from "./gitConfirmation.service"
 import { GitRepositoryService } from "./gitRepository.service"
 
-export type GitOperationKind = "fetch" | "switch" | "createBranch" | "renameBranch" | "deleteBranch" | "deleteRemoteBranch" | "setUpstream"
+export type GitOperationKind =
+    | "fetch"
+    | "switch"
+    | "createBranch"
+    | "renameBranch"
+    | "deleteBranch"
+    | "deleteRemoteBranch"
+    | "setUpstream"
+    | "stage"
+    | "unstage"
+    | "discard"
+    | "commit"
 
 interface GitOperationProgress {
     message: string

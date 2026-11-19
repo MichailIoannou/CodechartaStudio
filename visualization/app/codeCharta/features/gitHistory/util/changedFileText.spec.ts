@@ -1,4 +1,4 @@
-import { changeBadgeOf, distanceSentence, fileNameOf, folderOf, workingTreeSummary } from "./changedFileText"
+import { changeBadgeOf, displayNameOf, distanceSentence, entryBadgeOf, fileNameOf, folderOf, workingTreeSummary } from "./changedFileText"
 
 describe("changedFileText", () => {
     it("should word every kind of change", () => {
@@ -40,5 +40,29 @@ describe("changedFileText", () => {
         // Assert
         expect(diverged).toBe("a1b2c3d is 3 commits ahead of and 1 behind 9f8e7d6")
         expect(oneAhead).toBe("a1b2c3d is 1 commit ahead of and 0 behind 9f8e7d6")
+    })
+
+    it("should word a changes-panel row as conflict, untracked or its change", () => {
+        // Arrange & Act
+        const labels = [
+            entryBadgeOf({ kind: "conflicted", change: "modified" }),
+            entryBadgeOf({ kind: "untracked", change: "added" }),
+            entryBadgeOf({ kind: "staged", change: "deleted" })
+        ].map(badge => [badge.label, badge.toneClass])
+
+        // Assert
+        expect(labels).toEqual([
+            ["conflict", "badge-warning"],
+            ["untracked", "badge-ghost"],
+            ["deleted", "badge-error"]
+        ])
+    })
+
+    it("should name a renamed file with its old and new name", () => {
+        // Arrange & Act
+        const names = [displayNameOf("src/money.ts", "src/old.ts"), displayNameOf("src/app.ts", null)]
+
+        // Assert
+        expect(names).toEqual(["old.ts → money.ts", "app.ts"])
     })
 })

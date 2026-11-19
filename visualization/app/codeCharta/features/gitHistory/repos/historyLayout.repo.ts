@@ -6,6 +6,7 @@ const HISTORY_LAYOUT_KEY = "codeChartaHistoryLayout"
 export interface StoredHistoryLayout {
     branchesWidth?: number
     detailsWidth?: number
+    changesWidth?: number
     /** Absent until the user collapsed or expanded the pane once. */
     isBranchesCollapsed?: boolean
     isDetailsCollapsed?: boolean

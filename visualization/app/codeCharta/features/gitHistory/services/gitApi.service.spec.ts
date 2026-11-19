@@ -174,6 +174,47 @@ describe("GitApiService", () => {
         expect(methods).toEqual(["git.branchCreate", "git.branchRename", "git.branchDelete", "git.setUpstream"])
     })
 
+    it("should read the working tree and a diff, and send stage, unstage and discard under their operation ids", async () => {
+        // Arrange
+        const bridge: FakeDesktopBridge = createFakeDesktopBridge()
+        const api = apiWith(bridge)
+        const row = { path: "src/a.ts", kind: "unstaged" as const, change: "modified" as const }
+
+        // Act
+        await api.workingTree(repo)
+        await api.diffFile({ repo, path: row.path, kind: row.kind })
+        await api.stage({ repo, target: { kind: "all" } }, "op-1")
+        await api.unstage({ repo, paths: [row.path] }, "op-2")
+        await api.discard({ repo, entries: [row] }, "op-3")
+
+        // Assert
+        expect(bridge.calls.filter(call => call.name === "request").map(call => [call.args[0], call.args[2]])).toEqual([
+            ["git.workingTree", undefined],
+            ["git.diffFile", undefined],
+            ["git.stage", { operationId: "op-1" }],
+            ["git.unstage", { operationId: "op-2" }],
+            ["git.discard", { operationId: "op-3" }]
+        ])
+    })
+
+    it("should send a commit under its operation id and ask whether one commit is an ancestor of another", async () => {
+        // Arrange
+        const bridge: FakeDesktopBridge = createFakeDesktopBridge()
+        const api = apiWith(bridge)
+        const commit = { repo, subject: "Fix rounding", body: "", amend: false }
+        const ancestry = { repo, ancestor: "a".repeat(40), descendant: "b".repeat(40) }
+
+        // Act
+        await api.commit(commit, "op-1")
+        await api.isAncestor(ancestry)
+
+        // Assert
+        expect(bridge.calls.filter(call => call.name === "request").map(call => call.args)).toEqual([
+            ["git.commit", commit, { operationId: "op-1" }],
+            ["git.isAncestor", ancestry, undefined]
+        ])
+    })
+
     it("should answer and cancel prompts and cancel operations through the bridge", async () => {
         // Arrange
         const bridge: FakeDesktopBridge = createFakeDesktopBridge({ responses: { "prompt.answer": null, "prompt.cancel": null } })

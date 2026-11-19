@@ -1,4 +1,6 @@
 import { CORE_PROTOCOL_VERSION } from "../../model/coreApi/coreApi"
+import type { GitEntryKind } from "../../model/coreApi/GitEntryKind"
+import type { GitFileChange } from "../../model/coreApi/GitFileChange"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
 import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { Project } from "../../model/coreApi/Project"
@@ -1076,7 +1078,9 @@ describe("createFakeDesktopBridge", () => {
             expect(await branchNames(bridge)).toEqual(["main", "renamed", "x*"])
             expect(status.ok && status.value.head).toEqual({ kind: "branch", name: "x", commit: B })
             expect(changed).toHaveBeenCalledTimes(6)
-            expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ repo, parts: ["status", "refs"], fingerprint: "f1++++++" }))
+            expect(changed).toHaveBeenLastCalledWith(
+                expect.objectContaining({ repo, parts: ["status", "refs", "workingTree"], fingerprint: "f1++++++" })
+            )
         })
 
         it("should refuse an existing name and an unmerged branch unless forced", async () => {
@@ -1093,6 +1097,98 @@ describe("createFakeDesktopBridge", () => {
             // Assert
             expect([exists, unmerged].map(answer => errorCodeOf(answer))).toEqual(["BRANCH_EXISTS", "BRANCH_NOT_FULLY_MERGED"])
             expect(forced.ok).toBe(true)
+        })
+
+        function anEntry(path: string, kind: GitEntryKind, change: GitFileChange = "modified") {
+            return { path, previousPath: null, kind, change, conflict: kind === "conflicted" ? "UU" : null }
+        }
+
+        async function listedRows(bridge: DesktopBridge) {
+            const answer = await bridge.request("git.workingTree", { repo })
+            return answer.ok ? answer.value.entries.map(entry => `${entry.kind}:${entry.path}:${entry.change}`) : []
+        }
+
+        it("should stage, unstage and discard listed rows and keep the status counts in step", async () => {
+            // Arrange
+            const changes = [anEntry("a.ts", "unstaged"), anEntry("new.ts", "untracked", "added"), anEntry("old.ts", "unstaged", "deleted")]
+            const bridge = createFakeDesktopBridge(writableSeed({ changes }))
+
+            // Act
+            await bridge.request("git.stage", { repo, target: { kind: "paths", paths: ["a.ts"] } })
+            await bridge.request("git.stage", { repo, target: { kind: "all" } })
+            await bridge.request("git.unstage", { repo, paths: ["new.ts", "a.ts"] })
+            await bridge.request("git.discard", { repo, entries: [{ path: "new.ts", kind: "untracked", change: "added" }] })
+            const status = await bridge.request("git.status", { repo })
+
+            // Assert
+            expect(await listedRows(bridge)).toEqual(["staged:old.ts:deleted", "unstaged:a.ts:modified"])
+            expect(status.ok && status.value.counts).toEqual({ staged: 1, unstaged: 1, untracked: 0, conflicted: 0 })
+        })
+
+        it("should refuse rows that are no longer listed as named, a conflicted row, and answer a listed row's diff", async () => {
+            // Arrange
+            const diff = { path: "a.ts", text: "@@ -1 +1 @@\n-a\n+b\n", isBinary: false, isTruncated: false }
+            const changes = [anEntry("a.ts", "unstaged"), anEntry("c.ts", "conflicted")]
+            const bridge = createFakeDesktopBridge(writableSeed({ changes, diffs: { "unstaged:a.ts": diff } }))
+
+            // Act
+            const answers = [
+                await bridge.request("git.stage", { repo, target: { kind: "paths", paths: ["gone.ts"] } }),
+                await bridge.request("git.unstage", { repo, paths: ["a.ts"] }),
+                await bridge.request("git.discard", { repo, entries: [{ path: "a.ts", kind: "unstaged", change: "deleted" }] }),
+                await bridge.request("git.discard", { repo, entries: [{ path: "c.ts", kind: "conflicted", change: "modified" }] }),
+                await bridge.request("git.diffFile", { repo, path: "a.ts", kind: "staged" })
+            ]
+            const shown = await bridge.request("git.diffFile", { repo, path: "a.ts", kind: "unstaged" })
+            const empty = await bridge.request("git.diffFile", { repo, path: "c.ts", kind: "conflicted" })
+
+            // Assert
+            expect(answers.map(errorCodeOf)).toEqual([
+                "CHANGED_SINCE_LISTED",
+                "CHANGED_SINCE_LISTED",
+                "CHANGED_SINCE_LISTED",
+                "NOT_ALLOWED",
+                "NOT_FOUND"
+            ])
+            expect(shown).toEqual({ ok: true, value: diff })
+            expect(empty.ok && empty.value.text).toBe("")
+        })
+
+        it("should commit the staged rows onto the current branch, amend the last commit and answer ancestry", async () => {
+            // Arrange
+            const commits = [{ sha: A, parents: [], subject: "Start", authorName: "M", authorEmail: "m@x", authoredAt: 0, committedAt: 0 }]
+            const changes = [anEntry("a.ts", "staged"), anEntry("b.ts", "unstaged")]
+            const bridge = createFakeDesktopBridge(writableSeed({ changes, commits }))
+
+            // Act
+            await bridge.request("git.commit", { repo, subject: "Add a", body: "", amend: false })
+            const first = await bridge.request("git.status", { repo })
+            const nothing = await bridge.request("git.commit", { repo, subject: "Again", body: "", amend: false })
+            await bridge.request("git.commit", { repo, subject: "Add a, amended", body: "", amend: true })
+            const amended = await bridge.request("git.status", { repo })
+            const amendedSha = amended.ok ? (amended.value.head.commit ?? "") : ""
+            const ancestry = [
+                await bridge.request("git.isAncestor", { repo, ancestor: A, descendant: amendedSha }),
+                await bridge.request("git.isAncestor", { repo, ancestor: amendedSha, descendant: A })
+            ]
+
+            // Assert
+            expect(first.ok && first.value.counts).toEqual({ staged: 0, unstaged: 1, untracked: 0, conflicted: 0 })
+            expect(errorCodeOf(nothing)).toBe("NOTHING_TO_COMMIT")
+            expect(await branchNames(bridge)).toEqual(["main*", "old"])
+            expect(amendedSha).not.toBe(A)
+            expect(ancestry.map(answer => answer.ok && answer.value)).toEqual([true, false])
+        })
+
+        it("should refuse to commit while files have conflicts", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(writableSeed({ changes: [anEntry("c.ts", "conflicted")] }))
+
+            // Act
+            const answer = await bridge.request("git.commit", { repo, subject: "Merge", body: "", amend: false })
+
+            // Assert
+            expect(errorCodeOf(answer)).toBe("CONFLICTS")
         })
 
         it("should fetch with the seeded number of updated refs", async () => {

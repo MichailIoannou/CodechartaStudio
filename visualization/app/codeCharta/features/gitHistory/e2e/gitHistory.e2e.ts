@@ -3,6 +3,9 @@ import { join } from "node:path"
 import { gzipSync } from "node:zlib"
 import { expect, test } from "@playwright/test"
 import { CC_URL, goto, standInForTheDesktopBridge } from "../../../../playwright.helper"
+import type { GitEntryKind } from "../../../model/coreApi/GitEntryKind"
+import type { GitFileChange } from "../../../model/coreApi/GitFileChange"
+import type { GitWorkingTreeEntry } from "../../../model/coreApi/GitWorkingTreeEntry"
 import type { FakeDesktopSeed } from "../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aProject, aSnapshot } from "../../projects/projects.mocks"
 import {
@@ -17,6 +20,10 @@ import {
     aTag
 } from "../services/gitApi.mocks"
 import { GitHistoryPageObject } from "./gitHistory.po"
+
+function anEntry(path: string, kind: GitEntryKind, change: GitFileChange = "modified"): GitWorkingTreeEntry {
+    return { path, previousPath: null, kind, change, conflict: null }
+}
 
 const SAMPLE_MAP = [...gzipSync(readFileSync(join(__dirname, "..", "..", "..", "assets", "sample1.cc.json")))]
 const BILLING = aProject("p-billing", [aFolder("f-api", { label: "billing-api", path: "/work/billing-api" })], { name: "billing" })
@@ -256,6 +263,89 @@ test.describe("History writes", () => {
         await toast.getByRole("button", { name: "Details" }).click()
         await expect(toast).toContainText("Aborting")
         await expect(history.currentBranch()).toContainText("feature/invoice-rounding")
+    })
+})
+
+test.describe("History changes", () => {
+    const commits = [aLogCommit("a", "Fix invoice rounding", ["b"]), aLogCommit("b", "Start the invoice module")]
+    const changes = [
+        anEntry("src/billing/currency.ts", "staged"),
+        anEntry("src/app.ts", "unstaged"),
+        anEntry("notes.md", "untracked", "added")
+    ]
+    const diffs = {
+        "unstaged:src/app.ts": {
+            path: "src/app.ts",
+            text: "diff --git a/src/app.ts b/src/app.ts\n@@ -1,2 +1,2 @@\n keep\n-old\n+new\n",
+            isBinary: false,
+            isTruncated: false
+        }
+    }
+
+    test("should show a file's diff, stage it and discard an untracked file after the confirmation", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, changes, diffs } }))
+        await goto(page)
+        await history.open()
+
+        // Act
+        await history.changesTab().click()
+        await history.changeRow("unstaged:src/app.ts").click()
+        await expect(history.diffLines().filter({ hasText: "+new" })).toHaveClass(/text-success/)
+        await history.changeRow("unstaged:src/app.ts").getByTestId("change-row-stage").click()
+        await history.confirm("yes")
+        await expect(history.changeRow("staged:src/app.ts")).toBeVisible()
+        await history.changeRow("untracked:notes.md").getByTestId("change-row-discard").click()
+        await expect(history.confirmDialog()).toContainText("Discard changes to 'notes.md'?")
+        await history.confirm("verb")
+
+        // Assert
+        await expect(history.changeRow("untracked:notes.md")).toHaveCount(0)
+        await expect(history.groupHeaders()).toHaveText([/Staged\s*\(2\)/])
+        await expect(history.changesTab()).toContainText("2")
+    })
+
+    test("should commit the staged files with Ctrl+Enter and show the new commit in the log", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, changes } }))
+        await goto(page)
+        await history.open()
+        await history.changesTab().click()
+
+        // Act
+        await history.commitSummary().fill("Add the currency table")
+        await history.commitSummary().press("Control+Enter")
+        await history.confirm("yes")
+
+        // Assert
+        await expect(history.toasts().filter({ hasText: /Committed [0-9a-c]{7}/ })).toBeVisible()
+        await expect(history.commitSummary()).toHaveValue("")
+        await expect(history.changeRow("staged:src/billing/currency.ts")).toHaveCount(0)
+        await page.getByTestId("history-tab-log").click()
+        await expect(history.commitRows().first()).toContainText("Add the currency table")
+    })
+
+    test("should keep the message and show the hook's output when a hook stops the commit", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const failures = { "git.commit": anErrorPayload("HOOK_FAILED", "The hook failed.", { detail: "lint: 3 problems in src/app.ts" }) }
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, changes, failures } }))
+        await goto(page)
+        await history.open()
+        await history.changesTab().click()
+
+        // Act
+        await history.commitSummary().fill("Add the currency table")
+        await history.commitButton().click()
+        await history.confirm("yes")
+
+        // Assert
+        const toast = history.toasts().filter({ hasText: "A git hook stopped the commit." })
+        await toast.getByRole("button", { name: "Details" }).click()
+        await expect(toast).toContainText("lint: 3 problems in src/app.ts")
+        await expect(history.commitSummary()).toHaveValue("Add the currency table")
     })
 })
 

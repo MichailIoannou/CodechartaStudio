@@ -13,7 +13,8 @@ import { LOADED_MAP_LOCATOR } from "../../ports/loadedMapLocator.port"
 import { CommitActionsService } from "../../services/commitActions.service"
 import { CommitDetailsService } from "../../services/commitDetails.service"
 import { CommitSelectionService } from "../../services/commitSelection.service"
-import { changeBadgeOf, distanceSentence, fileNameOf, folderOf, workingTreeSummary } from "../../util/changedFileText"
+import { HistoryTabService } from "../../services/historyTab.service"
+import { changeBadgeOf, displayNameOf, distanceSentence, folderOf, workingTreeSummary } from "../../util/changedFileText"
 import { commitDateTime } from "../../util/commitDate"
 import { gitErrorSentence } from "../../util/gitErrorText"
 
@@ -48,6 +49,7 @@ export class CommitDetailsComponent {
     private readonly locator = inject(LOADED_MAP_LOCATOR, { optional: true })
     private readonly router = inject(Router)
     private readonly viewHandoff = inject(ViewHandoffStore)
+    private readonly tabs = inject(HistoryTabService)
     readonly clipboard = inject(CopyToClipboardService)
 
     readonly skeletonLines = Array.from({ length: SKELETON_LINE_COUNT }, (_, index) => index)
@@ -121,6 +123,10 @@ export class CommitDetailsComponent {
         this.detailsService.retry()
     }
 
+    openChanges() {
+        this.tabs.select("changes")
+    }
+
     runAction(action: CommitAction) {
         const selection = this.selection.selection()
         if (selection) {
@@ -136,7 +142,7 @@ export class CommitDetailsComponent {
     private rowOf(file: GitChangedFile): ChangedFileRow {
         const repo = this.selection.selection()?.repo
         const nodePath = this.locator && repo ? this.locator.nodePathOf(repo, file.path) : null
-        const name = file.previousPath ? `${fileNameOf(file.previousPath)} → ${fileNameOf(file.path)}` : fileNameOf(file.path)
+        const name = displayNameOf(file.path, file.previousPath)
         return { file, badge: changeBadgeOf(file.change), name, folder: folderOf(file.path), nodePath }
     }
 }

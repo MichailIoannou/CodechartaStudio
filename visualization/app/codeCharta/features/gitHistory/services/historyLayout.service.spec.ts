@@ -26,8 +26,22 @@ describe("HistoryLayoutService", () => {
         const layout = createService()
 
         // Assert
-        expect([layout.branchesWidth(), layout.detailsWidth()]).toEqual([260, 380])
+        expect([layout.branchesWidth(), layout.detailsWidth(), layout.changesWidth()]).toEqual([260, 380, 360])
         expect([layout.isBranchesCollapsed(), layout.isDetailsCollapsed()]).toEqual([false, false])
+    })
+
+    it("should clamp and remember the width of the changes pane", () => {
+        // Arrange
+        const layout = createService({ stored: { changesWidth: 100 } })
+        const restored = layout.changesWidth()
+
+        // Act
+        layout.resize("changes", 500)
+        layout.save()
+
+        // Assert
+        expect(restored).toBe(PANE_BOUNDS.changes.minWidth)
+        expect(storedLayout()).toEqual(expect.objectContaining({ changesWidth: 500 }))
     })
 
     it("should restore the remembered widths and clamp them to their bounds", () => {
