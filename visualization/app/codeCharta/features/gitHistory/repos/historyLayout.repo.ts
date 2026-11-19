@@ -9,7 +9,7 @@ export interface StoredHistoryLayout {
     /** Absent until the user collapsed or expanded the pane once. */
     isBranchesCollapsed?: boolean
     isDetailsCollapsed?: boolean
-    collapsedGroups?: string[]
+    toggledGroups?: string[]
 }
 
 @Injectable({ providedIn: "root" })

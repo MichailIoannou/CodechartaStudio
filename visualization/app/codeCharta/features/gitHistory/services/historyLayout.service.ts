@@ -36,13 +36,13 @@ export class HistoryLayoutService {
         branches: this.stored.isBranchesCollapsed,
         details: this.stored.isDetailsCollapsed
     }
-    private readonly collapsedGroupIds = signal<ReadonlySet<string>>(new Set(this.stored.collapsedGroups ?? []))
+    private readonly toggledGroupIds = signal<ReadonlySet<string>>(new Set(this.stored.toggledGroups ?? []))
 
     readonly branchesWidth = computed(() => this.widths().branches)
     readonly detailsWidth = computed(() => this.widths().details)
     readonly isBranchesCollapsed = computed(() => this.collapsed().branches)
     readonly isDetailsCollapsed = computed(() => this.collapsed().details)
-    readonly collapsedGroups = this.collapsedGroupIds.asReadonly()
+    readonly toggledGroups = this.toggledGroupIds.asReadonly()
 
     resize(pane: SidePane, width: number): void {
         this.widths.update(widths => ({ ...widths, [pane]: clampedWidth(pane, width) }))
@@ -60,7 +60,7 @@ export class HistoryLayoutService {
     }
 
     toggleGroup(groupId: string): void {
-        this.collapsedGroupIds.update(groupIds => {
+        this.toggledGroupIds.update(groupIds => {
             const next = new Set(groupIds)
             if (!next.delete(groupId)) {
                 next.add(groupId)
@@ -76,7 +76,7 @@ export class HistoryLayoutService {
             detailsWidth: this.detailsWidth(),
             isBranchesCollapsed: this.chosenCollapse.branches,
             isDetailsCollapsed: this.chosenCollapse.details,
-            collapsedGroups: [...this.collapsedGroupIds()]
+            toggledGroups: [...this.toggledGroupIds()]
         }
         this.repo.write(layout)
     }

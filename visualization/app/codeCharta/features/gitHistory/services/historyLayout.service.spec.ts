@@ -102,7 +102,7 @@ describe("HistoryLayoutService", () => {
         expect(storedLayout().isBranchesCollapsed).toBeUndefined()
     })
 
-    it("should remember collapsed groups", () => {
+    it("should remember the groups opened or closed against their default", () => {
         // Arrange
         const layout = createService()
 
@@ -112,7 +112,7 @@ describe("HistoryLayoutService", () => {
         layout.toggleGroup("remote:origin")
 
         // Assert
-        expect([...layout.collapsedGroups()]).toEqual(["tags"])
-        expect(storedLayout().collapsedGroups).toEqual(["tags"])
+        expect([...layout.toggledGroups()]).toEqual(["tags"])
+        expect(storedLayout().toggledGroups).toEqual(["tags"])
     })
 })

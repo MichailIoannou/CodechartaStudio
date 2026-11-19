@@ -4,6 +4,7 @@ import { failureOf, readyValueOf } from "../../model/loadState"
 import { GitRepositoryService } from "../../services/gitRepository.service"
 import { HistoryLayoutService } from "../../services/historyLayout.service"
 import { problemNoticeOf } from "../../util/gitErrorText"
+import { BranchesTreeComponent } from "../branchesTree/branchesTree.component"
 import { CommitScopeChipComponent } from "../commitScopeChip/commitScopeChip.component"
 import { GitProblemNoticeComponent } from "../gitProblemNotice/gitProblemNotice.component"
 import { HistoryToolbarComponent } from "../historyToolbar/historyToolbar.component"
@@ -16,7 +17,13 @@ export interface FolderToRelink {
 @Component({
     selector: "cc-git-history-panel",
     templateUrl: "./gitHistoryPanel.component.html",
-    imports: [HistoryToolbarComponent, GitProblemNoticeComponent, CommitScopeChipComponent, ColumnResizeHandleDirective],
+    imports: [
+        HistoryToolbarComponent,
+        BranchesTreeComponent,
+        GitProblemNoticeComponent,
+        CommitScopeChipComponent,
+        ColumnResizeHandleDirective
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "flex h-full flex-col", "(keydown.f5)": "refreshByKey($event)" }
 })

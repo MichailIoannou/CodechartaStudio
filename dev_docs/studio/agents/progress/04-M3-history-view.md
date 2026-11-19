@@ -42,7 +42,7 @@ metrics bar / file extension bar / toasts at the same time. Keep changes to shar
 - [x] 2. Route
 - [x] 3. Repository state
 - [x] 4. Panel shell
-- [ ] 5. Branches tree
+- [x] 5. Branches tree
 - [x] 6. Branch chip — replaced by the design (W1)
 
 ## Notes
@@ -137,4 +137,22 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   - A refs failure that is not a repository-level problem shows inside the branches pane (task 5) as
     `alert alert-error text-xs` with the H6 sentence and "Retry", borrowed from H9's error state, because error toasts
     with Details (deviation 4) do not exist on this branch yet.
+
+### 5. Branches tree
+- `util/branchTree.ts`: `buildBranchTree(refs)` → groups Local (n), Remote (one subgroup per remote, `origin (n)`),
+  Tags (n); Remote / Tags absent when empty. `branchRows(tree, { filter, toggledIds, uncappedIds })` flattens to rows
+  (`all`, `group`, `folder`, `ref`, `showAll`). A "/" opens a folder only where two or more refs share it (H7's
+  example keeps `feature/invoice-rounding` as one row and nests `release/`). Defaults: groups open, Tags closed,
+  folders closed except the one holding the current branch; the layout key stores the ids toggled against that
+  default (`toggledGroups`, renamed from `collapsedGroups`). Filter: case-insensitive substring over the full name
+  (`origin/main` for remote branches), groups without a hit hide, parents of a hit stay open. Remote subgroups and
+  Tags stop after `GROUP_ROW_CAP = 200` refs with "Show all <n>" (`btn btn-link btn-xs`).
+- `components/branchesTree` (`cc-branches-tree`): filter input, "All branches" row, 24 px rows (`h-6 rounded-md
+  hover:bg-base-200`), current branch `fa-check text-primary` + bold, `fa-arrow-up n` / `fa-arrow-down n` chips (icons,
+  not Unicode arrows, principles §5), `badge badge-warning badge-xs` "gone", worktree `fa-regular fa-folder-open`
+  "Checked out in <path>", row `title` = full ref + "Last commit: <subject>, <relative date>". Click scopes
+  (`GitLogService.scopeTo`), Ctrl/Shift/Cmd+click adds, the scoped row is `bg-primary/20 font-semibold`; group / folder
+  click toggles. `role="tree"` with `aria-activedescendant`: ↑/↓, → opens or enters, ← closes or goes to the parent,
+  Enter scopes; handled keys `stopPropagation`. Empty: "No commits yet."; no hit: "No branch matches 'xyz'.".
+- Not built here: double-click switch (H15, M8) and the branch context menu (H10, M5/M8).
 
