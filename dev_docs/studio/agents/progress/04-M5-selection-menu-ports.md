@@ -37,7 +37,7 @@ analysis enqueue; owner decision: selecting a commit never starts an analysis by
 
 - [x] 1. Selection
 - [x] 2. Keyboard
-- [ ] 3. Ports and context menu
+- [x] 3. Ports and context menu
 - [ ] 4. History badges and analyse action
 
 ## Notes
@@ -77,4 +77,32 @@ Environment (2026-11-19): Arch Linux, node 26, npm 12.2. Branch `feature/studio-
 - Rows have ids (`commit-option-<sha>`, `commit-option-working-tree`, `CommitRowComponent rowIdOf`); the listbox names the
   focused one in `aria-activedescendant`. No separate focus style: the selection follows the focus, so the selected
   row is the focused one (design H8 defines none).
+
+### 3. Ports, context menu, two-commit summary
+- `ports/commitActions.port.ts`: `CommitAction { id, label, detailsLabel?, icon, hoverHint, isPrimary, isOfferedFor, run }`,
+  `COMMIT_ACTIONS` (multi, one action per provider, listed in provider order). **Deviation from the plan's shape:**
+  `label` is the menu's Title Case ("Analyse This Commit", S5 / H10) and the optional `detailsLabel` the details-pane
+  button's sentence case ("Analyse this commit", H9 / S5) — an action without it stays in the menu (e.g. "Analyse the Last
+  Commits from Here…"); `icon` holds full Font Awesome classes. `CommitActionsService` (`offeredFor`, `detailsActionsFor`,
+  `runPrimary`): Enter and double-click run the first offered `isPrimary` action, nothing without one (Enter is then let
+  through).
+- `components/commitContextMenu` (`cc-commit-context-menu`, `cc-floating-menu` + `cc-context-menu-item`, `w-64`): offered
+  contributed actions, a divider, Copy SHA ("Copy the full commit hash", toast "Copied a1b2c3d" as Ctrl+C) and Copy
+  Subject ("Copy the first line of the message"; no toast — the design words none). Right-click on a row outside the
+  selection selects it first; inside a two-item selection the selection stays, and the actions get both items. Menu key /
+  Shift+F10 opens it under the focused row (inset 24 px); opened from the keyboard the first item takes the focus, ↑/↓
+  move between items, Escape closes and gives the focus back to the list (keys stopped). A click outside closes it.
+- **H10 items not shown:** "Check Out '<branch>'", "Check Out '<remote>' as New Branch…", "New Branch Here…" are write
+  entries (plan: from M8; 04-M8 UI is not on the stack) — design rule "unbuilt features are not shown". The menu has its
+  hook: they go after a second divider below Copy Subject; `GitLogService.refLabels()` names the branches at a commit.
+- The working-tree row gets a menu only when a contribution is offered for it (S5 "Analyse Working Tree", C1 "Compare
+  with HEAD"); without one, right-click / Menu key open nothing (no empty menu).
+- Details (H9): the offered actions with a `detailsLabel` are `btn btn-sm gap-2` buttons (icon `fa-fw`, `title` the hint)
+  between the parents line and CHANGED FILES. Two items: each as short SHA (`font-mono`) + subject (`font-semibold`),
+  the working tree as the list row's "Uncommitted changes (3)" (design gap: H9 words only two commits), then for two
+  commits "a1b2c3d is 3 commits ahead of and 1 behind 9f8e7d6" (`git.measureDistances`, target = the newer, `onlyInTarget`
+  = ahead, `onlyInCandidate` = behind; `CommitDetailsService.distance`, latest selection wins; a failure shows the git
+  sentence in `text-error`), then the two-commit action buttons. The same one sentence form for every count (the design
+  gives no other form; "0 behind" stays).
+- `GitApiService.measureDistances`; the fake answers `git.measureDistances` from the seeded parents (ancestor sets).
 

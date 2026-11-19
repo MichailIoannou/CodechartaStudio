@@ -6,6 +6,7 @@ import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummar
 import { ViewHandoffStore } from "../../../../routing/viewHandoff.store"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aProject } from "../../../projects/projects.mocks"
+import { COMMIT_ACTIONS, CommitAction } from "../../ports/commitActions.port"
 import { LOADED_MAP_LOCATOR } from "../../ports/loadedMapLocator.port"
 import { CommitSelectionService } from "../../services/commitSelection.service"
 import { aLogCommit, anErrorPayload, aRefs, aRepositoryInfo, aStatusOn } from "../../services/gitApi.mocks"
@@ -193,6 +194,111 @@ describe("CommitDetailsComponent", () => {
         expect(TestBed.inject(ViewHandoffStore).takeNodeFor("metrics")).toBe("/root/src/billing/invoice.ts")
         expect(navigate).toHaveBeenCalledWith("/")
         expect(screen.getByText("currency.ts").getAttribute("title")).toBe("Not in the map shown now")
+    })
+
+    describe("actions and two selected items", () => {
+        function anAction(id: string, overrides: Partial<CommitAction> = {}): CommitAction {
+            return {
+                id,
+                label: id,
+                icon: "fa-solid fa-play",
+                hoverHint: `${id} hint`,
+                isPrimary: false,
+                isOfferedFor: () => true,
+                run: jest.fn(),
+                ...overrides
+            }
+        }
+
+        function provided(actions: CommitAction[]) {
+            return actions.map(action => ({ provide: COMMIT_ACTIONS, multi: true, useValue: action }))
+        }
+
+        async function selectTwo(rendered: Awaited<ReturnType<typeof renderDetails>>, first: GitCommitSummary, second: GitCommitSummary) {
+            rendered.selection.select({ kind: "commit", commit: first })
+            rendered.selection.extend({ kind: "commit", commit: second })
+            await settleGit()
+            rendered.detectChanges()
+        }
+
+        it("should show the offered actions with a details label as buttons between the parents and the changed files", async () => {
+            // Arrange
+            const analyse = anAction("analyse", { detailsLabel: "Analyse this commit" })
+            const rendered = await renderDetails(seedOf([RELEASE, BASE]), provided([anAction("menu-only"), analyse]))
+
+            // Act
+            await select(rendered, RELEASE)
+            fireEvent.click(screen.getByText("Analyse this commit"))
+
+            // Assert
+            const actions = screen.getByTestId("commit-details-actions")
+            expect(actions.textContent?.trim()).toBe("Analyse this commit")
+            expect(actions.querySelector("button")?.getAttribute("title")).toBe("analyse hint")
+            expect(["fa-fw", "fa-solid", "fa-play"].every(name => actions.querySelector("i")?.classList.contains(name))).toBe(true)
+            expect(screen.getByTestId("commit-details-parents").compareDocumentPosition(actions)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+            expect(actions.compareDocumentPosition(screen.getByTestId("commit-details-totals"))).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+            expect(analyse.run).toHaveBeenCalledWith(expect.objectContaining({ items: [{ kind: "commit", commit: RELEASE }] }))
+        })
+
+        it("should show no action row without offered actions", async () => {
+            // Arrange
+            const rendered = await renderDetails(seedOf([RELEASE, BASE]))
+
+            // Act
+            await select(rendered, RELEASE)
+
+            // Assert
+            expect(screen.queryByTestId("commit-details-actions")).toBeNull()
+        })
+
+        it("should name both commits, say how far apart they are and offer the two-commit actions", async () => {
+            // Arrange
+            const compare = anAction("compare", { detailsLabel: "Compare", isOfferedFor: selection => selection.items.length === 2 })
+            const rendered = await renderDetails(seedOf([RELEASE, BASE]), provided([compare]))
+
+            // Act
+            await selectTwo(rendered, BASE, RELEASE)
+
+            // Assert
+            const items = screen.getAllByTestId("commit-details-two-item").map(leafTexts)
+            expect(items).toEqual([`${RELEASE.sha.slice(0, 7)} Release 2.4.0`, `${BASE.sha.slice(0, 7)} Start the invoice module`])
+            expect(screen.getByTestId("commit-details-distance").textContent?.trim()).toBe(
+                `${RELEASE.sha.slice(0, 7)} is 1 commit ahead of and 0 behind ${BASE.sha.slice(0, 7)}`
+            )
+            expect(screen.getByTestId("commit-details-actions").textContent?.trim()).toBe("Compare")
+        })
+
+        it("should name the uncommitted changes beside a commit without a distance", async () => {
+            // Arrange
+            const rendered = await renderDetails(seedOf([RELEASE, BASE]))
+            const dirty = aStatusOn("main", { counts: { staged: 1, unstaged: 2, untracked: 0, conflicted: 0 } })
+
+            // Act
+            rendered.selection.select({ kind: "commit", commit: BASE })
+            rendered.selection.extend({ kind: "workingTree", status: dirty })
+            await settleGit()
+            rendered.detectChanges()
+
+            // Assert
+            const items = screen.getAllByTestId("commit-details-two-item").map(leafTexts)
+            expect(items).toEqual(["Uncommitted changes (3)", `${BASE.sha.slice(0, 7)} Start the invoice module`])
+            expect(screen.queryByTestId("commit-details-distance")).toBeNull()
+        })
+
+        it("should say why the distance could not be measured", async () => {
+            // Arrange
+            const seed = seedOf([RELEASE, BASE])
+            seed.git = { "f-api": { ...seed.git?.["f-api"], failures: { "git.measureDistances": anErrorPayload("TIMEOUT") } } }
+            const rendered = await renderDetails(seed)
+
+            // Act
+            await selectTwo(rendered, RELEASE, BASE)
+
+            // Assert
+            const distance = screen.getByTestId("commit-details-distance")
+            expect(distance.textContent?.trim()).toBe("Git did not answer in time.")
+            expect(distance.classList).toContain("text-error")
+        })
     })
 
     it("should count the uncommitted changes for the working tree", async () => {

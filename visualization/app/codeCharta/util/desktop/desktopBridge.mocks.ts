@@ -42,6 +42,7 @@ type FakeGitMethod =
     | "git.log"
     | "git.commitDetails"
     | "git.resolveCommit"
+    | "git.measureDistances"
 
 /** What the fake answers for one folder; a method without a value fails with `NOT_A_REPOSITORY`. */
 interface FakeGitRepository {
@@ -105,7 +106,8 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     view?: ProjectView
     checksum?: string
     importToken?: string
-    target?: FolderRef | AnalysisTarget | null
+    target?: FolderRef | AnalysisTarget | string | null
+    candidates?: string[]
     force?: boolean
     jobId?: string
     bindToCommit?: string | null
@@ -659,6 +661,22 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return { ...summary, ...committer, ...noChanges, message: summary.subject, comparedToParent: summary.parents[0] ?? null }
     }
 
+    function gitDistances(repository: FakeGitRepository, params: FakeRequestParams) {
+        const commits = repository.commits ?? []
+        const known = new Set(commits.map(commit => commit.sha))
+        const target = String(params.target ?? "")
+        const reachedFromTarget = new Set(reachableCommits(commits, [target]).map(commit => commit.sha))
+        const distances = (params.candidates ?? [])
+            .filter(candidate => known.has(candidate))
+            .map(candidate => {
+                const reachedFromCandidate = new Set(reachableCommits(commits, [candidate]).map(commit => commit.sha))
+                const onlyInTarget = [...reachedFromTarget].filter(sha => !reachedFromCandidate.has(sha)).length
+                const onlyInCandidate = [...reachedFromCandidate].filter(sha => !reachedFromTarget.has(sha)).length
+                return { sha: candidate, onlyInCandidate, onlyInTarget }
+            })
+        return { distances }
+    }
+
     function findJob(jobId: string) {
         return store.jobs.find(job => job.id === jobId)
     }
@@ -842,6 +860,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "analysis.clearFinished": clearFinishedAnalyses,
         "analysis.readLog": readFailedLog,
         "git.commitDetails": gitAnswer("git.commitDetails", gitCommitDetails),
+        "git.measureDistances": gitAnswer("git.measureDistances", gitDistances),
         "git.resolveCommit": gitAnswer("git.resolveCommit", (repository, params) => {
             const found = repository.commits?.find(commit => commit.sha === params.revision)
             return found ?? { code: "UNKNOWN_REVISION", message: `The fake desktop bridge has no commit ${params.revision}.`, details: {} }

@@ -13,9 +13,11 @@ import {
     viewChild
 } from "@angular/core"
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
+import type { FloatingMenuAnchor } from "../../../shared/facade"
 import { SelectionItem, selectionKeyOf, WORKING_TREE_KEY } from "../../model/commitSelection"
 import { failureOf, readyValueOf } from "../../model/loadState"
 import { ANALYSED_COMMITS, AnalysedCommitMarker } from "../../ports/analysedCommits.port"
+import { CommitActionsService } from "../../services/commitActions.service"
 import { CommitClipboardService } from "../../services/commitClipboard.service"
 import { CommitSelectionService } from "../../services/commitSelection.service"
 import { GitLogService } from "../../services/gitLog.service"
@@ -25,6 +27,7 @@ import { gitErrorSentence } from "../../util/gitErrorText"
 import { GraphRow } from "../../util/graphLayout"
 import { GRAPH_ROW_HEIGHT, graphWidthFor, MAX_DRAWN_LANES } from "../../util/graphRowGeometry"
 import { scrollTopShowing, windowOf } from "../../util/virtualWindow"
+import { CommitContextMenuComponent, CommitMenuClosing, CommitMenuTarget } from "../commitContextMenu/commitContextMenu.component"
 import { CommitGraphCellComponent } from "../commitGraphCell/commitGraphCell.component"
 import { CommitRowComponent, CommitRowView, rowIdOf, selectionClassOf } from "../commitRow/commitRow.component"
 
@@ -36,6 +39,8 @@ const WIDE_LABEL_LIMIT = 3
 const NARROW_LABEL_LIMIT = 1
 /** Room for the `+n` beside the drawn lanes. */
 const HIDDEN_LANES_ROOM_PX = 24
+/** Where a menu opened from the keyboard appears: inset from the row's left edge, under the row. */
+const KEYBOARD_MENU_INSET_PX = 24
 const COMMIT_COLUMN = "minmax(0,1fr)"
 const ANALYSIS_COLUMN = "6.5rem"
 const AUTHOR_COLUMN = "8rem"
@@ -51,7 +56,7 @@ const NO_MARKERS: ReadonlyMap<string, AnalysedCommitMarker> = new Map()
 @Component({
     selector: "cc-commit-list",
     templateUrl: "./commitList.component.html",
-    imports: [CommitRowComponent, CommitGraphCellComponent],
+    imports: [CommitRowComponent, CommitGraphCellComponent, CommitContextMenuComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "flex min-h-0 flex-1 flex-col" }
 })
@@ -60,6 +65,7 @@ export class CommitListComponent {
     private readonly repository = inject(GitRepositoryService)
     private readonly selection = inject(CommitSelectionService)
     private readonly clipboard = inject(CommitClipboardService)
+    private readonly actions = inject(CommitActionsService)
     private readonly analysedCommits = inject(ANALYSED_COMMITS, { optional: true })
     private readonly viewport = viewChild.required<ElementRef<HTMLElement>>("viewport")
     private readonly destroyRef = inject(DestroyRef)
@@ -70,6 +76,7 @@ export class CommitListComponent {
     readonly nowMs = signal(Date.now())
     readonly searchRequested = output<void>()
     readonly workingTreeRowId = rowIdOf(WORKING_TREE_KEY)
+    readonly menuTarget = signal<CommitMenuTarget | null>(null)
 
     readonly skeletonRows = Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => index)
     readonly rowHeight = GRAPH_ROW_HEIGHT
@@ -210,6 +217,30 @@ export class CommitListComponent {
         }
     }
 
+    runPrimaryAction(): boolean {
+        const selection = this.selection.selection()
+        return selection ? this.actions.runPrimary(selection) : false
+    }
+
+    openCommitMenu(commit: GitCommitSummary, event: MouseEvent) {
+        this.openMenuWithMouse({ kind: "commit", commit }, event)
+    }
+
+    openWorkingTreeMenu(event: MouseEvent) {
+        event.preventDefault()
+        const status = readyValueOf(this.repository.status())
+        if (status) {
+            this.openMenuWithMouse({ kind: "workingTree", status }, event)
+        }
+    }
+
+    closeMenu({ isFocusReturned }: CommitMenuClosing) {
+        this.menuTarget.set(null)
+        if (isFocusReturned) {
+            this.viewport().nativeElement.focus()
+        }
+    }
+
     retryPage() {
         void this.log.loadNextPage()
     }
@@ -244,8 +275,39 @@ export class CommitListComponent {
             case "dropSecond":
                 this.selection.dropSecond()
                 return true
-            default:
-                return false
+            case "runPrimary":
+                return this.runPrimaryAction()
+            case "openMenu":
+                return this.openMenuAtFocusedRow()
+        }
+    }
+
+    /** A right-click outside the selection selects that row first, as file lists do. */
+    private openMenuWithMouse(item: SelectionItem, event: MouseEvent) {
+        event.preventDefault()
+        if (!this.selection.selectedKeys().has(selectionKeyOf(item))) {
+            this.selection.select(item)
+        }
+        this.openMenu(item, { x: event.clientX, y: event.clientY }, false)
+    }
+
+    private openMenuAtFocusedRow(): boolean {
+        const index = this.focusedRowIndex()
+        const item = index === null ? null : this.selectableItemAt(index)
+        if (index === null || !item) {
+            return false
+        }
+        const viewportBox = this.viewport().nativeElement.getBoundingClientRect()
+        const rowBottom = viewportBox.top + (index + 1) * GRAPH_ROW_HEIGHT - this.scrollTop()
+        this.openMenu(item, { x: viewportBox.left + KEYBOARD_MENU_INSET_PX, y: rowBottom }, true)
+        return true
+    }
+
+    /** The working tree has nothing to offer until a feature contributes an action for it, so it opens no menu then. */
+    private openMenu(item: SelectionItem, anchor: FloatingMenuAnchor, isFromKeyboard: boolean) {
+        const selection = this.selection.selection()
+        if (selection && (item.kind === "commit" || this.actions.offeredFor(selection).length > 0)) {
+            this.menuTarget.set({ anchor, item, selection, isFromKeyboard })
         }
     }
 

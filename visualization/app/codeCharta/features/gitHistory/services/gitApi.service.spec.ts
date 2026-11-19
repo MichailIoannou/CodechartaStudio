@@ -36,6 +36,19 @@ describe("GitApiService", () => {
         expect(answer).toEqual({ ok: true, value: expect.objectContaining({ sha: commit.sha, message: "Fix invoice rounding" }) })
     })
 
+    it("should ask the core how far commits are from a target", async () => {
+        // Arrange
+        const older = aLogCommit("1", "Older")
+        const newer = aLogCommit("2", "Newer", ["1"])
+        const api = apiWith(createFakeDesktopBridge({ git: { "f-api": { commits: [newer, older] } } }))
+
+        // Act
+        const answer = await api.measureDistances(repo, newer.sha, [older.sha])
+
+        // Assert
+        expect(answer).toEqual({ ok: true, value: { distances: [{ sha: older.sha, onlyInCandidate: 0, onlyInTarget: 1 }] } })
+    })
+
     it("should map a git rpc error to a git error with git's text and the repository path", async () => {
         // Arrange
         const payload = anErrorPayload("DUBIOUS_OWNERSHIP", "Git does not trust the folder.", {

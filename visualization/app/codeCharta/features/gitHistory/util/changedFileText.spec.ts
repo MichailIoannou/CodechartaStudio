@@ -1,4 +1,4 @@
-import { changeBadgeOf, fileNameOf, folderOf, workingTreeSummary } from "./changedFileText"
+import { changeBadgeOf, distanceSentence, fileNameOf, folderOf, workingTreeSummary } from "./changedFileText"
 
 describe("changedFileText", () => {
     it("should word every kind of change", () => {
@@ -26,5 +26,19 @@ describe("changedFileText", () => {
         // Assert
         expect(summary).toBe("3 changed files: 1 staged, 2 unstaged")
         expect(one).toBe("1 changed file: 1 untracked")
+    })
+
+    it("should say how far the newer of two commits is ahead of and behind the older one", () => {
+        // Arrange
+        const newer = "a1b2c3d4e5".padEnd(40, "0")
+        const older = "9f8e7d6c5b".padEnd(40, "0")
+
+        // Act
+        const diverged = distanceSentence(newer, older, { sha: older, onlyInTarget: 3, onlyInCandidate: 1 })
+        const oneAhead = distanceSentence(newer, older, { sha: older, onlyInTarget: 1, onlyInCandidate: 0 })
+
+        // Assert
+        expect(diverged).toBe("a1b2c3d is 3 commits ahead of and 1 behind 9f8e7d6")
+        expect(oneAhead).toBe("a1b2c3d is 1 commit ahead of and 0 behind 9f8e7d6")
     })
 })

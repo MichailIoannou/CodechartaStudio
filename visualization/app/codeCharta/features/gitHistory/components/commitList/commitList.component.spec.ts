@@ -1,12 +1,13 @@
 import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
-import { fireEvent, render, screen } from "@testing-library/angular"
+import { createEvent, fireEvent, render, screen } from "@testing-library/angular"
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
 import type { GitStatus } from "../../../../model/coreApi/GitStatus"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aProject } from "../../../projects/projects.mocks"
 import { ToastService } from "../../../shared/facade"
 import { ANALYSED_COMMITS, AnalysedCommitMarker } from "../../ports/analysedCommits.port"
+import { COMMIT_ACTIONS, CommitAction } from "../../ports/commitActions.port"
 import { CommitSelectionService } from "../../services/commitSelection.service"
 import {
     aLocalBranch,
@@ -68,10 +69,15 @@ function sizeViewport({ width, height }: { width: number; height: number }) {
 }
 
 describe("CommitListComponent", () => {
-    async function renderList(seed: FakeDesktopSeed, markers?: ReadonlyMap<string, AnalysedCommitMarker>) {
+    async function renderList(seed: FakeDesktopSeed, markers?: ReadonlyMap<string, AnalysedCommitMarker>, actions: CommitAction[] = []) {
         const testBed = provideGitHistory(seed, BILLING)
         if (markers) {
             TestBed.configureTestingModule({ providers: [{ provide: ANALYSED_COMMITS, useValue: { markersFor: () => signal(markers) } }] })
+        }
+        if (actions.length > 0) {
+            TestBed.configureTestingModule({
+                providers: actions.map(action => ({ provide: COMMIT_ACTIONS, multi: true, useValue: action }))
+            })
         }
         const rendered = await render(CommitListComponent)
         await settleGit()
@@ -517,6 +523,184 @@ describe("CommitListComponent", () => {
             // Assert
             expect(event.defaultPrevented).toBe(false)
             expect(stopPropagation).not.toHaveBeenCalled()
+        })
+    })
+
+    describe("actions and context menu", () => {
+        function anAction(id: string, overrides: Partial<CommitAction> = {}): CommitAction {
+            return {
+                id,
+                label: id,
+                icon: "fa-solid fa-map",
+                hoverHint: id,
+                isPrimary: false,
+                isOfferedFor: () => true,
+                run: jest.fn(),
+                ...overrides
+            }
+        }
+
+        function press(key: string, modifiers: Partial<KeyboardEventInit> = {}) {
+            const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...modifiers })
+            screen.getByTestId("commit-list").dispatchEvent(event)
+            return event
+        }
+
+        function menuLabels(): string[] {
+            return screen.getAllByRole("button", { hidden: true }).map(button => button.textContent?.trim() ?? "")
+        }
+
+        it("should run the primary action on Enter and on double-click", async () => {
+            // Arrange
+            const show = anAction("show", { isPrimary: true })
+            await renderList(seedOf([RELEASE, START]), undefined, [anAction("analyse"), show])
+            press("ArrowDown")
+
+            // Act
+            const enter = press("Enter")
+            fireEvent.click(screen.getAllByTestId("commit-row")[1])
+            fireEvent.dblClick(screen.getAllByTestId("commit-row")[1])
+
+            // Assert
+            expect(enter.defaultPrevented).toBe(true)
+            expect(show.run).toHaveBeenNthCalledWith(1, expect.objectContaining({ items: [{ kind: "commit", commit: RELEASE }] }))
+            expect(show.run).toHaveBeenNthCalledWith(2, expect.objectContaining({ items: [{ kind: "commit", commit: START }] }))
+        })
+
+        it("should do nothing on Enter without a primary action", async () => {
+            // Arrange
+            const analyse = anAction("analyse")
+            await renderList(seedOf([RELEASE, START]), undefined, [analyse])
+            press("ArrowDown")
+
+            // Act
+            const enter = press("Enter")
+
+            // Assert
+            expect(enter.defaultPrevented).toBe(false)
+            expect(analyse.run).not.toHaveBeenCalled()
+        })
+
+        it("should select a row outside the selection on right-click and open the menu at the pointer", async () => {
+            // Arrange
+            const { detectChanges } = await renderList(seedOf([RELEASE, START]), undefined, [anAction("Analyse This Commit")])
+            fireEvent.click(screen.getAllByTestId("commit-row")[0])
+
+            // Act
+            fireEvent.contextMenu(screen.getAllByTestId("commit-row")[1], { clientX: 40, clientY: 60 })
+            detectChanges()
+
+            // Assert
+            const menu = screen.getByTestId("commit-context-menu")
+            expect(TestBed.inject(CommitSelectionService).selectedSha()).toBe(START.sha)
+            expect(menu.style.left).toBe("40px")
+            expect(menu.style.top).toBe("60px")
+            expect(menuLabels()).toEqual(["Analyse This Commit", "Copy SHA", "Copy Subject"])
+        })
+
+        it("should keep two selected commits on a right-click inside the selection", async () => {
+            // Arrange
+            const compare = anAction("Compare", { isOfferedFor: selection => selection.items.length === 2 })
+            const { detectChanges } = await renderList(seedOf([RELEASE, START]), undefined, [compare])
+            fireEvent.click(screen.getAllByTestId("commit-row")[0])
+            fireEvent.click(screen.getAllByTestId("commit-row")[1], { ctrlKey: true })
+
+            // Act
+            fireEvent.contextMenu(screen.getAllByTestId("commit-row")[1])
+            detectChanges()
+
+            // Assert
+            expect(TestBed.inject(CommitSelectionService).selection()?.items).toHaveLength(2)
+            expect(menuLabels()).toEqual(["Compare", "Copy SHA", "Copy Subject"])
+        })
+
+        it("should open the menu at the focused row from the keyboard and give the focus back on Escape", async () => {
+            // Arrange
+            const { detectChanges } = await renderList(seedOf([RELEASE, START]))
+            const list = screen.getByTestId("commit-list")
+            press("ArrowDown")
+            press("ArrowDown")
+
+            // Act
+            const menuKey = press("ContextMenu")
+            detectChanges()
+            await new Promise(resolve => setTimeout(resolve))
+            const menu = screen.getByTestId("commit-context-menu")
+            const focusedInMenu = document.activeElement?.textContent?.trim()
+            fireEvent.keyDown(menu, { key: "Escape" })
+            detectChanges()
+
+            // Assert
+            expect(menuKey.defaultPrevented).toBe(true)
+            expect(menu.style.top).toBe(`${2 * 28}px`)
+            expect(focusedInMenu).toBe("Copy SHA")
+            expect(screen.queryByTestId("commit-context-menu")).toBeNull()
+            expect(document.activeElement).toBe(list)
+        })
+
+        it("should open the menu with Shift+F10 too and let the key through while nothing is focused", async () => {
+            // Arrange
+            const { detectChanges } = await renderList(seedOf([RELEASE, START]))
+
+            // Act
+            const unfocused = press("F10", { shiftKey: true })
+            press("ArrowDown")
+            press("F10", { shiftKey: true })
+            detectChanges()
+
+            // Assert
+            expect(unfocused.defaultPrevented).toBe(false)
+            expect(screen.getByTestId("commit-context-menu")).not.toBeNull()
+        })
+
+        it("should open no menu on the uncommitted changes while nothing is offered for them", async () => {
+            // Arrange
+            const dirty = aStatusOn("main", {
+                head: { kind: "branch", name: "main", commit: RELEASE.sha },
+                counts: { staged: 0, unstaged: 1, untracked: 0, conflicted: 0 }
+            })
+            const { detectChanges } = await renderList(seedOf([RELEASE, START], dirty))
+
+            // Act
+            const event = createEvent.contextMenu(screen.getByTestId("commit-row-working-tree"))
+            fireEvent(screen.getByTestId("commit-row-working-tree"), event)
+            detectChanges()
+
+            // Assert
+            expect(event.defaultPrevented).toBe(true)
+            expect(screen.queryByTestId("commit-context-menu")).toBeNull()
+        })
+
+        it("should open the menu on the uncommitted changes with an action offered for them", async () => {
+            // Arrange
+            const dirty = aStatusOn("main", {
+                head: { kind: "branch", name: "main", commit: RELEASE.sha },
+                counts: { staged: 0, unstaged: 1, untracked: 0, conflicted: 0 }
+            })
+            const analyseTree = anAction("Analyse Working Tree", { isOfferedFor: selection => selection.items[0].kind === "workingTree" })
+            const { detectChanges } = await renderList(seedOf([RELEASE, START], dirty), undefined, [analyseTree])
+
+            // Act
+            fireEvent.contextMenu(screen.getByTestId("commit-row-working-tree"))
+            detectChanges()
+
+            // Assert
+            expect(menuLabels()).toEqual(["Analyse Working Tree"])
+        })
+
+        it("should close the menu after a click outside without moving the focus", async () => {
+            // Arrange
+            const { detectChanges } = await renderList(seedOf([RELEASE, START]))
+            fireEvent.contextMenu(screen.getAllByTestId("commit-row")[0])
+            detectChanges()
+
+            // Act
+            fireEvent.pointerDown(document.body)
+            detectChanges()
+
+            // Assert
+            expect(screen.queryByTestId("commit-context-menu")).toBeNull()
+            expect(document.activeElement).not.toBe(screen.getByTestId("commit-list"))
         })
     })
 

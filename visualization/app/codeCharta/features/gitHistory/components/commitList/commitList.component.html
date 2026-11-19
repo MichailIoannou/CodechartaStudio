@@ -57,6 +57,8 @@
                             [attr.aria-selected]="item.isSelected"
                             data-testid="commit-row-working-tree"
                             (click)="selectWorkingTree($event)"
+                            (dblclick)="runPrimaryAction()"
+                            (contextmenu)="openWorkingTreeMenu($event)"
                         >
                             @if (isGraphShown()) {
                                 <cc-commit-graph-cell />
@@ -72,6 +74,8 @@
                             [labelLimit]="labelLimit()"
                             [nowMs]="nowMs()"
                             (click)="selectCommit(item.view.commit, $event)"
+                            (dblclick)="runPrimaryAction()"
+                            (contextmenu)="openCommitMenu(item.view.commit, $event)"
                         />
                     }
                     @case ("loadingMore") {
@@ -90,3 +94,6 @@
         </div>
     </div>
 </div>
+@if (menuTarget(); as target) {
+    <cc-commit-context-menu [target]="target" (closed)="closeMenu($event)" />
+}
