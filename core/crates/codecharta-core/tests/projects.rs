@@ -1,3 +1,4 @@
+use std::sync::Arc;
 mod support;
 
 use std::fs;
@@ -21,7 +22,7 @@ use tempfile::TempDir;
 
 struct Workspace {
     store_root: TempDir,
-    store: Store,
+    store: Arc<Store>,
     repo: TempRepo,
     git: FixtureGit,
     recycler: RecordingRecycler,
@@ -34,7 +35,7 @@ impl Workspace {
 
     fn with_recycler(recycler: RecordingRecycler) -> Self {
         let store_root = tempfile::tempdir().expect("a temporary store root");
-        let store = Store::open(store_root.path()).expect("the store opens");
+        let store = Arc::new(Store::open(store_root.path()).expect("the store opens"));
         let repo = TempRepo::new();
         repo.commit_file("a.txt", "a", "Add a");
         let git = repo.runner();
@@ -48,7 +49,7 @@ impl Workspace {
     }
 
     fn projects(&self) -> ProjectRepository<'_> {
-        ProjectRepository::new(&self.store, &self.git, &self.recycler)
+        ProjectRepository::new(Arc::clone(&self.store), &self.git, &self.recycler)
     }
 
     fn project_dir(&self, project: &Project) -> PathBuf {

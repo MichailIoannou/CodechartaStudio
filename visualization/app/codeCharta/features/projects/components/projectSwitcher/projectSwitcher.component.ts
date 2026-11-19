@@ -4,13 +4,16 @@ import type { FolderRef } from "../../../../model/coreApi/FolderRef"
 import type { ProjectSummary } from "../../../../model/coreApi/ProjectSummary"
 import type { ProjectSummaryFolder } from "../../../../model/coreApi/ProjectSummaryFolder"
 import { FolderGitService, isGitStatus } from "../../services/folderGit.service"
+import { OpenFileService } from "../../services/openFile.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted } from "../../util/folderWording"
 import { CreateProjectDialogComponent } from "../createProjectDialog/createProjectDialog.component"
 import { ManageProjectDialogComponent } from "../manageProjectDialog/manageProjectDialog.component"
+import { OpenFileDialogComponent } from "../openFileDialog/openFileDialog.component"
 
 const MENU_ITEM_SELECTOR = "[data-menu-item]:not([disabled])"
 const UNKNOWN_BRANCH = "…"
+const TEXT_INPUT_TAGS: ReadonlySet<string> = new Set(["INPUT", "TEXTAREA"])
 
 interface MenuFolder {
     folder: ProjectSummaryFolder
@@ -29,13 +32,14 @@ interface MenuProject {
 @Component({
     selector: "cc-project-switcher",
     templateUrl: "./projectSwitcher.component.html",
-    imports: [CreateProjectDialogComponent, ManageProjectDialogComponent, NgTemplateOutlet],
+    imports: [CreateProjectDialogComponent, ManageProjectDialogComponent, OpenFileDialogComponent, NgTemplateOutlet],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "min-w-0" }
 })
 export class ProjectSwitcherComponent {
     private readonly projects = inject(ProjectsService)
     private readonly folderGit = inject(FolderGitService)
+    private readonly openFileService = inject(OpenFileService)
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
     private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>("trigger")
     private readonly menu = viewChild<ElementRef<HTMLElement>>("menu")
@@ -109,6 +113,21 @@ export class ProjectSwitcherComponent {
     manageProject(dialog: ManageProjectDialogComponent) {
         this.close()
         dialog.open()
+    }
+
+    openFile() {
+        this.close()
+        void this.openFileService.pickToOpen().catch(error => this.projects.toastUnlessSilent(error, (error as Error).message))
+    }
+
+    @HostListener("document:keydown", ["$event"])
+    openFileWithShortcut(event: KeyboardEvent) {
+        const isShortcut = (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "o"
+        if (!isShortcut || isTypingInto(event.target) || document.querySelector("dialog[open]")) {
+            return
+        }
+        event.preventDefault()
+        this.openFile()
     }
 
     closeProject() {
@@ -230,4 +249,8 @@ export class ProjectSwitcherComponent {
     private focusProjectRow(projectId: string) {
         this.menu()?.nativeElement.querySelector<HTMLElement>(`[data-project-row="${projectId}"]`)?.focus()
     }
+}
+
+function isTypingInto(target: EventTarget | null): boolean {
+    return target instanceof HTMLElement && TEXT_INPUT_TAGS.has(target.tagName)
 }

@@ -5,7 +5,9 @@ import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import type { ProjectSummary } from "../../../../model/coreApi/ProjectSummary"
 import type { SnapshotSummary } from "../../../../model/coreApi/SnapshotSummary"
 import type { StoreProblemCode } from "../../../../model/coreApi/StoreProblemCode"
+import { StoreFolderService } from "../../../desktopTools/facade"
 import { FolderGitService, isGitStatus } from "../../services/folderGit.service"
+import { OpenFileService } from "../../services/openFile.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted, relativeTime, shortSha } from "../../util/folderWording"
 import { AnalysesCardComponent } from "../analysesCard/analysesCard.component"
@@ -55,6 +57,8 @@ interface FolderRow {
 export class ProjectOverviewComponent {
     private readonly projects = inject(ProjectsService)
     private readonly folderGit = inject(FolderGitService)
+    private readonly openFileService = inject(OpenFileService)
+    private readonly storeFolder = inject(StoreFolderService)
     private lastRefreshAt = 0
 
     readonly now = signal(Date.now())
@@ -63,6 +67,7 @@ export class ProjectOverviewComponent {
 
     readonly project = this.projects.activeProject
     readonly isBusy = this.projects.isBusy
+    readonly isChangingStore = this.storeFolder.isChanging
     readonly workingFolder = this.projects.workingFolder
     readonly storeProblem = computed(() => {
         const problem = this.projects.storeProblem()
@@ -102,12 +107,29 @@ export class ProjectOverviewComponent {
         void this.projects.addPickedFolder("Add folder")
     }
 
+    openFile() {
+        void this.openFileService.pickToOpen().catch(error => this.projects.toastUnlessSilent(error, (error as Error).message))
+    }
+
+    importFile(folder: ProjectFolder) {
+        const project = this.project()
+        if (project) {
+            ;(document.activeElement as HTMLElement | null)?.blur()
+            const target = { projectId: project.id, folderId: folder.id }
+            void this.openFileService.pickToImport(target).catch(error => this.projects.toastUnlessSilent(error, (error as Error).message))
+        }
+    }
+
     showSampleFiles() {
         this.projects.showSampleFiles()
     }
 
     revealStoreFolder() {
         void this.projects.revealStoreFolder()
+    }
+
+    chooseStoreFolder() {
+        void this.storeFolder.chooseFolder()
     }
 
     tryStoreAgain() {

@@ -1,8 +1,10 @@
 import type { GitCommitSummary } from "../../model/coreApi/GitCommitSummary"
 import type { GitStatus } from "../../model/coreApi/GitStatus"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
+import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { Project } from "../../model/coreApi/Project"
 import type { ProjectFolder } from "../../model/coreApi/ProjectFolder"
+import type { ResolvedCommit } from "../../model/coreApi/ResolvedCommit"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 
 const PROJECT_NOW = "2026-11-19T08:00:00Z"
@@ -95,6 +97,31 @@ export function aCommit(shortSha: string, subject: string, overrides: Partial<Gi
         authoredAt: Date.parse(PROJECT_NOW) / 1000,
         committedAt: Date.parse(PROJECT_NOW) / 1000,
         subject,
+        ...overrides
+    }
+}
+
+export function aResolvedCommit(shortCommit: string, subject: string): ResolvedCommit {
+    return { commit: shortCommit.padEnd(40, "0"), shortCommit, subject, authorName: "Mia Chen", authorDate: "2026-11-03T10:00:00Z" }
+}
+
+export function aPickedImportFile(folderName: string, overrides: Partial<PickedImportFile> = {}): PickedImportFile {
+    return {
+        importToken: "f".repeat(32),
+        fileName: `${folderName}.cc.json`,
+        sizeBytes: 4_200_000,
+        fileModifiedAt: "2026-11-12T12:00:00Z",
+        commitHint: null,
+        containingFolder: {
+            pickToken: "c".repeat(32),
+            path: `/work/${folderName}`,
+            suggestedName: folderName,
+            kind: "plain",
+            git: null
+        },
+        hintCommit: null,
+        existingTarget: null,
+        duplicateOf: null,
         ...overrides
     }
 }

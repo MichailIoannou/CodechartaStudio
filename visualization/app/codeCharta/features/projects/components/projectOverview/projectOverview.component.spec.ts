@@ -2,8 +2,9 @@ import { TestBed } from "@angular/core/testing"
 import { screen, within } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
-import { aCommit, aFolder, aGitStatus, aPickedFolder, aProject, aSnapshot } from "../../projects.mocks"
+import { aCommit, aFolder, aGitStatus, aPickedFolder, aPickedImportFile, aProject, aSnapshot } from "../../projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../projectsTestBed.mocks"
+import { OpenFileService } from "../../services/openFile.service"
 import { ProjectOverviewComponent } from "./projectOverview.component"
 
 const API = aFolder("f-api", {
@@ -264,5 +265,48 @@ describe("ProjectOverviewComponent", () => {
         )
         expect(testBed.bridge.calls.filter(call => call.name === "reveal")).toHaveLength(1)
         expect(testBed.requestsOf("store.status")).toHaveLength(2)
+    })
+
+    it("should pick a cc.json file to open when no project is open", async () => {
+        // Arrange
+        await renderOverview({ ...SEED, activeProjectId: null, pickedImportFile: aPickedImportFile("Downloads") })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-open-file"))
+        await settle()
+
+        // Assert
+        expect(TestBed.inject(OpenFileService).pending()).toEqual({
+            mode: "open",
+            picked: aPickedImportFile("Downloads"),
+            importTarget: null
+        })
+    })
+
+    it("should pick a cc.json file to import into a folder from its row", async () => {
+        // Arrange
+        await renderOverview({ ...SEED, pickedImportFile: aPickedImportFile("Downloads") })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-folder-more-out"))
+        await userEvent.click(screen.getByTestId("project-overview-import-out"))
+        await settle()
+
+        // Assert
+        expect(TestBed.inject(OpenFileService).pending()).toEqual(
+            expect.objectContaining({ mode: "import", importTarget: { projectId: "p-billing", folderId: "f-out" } })
+        )
+    })
+
+    it("should choose another store folder when the store cannot be used", async () => {
+        // Arrange
+        await renderOverview({ ...SEED, responses: { "store.status": { problem: "STORE_NEWER_SCHEMA" } } })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-store-elsewhere"))
+        await settle()
+
+        // Assert
+        expect(testBed.bridge.calls.filter(call => call.name === "chooseStoreRoot")).toHaveLength(1)
     })
 })

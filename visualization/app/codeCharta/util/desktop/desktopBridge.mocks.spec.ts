@@ -462,6 +462,34 @@ describe("createFakeDesktopBridge", () => {
         expect(reused).toEqual(expect.objectContaining({ ok: false, error: expect.objectContaining({ code: "TOKEN_EXPIRED" }) }))
     })
 
+    it("should resolve a seeded commit of a folder and bind a snapshot to it while moving it", async () => {
+        // Arrange
+        const project = aProject("p-1", [aFolder("f-1"), aFolder("f-2")])
+        project.view.shownSnapshotIdByFolder = { "f-1": "s-1" }
+        const bridge = createFakeDesktopBridge({
+            projects: [project],
+            snapshots: [aSnapshot("p-1", "f-1", "s-1", NOW)],
+            commits: { "f-2": [HINTED_COMMIT] }
+        })
+        const ref = { projectId: "p-1", folderId: "f-1", snapshotId: "s-1" }
+
+        // Act
+        const found = await answerValue(bridge, "projects.resolveCommit", { projectId: "p-1", folderId: "f-2", hash: "a1b2c3d" })
+        const notFound = await answerValue(bridge, "projects.resolveCommit", { projectId: "p-1", folderId: "f-1", hash: "a1b2c3d" })
+        const refused = await bridge.request("snapshots.move", { ...ref, toFolderId: "f-1", bindToCommit: HINTED_COMMIT.commit })
+        const unknown = await bridge.request("snapshots.move", { ...ref, toFolderId: "f-9", bindToCommit: null })
+        const moved = await answerValue(bridge, "snapshots.move", { ...ref, toFolderId: "f-2", bindToCommit: HINTED_COMMIT.commit })
+        const view = (await answerValue(bridge, "projects.get", { projectId: "p-1" })).view
+
+        // Assert
+        expect(found.commit).toEqual(HINTED_COMMIT)
+        expect(notFound.commit).toBeNull()
+        expect(refused).toEqual(expect.objectContaining({ ok: false, error: expect.objectContaining({ code: "NOT_A_COMMIT" }) }))
+        expect(unknown).toEqual(expect.objectContaining({ ok: false, error: expect.objectContaining({ code: "NOT_FOUND" }) }))
+        expect(moved).toEqual(expect.objectContaining({ shortCommit: "a1b2c3d", ref: expect.objectContaining({ folderId: "f-2" }) }))
+        expect(view.shownSnapshotIdByFolder).toEqual({ "f-2": moved.ref.snapshotId })
+    })
+
     it("should hand out the folder of a picked file for a new project", async () => {
         // Arrange
         const bridge = createFakeDesktopBridge({ pickedImportFile: aPickedImportFile() })

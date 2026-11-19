@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use clap::Subcommand;
 use codecharta_core::projects::ProjectRepository;
@@ -116,8 +117,8 @@ pub fn run_snapshots(
 }
 
 fn list(core: &Core, folder: &FolderRef) -> CoreResult<Vec<SnapshotSummary>> {
-    let store = Store::open_read_only(&core.paths().store_root())?;
-    SnapshotRepository::new(&store, core.tools(), &SystemRecycler).list(folder)
+    let store = Arc::new(Store::open_read_only(&core.paths().store_root())?);
+    SnapshotRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler).list(folder)
 }
 
 /// Reads the store only, so it works while the app runs.
@@ -126,13 +127,13 @@ async fn resolve(
     folder: &FolderRef,
     commit: Option<CommitSha>,
 ) -> CoreResult<SnapshotResolution> {
-    let store = Store::open_read_only(&core.paths().store_root())?;
+    let store = Arc::new(Store::open_read_only(&core.paths().store_root())?);
     let target = commit.map_or(AnalysisTarget::WorkingTree, |sha| AnalysisTarget::Commit {
         sha,
     });
     let resolver = FolderResolver {
-        projects: &ProjectRepository::new(&store, core.tools(), &SystemRecycler),
-        snapshots: &SnapshotRepository::new(&store, core.tools(), &SystemRecycler),
+        projects: &ProjectRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler),
+        snapshots: &SnapshotRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler),
         git: &core.git()?,
         cache: core.resolution_cache(),
     };
@@ -142,8 +143,8 @@ async fn resolve(
 }
 
 async fn import(core: &Core, request: ImportRequest) -> CoreResult<ImportOutcome> {
-    let store = Store::open(&core.paths().store_root())?;
-    SnapshotRepository::new(&store, core.tools(), &SystemRecycler)
+    let store = Arc::new(Store::open(&core.paths().store_root())?);
+    SnapshotRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler)
         .import_file(request)
         .await
 }

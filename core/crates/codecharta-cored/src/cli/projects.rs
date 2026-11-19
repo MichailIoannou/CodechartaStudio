@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use clap::{Subcommand, ValueEnum};
 use codecharta_core::projects::folders::suggested_label;
@@ -114,8 +115,8 @@ pub fn run_projects(
 }
 
 fn list(core: &Core) -> CoreResult<Vec<ProjectSummary>> {
-    let store = Store::open_read_only(&core.paths().store_root())?;
-    ProjectRepository::new(&store, core.tools(), &SystemRecycler).list()
+    let store = Arc::new(Store::open_read_only(&core.paths().store_root())?);
+    ProjectRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler).list()
 }
 
 async fn create(
@@ -124,7 +125,7 @@ async fn create(
     description: Option<Description>,
     folders: Vec<FolderArgument>,
 ) -> CoreResult<Project> {
-    let store = Store::open(&core.paths().store_root())?;
+    let store = Arc::new(Store::open(&core.paths().store_root())?);
     let folders = folders
         .into_iter()
         .map(|folder| folder_to_add(&folder.path, folder.label, folder.role))
@@ -134,14 +135,14 @@ async fn create(
         description,
         folders,
     };
-    ProjectRepository::new(&store, core.tools(), &SystemRecycler)
+    ProjectRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler)
         .create(new)
         .await
 }
 
 async fn add_folder(core: &Core, project: &ProjectId, folder: FolderToAdd) -> CoreResult<Project> {
-    let store = Store::open(&core.paths().store_root())?;
-    ProjectRepository::new(&store, core.tools(), &SystemRecycler)
+    let store = Arc::new(Store::open(&core.paths().store_root())?);
+    ProjectRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler)
         .add_folder(project, folder)
         .await
 }

@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing"
+import type { PathsInfo } from "../../../../model/coreApi/PathsInfo"
+import type { CoreResult } from "../../../../util/desktop/desktopBridge"
 import { createFakeDesktopBridge, FakeDesktopBridge, FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
 import { ToastService } from "../../../shared/facade"
@@ -121,6 +123,72 @@ describe("DesktopToolsPanelComponent", () => {
         // Assert
         expect(textOf("[data-testid='desktop-tools-data-folder']")).toBe(PATHS.dataDir)
         expect(bridge.calls.find(call => call.name === "reveal")?.args).toEqual([{ kind: "dataFolder" }])
+    })
+
+    it("should show the store folder and reveal it", async () => {
+        // Arrange
+        await renderPanel()
+        const storeRow = element().querySelector<HTMLElement>("[data-testid='desktop-tools-store-change']").parentElement
+
+        // Act
+        buttonNamed("Show", storeRow).click()
+        await settle()
+
+        // Assert
+        expect(textOf("[data-testid='desktop-tools-store-folder']")).toBe(PATHS.storeRoot)
+        expect(bridge.calls.find(call => call.name === "reveal")?.args).toEqual([{ kind: "storeRoot" }])
+    })
+
+    it("should call chooseRoot and show no change when the choice is cancelled", async () => {
+        // Arrange
+        await renderPanel()
+
+        // Act
+        buttonNamed("Change…").click()
+        await settle()
+
+        // Assert
+        expect(bridge.calls.filter(call => call.name === "chooseStoreRoot")).toHaveLength(1)
+        expect(textOf("[data-testid='desktop-tools-store-folder']")).toBe(PATHS.storeRoot)
+    })
+
+    it("should offer Use default only for a custom root", async () => {
+        // Arrange
+        const custom = { ...PATHS, storeRoot: "/elsewhere/store", isDefaultStoreRoot: false }
+        await renderPanel({ responses: { "tools.doctor": aToolsReport(), "paths.get": custom, "paths.resetStoreRoot": PATHS } })
+        const offeredForCustom = element().querySelector("[data-testid='desktop-tools-store-default']") !== null
+
+        // Act
+        element().querySelector<HTMLButtonElement>("[data-testid='desktop-tools-store-default']").click()
+        await settle()
+
+        // Assert
+        expect(offeredForCustom).toBe(true)
+        expect(textOf("[data-testid='desktop-tools-store-folder']")).toBe(PATHS.storeRoot)
+        expect(element().querySelector("[data-testid='desktop-tools-store-default']")).toBeNull()
+    })
+
+    it("should show that the store is being copied and then the new folder", async () => {
+        // Arrange
+        const chosen = { ...PATHS, storeRoot: "/elsewhere/store", isDefaultStoreRoot: false }
+        let finishCopy: (value: CoreResult<PathsInfo | null>) => void = () => {}
+        await renderPanel({}, fake => {
+            fake.chooseStoreRoot = () => new Promise(resolve => (finishCopy = resolve))
+        })
+
+        // Act
+        buttonNamed("Change…").click()
+        await settle()
+        const whileCopying = textOf("[data-testid='desktop-tools-store-copying']")
+        const checkAgainDisabled = buttonNamed("Check again").disabled
+        finishCopy({ ok: true, value: chosen })
+        await settle()
+
+        // Assert
+        expect(whileCopying).toBe("Copying the store…")
+        expect(checkAgainDisabled).toBe(true)
+        expect(element().querySelector("[data-testid='desktop-tools-store-copying']")).toBeNull()
+        expect(textOf("[data-testid='desktop-tools-store-folder']")).toBe("/elsewhere/store")
     })
 
     it("should offer a core restart when the core is unavailable", async () => {

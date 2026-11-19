@@ -214,23 +214,48 @@ fn should_answer_paths_inside_the_data_dir() {
 }
 
 #[test]
-fn should_keep_a_chosen_store_root_in_the_settings_file() {
+fn should_copy_the_store_into_a_chosen_folder_and_keep_it_in_the_settings_file() {
     // Arrange
     let mut core = ServingCore::started_and_greeted();
     let chosen = tempfile::tempdir().unwrap();
     let path = chosen.path().to_str().unwrap();
 
     // Act
-    let answer = core.request(1, "paths.setStoreRoot", json!({ "path": path }));
+    let answer = core.request(1, "store.changeRoot", json!({ "path": path }));
+    let paths = core.request(2, "paths.get", json!({}));
 
     // Assert
-    assert_eq!(answer["result"]["storeRoot"], json!(path));
+    assert_eq!(
+        answer["result"],
+        json!({ "storeRoot": path, "adopted": false })
+    );
+    assert_eq!(paths["result"]["storeRoot"], json!(path));
+    assert_eq!(paths["result"]["isDefaultStoreRoot"], json!(false));
     let settings_file = core.data_dir.path().join("core-settings.json");
     assert!(
         std::fs::read_to_string(settings_file)
             .unwrap()
             .contains(path)
     );
+    assert!(chosen.path().join("store.json").is_file());
+    assert!(chosen.path().join(".lock").is_file());
+    assert!(core.store_root().join("store.json").is_file());
+}
+
+#[test]
+fn should_refuse_a_store_folder_that_is_neither_empty_nor_a_store() {
+    // Arrange
+    let mut core = ServingCore::started_and_greeted();
+    let chosen = tempfile::tempdir().unwrap();
+    std::fs::write(chosen.path().join("notes.txt"), "mine").unwrap();
+
+    // Act
+    let answer = core.request(1, "store.changeRoot", json!({ "path": chosen.path() }));
+    let paths = core.request(2, "paths.get", json!({}));
+
+    // Assert
+    assert_eq!(error_data_code(&answer), &json!("BAD_REQUEST"));
+    assert_eq!(paths["result"]["isDefaultStoreRoot"], json!(true));
 }
 
 #[test]

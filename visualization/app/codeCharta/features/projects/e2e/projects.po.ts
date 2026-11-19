@@ -38,4 +38,12 @@ export class ProjectsPageObject {
         await dialog.locator("#create-project-name").fill(name)
         await dialog.getByTestId("create-project-submit").click()
     }
+
+    openFileDialog() {
+        return this.page.locator("dialog[open]").filter({ has: this.page.getByTestId("open-file-submit") })
+    }
+
+    async openFileWithShortcut() {
+        await this.page.keyboard.press("Control+o")
+    }
 }

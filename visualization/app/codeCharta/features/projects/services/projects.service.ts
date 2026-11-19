@@ -1,13 +1,16 @@
-import { computed, Injectable, inject, signal } from "@angular/core"
+import { computed, effect, Injectable, inject, signal, untracked } from "@angular/core"
 import { Router } from "@angular/router"
 import { LoadFilesUseCase, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad } from "../../../load/load.facade"
 import type { ErrorCode } from "../../../model/coreApi/ErrorCode"
+import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../../model/coreApi/FolderRole"
 import type { NewFolder } from "../../../model/coreApi/NewFolder"
 import type { PickedFolder } from "../../../model/coreApi/PickedFolder"
 import type { Project } from "../../../model/coreApi/Project"
 import type { ProjectFolder } from "../../../model/coreApi/ProjectFolder"
 import type { ProjectSummary } from "../../../model/coreApi/ProjectSummary"
+import type { ResolveCommitResult } from "../../../model/coreApi/ResolveCommitResult"
+import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import type { StoreProblemCode } from "../../../model/coreApi/StoreProblemCode"
 import type { StoreUsage } from "../../../model/coreApi/StoreUsage"
@@ -18,6 +21,7 @@ import { routeLinks } from "../../../routing/routePaths"
 import type { BridgeMethod, BridgeParams, BridgeResult, DesktopBridge } from "../../../util/desktop/desktopBridge"
 import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.service"
 import { DesktopBridgeError, valueOrThrow } from "../../../util/desktop/desktopResult"
+import { StoreFolderService } from "../../desktopTools/facade"
 import { ToastService } from "../../shared/facade"
 import { defaultRoleFor } from "../util/folderRole"
 import { snapshotDisplayName, uniqueDisplayNames } from "../util/snapshotDisplayName"
@@ -61,6 +65,15 @@ export class ProjectsService {
     readonly isBusy = computed(() => this.busyFolder() !== null)
     readonly workingFolder = computed(() => workingFolderOf(this.project()))
 
+    constructor() {
+        const storeChanges = inject(StoreFolderService).changes
+        effect(() => {
+            if (storeChanges() > 0) {
+                untracked(() => void this.reloadAfterStoreChange().catch(error => this.toastUnlessSilent(error, (error as Error).message)))
+            }
+        })
+    }
+
     async initialise(): Promise<void> {
         await Promise.all([this.readStoreStatus(), this.refreshProjects()])
         const { activeProjectId } = await this.request("projects.getActive", {})
@@ -99,6 +112,21 @@ export class ProjectsService {
         }
     }
 
+    async showSnapshot(ref: SnapshotRef): Promise<void> {
+        await this.request("projects.setActive", { projectId: ref.projectId })
+        await this.readProject(ref.projectId)
+        await this.rememberView({ workingFolderId: ref.folderId })
+        await this.refreshProjects()
+        const folder = this.workingFolder()
+        const snapshot = this.findSnapshot(ref)
+        const result = folder && snapshot ? await this.loadFilesUseCase.loadProjectSnapshots(this.toLoad([{ folder, snapshot }])) : null
+        if (result && (await this.acceptLoadResult(result))) {
+            this.showMap()
+            return
+        }
+        await this.showWorkingFolder()
+    }
+
     snapshotsToShow(): Promise<ProjectSnapshotToLoad[]> {
         const folder = this.workingFolder()
         const snapshot = folder ? this.candidatesFor(folder)[0] : undefined
@@ -125,6 +153,18 @@ export class ProjectsService {
         const result = await this.loadFilesUseCase.loadProjectSnapshots(toLoad, { discardMetricSelection: true })
         if (!(await this.acceptLoadResult(result))) {
             await this.showWorkingFolder()
+        }
+    }
+
+    async reloadAfterStoreChange(): Promise<void> {
+        this.unreadableSnapshotIds.clear()
+        this.project.set(null)
+        this.snapshots.set({})
+        await this.initialise()
+        if (this.project()) {
+            await this.showWorkingFolder()
+        } else {
+            this.showNothing()
         }
     }
 
@@ -249,6 +289,15 @@ export class ProjectsService {
         }
     }
 
+    resolveCommit(folder: FolderRef, hash: string): Promise<ResolveCommitResult> {
+        return this.request("projects.resolveCommit", { ...folder, hash })
+    }
+
+    async moveSnapshot(ref: SnapshotRef, change: { toFolderId: string; bindToCommit: string | null }): Promise<void> {
+        const moved = await this.request("snapshots.move", { ...ref, ...change })
+        await this.showSnapshot(moved.ref)
+    }
+
     async readStoreUsage(): Promise<StoreUsage | null> {
         const project = this.project()
         return project ? this.request("snapshots.usage", { projectId: project.id }) : null
@@ -332,7 +381,7 @@ export class ProjectsService {
         return snapshotDisplayName(origin.folderLabel, this.findSnapshot(origin))
     }
 
-    private findSnapshot(origin: ProjectSnapshotOrigin): SnapshotSummary {
+    private findSnapshot(origin: SnapshotRef): SnapshotSummary {
         const snapshots = this.snapshots()[origin.folderId] ?? []
         return snapshots.find(snapshot => snapshot.ref.snapshotId === origin.snapshotId) as SnapshotSummary
     }

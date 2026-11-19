@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use codecharta_core::projects::{FolderToAdd, NewProject, ProjectRepository};
 use codecharta_core::snapshots::SnapshotRepository;
@@ -14,7 +15,7 @@ use super::{RecordingRecycler, TempRepo};
 /// repositories of the store use.
 pub struct StoreWorkspace {
     pub store_root: TempDir,
-    pub store: Store,
+    pub store: Arc<Store>,
     pub repo: TempRepo,
     pub git: FixtureGit,
     pub recycler: RecordingRecycler,
@@ -27,7 +28,7 @@ impl StoreWorkspace {
 
     pub fn with_recycler(recycler: RecordingRecycler) -> Self {
         let store_root = tempfile::tempdir().expect("a temporary store root");
-        let store = Store::open(store_root.path()).expect("the store opens");
+        let store = Arc::new(Store::open(store_root.path()).expect("the store opens"));
         let repo = TempRepo::new();
         repo.commit_file("a.txt", "a", "Add a");
         let git = repo.runner();
@@ -41,11 +42,11 @@ impl StoreWorkspace {
     }
 
     pub fn projects(&self) -> ProjectRepository<'_> {
-        ProjectRepository::new(&self.store, &self.git, &self.recycler)
+        ProjectRepository::new(Arc::clone(&self.store), &self.git, &self.recycler)
     }
 
     pub fn snapshots(&self) -> SnapshotRepository<'_> {
-        SnapshotRepository::new(&self.store, &self.git, &self.recycler)
+        SnapshotRepository::new(Arc::clone(&self.store), &self.git, &self.recycler)
     }
 
     /// A project whose folders are `paths`, each labelled after its position; the first is primary.

@@ -4,7 +4,7 @@ const fs = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
 const contract = require("./coreMethods.generated.json")
-const { createSnapshotsShell } = require("./snapshotsShell")
+const { createDropShell, createSnapshotsShell } = require("./snapshotsShell")
 
 const SNAPSHOT_REF = { projectId: "p-1", folderId: "f-1", snapshotId: "imported-0123456789abcdef" }
 const MAP_BYTES = [31, 139, 8, 0, 1, 2, 3, 4, 5, 6]
@@ -212,5 +212,94 @@ describe("snapshots shell", () => {
 
         // Assert
         assert.deepEqual(answer, refusal)
+    })
+})
+
+function createDropHarness({ confirms = true, coreAnswers = {} } = {}) {
+    const calls = { messages: [], requests: [] }
+    const { openDroppedFile } = createDropShell({
+        dialog: {
+            showMessageBox: async (_window, options) => {
+                calls.messages.push(options)
+                return { response: confirms ? 0 : 1 }
+            }
+        },
+        fs,
+        getWindow: () => null,
+        requestCore: async (method, params) => {
+            calls.requests.push({ method, params })
+            return coreAnswers[method] ?? { ok: true, value: null }
+        },
+        platform: process.platform
+    })
+    return { openDroppedFile, calls }
+}
+
+describe("dropped files", () => {
+    test("should do nothing for a relative path", async () => {
+        // Arrange
+        const harness = createDropHarness()
+
+        // Act
+        const answer = await harness.openDroppedFile({ path: "maps/sample.cc.json" })
+
+        // Assert
+        assert.equal(answer.error.code, "BAD_REQUEST")
+        assert.deepEqual(harness.calls, { messages: [], requests: [] })
+    })
+
+    test("should refuse a directory, a missing file and another extension", async () => {
+        // Arrange
+        const harness = createDropHarness()
+        const folder = path.join(storeRoot, "folder.cc.json")
+        fs.mkdirSync(folder)
+        const textFile = path.join(storeRoot, "notes.txt")
+        fs.writeFileSync(textFile, "notes")
+
+        // Act
+        const answers = [
+            await harness.openDroppedFile({ path: folder }),
+            await harness.openDroppedFile({ path: path.join(storeRoot, "gone.cc.json") }),
+            await harness.openDroppedFile({ path: textFile }),
+            await harness.openDroppedFile({})
+        ]
+
+        // Assert
+        assert.deepEqual(
+            answers.map(answer => answer.error.code),
+            ["BAD_REQUEST", "BAD_REQUEST", "BAD_REQUEST", "BAD_REQUEST"]
+        )
+        assert.deepEqual(harness.calls, { messages: [], requests: [] })
+    })
+
+    test("should not inspect when the confirmation is cancelled", async () => {
+        // Arrange
+        const harness = createDropHarness({ confirms: false })
+        const dropped = path.join(storeRoot, "sample.cc.json.gz")
+        fs.writeFileSync(dropped, Buffer.from(MAP_BYTES))
+
+        // Act
+        const answer = await harness.openDroppedFile({ path: dropped })
+
+        // Assert
+        assert.deepEqual(answer, { ok: true, value: null })
+        assert.equal(harness.calls.messages[0].message, `Open 'sample.cc.json.gz' from '${storeRoot}'?`)
+        assert.deepEqual(harness.calls.messages[0].buttons, ["Open", "Cancel"])
+        assert.deepEqual(harness.calls.requests, [])
+    })
+
+    test("should inspect a confirmed dropped file like a picked one", async () => {
+        // Arrange
+        const picked = { ok: true, value: { importToken: "t".repeat(32) } }
+        const harness = createDropHarness({ coreAnswers: { "snapshots.inspectImportFile": picked } })
+        const dropped = path.join(storeRoot, "sample.cc.json")
+        fs.writeFileSync(dropped, "{}")
+
+        // Act
+        const answer = await harness.openDroppedFile({ path: dropped })
+
+        // Assert
+        assert.deepEqual(answer, picked)
+        assert.deepEqual(harness.calls.requests, [{ method: "snapshots.inspectImportFile", params: { path: dropped } }])
     })
 })

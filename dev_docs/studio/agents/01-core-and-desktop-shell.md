@@ -173,7 +173,7 @@ pub async fn dispatch(core: &Core, context: RequestContext, method: &str, params
 | `tools.setPath` | shell | `SetToolPathParams { tool: ToolId, path }` | `ToolsReport` | only after the shell's native file picker; refuses (`TOOL_FAILED`, settings untouched) a file that does not answer like the tool |
 | `tools.clearPath` | renderer | `{ tool: ToolId }` | `ToolsReport` | back to discovery |
 | `paths.get` | renderer | `{}` | `PathsInfo { dataDir, storeRoot, isDefaultStoreRoot, logsDir }` | |
-| `paths.setStoreRoot` | shell | `{ path }` | `PathsInfo` | only after the shell's folder picker; existing content is not moved (plan 03 copies) |
+| `paths.setStoreRoot` | shell | `{ path }` | `PathsInfo` | removed in 03-M6: replaced by plan 03's `store.changeRoot`, which copies or adopts the store |
 | `paths.resetStoreRoot` | renderer | `{}` | `PathsInfo` | |
 | `shell.resolvePath` | shell | `{ target: ShellPathTarget }` | `{ path }` | maps an id to an absolute path for reveal / map read |
 
@@ -329,7 +329,7 @@ window.codeChartaDesktop = {
   pickFolder({ title }),                             // → Promise<string | null>   (path from the native picker, D3)
   pickFile({ title, filters }),                      // → Promise<string | null>
   chooseToolExecutable(tool, { title, filters }),    // picker + tools.setPath inside main → Promise<Result<ToolsReport | null>>
-  chooseStoreRoot({ title }),                        // picker + paths.setStoreRoot inside main → Promise<Result<PathsInfo | null>>
+  chooseStoreRoot({ title }),                        // picker + store.changeRoot + paths.get inside main → Promise<Result<PathsInfo | null>> (03-M6)
   reveal(target),                                    // ShellPathTarget → shell.resolvePath → showItemInFolder / openPath
   readSnapshotMap(target),                           // { projectId, folderId, snapshotId } → Promise<Result<Uint8Array>>
   setWindowBackground(color),                        // "#rrggbb"

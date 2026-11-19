@@ -1,5 +1,4 @@
 use std::future::Future;
-use std::path::Path;
 use std::pin::Pin;
 
 use codecharta_core::{CORE_VERSION, Core, CoreError, path_to_wire};
@@ -24,7 +23,7 @@ use codecharta_core_api::methods::git::{
     GitUnstageMethod, GitWorkingTreeMethod,
 };
 use codecharta_core_api::methods::hosting::{HostingFetchChangeRequestHead, HostingStatusMethod};
-use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot};
 use codecharta_core_api::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
     ProjectsGetActive, ProjectsInspectFolder, ProjectsList, ProjectsRefreshFolder,
@@ -38,7 +37,7 @@ use codecharta_core_api::methods::snapshots::{
     SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsPlanPrune, SnapshotsPrune,
     SnapshotsReadLog, SnapshotsRecordMapFacts, SnapshotsResolveForCommit, SnapshotsUsage,
 };
-use codecharta_core_api::methods::store::StoreGetStatus;
+use codecharta_core_api::methods::store::{StoreChangeRoot, StoreGetStatus};
 use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 use codecharta_core_api::protocol::{
     INVALID_PARAMS, METHOD_NOT_FOUND, Notification, RequestId, ResponseError,
@@ -81,10 +80,6 @@ const ROUTES: &[Route] = &[
         handler: paths_get,
     },
     Route {
-        name: PathsSetStoreRoot::NAME,
-        handler: paths_set_store_root,
-    },
-    Route {
         name: PathsResetStoreRoot::NAME,
         handler: paths_reset_store_root,
     },
@@ -107,6 +102,10 @@ const ROUTES: &[Route] = &[
     Route {
         name: StoreGetStatus::NAME,
         handler: store_routes::status,
+    },
+    Route {
+        name: StoreChangeRoot::NAME,
+        handler: store_routes::change_root,
     },
     Route {
         name: ProjectsList::NAME,
@@ -529,14 +528,6 @@ fn paths_get(core: &Core, _context: RequestContext, params: Value) -> HandlerFut
     })
 }
 
-fn paths_set_store_root(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
-    Box::pin(async move {
-        let params = read_params::<PathsSetStoreRoot>(params)?;
-        let info = core.paths().set_store_root(Path::new(&params.path)).await;
-        write_result::<PathsSetStoreRoot>(info.map_err(domain_error)?)
-    })
-}
-
 fn paths_reset_store_root(
     core: &Core,
     _context: RequestContext,
@@ -544,7 +535,7 @@ fn paths_reset_store_root(
 ) -> HandlerFuture<'_> {
     Box::pin(async move {
         read_params::<PathsResetStoreRoot>(params)?;
-        let info = core.paths().reset_store_root().await;
+        let info = core.reset_store_root().await;
         write_result::<PathsResetStoreRoot>(info.map_err(domain_error)?)
     })
 }

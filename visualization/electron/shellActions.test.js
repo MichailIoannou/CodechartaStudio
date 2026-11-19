@@ -80,6 +80,50 @@ describe("dialog actions", () => {
         assert.deepEqual(harness.calls.dialogs, [{ ...options, properties: ["openFile"] }])
     })
 
+    test("should copy the store into a picked folder and answer the new paths", async () => {
+        // Arrange
+        const paths = { ok: true, value: { storeRoot: "/elsewhere/store", isDefaultStoreRoot: false } }
+        const changed = { ok: true, value: { storeRoot: "/elsewhere/store", adopted: false } }
+        const harness = createHarness({
+            pickedPaths: ["/elsewhere/store"],
+            coreAnswers: { "store.changeRoot": changed, "paths.get": paths }
+        })
+
+        // Act
+        const answer = await runAction(harness.dialogActions, { kind: "chooseStoreRoot", options: { title: "Store folder" } })
+
+        // Assert
+        assert.deepEqual(answer, paths)
+        assert.deepEqual(harness.calls.requests, [
+            { method: "store.changeRoot", params: { path: "/elsewhere/store" } },
+            { method: "paths.get", params: {} }
+        ])
+        assert.deepEqual(
+            harness.calls.dialogs.map(({ title, properties }) => ({ title, properties })),
+            [{ title: "Store folder", properties: ["openDirectory", "createDirectory"] }]
+        )
+    })
+
+    test("should pass on a refused store folder with the picked path and ask nothing when the picker is cancelled", async () => {
+        // Arrange
+        const refusal = { ok: false, error: { code: "BAD_REQUEST", message: "not empty", details: {} } }
+        const refusing = createHarness({ pickedPaths: ["/home/mia"], coreAnswers: { "store.changeRoot": refusal } })
+        const cancelling = createHarness()
+
+        // Act
+        const refused = await runAction(refusing.dialogActions, { kind: "chooseStoreRoot", options: { title: "Store folder" } })
+        const cancelled = await runAction(cancelling.dialogActions, { kind: "chooseStoreRoot", options: { title: "Store folder" } })
+
+        // Assert
+        assert.deepEqual(refused, { ok: false, error: { ...refusal.error, details: { path: "/home/mia" } } })
+        assert.deepEqual(
+            refusing.calls.requests.map(request => request.method),
+            ["store.changeRoot"]
+        )
+        assert.deepEqual(cancelled, { ok: true, value: null })
+        assert.deepEqual(cancelling.calls.requests, [])
+    })
+
     test("should not open a picker for malformed options", async () => {
         // Arrange
         const harness = createHarness({ pickedPaths: ["/tmp"] })

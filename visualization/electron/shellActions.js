@@ -65,6 +65,18 @@ function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, request
         return pickedPath === null ? NOTHING_CHOSEN : requestCore(method, paramsFor(pickedPath))
     }
 
+    async function chooseStoreRoot({ options }) {
+        const pickedPath = await pickPath({ dialog, getWindow }, FOLDER_PICKER, options)
+        if (pickedPath === null) {
+            return NOTHING_CHOSEN
+        }
+        const changed = await requestCore("store.changeRoot", { path: pickedPath })
+        if (!changed.ok) {
+            return { ok: false, error: { ...changed.error, details: { ...changed.error.details, path: pickedPath } } }
+        }
+        return requestCore("paths.get", {})
+    }
+
     async function reveal({ target }) {
         const resolved = await requestCore("shell.resolvePath", { target })
         return resolved.ok ? showInFileManager({ fs, shell }, resolved.value.path) : resolved
@@ -96,8 +108,7 @@ function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, request
             pickFile: ({ options }) => pickPath({ dialog, getWindow }, FILE_PICKER, options),
             chooseToolExecutable: ({ tool, options }) =>
                 pickThenRequest(FILE_PICKER, options, "tools.setPath", pickedPath => ({ tool, path: pickedPath })),
-            chooseStoreRoot: ({ options }) =>
-                pickThenRequest(FOLDER_PICKER, options, "paths.setStoreRoot", pickedPath => ({ path: pickedPath }))
+            chooseStoreRoot
         },
         shellActions: {
             reveal,

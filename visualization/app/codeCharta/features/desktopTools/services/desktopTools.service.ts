@@ -8,6 +8,7 @@ import type { ToolsReport } from "../../../model/coreApi/ToolsReport"
 import type { CoreResult, DesktopBridge } from "../../../util/desktop/desktopBridge"
 import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.service"
 import { ToastService } from "../../shared/facade"
+import { StoreFolderService } from "./storeFolder.service"
 import { toolName } from "./toolRows"
 
 const SILENT_ERRORS: ErrorCode[] = ["CANCELLED", "CORE_UNAVAILABLE"]
@@ -18,6 +19,7 @@ const OPERATION_PREFIX = "desktop-tools-check-"
 export class DesktopToolsService {
     private readonly environment = inject(DesktopEnvironment)
     private readonly toastService = inject(ToastService)
+    private readonly storeFolder = inject(StoreFolderService)
     private hasStartedLoading = false
     private checkCount = 0
     private runningCheck: string | null = null
@@ -27,6 +29,7 @@ export class DesktopToolsService {
     readonly isChecking = signal(false)
     readonly progress = signal<ProgressParams | null>(null)
     readonly failure = signal<string | null>(null)
+    readonly isChangingStore = this.storeFolder.isChanging
 
     constructor() {
         const unsubscribe = this.bridge.subscribe("core.progress", progress => this.followProgress(progress))
@@ -74,10 +77,19 @@ export class DesktopToolsService {
     }
 
     async showDataFolder() {
-        const result = await this.bridge.reveal({ kind: "dataFolder" })
-        if ("error" in result) {
-            this.toastUnlessSilent(result.error, result.error.message)
-        }
+        await this.reveal("dataFolder")
+    }
+
+    async showStoreFolder() {
+        await this.reveal("storeRoot")
+    }
+
+    async changeStoreFolder() {
+        this.showPaths(await this.storeFolder.chooseFolder())
+    }
+
+    async useDefaultStoreFolder() {
+        this.showPaths(await this.storeFolder.useDefaultFolder())
     }
 
     async restartCore() {
@@ -86,6 +98,19 @@ export class DesktopToolsService {
 
     private get bridge(): DesktopBridge {
         return this.environment.requireBridge()
+    }
+
+    private async reveal(kind: "dataFolder" | "storeRoot") {
+        const result = await this.bridge.reveal({ kind })
+        if ("error" in result) {
+            this.toastUnlessSilent(result.error, result.error.message)
+        }
+    }
+
+    private showPaths(paths: PathsInfo | null) {
+        if (paths) {
+            this.paths.set(paths)
+        }
     }
 
     private forgetLoad() {

@@ -2,13 +2,21 @@ import { ChangeDetectionStrategy, Component, OnInit, signal } from "@angular/cor
 import { RouterOutlet } from "@angular/router"
 import { ChangelogDialogComponent } from "../features/changelog/facade"
 import { NavBarComponent } from "../features/navBar/facade"
-import { ProjectsBootService } from "../features/projects/facade"
+import { FileDropOverlayComponent, ProjectsBootService } from "../features/projects/facade"
 import { BootLoadingIndicatorComponent, ErrorDialogComponent, ToastComponent } from "../features/shared/facade"
 
 @Component({
     selector: "cc-code-charta",
     templateUrl: "./codeCharta.component.html",
-    imports: [NavBarComponent, ChangelogDialogComponent, ErrorDialogComponent, ToastComponent, RouterOutlet, BootLoadingIndicatorComponent],
+    imports: [
+        NavBarComponent,
+        ChangelogDialogComponent,
+        ErrorDialogComponent,
+        ToastComponent,
+        RouterOutlet,
+        BootLoadingIndicatorComponent,
+        FileDropOverlayComponent
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CodeChartaComponent implements OnInit {
