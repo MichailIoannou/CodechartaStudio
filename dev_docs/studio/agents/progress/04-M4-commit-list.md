@@ -42,7 +42,7 @@ Parallel work note: 05-M4 (snapshots/analyse UI) and 02-M7 (metrics bar) run at 
 
 - [x] 1. Graph layout
 - [x] 2. Graph cell
-- [ ] 3. Virtual window
+- [x] 3. Virtual window
 - [ ] 4. Log service
 - [ ] 5. Commit list
 - [ ] 6. Toolbar filters
@@ -77,4 +77,10 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   changes: dashed hollow circle (`stroke-dasharray="2 2"`) and a dashed line (`3 2`) in `text-warning`, the mock-up's
   colour for that row; the same dashed warning line runs through the rows down into HEAD's dot.
 - `+n` has no `title`: the design names none.
+
+### 3. Virtual window
+- `util/virtualWindow.ts`: `windowOf({ scrollTop, viewportHeight, rowHeight, rowCount, overscan })` →
+  `{ firstIndex, lastIndex (inclusive), offsetTop, totalHeight }`; scroll positions are clamped to the list, so an
+  overscrolled or shrunken list still renders its last rows. Tests: the plan's four plus partly visible edge rows,
+  overscan at the top and a list shorter than the viewport.
 
