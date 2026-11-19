@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **One desktop window**: starting the desktop app a second time brings the running window to the front instead of opening another one.
 - **Refreshed metrics bar**: the bar under the map is one rounded panel that holds the layout picker, the metric controls, the view tools and a Legend button, with nothing sticking out of it.
 - **Blended file extension bar**: neighbouring colours in the file extension bar fade into each other instead of meeting at a hard edge with a white gap.
+- **Messages below the nav bar**: messages appear at the top right just below the nav bar instead of covering Settings.
 
 ## [2.11.0] - 2026-11-10
 
