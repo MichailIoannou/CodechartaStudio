@@ -27,11 +27,23 @@ record plan corrections in this file's Notes instead.
 
 ## Steps
 
-- [ ] 1. Builders, Nord, VS Light
+- [x] 1. Builders, Nord, VS Light
 - [ ] 2. Smoke e2e over every theme
 - [ ] 3. Remaining four schemes (data only)
 - [x] 4. Quick toggle — dropped by OD10
 - [ ] 5. Eyeball pass and changelog
 
 ## Notes
+
+Branch `feature/studio-02-m5` from `feature/studio-integration`. `npm ci` was needed in `visualization/`.
+
+### 1. Builders, Nord, VS Light
+- `buildDarkRenderPalette` / `buildLightRenderPalette` as the plan specifies; `MapPaletteSeed` joins `theme.model.ts`.
+  The dark builder spreads `darkRenderPalette` (floor label, text colours, emphasis shadow, dependency graph),
+  the light builder spreads `lightRenderPalette`.
+- `themes.ts` gets two private helpers (`darkEditorTheme`, `lightEditorTheme`) so each scheme is one call with
+  id, label, tokens and seed; later schemes only add calls.
+- New `palettes/builderInputs.fixture.ts` shared by the two builder specs.
+- Registry order (= stylesheet order, checked by `themes.spec.ts`): cc-dark, cc-light, nord, one-dark, vs-dark,
+  vs-light, darcula, rider-day (the picker groups by scheme, so the design's picker order results).
 

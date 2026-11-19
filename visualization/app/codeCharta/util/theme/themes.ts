@@ -1,6 +1,14 @@
-import { ColorScheme, ThemeDefinition, ThemeId } from "../../model/theme.model"
-import { darkRenderPalette } from "./palettes/darkRenderPalette"
-import { lightRenderPalette } from "./palettes/lightRenderPalette"
+import { ChromeTokens, ColorScheme, MapPaletteSeed, ThemeDefinition, ThemeId } from "../../model/theme.model"
+import { buildDarkRenderPalette, darkRenderPalette } from "./palettes/darkRenderPalette"
+import { buildLightRenderPalette, lightRenderPalette } from "./palettes/lightRenderPalette"
+
+function darkEditorTheme(id: ThemeId, label: string, chrome: ChromeTokens, seed: MapPaletteSeed): ThemeDefinition {
+    return { id, label, colorScheme: "dark", chrome, render: buildDarkRenderPalette(chrome, seed) }
+}
+
+function lightEditorTheme(id: ThemeId, label: string, chrome: ChromeTokens, seed: MapPaletteSeed): ThemeDefinition {
+    return { id, label, colorScheme: "light", chrome, render: buildLightRenderPalette(chrome, seed) }
+}
 
 export const THEMES: readonly ThemeDefinition[] = [
     {
@@ -58,7 +66,61 @@ export const THEMES: readonly ThemeDefinition[] = [
             errorContent: "#470000"
         },
         render: lightRenderPalette
-    }
+    },
+    darkEditorTheme(
+        "nord",
+        "Nord",
+        {
+            base100: "#2e3440",
+            base200: "#3b4252",
+            base300: "#434c5e",
+            baseContent: "#eceff4",
+            primary: "#88c0d0",
+            primaryContent: "#2e3440",
+            secondary: "#81a1c1",
+            secondaryContent: "#2e3440",
+            accent: "#8fbcbb",
+            accentContent: "#2e3440",
+            neutral: "#4c566a",
+            neutralContent: "#eceff4",
+            info: "#81a1c1",
+            infoContent: "#2e3440",
+            success: "#a3be8c",
+            successContent: "#2e3440",
+            warning: "#ebcb8b",
+            warningContent: "#2e3440",
+            error: "#bf616a",
+            errorContent: "#000000"
+        },
+        { mapBackground: "#242933", floorRoot: "#4c566a", floorDeepest: "#d8dee9", wordCloud: ["#ebcb8b", "#88c0d0"] }
+    ),
+    lightEditorTheme(
+        "vs-light",
+        "VS Light",
+        {
+            base100: "#ffffff",
+            base200: "#f3f3f3",
+            base300: "#cccedb",
+            baseContent: "#1e1e1e",
+            primary: "#005fb8",
+            primaryContent: "#ffffff",
+            secondary: "#af00db",
+            secondaryContent: "#ffffff",
+            accent: "#267f99",
+            accentContent: "#ffffff",
+            neutral: "#3c3c3c",
+            neutralContent: "#ffffff",
+            info: "#1a85ff",
+            infoContent: "#000000",
+            success: "#388a34",
+            successContent: "#000000",
+            warning: "#bf8803",
+            warningContent: "#000000",
+            error: "#e51400",
+            errorContent: "#ffffff"
+        },
+        { mapBackground: "#f3f3f3", floorRoot: "#333333", floorDeepest: "#dddddd", wordCloud: ["#af00db", "#0000ff"] }
+    )
 ]
 
 export const DEFAULT_THEME_ID: ThemeId = "cc-dark"

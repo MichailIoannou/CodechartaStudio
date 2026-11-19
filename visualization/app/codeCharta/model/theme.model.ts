@@ -109,3 +109,11 @@ export interface ThemeDefinition {
     chrome: ChromeTokens
     render: RenderPalette
 }
+
+/** The four map values a render palette builder needs beyond the chrome tokens. */
+export interface MapPaletteSeed {
+    mapBackground: string
+    floorRoot: string
+    floorDeepest: string
+    wordCloud: readonly [start: string, end: string]
+}

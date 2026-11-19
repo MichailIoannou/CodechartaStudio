@@ -73,6 +73,76 @@
     --noise: 0;
 }
 
+@plugin "daisyui/theme" {
+    name: "nord";
+    default: false;
+    prefersdark: false;
+    color-scheme: dark;
+    --color-base-100: #2e3440;
+    --color-base-200: #3b4252;
+    --color-base-300: #434c5e;
+    --color-base-content: #eceff4;
+    --color-primary: #88c0d0;
+    --color-primary-content: #2e3440;
+    --color-secondary: #81a1c1;
+    --color-secondary-content: #2e3440;
+    --color-accent: #8fbcbb;
+    --color-accent-content: #2e3440;
+    --color-neutral: #4c566a;
+    --color-neutral-content: #eceff4;
+    --color-info: #81a1c1;
+    --color-info-content: #2e3440;
+    --color-success: #a3be8c;
+    --color-success-content: #2e3440;
+    --color-warning: #ebcb8b;
+    --color-warning-content: #2e3440;
+    --color-error: #bf616a;
+    --color-error-content: #000000;
+    --radius-selector: 0.5rem;
+    --radius-field: 0.25rem;
+    --radius-box: 0.5rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 1;
+    --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+    name: "vs-light";
+    default: false;
+    prefersdark: false;
+    color-scheme: light;
+    --color-base-100: #ffffff;
+    --color-base-200: #f3f3f3;
+    --color-base-300: #cccedb;
+    --color-base-content: #1e1e1e;
+    --color-primary: #005fb8;
+    --color-primary-content: #ffffff;
+    --color-secondary: #af00db;
+    --color-secondary-content: #ffffff;
+    --color-accent: #267f99;
+    --color-accent-content: #ffffff;
+    --color-neutral: #3c3c3c;
+    --color-neutral-content: #ffffff;
+    --color-info: #1a85ff;
+    --color-info-content: #000000;
+    --color-success: #388a34;
+    --color-success-content: #000000;
+    --color-warning: #bf8803;
+    --color-warning-content: #000000;
+    --color-error: #e51400;
+    --color-error-content: #ffffff;
+    --radius-selector: 0.5rem;
+    --radius-field: 0.25rem;
+    --radius-box: 0.5rem;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 1;
+    --noise: 0;
+}
+
 /* CodeCharta custom theme colors */
 @theme {
     --color-cc-50: #c3e5fe;

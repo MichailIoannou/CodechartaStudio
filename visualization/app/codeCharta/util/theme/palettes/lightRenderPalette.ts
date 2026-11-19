@@ -1,4 +1,4 @@
-import { RenderPalette } from "../../../model/theme.model"
+import { ChromeTokens, MapPaletteSeed, RenderPalette } from "../../../model/theme.model"
 
 export const lightRenderPalette: RenderPalette = {
     surface: "#ffffff",
@@ -49,4 +49,22 @@ export const lightRenderPalette: RenderPalette = {
         kindIconLetter: "#374151"
     },
     chartTooltip: { background: "#ffffff", border: "#d1d5db", text: "#1f2937" }
+}
+
+export function buildLightRenderPalette(chrome: ChromeTokens, seed: MapPaletteSeed): RenderPalette {
+    const [gradientStart, gradientEnd] = seed.wordCloud
+    return {
+        ...lightRenderPalette,
+        surface: chrome.base100,
+        text: chrome.baseContent,
+        map: {
+            ...lightRenderPalette.map,
+            background: seed.mapBackground,
+            floorGradient: { root: seed.floorRoot, deepest: seed.floorDeepest },
+            buildingLabel: { background: chrome.base100, text: chrome.baseContent, border: chrome.base300 }
+        },
+        radial: { ...lightRenderPalette.radial, pieceBorder: chrome.base100, tintTarget: chrome.base100 },
+        wordCloud: { ...lightRenderPalette.wordCloud, gradientStart, gradientEnd },
+        chartTooltip: { background: chrome.base100, border: chrome.base300, text: chrome.baseContent }
+    }
 }
