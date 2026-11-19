@@ -1,3 +1,5 @@
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { themeById } from "../../../util/theme/themes"
 import { fileNode, folderNode, TEST_COLORING } from "../testing/radialChart.stub"
 import { RadialPieceDatum } from "./radialPiecesOption"
 import { RadialOptionInputs } from "./radialShape"
@@ -94,5 +96,17 @@ describe("buildSunburstOption", () => {
         // Assert
         expect(huge.style).toMatchObject({ stroke: "#ffffff", lineWidth: 1 })
         expect(tiny.style.stroke).toBe(tiny.style.fill)
+    })
+
+    it("should outline segments in the theme surface", () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+        const { drawItem } = drawn(TREE)
+
+        // Act
+        const [segment] = drawItem("/root/src").children
+
+        // Assert
+        expect(segment.style.stroke).toBe("#1e2329")
     })
 })

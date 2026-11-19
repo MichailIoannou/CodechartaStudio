@@ -9,6 +9,7 @@ import {
 import { MetricsBarPageObject } from "../../../metricsBar/components/metricsBar/metricsBar.po"
 import { ExplorerTreeLevelPageObject } from "../../../sidebarExplorer/components/explorerTreeLevel/explorerTreeLevel.po"
 import { SidebarInspectorPageObject } from "../../../sidebarInspector/components/sidebarInspector/sidebarInspector.po"
+import { ThemePickerPageObject } from "../../../theme/components/themePicker/themePicker.po"
 import { RadialMapPageObject } from "./radialMap.po"
 
 const INNER_RING = 0.35
@@ -19,6 +20,7 @@ const FILE_BESIDE_IT = 330
 const HALF = 0.5
 const BESIDE_THE_NAME = 20
 const NEUTRAL_FOLDER_GREY = "#d9dce1"
+const DARK_THEME_NEUTRAL_FOLDER_GREY = "#4a515c"
 const MANY_PIXELS = 1000
 const SELECTION_ORANGE = "#eb8319"
 const FIRST_MARK_PINK = "#ff1d8e"
@@ -26,6 +28,7 @@ const FIRST_MARK_PINK = "#ff1d8e"
 test.describe("Sunburst layout", () => {
     test.beforeEach(async ({ page }) => {
         await goto(page)
+        await new ThemePickerPageObject(page).pick("CodeCharta Light")
     })
 
     test.afterEach(async ({ page }) => {
@@ -224,6 +227,21 @@ test.describe("Sunburst layout", () => {
         await expect.poll(() => sunburst.countPixelsOfColor(NEUTRAL_FOLDER_GREY)).toBeGreaterThan(MANY_PIXELS)
     })
 
+    test("should draw neutral folders in the grey of the dark theme", async ({ page }) => {
+        // Arrange
+        const sunburst = new RadialMapPageObject(page)
+        const metricsBar = new MetricsBarPageObject(page)
+        await sunburst.switchLayoutTo("Sunburst")
+        await metricsBar.setFolderStyle("neutral")
+
+        // Act
+        await new ThemePickerPageObject(page).pick("CodeCharta Dark")
+
+        // Assert
+        await expect.poll(() => sunburst.countPixelsOfColor(DARK_THEME_NEUTRAL_FOLDER_GREY)).toBeGreaterThan(MANY_PIXELS)
+        await expect.poll(() => sunburst.countPixelsOfColor(NEUTRAL_FOLDER_GREY)).toBe(0)
+    })
+
     test("should keep the folder colours after a reload", async () => {
         test.setTimeout(60_000)
         await withDiskBackedPage(async page => {
@@ -242,7 +260,7 @@ test.describe("Sunburst layout", () => {
             // Assert
             await expect(metricsBar.foldersCard()).toContainText("median")
             await expect(metricsBar.foldersCard()).toContainText("neutral")
-            await expect.poll(() => sunburst.countPixelsOfColor(NEUTRAL_FOLDER_GREY)).toBeGreaterThan(MANY_PIXELS)
+            await expect.poll(() => sunburst.countPixelsOfColor(DARK_THEME_NEUTRAL_FOLDER_GREY)).toBeGreaterThan(MANY_PIXELS)
         })
     })
 
@@ -289,6 +307,7 @@ const FILE_CELL_IN_FIRST_BAND = 195
 test.describe("Radial treemap layout", () => {
     test.beforeEach(async ({ page }) => {
         await goto(page)
+        await new ThemePickerPageObject(page).pick("CodeCharta Light")
     })
 
     test.afterEach(async ({ page }) => {

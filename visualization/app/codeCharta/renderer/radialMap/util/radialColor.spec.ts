@@ -1,6 +1,8 @@
 import { ColorMode, RadialFolderStyle } from "../../../model/codeCharta.model"
 import { defaultMapColors } from "../../../stores/mapState/store/mapColors/mapColors.reducer"
-import { NEUTRAL_FOLDER_COLOR, tintColor } from "../../../util/radialFolderValues"
+import { neutralFolderColor, tintColor } from "../../../util/radialFolderValues"
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { THEMES } from "../../../util/theme/themes"
 import { TEST_COLORING } from "../testing/radialChart.stub"
 import { colorForMetricValue, nodeColor, RadialColoring, readableTextColor } from "./radialColor"
 
@@ -144,7 +146,7 @@ describe("nodeColor", () => {
             const color = nodeColor(folder(1), coloring)
 
             // Assert
-            expect(color).toBe(NEUTRAL_FOLDER_COLOR)
+            expect(color).toBe(neutralFolderColor())
         })
 
         it("should keep the flat colour for a flattened folder", () => {
@@ -260,5 +262,30 @@ describe("readableTextColor", () => {
 
         // Assert
         expect(color).toBe("#ffffff")
+    })
+})
+
+describe("readableTextColor per theme", () => {
+    it.each(THEMES.map(theme => [theme.id, theme] as const))("should write dark text on a light piece in %s", (_id, theme) => {
+        // Arrange
+        setActiveTheme(theme)
+
+        // Act
+        const [onLight, onDark] = [readableTextColor("#ffff00"), readableTextColor("#820e0e")]
+
+        // Assert
+        expect([onLight, onDark]).toEqual([theme.render.radial.darkText, theme.render.radial.lightText])
+    })
+
+    it("should give a folder the neutral grey of the active theme", () => {
+        // Arrange
+        setActiveTheme(THEMES.find(theme => theme.id === "cc-dark"))
+        const coloring = coloringWithFolder(10, { style: RadialFolderStyle.Neutral })
+
+        // Act
+        const color = nodeColor(folder(10), coloring)
+
+        // Assert
+        expect(color).toBe("#4a515c")
     })
 })

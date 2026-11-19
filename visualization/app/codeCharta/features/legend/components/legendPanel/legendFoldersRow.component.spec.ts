@@ -3,6 +3,8 @@ import { provideMockStore } from "@ngrx/store/testing"
 import { render, screen } from "@testing-library/angular"
 import { RadialFolderStyle, RadialFolderValue } from "../../../../model/codeCharta.model"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
+import { setActiveTheme } from "../../../../util/theme/activeTheme"
+import { themeById } from "../../../../util/theme/themes"
 import { LegendFoldersRowComponent } from "./legendFoldersRow.component"
 
 describe("LegendFoldersRowComponent", () => {
@@ -38,5 +40,16 @@ describe("LegendFoldersRowComponent", () => {
         // Assert
         expect(row.textContent.trim()).toBe("folders: neutral")
         expect((row.firstElementChild as HTMLElement).style.background).toBe("rgb(217, 220, 225)")
+    })
+
+    it("should show the neutral folder grey of the active theme", async () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+
+        // Act
+        const row = await setup(RadialFolderValue.Max, RadialFolderStyle.Neutral)
+
+        // Assert
+        expect((row.firstElementChild as HTMLElement).style.background).toBe("rgb(74, 81, 92)")
     })
 })
