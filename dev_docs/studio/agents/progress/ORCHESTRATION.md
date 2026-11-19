@@ -69,8 +69,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M4 Commit list with graph, filters, details | UI | done on `feature/studio-stack` (385adc20f; web e2e 176/176) | integration merge: as 03-M2 | feature/studio-04-m4 | 8642672fb |
 | 04-M5 Selection, keyboard, context menu, ports (+ 05-M4 task 5 badges) | UI | done on `feature/studio-stack` (1b38f5819; web e2e 177/177) | integration merge: as 03-M2 | feature/studio-04-m5 | 9e5c3d35c |
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
-| 04-M7 Operation queue, progress, prompts | core + UI | core on the stack; task 5 (prompt dialog) in progress with 04-M8 task 2 (feature/studio-04-m7m8-ui) | — | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
-| 04-M8 Fetch and branches | core + UI | core on the stack; task 2 in progress with 04-M7 task 5 (feature/studio-04-m7m8-ui) | — | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
+| 04-M7 Operation queue, progress, prompts | core + UI | core and task 5 merged into `feature/studio-stack` (1ec7c9496), web e2e running | — | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
+| 04-M8 Fetch and branches | core + UI | core and task 2 merged into `feature/studio-stack` (1ec7c9496), web e2e running | — | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
 | 04-M9 Changes and diff | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
 | 04-M10 Commit | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
 | 04-M11 Pull, push, abort | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
@@ -362,6 +362,14 @@ the milestone is started.
   intent, so the core orders the sides (M2's ref picker + `explicit` intent fixes "Base stays base"). Gap against
   the owner decision until M3: "Use nearest" offered but not "Analyse missing". Designer finding: at 1280 px the
   base/head captions still show and branch names truncate first.
+- 04-M7/M8 renderer (see `04-M7-M8-ui-prompts-fetch-branches.md` on the stack): shell fix — `main.js` now maps
+  `prompt.requested.requestId` to the caller's operation id (`shellPolicy.pageNotificationOf`; a prompt without an
+  operation id is passed on with `requestId: null` instead of being dropped); one `cc-sync-button` (OD3), fetch
+  only until M11; fetch progress in W1 ahead of a running analysis; failures are error toasts that stay until
+  dismissed (shared `ToastService` change — overlaps 02-M7/OD8, reconcile when 02-M7 merges); Show in map only
+  when the folder has an analysis; confirm and branch dialogs hosted in the History panel. Security tests: the
+  answer never reaches console/HTML/state, input cleared before sending, sent once, Cancel/Escape send
+  `prompt.cancel`. Wording supplied by the implementer: branch-menu icons, reused hints, "Upstream" label.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -393,6 +401,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 04-M7/M8 renderer merged into the stack (fake-bridge conflict resolved); gates: format, tsc, lint, npm test 749/749, build, test:electron 79/79, e2e:desktop 16/16; full web e2e running (the agent's last full run had 185/186 before its fix).
 - 2026-11-19: 06-M1 renderer merged cleanly into the stack; gates: format, tsc, lint, npm test 739/739, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 06-M2+M3 started as one agent (weekly 80%).
 - 2026-11-19: 04-M5 merged into the stack (CHANGELOG conflict resolved); gates: format, tsc, lint, npm test 730/730, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. Renderer of 04-M7 task 5 + 04-M8 task 2 + Show in map started in parallel with the 06-M1 renderer.
 - 2026-11-19: 05-M5 UI merged cleanly into the stack; gates: format, tsc, lint, npm test 722/722, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 06-M1 renderer started in parallel (5-hour 72%, weekly 77%).
