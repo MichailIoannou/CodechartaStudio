@@ -1,7 +1,8 @@
 import { aSnapshot } from "../../projects/projects.mocks"
-import type { ComparedCommit, FolderRef, ResolvedComparison, ResolvedSide, SnapshotSummary } from "../model/compare.model"
+import type { ComparedCommit, CompareIntent, FolderRef, ResolvedComparison, ResolvedSide, SnapshotSummary } from "../model/compare.model"
+import type { CoreGateway, PairLoad, SnapshotGateway } from "./compareGateways"
 
-const FOLDER: FolderRef = { projectId: "p-billing", folderId: "f-api" }
+export const FOLDER: FolderRef = { projectId: "p-billing", folderId: "f-api" }
 export const BASE_SHA = "9f8e7d6".padEnd(40, "0")
 export const HEAD_SHA = "a1b2c3d".padEnd(40, "0")
 
@@ -31,5 +32,44 @@ export function aResolvedComparison(overrides: Partial<ResolvedComparison> = {})
         baseTip: null,
         preflight: { identicalChecksums: false, profilesDiffer: false, combinedBytes: 2048, sizeVerdict: "ok" },
         ...overrides
+    }
+}
+
+export class FakeSnapshotGateway implements SnapshotGateway {
+    readonly calls: string[] = []
+    pairLoad: PairLoad = { base: `checksum-${BASE_SHA.slice(0, 7)}`, head: `checksum-${HEAD_SHA.slice(0, 7)}` }
+    aloneChecksum: string | null = `checksum-${HEAD_SHA.slice(0, 7)}`
+    commitOnMap: string | null = null
+    beforeLoad: () => void = () => undefined
+
+    loadPair(base: SnapshotSummary, head: SnapshotSummary): Promise<PairLoad> {
+        this.calls.push(`loadPair ${base.ref.snapshotId} ${head.ref.snapshotId}`)
+        this.beforeLoad()
+        return Promise.resolve(this.pairLoad)
+    }
+
+    loadAlone(head: SnapshotSummary): Promise<string | null> {
+        this.calls.push(`loadAlone ${head.ref.snapshotId}`)
+        this.beforeLoad()
+        return Promise.resolve(this.aloneChecksum)
+    }
+
+    shownCommit(): string | null {
+        return this.commitOnMap
+    }
+}
+
+export class FakeCoreGateway implements CoreGateway {
+    readonly intents: CompareIntent[] = []
+    resolution: ResolvedComparison | Error = aResolvedComparison()
+    revisions: Record<string, string> = { main: "refs/heads/main", "feature/x": "refs/heads/feature/x" }
+
+    resolve(intent: CompareIntent): Promise<ResolvedComparison> {
+        this.intents.push(intent)
+        return this.resolution instanceof Error ? Promise.reject(this.resolution) : Promise.resolve(this.resolution)
+    }
+
+    toRevision(_folder: FolderRef, input: string): Promise<string | null> {
+        return Promise.resolve(this.revisions[input] ?? null)
     }
 }

@@ -1,11 +1,12 @@
 import type { BaseMode } from "../../../model/coreApi/BaseMode"
 import type { ComparedCommit } from "../../../model/coreApi/ComparedCommit"
+import type { CompareIntent } from "../../../model/coreApi/CompareIntent"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { ResolvedComparison } from "../../../model/coreApi/ResolvedComparison"
 import type { ResolvedSide } from "../../../model/coreApi/ResolvedSide"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 
-export type { BaseMode, ComparedCommit, FolderRef, ResolvedComparison, ResolvedSide, SnapshotSummary }
+export type { BaseMode, ComparedCommit, CompareIntent, FolderRef, ResolvedComparison, ResolvedSide, SnapshotSummary }
 
 type ComparePhase = "idle" | "resolving" | "stopped" | "needsDecision" | "loading" | "active" | "noDifferences" | "failed"
 
