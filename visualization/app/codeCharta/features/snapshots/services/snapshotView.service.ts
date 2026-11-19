@@ -155,7 +155,8 @@ export class SnapshotViewService {
 
     private showTarget(target: SelectedTarget): void {
         const ref = this.workingRef()
-        if (ref) {
+        const current = this.target()
+        if (ref && !(current && targetKeyOf(current) === targetKeyOf(target))) {
             this.showsMapAfterResolving = true
             this.setTarget(ref, target)
         }

@@ -49,6 +49,19 @@ async function setUp(seed: FakeDesktopSeed = {}) {
     return { ...bed, view }
 }
 
+async function setUpWithHead() {
+    const bed = await setUp({ gitStatuses: { "f-api": statusAt(OLDER_SHA) } })
+    const gitRepository = TestBed.inject(GitRepositoryService)
+    await gitRepository.refreshFolders([FOLDER])
+    await settle()
+    const gitStatusChange = async (head: string) => {
+        bed.bridge.respondWith("git.status", statusAt(head))
+        await gitRepository.refreshFolders([FOLDER])
+        await settle()
+    }
+    return { ...bed, gitStatusChange }
+}
+
 function loadedSnapshotIds(loadProjectSnapshots: jest.Mock): string[] {
     return loadProjectSnapshots.mock.calls.flatMap(([toLoad]) => toLoad.map(entry => entry.origin.snapshotId))
 }
@@ -101,6 +114,19 @@ describe("SnapshotViewService", () => {
             // Assert
             expect(loadFilesUseCase.loadProjectSnapshots).not.toHaveBeenCalled()
             expect(view.status()).toBe("shown")
+        })
+
+        it("should not leave the current view later when the shown target is asked for again", async () => {
+            // Arrange
+            const { view, router, gitStatusChange } = await setUpWithHead()
+            view.showCurrentCheckout()
+            await settle()
+
+            // Act
+            await gitStatusChange(HEAD_SHA)
+
+            // Assert
+            expect(router.navigateByUrl).not.toHaveBeenCalled()
         })
 
         it("should ignore a late response for an earlier selection", async () => {
@@ -168,16 +194,11 @@ describe("SnapshotViewService", () => {
 
         it("should re-resolve without enqueueing when the repository-changed signal reports a new HEAD", async () => {
             // Arrange
-            const { view, bridge, requestsOf } = await setUp({ gitStatuses: { "f-api": statusAt(OLDER_SHA) } })
-            const gitRepository = TestBed.inject(GitRepositoryService)
-            await gitRepository.refreshFolders([FOLDER])
-            await settle()
+            const { view, bridge, requestsOf, gitStatusChange } = await setUpWithHead()
             bridge.setResolution(FOLDER, WORKING_TREE, STALE_BY_3)
-            bridge.respondWith("git.status", statusAt(HEAD_SHA))
 
             // Act
-            await gitRepository.refreshFolders([FOLDER])
-            await settle()
+            await gitStatusChange(HEAD_SHA)
 
             // Assert
             expect(view.headCommit()).toBe(HEAD_SHA)
