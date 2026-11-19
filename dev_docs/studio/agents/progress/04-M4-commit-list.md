@@ -125,7 +125,7 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   when `+n` shows), Commit `minmax(0,1fr)`, Analysis 6.5 rem (only with an `ANALYSED_COMMITS` provider), Author 8 rem,
   Date 7 rem. No graph column while filtered (H8 "Filtered list").
 - `components/commitRow` (`cc-commit-row`, host is the grid row, `role="option"`): graph cell, subject `min-w-40
-  truncate`, up to 3 ref labels (1 when the pane is narrower than 640 px, measured by the list's `ResizeObserver`
+  truncate` (see "Subject and labels" below), up to 3 ref labels (1 when the pane is narrower than 640 px, measured by the list's `ResizeObserver`
   rather than a CSS container query) then `badge-ghost` "+n" whose `title` lists every full ref; label classes and
   icons per H8; Analysis badge `badge badge-soft badge-xs` (`util/analysisBadge.ts`); author `truncate` with
   "name <e-mail>" title; date relative (`relativeTime`) with the absolute `commitDateTime` title (author date, as the
@@ -202,4 +202,12 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   the fake's own answer is ~10 ms (it filters the whole seed per page); scrolling 1400 px per frame through the loaded
   list: frame median 16.6 ms, p95 21.2 ms, max 61 ms (one frame); jumps to 25 / 50 / 75 / 100 % and back to the top
   render within two frames (21–33 ms); 35 row elements in the DOM at any time.
+
+### Subject and labels (found in the screenshots)
+- H8's `min-w-40` on the subject reserved 10 rem even for a short subject, leaving a gap before its labels, and
+  `min-width: min(10rem, max-content)` is invalid CSS (no intrinsic keywords inside `min()`). As built: the subject is
+  `min-w-0 truncate`; the labels sit in a `shrink-0` group capped at `max-w-[calc(100%-10rem)]`, so the subject keeps
+  at least 10 rem and the labels follow it directly. daisyUI's `.badge` sets `flex-shrink: 0`, so each label also
+  gets `shrink min-w-0`: a long label ends in "…" inside its rounded badge instead of being clipped (H8 "a label never
+  cuts off").
 
