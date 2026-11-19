@@ -3,7 +3,8 @@
         <button
             #trigger
             type="button"
-            class="btn btn-ghost btn-sm relative isolate grid w-40 grid-cols-[1rem_minmax(0,1fr)_auto_auto] items-center gap-2 overflow-hidden px-2 font-normal data-[tone=failed]:bg-error/15 data-[tone=finished]:bg-success/15 xl:w-[17.5rem] 2xl:w-[22rem]"
+            class="btn btn-ghost btn-sm relative isolate grid items-center gap-2 overflow-hidden px-2 font-normal data-[tone=failed]:bg-error/15 data-[tone=finished]:bg-success/15"
+            [class]="iconOnly() ? 'w-[3.25rem] grid-cols-[1rem_auto]' : 'w-40 grid-cols-[1rem_minmax(0,1fr)_auto_auto] xl:w-[17.5rem] 2xl:w-[22rem]'"
             aria-haspopup="menu"
             data-testid="workspace-status-trigger"
             [attr.data-tone]="status.fill"
@@ -37,6 +38,7 @@
                 }
             </span>
 
+            @if (!iconOnly()) {
             <span class="relative z-10 flex min-w-0 items-center gap-2 text-left">
                 @if (status.isBranchLoading) {
                     <span class="skeleton hidden h-3 w-24 shrink-0 xl:block" data-testid="workspace-status-branch-loading"></span>
@@ -85,6 +87,7 @@
                     >
                 }
             </span>
+            }
             <i class="fa fa-caret-down relative z-10"></i>
 
             @if (activeJob(); as job) {

@@ -4,6 +4,7 @@ import type { CompareIntent } from "../../../model/coreApi/CompareIntent"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { ResolvedComparison } from "../../../model/coreApi/ResolvedComparison"
 import type { ResolvedSide } from "../../../model/coreApi/ResolvedSide"
+import type { SnapshotRelation } from "../../../model/coreApi/SnapshotRelation"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 
 export type { BaseMode, ComparedCommit, CompareIntent, FolderRef, ResolvedComparison, ResolvedSide, SnapshotSummary }
@@ -23,6 +24,8 @@ export interface CompareError {
 export interface LoadedSide {
     requested: ComparedCommit
     snapshot: SnapshotSummary
+    /** How the shown snapshot relates to the requested commit when it is the nearest one, else null. */
+    relation: SnapshotRelation | null
     staleBy: number
     checksum: string
 }

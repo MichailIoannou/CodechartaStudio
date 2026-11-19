@@ -1,4 +1,4 @@
-import { Component, output, signal } from "@angular/core"
+import { Component, input, output, signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { provideRouter } from "@angular/router"
 import { State } from "@ngrx/store"
@@ -8,6 +8,7 @@ import { FILE_STATES } from "../../../../mocks/dataMocks"
 import { isDeltaStateSelector } from "../../../../stores/fileStore/store/isDeltaState.selector"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
 import { Export3DMapDialogComponent, Export3DMapDialogStore } from "../../../3dPrint/facade"
+import { CompareFacade } from "../../../compare/facade"
 import { ProjectSwitcherComponent, ProjectsFacade } from "../../../projects/facade"
 import { SnapshotsDialogComponent, SnapshotsDialogService } from "../../../snapshots/facade"
 import { WorkspaceStatusComponent } from "../../../workspaceStatus/facade"
@@ -23,7 +24,9 @@ class Export3DMapDialogStubComponent {
 class ProjectSwitcherStubComponent {}
 
 @Component({ selector: "cc-workspace-status", template: "" })
-class WorkspaceStatusStubComponent {}
+class WorkspaceStatusStubComponent {
+    readonly iconOnly = input(false)
+}
 
 @Component({ selector: "cc-snapshots-dialog", template: "" })
 class SnapshotsDialogStubComponent {}
@@ -214,6 +217,32 @@ describe("NavBarComponent", () => {
 
             // Assert
             expect(container.querySelectorAll("cc-map-selector").length).toBe(1)
+        })
+
+        it("should label a project comparison with the chip after the icon-only workspace status", async () => {
+            // Arrange & Act
+            const { container, fixture } = await render(NavBarComponent, {
+                providers: [
+                    ...desktopProvidersFor({ hasFiles: true, isDeltaState: true, hasActiveProject: true }),
+                    { provide: CompareFacade, useValue: { isComparing: signal(true) } }
+                ]
+            })
+
+            // Assert
+            const mapSlot = [...container.querySelectorAll(".navbar-start > *")].map(element => element.tagName.toLowerCase())
+            expect(mapSlot.slice(-2)).toEqual(["cc-workspace-status", "cc-comparison-chip"])
+            expect(fixture.debugElement.query(element => element.name === "cc-workspace-status").componentInstance.iconOnly()).toBe(true)
+            expect(container.querySelectorAll("cc-delta-selector").length).toBe(0)
+        })
+
+        it("should show the delta selector for uploaded files", async () => {
+            // Arrange & Act
+            const { container } = await render(NavBarComponent, { providers: providersFor(true) })
+
+            // Assert
+            expect(container.querySelectorAll("cc-delta-selector").length).toBe(1)
+            expect(container.querySelectorAll("cc-comparison-chip").length).toBe(0)
+            expect(container.querySelectorAll("cc-compare-host").length).toBe(0)
         })
 
         it("should offer the delta selector in compare mode", async () => {

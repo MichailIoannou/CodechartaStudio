@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from "@angular/core"
+import { ComparisonLegendCaptionComponent } from "../../../compare/facade"
 import { LegendColorRowComponent } from "./legendColorRow.component"
 
 @Component({
@@ -6,6 +7,6 @@ import { LegendColorRowComponent } from "./legendColorRow.component"
     templateUrl: "./legendDeltaColorsSection.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "contents" },
-    imports: [LegendColorRowComponent]
+    imports: [LegendColorRowComponent, ComparisonLegendCaptionComponent]
 })
 export class LegendDeltaColorsSectionComponent {}

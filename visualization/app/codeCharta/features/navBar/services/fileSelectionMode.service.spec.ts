@@ -1,3 +1,4 @@
+import { signal, WritableSignal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { State, Store, StoreModule } from "@ngrx/store"
 import { TEST_FILE_DATA, TEST_FILE_DATA_JAVA } from "../../../mocks/dataMocks"
@@ -7,6 +8,7 @@ import { FileStoreReadWindow, FilesRepo } from "../../../stores/fileStore/fileSt
 import { addFile, removeFiles, setDelta, setFiles, setStandard } from "../../../stores/fileStore/store/files.actions"
 import { referenceFileSelector } from "../../../stores/fileStore/store/referenceFile.selector"
 import { appReducers, setStateMiddleware } from "../../../stores/rootStore/store"
+import { CompareFacade } from "../../compare/facade"
 import { NavBarWriteStore } from "../stores/navBar.write.store"
 import { FileSelectionModeService } from "./fileSelectionMode.service"
 
@@ -14,8 +16,10 @@ describe("FileSelectionModeService", () => {
     let fileSelectionModeService: FileSelectionModeService
     let store: Store<CcState>
     let state: State<CcState>
+    let compareFacade: { isActive: WritableSignal<boolean>; isAvailable: WritableSignal<boolean>; exit: jest.Mock; openDialog: jest.Mock }
 
     beforeEach(() => {
+        compareFacade = { isActive: signal(false), isAvailable: signal(false), exit: jest.fn(), openDialog: jest.fn() }
         TestBed.configureTestingModule({
             imports: [StoreModule.forRoot(appReducers, { metaReducers: [setStateMiddleware] })]
         })
@@ -28,7 +32,8 @@ describe("FileSelectionModeService", () => {
         fileSelectionModeService = new FileSelectionModeService(
             TestBed.inject(FileStoreReadWindow),
             TestBed.inject(FilesRepo),
-            TestBed.inject(NavBarWriteStore)
+            TestBed.inject(NavBarWriteStore),
+            compareFacade as unknown as CompareFacade
         )
     })
 
@@ -97,7 +102,8 @@ describe("FileSelectionModeService", () => {
         const freshService = new FileSelectionModeService(
             TestBed.inject(FileStoreReadWindow),
             TestBed.inject(FilesRepo),
-            TestBed.inject(NavBarWriteStore)
+            TestBed.inject(NavBarWriteStore),
+            compareFacade as unknown as CompareFacade
         )
         expect(freshService.lastSetFilesOfPreviousMode).toEqual([])
 
@@ -130,5 +136,43 @@ describe("FileSelectionModeService", () => {
         expect(fileStates[2].file.fileMeta.fileName).toBe("bFile")
         expect(fileStates[3].file.fileMeta.fileName).toBe("fileA")
         expect(fileStates[4].file.fileMeta.fileName).toBe("fileB")
+    })
+
+    it("should leave the comparison when Explore is chosen", () => {
+        // Arrange
+        compareFacade.isActive.set(true)
+        store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA, comparisonFile: TEST_FILE_DATA_JAVA }))
+
+        // Act
+        fileSelectionModeService.toggle()
+
+        // Assert
+        expect(compareFacade.exit).toHaveBeenCalled()
+        expect(referenceFileSelector(state.getValue())).toBe(TEST_FILE_DATA)
+    })
+
+    it("should open the compare dialog instead of comparing loaded maps in a project with git", () => {
+        // Arrange
+        compareFacade.isAvailable.set(true)
+
+        // Act
+        fileSelectionModeService.toggle()
+
+        // Assert
+        expect(compareFacade.openDialog).toHaveBeenCalled()
+        expect(referenceFileSelector(state.getValue())).toBeUndefined()
+    })
+
+    it("should leave a delta of loaded maps as before in a project with git", () => {
+        // Arrange
+        compareFacade.isAvailable.set(true)
+        store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA, comparisonFile: TEST_FILE_DATA_JAVA }))
+
+        // Act
+        fileSelectionModeService.toggle()
+
+        // Assert
+        expect(compareFacade.openDialog).not.toHaveBeenCalled()
+        expect(state.getValue().files.find(fileState => fileState.file === TEST_FILE_DATA)?.selectedAs).toBe(FileSelectionState.Partial)
     })
 })

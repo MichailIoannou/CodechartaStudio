@@ -3,15 +3,7 @@ import { Router } from "@angular/router"
 import { routeLinks, viewIdForLink } from "../../../routing/routePaths"
 import { DesktopBridgeError } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
-import type {
-    CompareError,
-    CompareIntent,
-    FolderRef,
-    LoadedSide,
-    ResolvedComparison,
-    ResolvedSide,
-    SnapshotSummary
-} from "../model/compare.model"
+import type { CompareError, CompareIntent, FolderRef, LoadedSide, ResolvedComparison, ResolvedSide } from "../model/compare.model"
 import { CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
 import { CompareReadStore } from "../stores/compare.read.store"
 import { CompareStore } from "../stores/compare.store"
@@ -27,11 +19,7 @@ export interface ComparedFolder {
 }
 
 /** The snapshot a side would show (its own, else its nearest) and how many commits that is away from it. */
-interface ShownSide {
-    requested: ResolvedSide["requested"]
-    snapshot: SnapshotSummary
-    staleBy: number
-}
+type ShownSide = Omit<LoadedSide, "checksum">
 
 /** Takes two points of a folder's history to the delta view: resolve, load both maps, select base and head. */
 @Injectable({ providedIn: "root" })
@@ -229,9 +217,10 @@ function needsDecision({ base, head, preflight }: ResolvedComparison): boolean {
 
 function shownSideOf({ requested, status }: ResolvedSide): ShownSide | null {
     if (status.status === "exact") {
-        return { requested, snapshot: status.snapshot, staleBy: 0 }
+        return { requested, snapshot: status.snapshot, relation: null, staleBy: 0 }
     }
-    return status.nearest ? { requested, snapshot: status.nearest.snapshot, staleBy: status.nearest.staleBy } : null
+    const { nearest } = status
+    return nearest ? { requested, snapshot: nearest.snapshot, relation: nearest.relation, staleBy: nearest.staleBy } : null
 }
 
 function unreadable(side: ShownSide): CompareError {

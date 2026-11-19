@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from "@angular/c
 import { toSignal } from "@angular/core/rxjs-interop"
 import { FileStoreReadWindow } from "../../../../stores/fileStore/fileStore.facade"
 import { Export3DMapDialogComponent, Export3DMapDialogStore } from "../../../3dPrint/facade"
+import { CompareFacade, CompareHostComponent, ComparisonChipComponent } from "../../../compare/facade"
 import { ProjectSwitcherComponent, ProjectsFacade } from "../../../projects/facade"
 import { HEIGHT_CSS_VARIABLE, PublishesHeightDirective } from "../../../shared/facade"
 import { SnapshotsDialogComponent, SnapshotsDialogService } from "../../../snapshots/facade"
@@ -26,7 +27,9 @@ import { ViewSwitcherComponent } from "../viewSwitcher/viewSwitcher.component"
         ViewSwitcherComponent,
         ProjectSwitcherComponent,
         WorkspaceStatusComponent,
-        SnapshotsDialogComponent
+        SnapshotsDialogComponent,
+        ComparisonChipComponent,
+        CompareHostComponent
     ],
     hostDirectives: [PublishesHeightDirective],
     providers: [{ provide: HEIGHT_CSS_VARIABLE, useValue: "--cc-bars-height" }],
@@ -42,6 +45,7 @@ export class NavBarComponent {
     readonly isDesktop = this.projectsFacade.isDesktop
     readonly hasActiveProject = this.projectsFacade.hasActiveProject
     readonly hasFiles = computed(() => this.files().length > 0)
+    readonly isComparing = inject(CompareFacade).isComparing
 
     /** Hosted here rather than in the print button, which the mode bar unmounts on mouse-out. */
     readonly isExportDialogOpen = this.export3DMapDialogStore.isDialogOpen

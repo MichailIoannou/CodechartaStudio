@@ -1,4 +1,5 @@
-import type { BaseMode, ComparedCommit, CompareError, ResolvedComparison } from "../model/compare.model"
+import { counted } from "../../../util/wording"
+import type { BaseMode, ComparedCommit, CompareError, LoadedSide, ResolvedComparison, ResolvedSide } from "../model/compare.model"
 
 const MERGE_BASE_SEPARATOR = "..."
 const TIP_SEPARATOR = ".."
@@ -16,7 +17,7 @@ export interface ResolveOutcome {
 }
 
 /** The branch or tag the user picked, else the short commit. */
-function refName(commit: ComparedCommit): string {
+export function refName(commit: ComparedCommit): string {
     return commit.label.kind === "commit" ? commit.shortCommit : commit.label.name
 }
 
@@ -72,4 +73,36 @@ export function errorSentence(error: CompareError): string {
         case "coreError":
             return error.message
     }
+}
+
+/** The analysis status of one side in the preparation rows. */
+export function sideStatusText({ status }: ResolvedSide): string {
+    if (status.status === "exact") {
+        return "analysed"
+    }
+    const { nearest } = status
+    if (!nearest) {
+        return "not analysed"
+    }
+    const older = nearest.relation === "ancestor" ? `, ${counted(nearest.staleBy, "commit")} older` : ""
+    return `not analysed · nearest: ${nearest.snapshot.shortCommit ?? ""}${older}`
+}
+
+export function staleTitle(side: LoadedSide): string {
+    const older = side.relation === "ancestor" ? `, ${counted(side.staleBy, "commit")} older` : ""
+    return `No analysis for ${side.requested.shortCommit}. Showing ${side.snapshot.shortCommit ?? ""}${older}.`
+}
+
+/** Why "Use nearest" cannot go on, or null when every missing side has a nearest analysis and the two differ. */
+export function useNearestRefusal({ base, head }: ResolvedComparison): string | null {
+    const sideWithoutNearest = [base, head].find(side => side.status.status === "missing" && side.status.nearest === null)
+    if (sideWithoutNearest) {
+        return `No nearest analysis for ${refName(sideWithoutNearest.requested)}`
+    }
+    const [baseId, headId] = [base, head].map(side => shownSnapshotIdOf(side))
+    return baseId === headId ? "Both sides would show the same analysis" : null
+}
+
+function shownSnapshotIdOf({ status }: ResolvedSide): string | undefined {
+    return status.status === "exact" ? status.snapshot.ref.snapshotId : status.nearest?.snapshot.ref.snapshotId
 }

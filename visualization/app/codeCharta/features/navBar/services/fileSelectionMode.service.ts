@@ -3,6 +3,7 @@ import { pairwise, tap } from "rxjs"
 import { FileSelectionState, FileState } from "../../../model/files/files"
 import { isDeltaState, isEqual } from "../../../model/files/files.helper"
 import { FileStoreReadWindow, FilesRepo } from "../../../stores/fileStore/fileStore.facade"
+import { CompareFacade } from "../../compare/facade"
 import { NavBarWriteStore } from "../stores/navBar.write.store"
 
 @Injectable({ providedIn: "root" })
@@ -21,14 +22,15 @@ export class FileSelectionModeService implements OnDestroy {
     constructor(
         private readonly fileStoreReadWindow: FileStoreReadWindow,
         private readonly filesRepo: FilesRepo,
-        private readonly navBarWriteStore: NavBarWriteStore
+        private readonly navBarWriteStore: NavBarWriteStore,
+        private readonly compareFacade: CompareFacade
     ) {}
 
     ngOnDestroy(): void {
         this.subscription.unsubscribe()
     }
 
-    /** Toggles selection mode between "Standard" and "Delta".
+    /** Toggles selection mode between "Standard" and "Delta"; in a desktop project it opens and leaves comparisons of commits instead.
      * If available it restores the last set selected files of new mode.
      * When it switches to delta mode and there is no reference
      * file selected, it sets the first selected file as reference as there
@@ -36,6 +38,14 @@ export class FileSelectionModeService implements OnDestroy {
      */
     toggle() {
         const existingFiles = this.filesRepo.getFiles()
+        if (this.compareFacade.isActive()) {
+            this.compareFacade.exit()
+            return
+        }
+        if (this.compareFacade.isAvailable() && !isDeltaState(existingFiles)) {
+            this.compareFacade.openDialog()
+            return
+        }
         if (!isDeltaState(existingFiles)) {
             this.lastSetFilesOfPreviousMode = this.filterNoneExisting(existingFiles, this.lastSetFilesOfPreviousMode)
             const referenceFile =

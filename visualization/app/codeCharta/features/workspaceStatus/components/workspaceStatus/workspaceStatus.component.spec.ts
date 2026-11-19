@@ -72,6 +72,22 @@ describe("WorkspaceStatusComponent", () => {
         expect(trigger().querySelector("[title='3 uncommitted changes']")).not.toBeNull()
     })
 
+    it("should keep only the activity icon and the caret in its icon-only form", async () => {
+        // Arrange
+        const fixture = await renderStatus()
+
+        // Act
+        fixture.componentRef.setInput("iconOnly", true)
+        await settle()
+
+        // Assert
+        expect(screen.queryByTestId("workspace-status-branch")).toBeNull()
+        expect(screen.queryByTestId("workspace-status-map")).toBeNull()
+        expect(screen.getByTestId("workspace-status-icon")).toBeTruthy()
+        expect(trigger().className).toContain("w-[3.25rem]")
+        expect(trigger().getAttribute("aria-label")).toBe("Branch main, map shows 9f8e7d6")
+    })
+
     it("should show analysis progress as its fill and percent", async () => {
         // Arrange
         await renderStatus({ analysisJobs: [aJob("job-1", { state: "running" })] })
