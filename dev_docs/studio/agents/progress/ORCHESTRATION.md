@@ -52,8 +52,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M5 Selection, keyboard, context menu, ports | UI | todo | 04-M4 | — | — |
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
 | 04-M7 Operation queue, progress, prompts | core + UI | core half (tasks 1–4) verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (UI): 04 History UI | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
-| 04-M8 Fetch and branches | core + UI | in progress (core, task 1, from feature/studio-04-m7) | task 2 (UI): 04 History UI | feature/studio-04-m8 | — |
-| 04-M9 Changes and diff | core + UI | todo | 04-M8 | — | — |
+| 04-M8 Fetch and branches | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
+| 04-M9 Changes and diff | core + UI | in progress (core, task 1, from feature/studio-04-m8) | task 2 (UI): 04 History UI | feature/studio-04-m9 | — |
 | 04-M10 Commit | core + UI | todo | 04-M9 | — | — |
 | 04-M11 Pull, push, abort | core + UI | todo | 04-M10 | — | — |
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
@@ -177,6 +177,13 @@ the milestone is started.
   `AUTHENTICATION_CANCELLED`; only `prompt.answer`/`prompt.cancel` renderer-callable; events
   `prompt.requested`/`prompt.closed`; test-only `core.credentialFill` behind `test-methods`. Socket
   folder 0700 / socket 0600 on Linux; Windows pipe items and `GetShortPathNameW` unverified.
+- 04-M8 core (see `04-M8-fetch-branches.md` on `feature/studio-04-m8`): `git.switch`/`git.branchDelete`
+  take a tagged `target`; remote delete is `push --progress --delete --end-of-options <remote> refs/heads/<b>`;
+  create-with-checkout is one `switch -c`; `fetch_refspecs` adds `--no-tags --refmap= --no-write-fetch-head`
+  so only `refs/codecharta/*` is written (D5), is not an RPC method, and refuses other destinations
+  (checked). New codes `BRANCH_EXISTS`, `BRANCH_NOT_FULLY_MERGED`, `BRANCH_CHECKED_OUT_ELSEWHERE`,
+  `LOCAL_CHANGES_WOULD_BE_OVERWRITTEN`, `OPERATION_IN_PROGRESS`, `AUTHENTICATION_REQUIRED`,
+  `NETWORK_UNAVAILABLE`.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -208,6 +215,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 04-M8 core verified on a scratch merge (clippy and cargo test with and without features: 502/506, cargo-deny, contract drift, format, lint, tsc, npm test 659/659). 02-M3 merged; its web e2e is running. 04-M9 core started.
 - 2026-11-19: 04-M7 core half verified after the fix on a scratch merge (clippy and cargo test with and without features: 471/475, cargo-deny, contract drift, format, lint, tsc, test:electron 42/42, npm test 658/658). 04-M8 core started.
 - 2026-11-19: 02-M2 verified on the merged integration branch in a scratch worktree (owner was running the app from the main checkout): format, lint, tsc, npm test 658/658, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 156/156. 04-M7 core half sent back: featureless clippy fails (see deviations).
 - 2026-11-19: 01-M4.2 verified on the merged integration branch (format, lint, tsc, npm test 657/657, coverage 96.86/90.3/95.46/96.79, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 155/155) — plan 01 complete except owner-hardware items. 04-M2 verified (merge pending). 04-M7 core half and 02-M2 started.
