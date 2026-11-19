@@ -36,7 +36,7 @@ Gates with and without `--all-features`.
 - [x] 1. Profiles
 - [x] 2. Argv
 - [x] 3. Output and failures
-- [ ] 4. Progress
+- [x] 4. Progress
 - [ ] 5. fake-ccsh
 - [ ] 6. Launcher
 - [ ] 7. Runner
@@ -112,3 +112,20 @@ reached through `TargetOs::Windows` in unit tests; nothing Windows-specific ran.
   (JDK 27 reflection warnings).
 - Fixtures are the 05-M0 strings (`--without=x`, `--nonsense`, the missing full sha, the JDK warning, the commit
   run's summary block with `─`×72 and SO bytes); the java-too-old text follows `CcshLauncher.java`.
+
+### 4. Progress
+- `analysis/progress.rs`: `ProgressParser::{new, push(&str) -> Option<u8>, progress() -> JobProgress}`.
+  **Deviation:** `push` takes `&str`, because the built runner streams already-decoded UTF-8 chunks
+  (`OutputChunk::Stderr(String)`), not bytes.
+- **Rule changed per 05-M0 finding 5** (not the plan's `unit:total` sum): only bars with unit `Files` count; the
+  shown percent is `floor(100 · parsed / total)` of the most advanced `Files` bar seen so far, never decreasing,
+  capped at 99 until the process exits; `Byte` bars, logger lines and JDK warnings are ignored;
+  `Indeterminate` until the first bar.
+- Hand-written matcher of the plan's regex (no `regex` crate; the core has none and the tools version parser is
+  hand-written too): `<1-3 digits>% [=*> *] *<n>/<total> <unit>, ETA: <N/A|HH+:MM:SS>`. Segments split on `\r`
+  and `\n`; the unfinished last segment is kept and also read, but only once its ETA is complete, so a count cut
+  off by a chunk boundary is never read (`should_not_read_a_count_cut_off_inside_the_eta`). A segment longer than
+  4096 characters without a separator is dropped.
+- Test renamed: "aggregate two interleaved trackers" → `should_follow_the_most_advanced_of_two_interleaved_trackers`.
+  Extra: `should_ignore_the_byte_unit`, `should_follow_a_parallel_run_mixed_with_log_lines`. Fixture bars are
+  drawn by a test helper that reproduces `ProgressTracker.kt` exactly (05-M0 kept no raw stderr bytes).
