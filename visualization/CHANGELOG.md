@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **Desktop tools check**: the settings of the desktop app show whether git, ccsh, Java and the GitHub and GitLab command lines were found and in which version, and let you pick another executable.
 - **Open cc.json files**: the desktop app files a cc.json you open from the project menu, with Ctrl+O or by dropping it on the window into a project for its folder, marked as imported with an unknown analysis time, and can tie it to the commit its name points to.
 - **Store folder**: the desktop settings can move where analyses are kept to another folder.
+- **Analyses in the app**: the desktop app analyses the current checkout or the HEAD commit of a project folder, shows the progress in the nav bar, opens the new map when it is done and lists every analysis of a project to reopen later.
 
 ### Changed
 
