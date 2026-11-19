@@ -21,6 +21,7 @@ import {
     FOLDER,
     HEAD_SHA
 } from "../ports/compareGateways.mocks"
+import { RecentComparisonsRepo } from "../repos/recentComparisons.repo"
 import { CompareStore } from "../stores/compare.store"
 import { CompareService } from "./compare.service"
 
@@ -47,6 +48,7 @@ describe("CompareService", () => {
     let toast: jest.SpyInstance
 
     beforeEach(() => {
+        localStorage.clear()
         snapshots = new FakeSnapshotGateway()
         core = new FakeCoreGateway()
         TestBed.configureTestingModule({
@@ -99,6 +101,22 @@ describe("CompareService", () => {
         })
         expect(compareStore.state().phase).toBe("active")
         expect(compareStore.isActive()).toBe(true)
+    })
+
+    it("should remember a merge-base comparison by the tip its base came from", async () => {
+        // Arrange
+        core.resolution = aResolvedComparison({
+            baseMode: "mergeBase",
+            baseTip: aComparedCommit("7777777".padEnd(40, "0"), { kind: "branch", name: "main" })
+        })
+
+        // Act
+        await service.start({ kind: "branch", folder: FOLDER, branch: "refs/heads/feature/x", target: null, baseMode: "mergeBase" })
+
+        // Assert
+        expect(TestBed.inject(RecentComparisonsRepo).read(FOLDER.projectId)).toEqual([
+            expect.objectContaining({ folderId: FOLDER.folderId, base: "main", head: "feature/x", baseMode: "mergeBase" })
+        ])
     })
 
     it("should find the files by checksum when their names sort head first", async () => {

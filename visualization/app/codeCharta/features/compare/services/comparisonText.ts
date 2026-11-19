@@ -28,8 +28,12 @@ export function sideCaption(commit: ComparedCommit): string | null {
 }
 
 export function rangeText(base: ComparedCommit, head: ComparedCommit, baseMode: BaseMode): string {
-    const separator = baseMode === "mergeBase" ? MERGE_BASE_SEPARATOR : TIP_SEPARATOR
-    return `${refName(base)}${separator}${refName(head)}`
+    return rangeOf(refName(base), refName(head), baseMode)
+}
+
+/** As git writes a range: three dots from the merge base, two dots tip with tip. */
+export function rangeOf(base: string, head: string, baseMode: BaseMode): string {
+    return `${base}${baseMode === "mergeBase" ? MERGE_BASE_SEPARATOR : TIP_SEPARATOR}${head}`
 }
 
 export function parseRange(text: string): ParsedRange | null {

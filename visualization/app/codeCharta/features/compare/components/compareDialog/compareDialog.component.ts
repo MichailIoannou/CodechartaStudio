@@ -12,16 +12,27 @@ import {
     untracked,
     viewChild
 } from "@angular/core"
+import { relativeTime } from "../../../../util/wording"
 import { RefPickerComponent, RefRange, RefResolution } from "../../../gitHistory/facade"
 import { ProjectsFacade } from "../../../projects/facade"
 import type { BaseMode, ComparePrefill, FolderRef, ResolvedComparison, ResolvedSide } from "../../model/compare.model"
 import { BaseModeRepo } from "../../repos/baseMode.repo"
+import { RecentComparison, RecentComparisonsRepo } from "../../repos/recentComparisons.repo"
 import { CompareService } from "../../services/compare.service"
-import { errorSentence, refName, resolveOutcome, sideCaption, sideStatusText, useNearestRefusal } from "../../services/comparisonText"
+import {
+    errorSentence,
+    rangeOf,
+    refName,
+    resolveOutcome,
+    sideCaption,
+    sideStatusText,
+    useNearestRefusal
+} from "../../services/comparisonText"
 import { CompareStore } from "../../stores/compare.store"
 
 const BUSY_PHASES: ReadonlySet<string> = new Set(["resolving", "loading"])
 const FINISHED_PHASES: ReadonlySet<string> = new Set(["active", "noDifferences"])
+const MILLISECONDS_PER_SECOND = 1000
 const NAMED_REF_KINDS: ReadonlySet<string> = new Set(["branch", "remoteBranch", "tag"])
 
 interface PreparationRow {
@@ -30,6 +41,14 @@ interface PreparationRow {
     label: string | null
     tone: "exact" | "nearest" | "missing"
     status: string
+}
+
+interface RecentRow {
+    recent: RecentComparison
+    range: string
+    folderLabel: string | null
+    age: string
+    comparedAtTitle: string
 }
 
 interface Preparation {
@@ -51,6 +70,7 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
     private readonly service = inject(CompareService)
     private readonly projects = inject(ProjectsFacade)
     private readonly baseModeRepo = inject(BaseModeRepo)
+    private readonly recentComparisonsRepo = inject(RecentComparisonsRepo)
     private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
     private readonly basePicker = viewChild<RefPickerComponent>("basePicker")
     private readonly headPicker = viewChild<RefPickerComponent>("headPicker")
@@ -63,6 +83,7 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
     readonly baseResolution = signal<RefResolution | null>(null)
     readonly headResolution = signal<RefResolution | null>(null)
     readonly baseMode = signal<BaseMode>("mergeBase")
+    readonly recentComparisons = signal<RecentRow[]>([])
 
     readonly gitFolders = computed(() => (this.projects.activeProject()?.folders ?? []).filter(folder => folder.kind === "git"))
     readonly folder = computed(() => this.gitFolders().find(candidate => candidate.id === this.folderId()) ?? null)
@@ -111,7 +132,9 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         this.folderId.set(preferred ?? "")
         this.base.set(base ?? (resolved ? refName(resolved.base.requested) : ""))
         this.head.set(head ?? (resolved ? refName(resolved.head.requested) : ""))
-        this.baseMode.set(this.baseModeRepo.read(this.projects.activeProject()?.id ?? ""))
+        const projectId = this.projects.activeProject()?.id ?? ""
+        this.baseMode.set(this.baseModeRepo.read(projectId))
+        this.recentComparisons.set(this.recentRowsOf(this.recentComparisonsRepo.read(projectId)))
     }
 
     ngAfterViewInit(): void {
@@ -130,6 +153,13 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         this.base.set(range.base)
         this.head.set(range.head)
         this.chooseBaseMode(range.isMergeBase ? "mergeBase" : "tip")
+    }
+
+    useRecent(recent: RecentComparison): void {
+        this.folderId.set(recent.folderId)
+        this.base.set(recent.base)
+        this.head.set(recent.head)
+        this.chooseBaseMode(recent.baseMode)
     }
 
     chooseBaseMode(baseMode: BaseMode): void {
@@ -164,6 +194,20 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
 
     close(): void {
         this.dialog().nativeElement.close()
+    }
+
+    private recentRowsOf(recents: RecentComparison[]): RecentRow[] {
+        const folders = this.gitFolders()
+        const isLabelled = folders.length > 1
+        return recents
+            .filter(recent => folders.some(folder => folder.id === recent.folderId))
+            .map(recent => ({
+                recent,
+                range: rangeOf(recent.base, recent.head, recent.baseMode),
+                folderLabel: isLabelled ? (folders.find(folder => folder.id === recent.folderId)?.label ?? null) : null,
+                age: relativeTime(recent.comparedAt / MILLISECONDS_PER_SECOND, Date.now()),
+                comparedAtTitle: new Date(recent.comparedAt).toLocaleString()
+            }))
     }
 
     private handleClosed(): void {

@@ -5,9 +5,11 @@ import { DesktopBridgeError } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
 import type { BaseMode, CompareError, CompareIntent, FolderRef, LoadedSide, ResolvedComparison, ResolvedSide } from "../model/compare.model"
 import { CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
+import { RecentComparisonsRepo } from "../repos/recentComparisons.repo"
 import { CompareReadStore } from "../stores/compare.read.store"
 import { CompareStore } from "../stores/compare.store"
 import { CompareWriteStore } from "../stores/compare.write.store"
+import { refName } from "./comparisonText"
 
 const METRIC_VIEW_TOAST = "Compare runs in the metric view — the domain and dependency views show a single map."
 const TREEMAP_TOAST = "Switched to the treemap layout — the radial layouts show a single map."
@@ -39,6 +41,7 @@ export class CompareService {
     private readonly core = inject(CORE_GATEWAY)
     private readonly router = inject(Router)
     private readonly toastService = inject(ToastService)
+    private readonly recents = inject(RecentComparisonsRepo)
     private latestTicket = 0
 
     /** Compares what the user typed or picked; the base stays the base. */
@@ -163,6 +166,7 @@ export class CompareService {
         }
         this.showInMetricView()
         this.store.update({ phase: "active", base, head, error: null })
+        this.rememberComparison()
     }
 
     private async showHeadAlone(base: ShownSide, head: ShownSide, ticket: number): Promise<void> {
@@ -180,6 +184,23 @@ export class CompareService {
     private finishWithoutDifferences(base: ShownSide, head: ShownSide, checksum: string): void {
         this.showInMetricView()
         this.store.update({ phase: "noDifferences", base: { ...base, checksum }, head: { ...head, checksum }, error: null })
+        this.rememberComparison()
+    }
+
+    /** As the user named the sides: a merge-base comparison by the tip its base came from. */
+    private rememberComparison(): void {
+        const { resolved } = this.store.state()
+        if (!resolved) {
+            return
+        }
+        const base = resolved.baseTip ?? resolved.base.requested
+        this.recents.remember(base.folder.projectId, {
+            folderId: base.folder.folderId,
+            base: refName(base),
+            head: refName(resolved.head.requested),
+            baseMode: resolved.baseMode,
+            comparedAt: Date.now()
+        })
     }
 
     private showInMetricView(): void {

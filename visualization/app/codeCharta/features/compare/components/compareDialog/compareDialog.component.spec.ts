@@ -36,9 +36,12 @@ describe("CompareDialogComponent", () => {
     let service: { compareSides: jest.Mock; continueWithShownSnapshots: jest.Mock; cancel: jest.Mock }
     let store: CompareStore
 
+    beforeEach(() => {
+        localStorage.clear()
+    })
+
     async function renderDialog(prefill = {}, state: Partial<CompareState> = {}) {
         service = { compareSides: jest.fn().mockResolvedValue(undefined), continueWithShownSnapshots: jest.fn(), cancel: jest.fn() }
-        localStorage.clear()
         const bridge = createFakeDesktopBridge({ git: { "f-api": { refs: REFS }, "f-fork": { refs: REFS } } })
         HTMLDialogElement.prototype.showModal = jest.fn()
         HTMLDialogElement.prototype.close = jest.fn(function (this: HTMLDialogElement) {
@@ -85,6 +88,34 @@ describe("CompareDialogComponent", () => {
             { ref: { projectId: "p-billing", folderId: "f-fork" }, label: "billing-fork" },
             { base: "main", head: "a1b2", baseMode: "mergeBase", unresolved: ["a1b2"] }
         )
+    })
+
+    it("should fill both sides from a recent comparison", async () => {
+        // Arrange
+        localStorage.setItem(
+            "codeChartaRecentComparisons",
+            JSON.stringify({
+                "p-billing": [{ folderId: "f-api", base: "main", head: "feature/x", baseMode: "tip", comparedAt: Date.now() }]
+            })
+        )
+        await renderDialog()
+
+        // Act
+        await userEvent.click(screen.getByTestId("compare-recent-row"))
+
+        // Assert
+        expect(screen.getByTestId("compare-recent-row").textContent).toContain("main..feature/x")
+        expect(screen.getByTestId("compare-recent-row").textContent).toContain("billing-api")
+        expect([input("compare-base").value, input("compare-head").value]).toEqual(["main", "feature/x"])
+        expect((screen.getByTestId("compare-folder") as HTMLSelectElement).value).toBe("f-api")
+    })
+
+    it("should say when there are no comparisons yet", async () => {
+        // Act
+        await renderDialog()
+
+        // Assert
+        expect(screen.getByTestId("compare-recent").textContent?.trim()).toBe("No comparisons yet.")
     })
 
     it("should offer only git folders", async () => {
