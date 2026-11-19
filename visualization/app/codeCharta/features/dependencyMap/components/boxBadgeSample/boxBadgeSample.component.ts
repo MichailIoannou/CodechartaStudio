@@ -26,7 +26,7 @@ export class BoxBadgeSampleComponent {
         const mark = this.mark()
         return mark === "declaration" ? null : pillLookOf(mark, this.upwardLine())
     })
-    protected readonly ringColors = cycleMarkColors().declaration
+    protected readonly ringColors = computed(() => cycleMarkColors().declaration)
     protected readonly dash = computed(() => this.pill()?.lineDash?.join(" ") ?? null)
     protected readonly sizes = SIZES
     protected readonly centre = CENTRE

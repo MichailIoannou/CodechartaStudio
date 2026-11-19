@@ -1,74 +1,77 @@
 import { DEPENDENCY_EDGE_TYPES, DependencyEdgeColors, DependencyEdgeType, LineStyleMeaning } from "../../../model/dependencyGraph.model"
+import { activeRenderPalette } from "../../../util/theme/activeTheme"
 import { isDashedEdgeType } from "./lineStyle"
 
 export function textColor(): string {
-    return "#1f2937"
+    return activeRenderPalette().dependencyGraph.text
 }
 
 export function selectedColor(): string {
-    return "#1b9cfc"
+    return activeRenderPalette().dependencyGraph.selected
 }
 
 export function hoveredColor(): string {
-    return "#1f2937"
+    return activeRenderPalette().dependencyGraph.hovered
+}
+
+export function folderStroke(): string {
+    return activeRenderPalette().dependencyGraph.folderStroke
+}
+
+export function closedFolderFill(): string {
+    return activeRenderPalette().dependencyGraph.closedFolderFill
+}
+
+export function closedFolderStroke(): string {
+    return activeRenderPalette().dependencyGraph.closedFolderStroke
+}
+
+export function packageStroke(): string {
+    return activeRenderPalette().dependencyGraph.packageStroke
+}
+
+export function closedPackageFill(): string {
+    return activeRenderPalette().dependencyGraph.closedPackageFill
+}
+
+export function closedPackageStroke(): string {
+    return activeRenderPalette().dependencyGraph.closedPackageStroke
+}
+
+export function fileFill(): string {
+    return activeRenderPalette().dependencyGraph.fileFill
+}
+
+export function declarationFill(): string {
+    return activeRenderPalette().dependencyGraph.declarationFill
+}
+
+export function fileStroke(): string {
+    return activeRenderPalette().dependencyGraph.fileStroke
+}
+
+export function openFileFill(): string {
+    return activeRenderPalette().dependencyGraph.openFileFill
+}
+
+export function quietBadgeColor(): string {
+    return activeRenderPalette().dependencyGraph.quietBadge
+}
+
+export function levelSeparatorColor(): string {
+    return activeRenderPalette().dependencyGraph.levelSeparator
+}
+
+export function cycleMarkColor(): string {
+    return activeRenderPalette().dependencyGraph.cycleMark
+}
+
+export function badgeContrastColor(): string {
+    return activeRenderPalette().dependencyGraph.badgeContrast
 }
 
 export const HOVERED_LINE_WIDTH_PX = 2
 export const CORNER_RADIUS_PX = 4
-
-const FOLDER_FILLS_BY_DEPTH = ["#f4f6f9", "#e9edf2", "#dfe5ec", "#d5dce5"]
-export function folderStroke(): string {
-    return "#b8c2cf"
-}
-
-export function closedFolderFill(): string {
-    return "#dbe7f5"
-}
-
-export function closedFolderStroke(): string {
-    return "#7a9cc6"
-}
-
-const PACKAGE_FILLS_BY_DEPTH = ["#f8f6fd", "#f0ecfa", "#e9e3f7", "#e1d9f3"]
-export function packageStroke(): string {
-    return "#c6bce2"
-}
-
-export function closedPackageFill(): string {
-    return "#e6e0f7"
-}
-
-export function closedPackageStroke(): string {
-    return "#8f7fc7"
-}
-
-export function fileFill(): string {
-    return "#ffffff"
-}
-
-export function declarationFill(): string {
-    return "#f7f9fc"
-}
-
-export function fileStroke(): string {
-    return "#9aa5b4"
-}
-
-export function openFileFill(): string {
-    return "#fbfcfe"
-}
-
-export function quietBadgeColor(): string {
-    return "#8a94a3"
-}
-
-export function levelSeparatorColor(): string {
-    return "#c3cbd6"
-}
-
-export function cycleMarkColor(): string {
-    return "#dc2626"
-}
 
 export const EDGE_TYPE_LABELS: Record<DependencyEdgeType, string> = {
     regular: "Dependency",
@@ -121,9 +124,13 @@ export function seeThrough(hexColor: string): string {
 }
 
 export function folderFill(depth: number): string {
-    return FOLDER_FILLS_BY_DEPTH[Math.min(depth, FOLDER_FILLS_BY_DEPTH.length - 1)]
+    return fillAtDepth(activeRenderPalette().dependencyGraph.folderFillsByDepth, depth)
 }
 
 export function packageFill(depth: number): string {
-    return PACKAGE_FILLS_BY_DEPTH[Math.min(depth, PACKAGE_FILLS_BY_DEPTH.length - 1)]
+    return fillAtDepth(activeRenderPalette().dependencyGraph.packageFillsByDepth, depth)
+}
+
+function fillAtDepth(fillsByDepth: readonly string[], depth: number): string {
+    return fillsByDepth[Math.min(depth, fillsByDepth.length - 1)]
 }

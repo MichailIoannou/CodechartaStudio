@@ -53,10 +53,6 @@ export abstract class ChartScreenshotService implements ScreenshotCapture {
         if (!canvas) {
             throw new Error(`There is no ${this.subject} to capture`)
         }
-        return onExportBackground(cropTransparentMargins(canvas), this.exportBackground())
-    }
-
-    protected exportBackground(): string | null {
-        return activeRenderPalette().exportBackground
+        return onExportBackground(cropTransparentMargins(canvas), activeRenderPalette().exportBackground)
     }
 }

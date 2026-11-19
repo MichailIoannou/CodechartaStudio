@@ -11,6 +11,7 @@ import * as clipboardWriter from "./clipboardWriter"
 import { DependencyGraphScreenshotService } from "./dependencyGraphScreenshot.service"
 
 describe("DependencyGraphScreenshotService", () => {
+    const EXPORT_PADDING = 16
     const CHART_WIDTH = 400
     const CHART_HEIGHT = 300
     const toastMock = { show: jest.fn() }
@@ -94,7 +95,7 @@ describe("DependencyGraphScreenshotService", () => {
         expect(downloadNames).toEqual(["_dependencies.png"])
     })
 
-    it("should keep the graph transparent in a dark theme while the graph is drawn in light colors", async () => {
+    it("should lay the graph on the export background of a dark theme", async () => {
         // Arrange
         setActiveTheme(themeById("cc-dark"))
         const { service } = configure()
@@ -106,7 +107,10 @@ describe("DependencyGraphScreenshotService", () => {
 
         // Assert
         expect(encode.mock.calls.length).toBe(1)
-        expect(encode.mock.contexts[0]).toMatchObject({ width: CHART_WIDTH, height: CHART_HEIGHT })
+        expect(encode.mock.contexts[0]).toMatchObject({
+            width: CHART_WIDTH + 2 * EXPORT_PADDING,
+            height: CHART_HEIGHT + 2 * EXPORT_PADDING
+        })
     })
 
     describe("screenshotBox", () => {

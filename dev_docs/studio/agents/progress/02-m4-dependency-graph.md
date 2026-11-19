@@ -24,7 +24,7 @@ rewrite the changelog's dark-theme entry (Dependencies now themed), do not appen
 ## Steps
 
 - [x] 1. Tidy first
-- [ ] 2. Dependency graph
+- [x] 2. Dependency graph
 - [ ] 3. Colour-range diagram
 
 ## Notes

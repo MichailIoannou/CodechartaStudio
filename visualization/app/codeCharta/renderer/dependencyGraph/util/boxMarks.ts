@@ -1,7 +1,7 @@
 import { DependencyBoxBadge, DependencyEdgeColors, LineStyleMeaning } from "../../../model/dependencyGraph.model"
 import { declarationKindLookOf, kindIconColors } from "./declarationKinds"
 import { CLICKABLE, UNTRANSFORMED } from "./dependencyGraphElements"
-import { cycleMarkColor, fileFill, quietBadgeColor } from "./dependencyGraphStyle"
+import { badgeContrastColor, cycleMarkColor, fileFill, quietBadgeColor } from "./dependencyGraphStyle"
 import { Rectangle } from "./geometry"
 import { inkCentreShiftOf, MARK_FONT_FAMILY } from "./inkCentre"
 import { LayoutBox } from "./layoutModel"
@@ -70,10 +70,6 @@ export interface PillLook {
 
 interface BadgeDesign extends PillLook {
     info: string
-}
-
-function badgeContrastColor(): string {
-    return "#ffffff"
 }
 
 const MARK_FONT_WEIGHT = "bold"
