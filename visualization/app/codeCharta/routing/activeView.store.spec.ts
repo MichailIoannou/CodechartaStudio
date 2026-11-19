@@ -32,6 +32,14 @@ describe("ActiveViewStore", () => {
         expect(createStore().currentView()).toBe("domain")
     })
 
+    it("should map the history link to the history view", () => {
+        // Arrange
+        router.url = "/history"
+
+        // Assert
+        expect(createStore().currentView()).toBe("history")
+    })
+
     it("should ignore the query string, which the router does not own", () => {
         // Arrange
         router.url = `${routeLinks.domain}?file=some.cc.json`

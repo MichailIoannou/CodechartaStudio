@@ -3,6 +3,7 @@ import { toSignal } from "@angular/core/rxjs-interop"
 import { RouterLink, RouterLinkActive } from "@angular/router"
 import { ActiveViewStore } from "../../../../routing/activeView.store"
 import { routeLinks, ViewId } from "../../../../routing/routePaths"
+import { GitHistoryAvailability } from "../../../gitHistory/facade"
 import { ViewSwitcherReadStore } from "../../stores/viewSwitcher.read.store"
 import { ViewModeBarComponent } from "../viewModeBar/viewModeBar.component"
 
@@ -28,7 +29,8 @@ const VIEW_TABS: readonly ViewTab[] = [
         title: "Show the dependency graph, arranged by level",
         matchesExactly: false,
         hasModes: true
-    }
+    },
+    { view: "history", label: "History", title: "Show branches and commit history", matchesExactly: false, hasModes: false }
 ]
 
 @Component({
@@ -46,7 +48,8 @@ export class ViewSwitcherComponent {
     private readonly isViewAvailable: Record<ViewId, Signal<boolean>> = {
         metrics: signal(true),
         domain: this.readStore.isDomainViewAvailable,
-        dependencies: this.readStore.isDependencyViewAvailable
+        dependencies: this.readStore.isDependencyViewAvailable,
+        history: inject(GitHistoryAvailability).isAvailable
     }
     readonly availableTabs = computed(() => VIEW_TABS.filter(tab => this.isViewAvailable[tab.view]()))
     readonly activeView = toSignal(inject(ActiveViewStore).activeView$, { requireSync: true })

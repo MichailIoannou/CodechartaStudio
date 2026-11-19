@@ -6,5 +6,7 @@ export class ProjectsFacade {
     private readonly projects = inject(ProjectsService)
 
     readonly isDesktop = this.projects.isDesktop
+    readonly activeProject = this.projects.activeProject
+    readonly workingFolder = this.projects.workingFolder
     readonly hasActiveProject = computed(() => this.projects.activeProject() !== null)
 }
