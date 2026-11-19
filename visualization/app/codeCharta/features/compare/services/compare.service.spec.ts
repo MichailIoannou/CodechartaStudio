@@ -120,7 +120,7 @@ describe("CompareService", () => {
         await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
 
         // Assert
-        const setDeltaIndex = dispatched.findIndex(type => type.includes("setDelta") || type.includes("SET_DELTA"))
+        const setDeltaIndex = dispatched.findIndex(type => type === "SET_DELTA")
         expect(setDeltaIndex).toBeGreaterThan(dispatched.indexOf("loaded"))
         expect(snapshots.calls).toEqual(["loadPair s-9f8e7d6 s-a1b2c3d"])
     })
@@ -330,5 +330,69 @@ describe("CompareService", () => {
         // Assert
         expect(compareStore.state().phase).toBe("idle")
         expect(snapshots.calls).toEqual([])
+    })
+
+    describe("swap and exit", () => {
+        beforeEach(async () => {
+            await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
+        })
+
+        it("should switch reference and comparison and swap the sides", () => {
+            // Act
+            service.swap()
+
+            // Assert
+            expect(selectionByChecksum()).toEqual({
+                [BASE_CHECKSUM]: FileSelectionState.Comparison,
+                [HEAD_CHECKSUM]: FileSelectionState.Reference
+            })
+            expect(compareStore.state().base?.checksum).toBe(HEAD_CHECKSUM)
+            expect(compareStore.isActive()).toBe(true)
+        })
+
+        it("should not swap a comparison that is no longer shown", () => {
+            // Arrange
+            store.dispatch(setStandard({ files: [state.getValue().files[0].file] }))
+
+            // Act
+            service.swap()
+
+            // Assert
+            expect(compareStore.state().base?.checksum).toBe(BASE_CHECKSUM)
+        })
+
+        it("should select the head before removing the base when leaving", () => {
+            // Arrange
+            dispatched = []
+
+            // Act
+            service.exit()
+
+            // Assert
+            expect(dispatched).toEqual(["SET_STANDARD", "REMOVE_FILES"])
+            expect(selectionByChecksum()).toEqual({ [HEAD_CHECKSUM]: FileSelectionState.Partial })
+        })
+
+        it("should clear the comparison when leaving", () => {
+            // Act
+            service.exit()
+
+            // Assert
+            expect(compareStore.state().phase).toBe("idle")
+            expect(compareStore.isActive()).toBe(false)
+        })
+
+        it("should leave the maps alone when the comparison is no longer shown", () => {
+            // Arrange
+            store.dispatch(setStandard({ files: [state.getValue().files[0].file] }))
+            dispatched = []
+
+            // Act
+            service.exit()
+
+            // Assert
+            expect(dispatched).toEqual([])
+            expect(state.getValue().files).toHaveLength(2)
+        })
     })
 })

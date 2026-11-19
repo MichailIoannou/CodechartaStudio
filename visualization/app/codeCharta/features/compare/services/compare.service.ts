@@ -75,6 +75,27 @@ export class CompareService {
         }
     }
 
+    swap(): void {
+        if (!this.store.isActive()) {
+            return
+        }
+        const { base, head } = this.store.state()
+        this.writeStore.switchReferenceAndComparison()
+        this.store.update({ base: head, head: base })
+    }
+
+    /** Leaves the comparison with the head alone on the map. */
+    exit(): void {
+        const { base, head } = this.store.state()
+        const baseFile = base && this.readStore.fileWithChecksum(base.checksum)
+        const headFile = head && this.readStore.fileWithChecksum(head.checksum)
+        if (this.store.isActive() && baseFile && headFile) {
+            this.writeStore.showAlone(headFile, [baseFile.fileMeta.fileName])
+        }
+        this.latestTicket += 1
+        this.store.reset()
+    }
+
     cancel(): void {
         this.latestTicket += 1
         if (!["active", "noDifferences"].includes(this.store.state().phase)) {
