@@ -1,7 +1,7 @@
 import { readFileSync } from "fs"
 import { resolve } from "path"
 import { ChromeTokens, RenderPalette, ThemeDefinition } from "../../model/theme.model"
-import { contrastRatio } from "./contrast"
+import { contrastRatio, lowestContrastAlongGradient } from "./contrast"
 import { DEFAULT_THEME_ID, SYSTEM_THEME_BY_SCHEME, THEMES, themeById } from "./themes"
 
 const READABLE_TEXT = 4.5
@@ -81,6 +81,17 @@ describe("THEMES", () => {
             // Assert
             expect(pairs).toHaveLength(FILLS_WITH_CONTENT)
             expect(failing).toEqual([])
+        })
+
+        it("should keep every word cloud gradient stop readable on its surface", () => {
+            // Arrange
+            const { gradientStart, gradientEnd } = theme.render.wordCloud
+
+            // Act
+            const lowest = lowestContrastAlongGradient(gradientStart, gradientEnd, theme.render.surface)
+
+            // Assert
+            expect(lowest).toBeGreaterThanOrEqual(READABLE_TEXT)
         })
 
         it("should keep the primary color visible on the base surface", () => {

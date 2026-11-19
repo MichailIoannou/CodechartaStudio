@@ -16,6 +16,7 @@ import { switchMap } from "rxjs"
 import { DomainWord } from "../../../../model/codeCharta.model"
 import { defaultWordCloudSettings, WordCloudSettings, WordCloudShape } from "../../../../model/wordCloud.model"
 import { ViewReadinessStore } from "../../../../routing/viewReadiness.store"
+import { activeTheme } from "../../../../util/theme/activeTheme"
 import { WordCloudChartRegistry } from "../../services/wordCloudChart.registry"
 import { WordCloudReadStore } from "../../stores/wordCloud.read.store"
 import { selectTopWords } from "../../util/topWords"
@@ -39,6 +40,7 @@ interface WordCloudRenderInputs {
     maskImage: HTMLImageElement | undefined
     containerWidth: number
     containerHeight: number
+    themeId: string
 }
 
 /** Leaving the view detaches its DOM, which measures as a zero-sized container and measures back to
@@ -54,7 +56,8 @@ function isSameRender(previous: WordCloudRenderInputs | null, next: WordCloudRen
         previous.settings === next.settings &&
         previous.maskImage === next.maskImage &&
         previous.containerWidth === next.containerWidth &&
-        previous.containerHeight === next.containerHeight
+        previous.containerHeight === next.containerHeight &&
+        previous.themeId === next.themeId
     )
 }
 
@@ -160,6 +163,7 @@ export class WordCloudComponent implements OnDestroy {
         const words = this.words()
         const settings = this.settings()
         const maskImage = this.maskImageFor(settings.shape)
+        const themeId = activeTheme().id
         const container = this.canvasRef()?.nativeElement
         if (!container) {
             this.disposeChart()
@@ -174,7 +178,7 @@ export class WordCloudComponent implements OnDestroy {
             this.chartHost.cancelPendingRender()
             return
         }
-        const inputs: WordCloudRenderInputs = { container, words, settings, maskImage, containerWidth, containerHeight }
+        const inputs: WordCloudRenderInputs = { container, words, settings, maskImage, containerWidth, containerHeight, themeId }
         if (isSameRender(this.lastRenderedInputs, inputs)) {
             this.viewReadinessStore.markReady("domain")
             return

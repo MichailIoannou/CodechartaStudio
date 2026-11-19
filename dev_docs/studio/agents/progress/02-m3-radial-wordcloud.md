@@ -24,7 +24,7 @@ entry says the radial layouts follow later — rewrite that one entry, do not ap
 ## Steps
 
 - [x] 1. Radial map
-- [ ] 2. Word cloud
+- [x] 2. Word cloud
 - [ ] 3. Tooltips and chart screenshots
 
 ## Notes
@@ -42,3 +42,14 @@ entry says the radial layouts follow later — rewrite that one entry, do not ap
 - `radialMap.e2e.ts` picks CodeCharta Light in both `beforeEach`; the disk-backed reload case now runs in the
   dark default and asserts `#4a515c`; new case "should draw neutral folders in the grey of the dark theme".
 
+
+### 2. Word cloud
+
+- `lowestContrastAlongGradient` added to `util/theme/contrast.ts` (64 samples, channels mixed in sRGB like
+  `interpolateColor`, whose midpoint of black and white is `#808080`). Both palettes clear 4.5 against their
+  surface (checked by the new `themes.spec.ts` case for every registry entry).
+- `getWordCloudColors()` reads the palette; the CSS variables and their comment are removed from
+  `tailwind.css`. `interpolateColor` falls back to the active gradient (was the two hard-coded light defaults).
+- The emphasis shadow comes from `wordCloud.emphasisShadow`; `WordCloudRenderInputs` carries `themeId`, so
+  `isSameRender` no longer swallows a theme change.
+- Changelog: the one dark-theme entry now says radial layouts and word cloud follow, Dependencies later.
