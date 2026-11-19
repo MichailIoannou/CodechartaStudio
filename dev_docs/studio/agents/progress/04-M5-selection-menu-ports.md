@@ -35,10 +35,29 @@ analysis enqueue; owner decision: selecting a commit never starts an analysis by
 
 ## Steps
 
-- [ ] 1. Selection
+- [x] 1. Selection
 - [ ] 2. Keyboard
 - [ ] 3. Ports and context menu
 - [ ] 4. History badges and analyse action
 
 ## Notes
+
+Environment (2026-11-19): Arch Linux, node 26, npm 12.2. Branch `feature/studio-04-m5` from `feature/studio-stack`
+(`8feb45bcd`).
+
+### 1. Selection
+- `CommitSelectionService` keeps a first item (the one picked first) and an optional second (added by Ctrl+click or
+  Shift+arrow); `selection().items` are in list order (working tree first, then newest; a commit not in the loaded list,
+  e.g. a parent picked from its link, sorts last). A third Ctrl+click replaces the second item; Ctrl+click on a selected
+  item while two are selected drops it (not in the plan; the usual list behaviour, so Ctrl+click can also undo).
+  `extend`, `setSecond` (Shift+arrow: back on the first item only the first stays), `dropSecond` (Escape), `select`,
+  `clear`; signals `selection`, `selectedSha` (only while exactly one commit is selected — the details service reads it),
+  `selectedKeys`, `secondKey`, `focusedKey` (the row the keyboard moves from). Keys: the SHA or `WORKING_TREE_KEY`
+  (`model/commitSelection.ts selectionKeyOf`).
+- Kept across a refresh: `GitLogService.firstPageLoads` counts each page one that replaces the list; then listed
+  commits take their fresh summary, and a commit that is not listed is dropped only when no further page can list it
+  (`hasMore` false) — a commit further down than page one stays selected after a refs refresh. The working-tree item
+  follows the status while the uncommitted row shows and goes when it disappears. Cleared on a repository change.
+- Rows: selected `bg-primary/20 font-semibold`, the second item also `border-l-2 border-primary` (H8);
+  `CommitListComponent.rowViews` depends on `selectedKeys` and `secondKey`.
 

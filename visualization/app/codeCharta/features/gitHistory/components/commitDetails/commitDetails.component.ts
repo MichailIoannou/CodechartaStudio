@@ -43,8 +43,8 @@ export class CommitDetailsComponent {
     readonly skeletonLines = Array.from({ length: SKELETON_LINE_COUNT }, (_, index) => index)
     readonly isLocatorProvided = this.locator !== null
     readonly workingTreeText = computed(() => {
-        const item = this.selection.selection()?.items[0]
-        return item?.kind === "workingTree" ? workingTreeSummary(item.status.counts) : null
+        const items = this.selection.selection()?.items ?? []
+        return items.length === 1 && items[0].kind === "workingTree" ? workingTreeSummary(items[0].status.counts) : null
     })
     readonly isLoading = computed(() => this.detailsService.details().kind === "loading")
     readonly failure = computed(() => {

@@ -12,6 +12,7 @@ import {
     viewChild
 } from "@angular/core"
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
+import { SelectionItem, WORKING_TREE_KEY } from "../../model/commitSelection"
 import { failureOf, readyValueOf } from "../../model/loadState"
 import { ANALYSED_COMMITS, AnalysedCommitMarker } from "../../ports/analysedCommits.port"
 import { CommitSelectionService } from "../../services/commitSelection.service"
@@ -22,7 +23,7 @@ import { GraphRow } from "../../util/graphLayout"
 import { GRAPH_ROW_HEIGHT, graphWidthFor, MAX_DRAWN_LANES } from "../../util/graphRowGeometry"
 import { windowOf } from "../../util/virtualWindow"
 import { CommitGraphCellComponent } from "../commitGraphCell/commitGraphCell.component"
-import { CommitRowComponent, CommitRowView } from "../commitRow/commitRow.component"
+import { CommitRowComponent, CommitRowView, selectionClassOf } from "../commitRow/commitRow.component"
 
 const NEXT_PAGE_THRESHOLD_ROWS = 100
 const OVERSCAN_ROWS = 10
@@ -36,10 +37,8 @@ const COMMIT_COLUMN = "minmax(0,1fr)"
 const ANALYSIS_COLUMN = "6.5rem"
 const AUTHOR_COLUMN = "8rem"
 const DATE_COLUMN = "7rem"
-const SELECTED_ROW_CLASS = "bg-primary/20 font-semibold"
-
 type ListItem =
-    | { kind: "workingTree"; key: string; count: number; isSelected: boolean }
+    | { kind: "workingTree"; key: string; count: number; isSelected: boolean; isSecond: boolean }
     | { kind: "commit"; key: string; view: CommitRowView }
     | { kind: "loadingMore"; key: string }
     | { kind: "loadMoreFailed"; key: string; sentence: string }
@@ -107,7 +106,8 @@ export class CommitListComponent {
         this.log.headSha()
         this.log.refLabels()
         this.markers()
-        this.selection.selectedSha()
+        this.selection.selectedKeys()
+        this.selection.secondKey()
         return new Map<string, CommitRowView>()
     })
     readonly visibleItems = computed(() => {
@@ -168,14 +168,14 @@ export class CommitListComponent {
         })
     }
 
-    selectCommit(commit: GitCommitSummary) {
-        this.selection.select({ kind: "commit", commit })
+    selectCommit(commit: GitCommitSummary, event: MouseEvent) {
+        this.pick({ kind: "commit", commit }, event)
     }
 
-    selectWorkingTree() {
+    selectWorkingTree(event: MouseEvent) {
         const status = readyValueOf(this.repository.status())
         if (status) {
-            this.selection.select({ kind: "workingTree", status })
+            this.pick({ kind: "workingTree", status }, event)
         }
     }
 
@@ -187,14 +187,24 @@ export class CommitListComponent {
         this.log.clearFilter()
     }
 
-    workingTreeRowClass(isSelected: boolean): string {
-        return isSelected ? SELECTED_ROW_CLASS : ""
+    workingTreeRowClass(item: { isSelected: boolean; isSecond: boolean }): string {
+        return selectionClassOf(item)
+    }
+
+    private pick(item: SelectionItem, event: MouseEvent) {
+        if (event.ctrlKey || event.metaKey) {
+            this.selection.extend(item)
+        } else {
+            this.selection.select(item)
+        }
     }
 
     private itemAt(index: number): ListItem {
         const count = this.uncommittedChangeCount()
         if (count !== null && index === 0) {
-            return { kind: "workingTree", key: "working-tree", count, isSelected: this.selection.isWorkingTreeSelected() }
+            const key = WORKING_TREE_KEY
+            const isSelected = this.selection.selectedKeys().has(key)
+            return { kind: "workingTree", key, count, isSelected, isSecond: this.selection.secondKey() === key }
         }
         const commitIndex = index - this.leadingRowCount()
         const commit = this.log.commits()[commitIndex]
@@ -213,7 +223,8 @@ export class CommitListComponent {
             isHead: commit.sha === this.log.headSha(),
             labels: this.log.refLabels().get(commit.sha) ?? [],
             marker: this.markers().get(commit.sha) ?? null,
-            isSelected: commit.sha === this.selection.selectedSha()
+            isSelected: this.selection.selectedKeys().has(commit.sha),
+            isSecond: this.selection.secondKey() === commit.sha
         }
         views.set(commit.sha, view)
         return view

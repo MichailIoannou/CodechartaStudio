@@ -49,11 +49,11 @@
                         <div
                             role="option"
                             class="grid h-7 cursor-pointer select-none items-center gap-2 whitespace-nowrap px-2 text-sm hover:bg-base-200"
-                            [class]="workingTreeRowClass(item.isSelected)"
+                            [class]="workingTreeRowClass(item)"
                             [style.grid-template-columns]="gridTemplate()"
                             [attr.aria-selected]="item.isSelected"
                             data-testid="commit-row-working-tree"
-                            (click)="selectWorkingTree()"
+                            (click)="selectWorkingTree($event)"
                         >
                             @if (isGraphShown()) {
                                 <cc-commit-graph-cell />
@@ -68,7 +68,7 @@
                             [isAnalysisShown]="isAnalysisShown"
                             [labelLimit]="labelLimit()"
                             [nowMs]="nowMs()"
-                            (click)="selectCommit(item.view.commit)"
+                            (click)="selectCommit(item.view.commit, $event)"
                         />
                     }
                     @case ("loadingMore") {

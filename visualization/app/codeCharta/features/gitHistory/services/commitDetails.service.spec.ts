@@ -38,8 +38,11 @@ describe("CommitDetailsService", () => {
         pending = []
         TestBed.configureTestingModule({
             providers: [
-                { provide: GitRepositoryService, useValue: { activeRepository: signal(API) } },
-                { provide: GitLogService, useValue: { commits } },
+                { provide: GitRepositoryService, useValue: { activeRepository: signal(API), status: signal({ kind: "idle" }) } },
+                {
+                    provide: GitLogService,
+                    useValue: { commits, hasMore: signal(false), firstPageLoads: signal(0), uncommittedChangeCount: signal(null) }
+                },
                 {
                     provide: GitApiService,
                     useValue: {

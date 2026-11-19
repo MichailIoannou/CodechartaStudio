@@ -310,6 +310,46 @@ describe("CommitListComponent", () => {
         expect(screen.getByTestId("commit-row-working-tree").getAttribute("aria-selected")).toBe("true")
     })
 
+    it("should add a second commit on ctrl+click and mark it with a left border", async () => {
+        // Arrange
+        const { detectChanges } = await renderList(seedOf([RELEASE, START]))
+        const selection = TestBed.inject(CommitSelectionService)
+
+        // Act
+        fireEvent.click(screen.getAllByTestId("commit-row")[1])
+        fireEvent.click(screen.getAllByTestId("commit-row")[0], { ctrlKey: true })
+        detectChanges()
+
+        // Assert
+        const [release, start] = screen.getAllByTestId("commit-row")
+        expect(selection.selection()?.items.map(item => (item.kind === "commit" ? item.commit.sha : item.kind))).toEqual([
+            RELEASE.sha,
+            START.sha
+        ])
+        expect(release.className).toContain("border-l-2 border-primary")
+        expect(start.className).toContain("bg-primary/20")
+        expect(start.className).not.toContain("border-l-2")
+        expect(release.getAttribute("aria-selected")).toBe("true")
+    })
+
+    it("should add the uncommitted changes as the second item on ctrl+click", async () => {
+        // Arrange
+        const dirty = aStatusOn("main", {
+            head: { kind: "branch", name: "main", commit: RELEASE.sha },
+            counts: { staged: 0, unstaged: 1, untracked: 0, conflicted: 0 }
+        })
+        const { detectChanges } = await renderList(seedOf([RELEASE, START], dirty))
+
+        // Act
+        fireEvent.click(screen.getAllByTestId("commit-row")[0])
+        fireEvent.click(screen.getByTestId("commit-row-working-tree"), { metaKey: true })
+        detectChanges()
+
+        // Assert
+        expect(TestBed.inject(CommitSelectionService).selection()?.items[0]).toEqual({ kind: "workingTree", status: dirty })
+        expect(screen.getByTestId("commit-row-working-tree").className).toContain("border-l-2 border-primary")
+    })
+
     it("should have no Analysis column without a provider", async () => {
         // Arrange & Act
         await renderList(seedOf([RELEASE, START]))
