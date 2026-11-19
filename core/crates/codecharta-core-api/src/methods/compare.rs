@@ -3,6 +3,7 @@ use ts_rs::TS;
 
 use crate::methods::projects::FolderRef;
 use crate::methods::snapshots::{SnapshotRelation, SnapshotSummary};
+use crate::registry::method;
 use crate::values::{CommitSha, Revision};
 
 /// What the user pointed at in one project folder. `Commits` takes the ancestor as the base, else the
@@ -155,6 +156,14 @@ pub struct ResolvedComparison {
     pub head: ResolvedSide,
     pub preflight: Preflight,
 }
+
+method!(
+    CompareResolve,
+    "compare.resolve",
+    Renderer,
+    ResolveComparisonParams,
+    ResolvedComparison
+);
 
 #[cfg(test)]
 mod tests {

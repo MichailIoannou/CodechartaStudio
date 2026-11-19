@@ -90,6 +90,8 @@ import type { RemoveFolderParams } from "./RemoveFolderParams"
 import type { RepositoryChanged } from "./RepositoryChanged"
 import type { ResolveCommitParams } from "./ResolveCommitParams"
 import type { ResolveCommitResult } from "./ResolveCommitResult"
+import type { ResolveComparisonParams } from "./ResolveComparisonParams"
+import type { ResolvedComparison } from "./ResolvedComparison"
 import type { ResolveForCommitParams } from "./ResolveForCommitParams"
 import type { ResolvePathParams } from "./ResolvePathParams"
 import type { ResolvePathResult } from "./ResolvePathResult"
@@ -207,6 +209,7 @@ export type CoreMethods = {
     "snapshots.usage": { params: ProjectIdParams; result: StoreUsage }
     "snapshots.planPrune": { params: PlanPruneParams; result: PrunePlan }
     "snapshots.prune": { params: PruneParams; result: PruneResult }
+    "compare.resolve": { params: ResolveComparisonParams; result: ResolvedComparison }
     "analysis.preflight": { params: PreflightParams; result: PreflightResult }
     "analysis.enqueue": { params: EnqueueParams; result: EnqueueResult }
     "analysis.cancel": { params: JobRefParams; result: null }
@@ -296,6 +299,7 @@ export const RENDERER_METHODS = [
     "snapshots.usage",
     "snapshots.planPrune",
     "snapshots.prune",
+    "compare.resolve",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",

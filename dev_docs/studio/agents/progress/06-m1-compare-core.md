@@ -31,7 +31,7 @@ diverged)) — do not duplicate git queries or nearest-snapshot logic. Gates wit
 
 - [x] 1. Contract and preflight
 - [x] 2. Resolve
-- [ ] 3. RPC and CLI
+- [x] 3. RPC and CLI
 - [ ] 4–11. Renderer (later)
 
 ## Notes
@@ -97,3 +97,60 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
 - Tests (`tests/compare_resolve.rs`, `TempRepo`, in-memory `SideLookup` over `resolve_snapshot`): the plan's six
   names with `should_`; extra `should_compare_a_commit_with_its_first_parent`,
   `should_compare_with_the_shown_commit_else_head`, `should_refuse_a_revision_the_repository_does_not_have`.
+
+### 3. RPC and CLI
+- Api first: method marker `CompareResolve` = `compare.resolve`, **renderer**, `ResolveComparisonParams` →
+  `ResolvedComparison`, registered after `snapshots.prune`. Contract regenerated: 13 new type files (`BaseMode`,
+  `CompareIntent`, `ComparedCommit`, `NearestSnapshot`, `Preflight`, `RefLabel`, `RefLabelKind`,
+  `ResolveComparisonParams`, `ResolveStatus`, `ResolvedComparison`, `ResolvedSide`, `SideStatus`, `SizeVerdict`);
+  `coreApi.ts` and `electron/coreMethods.generated.json` list the method.
+- Core: `compare/project_folder.rs`: `resolve_in_project(&FolderResolver, &params, cancel)` (the store's
+  `FolderResolver` is both the git source and the `SideLookup`, limits are the defaults) and `compared_folder`
+  (`NOT_FOUND` unknown project / folder, `NOT_A_REPOSITORY` plain folder, `FOLDER_UNAVAILABLE` missing).
+- Serve: `serve/compare_routes.rs::resolve` (request cancellation passed through). CLI: `cli/compare.rs`,
+  `compare resolve --project <id> --folder <id> --base <rev> --head <rev> [--json]` sends the `commits` intent
+  (the resolver still orders the two by history) over a read-only store, so it works while the app runs; text
+  output: status, `base  <short>  <label>  exact <id> | nearest <id> <relation> stale by <n> | missing`, the same
+  for `head`, `size  <bytes> bytes <verdict>[  identical][  profiles-differ]`. `wire_name` moved from
+  `cli/snapshots.rs` to `cli/output.rs` to be shared. `core/README.md` lists the command.
+- **Deviations:** the CLI has no `--mode`, `--branch` or `--pr` yet (M2 / M5) and no parent / current flags (the
+  renderer sends those intents); revisions are `Revision` (`HEAD`, a full sha, a full ref name such as
+  `refs/heads/main`), so `main` or a short sha is refused with exit 2.
+- Tests (`codecharta-cored/tests/serve_compare.rs`, project and analysis set up through the CLI with fake-ccsh,
+  then `serve` on the same data folder): `should_resolve_a_comparison_over_json_rpc` (base exact, head nearest
+  `ancestor` stale by 1, identical checksums), `should_answer_an_unknown_folder_an_expression_and_a_plain_folder_with_typed_errors`
+  (`NOT_FOUND`, `BAD_REQUEST` for `HEAD~1`, `NOT_A_REPOSITORY`), `should_print_the_same_resolution_as_json_on_the_command_line`
+  (JSON equals the RPC result; text lines).
+- No changelog entry: nothing a user sees ships before the renderer tasks.
+
+### For the renderer tasks (4–11)
+- Call `compare.resolve { intent, shownCommit }` with `intent` `{ kind: "commits", folder: { projectId, folderId },
+  a, b }`, `{ kind: "withParent", folder, commit }` or `{ kind: "withCurrent", folder, commit }` (revisions: `HEAD`,
+  a full sha, a full ref name); `shownCommit` (a full sha or null) feeds `withCurrent`. It never starts an analysis.
+- Answer `ResolvedComparison { status, baseMode, base, head, preflight }`: `status` `{ kind: "ready" | "sameCommit"
+  | "noCommonAncestor" }`; `baseMode` always `"tip"` in M1; each side `{ requested: { folder, commit, shortCommit,
+  label: { kind: "commit" | "branch" | "tag", name } }, status }` with `status` `{ status: "exact", snapshot }` or
+  `{ status: "missing", nearest: { snapshot, relation: "ancestor" | "descendant" | "diverged", staleBy } | null }`
+  (`snapshot` is the `SnapshotSummary` of `snapshots.list`; its `ref` addresses the map). `preflight
+  { identicalChecksums, profilesDiffer, combinedBytes, sizeVerdict: "ok" | "warn" | "block" }` is computed on the
+  snapshots the sides would show (exact, else nearest).
+- A missing side: ask "Analyse missing / Use nearest" (owner decision); "Use nearest" loads `nearest.snapshot`,
+  "Analyse missing" enqueues `requested.commit` through `analysis.enqueue` / `enqueueBatch`, then resolves again.
+- Errors: `NOT_FOUND` (unknown project / folder), `NOT_A_REPOSITORY` (plain folder), `FOLDER_UNAVAILABLE`
+  (folder missing), `UNKNOWN_REVISION` (unknown revision, or "The commit has no parent to compare with." for a
+  root commit), `BAD_REQUEST` (malformed params, e.g. `HEAD~1`), plus the usual git codes (`GIT_TOO_OLD`,
+  `TOOL_NOT_FOUND`, …).
+
+### For 06-M2..M5
+- Extend `CompareIntent` (`branch`, `changeRequest`, `explicit`), `ResolveStatus` (`alreadyMerged`, `headNotLocal`)
+  and `ResolvedComparison` (`origin`, `baseTip`, `changeRequest`) in `methods/compare.rs`; `pick_pair` /
+  `status_of` in `compare/resolve.rs` are where new intents and statuses go; `BaseMode::MergeBase` exists already.
+- Two folders (`explicit`): `CommitComparison::resolve` takes one `GitFolder` today; `SideLookup::status_of` already
+  takes the side's own `folder`, so only the git part needs a second folder.
+- M3 (missing snapshots): `SideStatus::Missing { nearest }` is what the dialog needs; `staleBy` = `behind +
+  ahead`, `relation` tells older / newer / other branch. Resolutions are cached per repository + commit + snapshot
+  set (05-M5), so resolving again after an analysis is cheap.
+- M4 (changed files): reuse plan 04's `GitService::changed_files` / `git.changedFiles` instead of a new
+  `diff_name_status`.
+- M5: short names (`main`, PR numbers) need their own intent fields; `Revision` accepts only `HEAD`, full shas and
+  full ref names. Size limits stay provisional until 06-M0 task 4.

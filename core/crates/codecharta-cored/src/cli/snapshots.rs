@@ -20,7 +20,7 @@ use serde::Serialize;
 use tokio_util::sync::CancellationToken;
 
 use super::arguments::{parse_commit_sha, parse_folder_id, parse_project_id};
-use super::output::{exit_code_of, print_json};
+use super::output::{exit_code_of, print_json, wire_name};
 
 const UNKNOWN: &str = "-";
 const OTHER_PROFILE: &str = "other-profile";
@@ -227,14 +227,6 @@ fn with_profile(line: String, is_current_profile: bool) -> String {
         return line;
     }
     format!("{line}  {OTHER_PROFILE}")
-}
-
-/// A value as it is written on the wire, so scripts can match it.
-fn wire_name<T: Serialize>(value: &T) -> String {
-    serde_json::to_value(value)
-        .ok()
-        .and_then(|name| name.as_str().map(str::to_string))
-        .unwrap_or_default()
 }
 
 /// Without `--json` only the snapshot id is printed; a note on stderr says when it existed already.

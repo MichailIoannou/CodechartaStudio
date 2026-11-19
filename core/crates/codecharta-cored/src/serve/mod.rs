@@ -1,4 +1,5 @@
 mod analysis_routes;
+mod compare_routes;
 pub mod dispatch;
 pub mod framing;
 mod git_routes;

@@ -33,3 +33,11 @@ pub fn print_json<T: Serialize + ?Sized>(value: &T) -> CoreResult<()> {
     println!("{text}");
     Ok(())
 }
+
+/// A value as it is written on the wire, so scripts can match it.
+pub fn wire_name<T: Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|name| name.as_str().map(str::to_string))
+        .unwrap_or_default()
+}

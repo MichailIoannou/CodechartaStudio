@@ -1,5 +1,6 @@
 mod analyse;
 mod arguments;
+mod compare;
 mod doctor;
 mod git;
 mod output;
@@ -22,6 +23,7 @@ use crate::askpass::run_askpass;
 use crate::serve::serve;
 use analyse::{AnalyseOptions, run_analyse};
 use arguments::{parse_commit_sha, parse_folder_id, parse_project_id};
+use compare::{CompareCommand, run_compare};
 use doctor::{DoctorOptions, run_doctor};
 use git::{GitCommand, run_git};
 use projects::{ProjectsCommand, run_projects};
@@ -92,6 +94,12 @@ pub enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Resolve a comparison of two commits of a project folder to its base, head and their snapshots,
+    /// without the app
+    Compare {
+        #[command(subcommand)]
+        command: CompareCommand,
+    },
     /// Read the git status, branches and history of a project folder or any folder, without the app
     Git {
         #[command(subcommand)]
@@ -138,6 +146,9 @@ pub fn run(cli: Cli) -> ExitCode {
                 run_analyse(core, runtime, options)
             })
         }
+        Command::Compare { command } => run_store_command(data_dir, |core, runtime| {
+            run_compare(core, runtime, command)
+        }),
         Command::Git { command } => {
             run_store_command(data_dir, |core, runtime| run_git(core, runtime, command))
         }

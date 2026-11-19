@@ -10,6 +10,7 @@ use codecharta_core_api::methods::analysis::{
     AnalysisCancel, AnalysisCancelBatch, AnalysisClearFinished, AnalysisEnqueue,
     AnalysisEnqueueBatch, AnalysisList, AnalysisPreflight,
 };
+use codecharta_core_api::methods::compare::CompareResolve;
 use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
@@ -48,8 +49,8 @@ use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
 use super::{
-    analysis_routes, git_routes, projects_routes, prompt_routes, snapshots_routes, store_routes,
-    tools_routes,
+    analysis_routes, compare_routes, git_routes, projects_routes, prompt_routes, snapshots_routes,
+    store_routes, tools_routes,
 };
 
 pub type DispatchResult = Result<Value, ResponseError>;
@@ -225,6 +226,10 @@ const ROUTES: &[Route] = &[
     Route {
         name: SnapshotsPrune::NAME,
         handler: snapshots_routes::prune,
+    },
+    Route {
+        name: CompareResolve::NAME,
+        handler: compare_routes::resolve,
     },
     Route {
         name: AnalysisPreflight::NAME,
