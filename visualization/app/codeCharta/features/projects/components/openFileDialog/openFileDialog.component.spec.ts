@@ -253,6 +253,57 @@ describe("OpenFileDialogComponent", () => {
         ])
     })
 
+    it("should remove the project the search created when the dialog is cancelled", async () => {
+        // Arrange
+        await pickToOpen({
+            pickedImportFile: aPickedImportFile("Downloads", { commitHint: { hash: "a1b2c3d" } }),
+            pickedFolders: [aPickedFolder("billing-api")]
+        })
+        await userEvent.click(screen.getByTestId("open-file-look-elsewhere"))
+        await settle()
+
+        // Act
+        screen.getByTestId("open-file-dialog").dispatchEvent(new Event("close"))
+        await settle()
+
+        // Assert
+        expect(testBed.requestsOf("projects.delete")).toEqual([expect.objectContaining({ permanently: false })])
+        expect(testBed.projects.projects()).toEqual([])
+    })
+
+    it("should keep the project the search created when the file is opened", async () => {
+        // Arrange
+        await pickToOpen({
+            pickedImportFile: aPickedImportFile("Downloads", { commitHint: { hash: "a1b2c3d" } }),
+            pickedFolders: [aPickedFolder("billing-api")],
+            commits: { "f-0000000000000003": [HINT] }
+        })
+        testBed.bridge.respondWith("projects.resolveCommit", { commit: HINT })
+        await userEvent.click(screen.getByTestId("open-file-look-elsewhere"))
+        await settle()
+
+        // Act
+        await submit()
+        screen.getByTestId("open-file-dialog").dispatchEvent(new Event("close"))
+        await settle()
+
+        // Assert
+        expect(testBed.requestsOf("projects.delete")).toEqual([])
+        expect(testBed.projects.projects()).toHaveLength(1)
+    })
+
+    it("should not remove a project when nothing was searched", async () => {
+        // Arrange
+        await pickToOpen({ pickedImportFile: aPickedImportFile("Downloads") })
+
+        // Act
+        screen.getByTestId("open-file-dialog").dispatchEvent(new Event("close"))
+        await settle()
+
+        // Assert
+        expect(testBed.requestsOf("projects.delete")).toEqual([])
+    })
+
     it("should say when the commit is not in the other folder either", async () => {
         // Arrange
         const existingTarget = { projectId: "p-billing", projectName: "billing", folderId: "f-out" }

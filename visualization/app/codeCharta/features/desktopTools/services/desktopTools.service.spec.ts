@@ -149,7 +149,7 @@ describe("DesktopToolsService", () => {
         expect(service.report()).toEqual(FRESH_REPORT)
         expect(bridge.calls.find(call => call.name === "chooseToolExecutable")?.args).toEqual([
             "ccsh",
-            { title: "Choose the ccsh executable", filters: [] }
+            { title: "Choose ccsh", filters: [] }
         ])
     })
 
@@ -164,7 +164,7 @@ describe("DesktopToolsService", () => {
 
         // Assert
         expect(bridge.calls.find(call => call.name === "chooseToolExecutable")?.args[1]).toEqual({
-            title: "Choose the Java executable",
+            title: "Choose Java",
             filters: [{ name: "Programs", extensions: ["exe", "cmd", "bat"] }]
         })
     })

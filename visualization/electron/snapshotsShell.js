@@ -1,7 +1,7 @@
 const { FILE_PICKER, NOTHING_CHOSEN, failure, pickPath } = require("./shellActions")
 const { readRange, realPathOrNull } = require("./shellFiles")
 const path = require("node:path")
-const { isDroppedFileSize, isDroppedMapPath, isMapChunkRange, isReadableMapPath, toDialogOptions } = require("./shellPolicy")
+const { isDroppedMapPath, isMapChunkRange, isReadableMapPath, toDialogOptions } = require("./shellPolicy")
 
 const OPEN_BUTTON = 0
 const CANCEL_BUTTON = 1
@@ -57,12 +57,12 @@ function createSnapshotsShell({ dialog, fs, getWindow, requestCore, platform }) 
     }
 }
 
-async function regularFileSize(fs, filePath) {
+async function isRegularFile(fs, filePath) {
     try {
         const stats = await fs.promises.stat(filePath)
-        return stats.isFile() ? stats.size : null
+        return stats.isFile()
     } catch {
-        return null
+        return false
     }
 }
 
@@ -71,11 +71,7 @@ function createDropShell({ dialog, fs, getWindow, requestCore, platform }) {
         if (!isDroppedMapPath(droppedPath, platform)) {
             return failure("BAD_REQUEST", "Only .cc.json and .cc.json.gz files can be opened.")
         }
-        const sizeBytes = await regularFileSize(fs, droppedPath)
-        if (sizeBytes === null) {
-            return failure("BAD_REQUEST", "The dropped item is not a file that can be read.")
-        }
-        return isDroppedFileSize(sizeBytes) ? null : failure("BAD_REQUEST", "The dropped file is too large to open.")
+        return (await isRegularFile(fs, droppedPath)) ? null : failure("BAD_REQUEST", "The dropped item is not a file that can be read.")
     }
 
     async function isConfirmed(droppedPath) {

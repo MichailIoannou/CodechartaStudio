@@ -64,7 +64,7 @@ export class DesktopToolsService {
 
     async chooseExecutable(tool: ToolId) {
         const name = toolName(tool)
-        const result = await this.bridge.chooseToolExecutable(tool, { title: `Choose the ${name} executable`, filters: pickerFilters() })
+        const result = await this.bridge.chooseToolExecutable(tool, { title: `Choose ${name}`, filters: pickerFilters() })
         if (!("error" in result)) {
             this.showReport(result.value)
             return

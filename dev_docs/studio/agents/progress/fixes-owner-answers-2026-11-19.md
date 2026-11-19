@@ -1,6 +1,6 @@
 ---
 name: Fixes from the owner's answers to O2, O3 and O5 (2026-11-19)
-state: progress
+state: complete
 version: 1
 ---
 
@@ -33,11 +33,28 @@ O6/O7 (02-M7, in progress).
 
 ## Steps
 
-- [ ] 1. Picker title
-- [ ] 2. Custom path not found
-- [ ] 3. Darcula and VS Dark graph palettes
-- [ ] 4. No drop size limit
-- [ ] 5. Cancel removes the just-created project
+- [x] 1. Picker title
+- [x] 2. Custom path not found
+- [x] 3. Darcula and VS Dark graph palettes
+- [x] 4. No drop size limit
+- [x] 5. Cancel removes the just-created project
 
 ## Notes
 
+1. `desktopTools.service.ts`: title is `Choose <tool>` (`Choose git`, `Choose Java`). Spec updated.
+2. The core already reports a missing custom file (`state: missing`, `source: custom`, path set, problem "The
+   chosen file no longer exists."), so `toolRows.ts` derives "Custom path not found: <path>" in the renderer from
+   that combination. A missing tool without a custom path keeps the PATH wording.
+3. New `util/theme/palettes/neutralDependencyGraphs.ts` with `darculaDependencyGraph` and `vsDarkDependencyGraph`
+   (neutral greys matching each chrome, accents taken from the theme's own blue and purple). `buildDarkRenderPalette`
+   and `darkEditorTheme` take an optional graph palette; the other dark themes still share the default. All
+   registry contrast specs stay green. Playwright screenshots of the Dependencies view: in Darcula the boxes are
+   neutral grey (#2b2b2b-ish) on the #2b2b2b chrome with a grey-steel closed folder (ParentLeaf) outlined in
+   Darcula blue; in VS Dark the boxes are near-black greys on #1e1e1e with a muted blue selected box. Neither has
+   the old bluish cast.
+4. Removed `MAX_DROPPED_FILE_BYTES` / `isDroppedFileSize` and their test; the drop shell only checks that the
+   dropped item is a regular file (`isRegularFile`). New test drops a sparse 5 GiB file.
+5. `openFileDialog.component.ts` remembers the project a commit search created for a new-project target and
+   deletes it with `projects.deleteProject` (`permanently: false`, recycle bin) when the dialog closes without
+   opening into it (Cancel, Escape, pick again). Opening into it, or a search that added a folder to an existing
+   project, keeps everything. The `03-projects.md` wording is the designer's.

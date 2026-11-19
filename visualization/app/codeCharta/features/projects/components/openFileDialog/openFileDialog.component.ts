@@ -29,6 +29,7 @@ export class OpenFileDialogComponent {
     private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
     private readonly primaryButton = viewChild.required<ElementRef<HTMLButtonElement>>("primary")
     private readonly projectSelect = viewChild<ElementRef<HTMLSelectElement>>("projectSelect")
+    private projectCreatedBySearch: string | null = null
 
     readonly newProjectValue = NEW_PROJECT_VALUE
     readonly shownFile = signal<PendingFile | null>(null)
@@ -79,6 +80,7 @@ export class OpenFileDialogComponent {
 
     forgetFile() {
         this.openFile.dismiss()
+        void this.discardProjectCreatedBySearch()
     }
 
     showChoices() {
@@ -114,11 +116,13 @@ export class OpenFileDialogComponent {
         if (!hash) {
             return
         }
+        const target = this.target()
         try {
-            const search = await this.openFile.lookInAnotherFolder(this.target(), `Look for commit ${hash} in another folder`)
+            const search = await this.openFile.lookInAnotherFolder(target, `Look for commit ${hash} in another folder`)
             if (!search) {
                 return
             }
+            this.projectCreatedBySearch ??= target.kind === "newProject" && search.target.kind === "folder" ? search.target.projectId : null
             this.target.set(search.target)
             this.resolvedCommit.set(search.commit)
             this.isBound.set(true)
@@ -141,6 +145,7 @@ export class OpenFileDialogComponent {
         }
         this.isOpening.set(true)
         this.failure.set(null)
+        const target = this.target()
         let ref: SnapshotRef
         try {
             ref = await this.submit(picked)
@@ -150,8 +155,24 @@ export class OpenFileDialogComponent {
         } finally {
             this.isOpening.set(false)
         }
+        this.keepProjectCreatedBySearchWhenTargeted(target)
         this.dialog().nativeElement.close()
         await this.openFile.show(ref)
+    }
+
+    private keepProjectCreatedBySearchWhenTargeted(target: OpenFileTarget) {
+        if (target.kind === "folder" && target.projectId === this.projectCreatedBySearch) {
+            this.projectCreatedBySearch = null
+        }
+    }
+
+    private async discardProjectCreatedBySearch() {
+        const projectId = this.projectCreatedBySearch
+        this.projectCreatedBySearch = null
+        if (!projectId) {
+            return
+        }
+        await this.projects.deleteProject(projectId).catch(() => undefined)
     }
 
     private async submit(picked: PickedImportFile): Promise<SnapshotRef> {

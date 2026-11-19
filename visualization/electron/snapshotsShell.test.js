@@ -302,4 +302,19 @@ describe("dropped files", () => {
         assert.deepEqual(answer, picked)
         assert.deepEqual(harness.calls.requests, [{ method: "snapshots.inspectImportFile", params: { path: dropped } }])
     })
+
+    test("should inspect a dropped file bigger than four gibibytes like a picked one", async () => {
+        // Arrange
+        const picked = { ok: true, value: { importToken: "t".repeat(32) } }
+        const harness = createDropHarness({ coreAnswers: { "snapshots.inspectImportFile": picked } })
+        const dropped = path.join(storeRoot, "huge.cc.json")
+        fs.writeFileSync(dropped, "{}")
+        fs.truncateSync(dropped, 5 * 1024 * 1024 * 1024)
+
+        // Act
+        const answer = await harness.openDroppedFile({ path: dropped })
+
+        // Assert
+        assert.deepEqual(answer, picked)
+    })
 })
