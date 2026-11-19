@@ -67,10 +67,10 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
 | 04-M3 History view, branches pane (chip replaced by W1) | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-04-m3 | 5877e3661 (merged into stack 14881e68f, fix 5b2462566) |
 | 04-M4 Commit list with graph, filters, details | UI | done on `feature/studio-stack` (385adc20f; web e2e 176/176) | integration merge: as 03-M2 | feature/studio-04-m4 | 8642672fb |
-| 04-M5 Selection, keyboard, context menu, ports (+ 05-M4 task 5 badges) | UI | in progress (from feature/studio-stack, parallel) | — | feature/studio-04-m5 | — |
+| 04-M5 Selection, keyboard, context menu, ports (+ 05-M4 task 5 badges) | UI | merged into `feature/studio-stack` (1b38f5819), web e2e running | — | feature/studio-04-m5 | 9e5c3d35c |
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
-| 04-M7 Operation queue, progress, prompts | core + UI | core half (tasks 1–4) verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (UI): 04 History UI | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
-| 04-M8 Fetch and branches | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
+| 04-M7 Operation queue, progress, prompts | core + UI | core on the stack; task 5 (prompt dialog) in progress with 04-M8 task 2 (feature/studio-04-m7m8-ui) | — | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
+| 04-M8 Fetch and branches | core + UI | core on the stack; task 2 in progress with 04-M7 task 5 (feature/studio-04-m7m8-ui) | — | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
 | 04-M9 Changes and diff | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
 | 04-M10 Commit | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
 | 04-M11 Pull, push, abort | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
@@ -348,6 +348,14 @@ the milestone is started.
   05-M4's "last asked analysis switches the map". Follow-up bug (not assigned): a folder without a remembered
   snapshot can load twice (newest snapshot, then the resolved one). For 02-M7: keep `<ng-content />` first in
   the toast `<output>` and the notice projected inside `<cc-toast>`.
+- 04-M5 (see `04-M5-selection-menu-ports.md` on the stack): `CommitAction.label` Title Case + optional
+  `detailsLabel`; second selection gets the left primary border; analysed markers with job states winning over
+  snapshots; map locator reads `shownSnapshot` instead of a file-name registry; Check Out / New Branch arrive with
+  04-M8. Plan 06 needs a disabled state on `CommitAction` (C1: disabled "Compare with Parent" for a root commit).
+  CHANGELOG conflict with 05-M5 resolved by keeping 04-M5's broader "Analyses in the app" entry plus "Nearest
+  analysis".
+- Weekly budget 79% at 2026-11-19 13:08 (resets 2026-11-20 13:00): one agent per related group of tasks from now
+  on (e.g. 04-M7 task 5 + 04-M8 task 2 + the "Show in map" action in one agent).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -379,6 +387,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 04-M5 merged into the stack (CHANGELOG conflict resolved); gates: format, tsc, lint, npm test 730/730, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. Renderer of 04-M7 task 5 + 04-M8 task 2 + Show in map started in parallel with the 06-M1 renderer.
 - 2026-11-19: 05-M5 UI merged cleanly into the stack; gates: format, tsc, lint, npm test 722/722, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 06-M1 renderer started in parallel (5-hour 72%, weekly 77%).
 - 2026-11-19: 04-M4 merged into the stack (fake-bridge conflict resolved); gates on the merged stack: format, lint, tsc, npm test 720/720, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 04-M5 (+ history badges) started in parallel with the 05-M5 UI.
 - 2026-11-19: 05-M4 merged into the stack with conflicts resolved and ported; gates on the merged stack: cargo with and without features 844/848, contract drift, format, lint, tsc, npm test 708/708, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 05-M5 UI started in parallel (weekly usage 75%: two UI agents at a time).
