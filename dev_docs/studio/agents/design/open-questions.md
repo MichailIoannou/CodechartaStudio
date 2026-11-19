@@ -122,3 +122,12 @@ answer that differs means the named file is changed, nothing else.
   for commit… in another folder" creates the new project as soon as the folder is picked, so cancelling
   afterwards keeps that project — acceptable? Store change has no confirmation step (per the design) and
   no relaunch (OD5: the core swaps the store live).
+
+- **O6 (2026-11-19). Metrics bar refresh (02-M7), two points for sign-off.**
+  1. The Dependencies view had a rotated LEGEND tab too; 02-M7 replaced it with a Legend tool in the
+     dependency bar, like the metrics and domain bars. `02-themes.md` T4 names only the metrics and domain bars.
+     Keep it?
+  2. The open legend used to cover the bar's right end (including the new Legend tool), so it now opens above
+     the bar. Acceptable?
+  Also noted: the blend width in the file extension bar is `min(12px, 100%/3)` per side because the design's
+  "narrower than 48 px" rule contradicts its own numbers at exactly 48 px.
