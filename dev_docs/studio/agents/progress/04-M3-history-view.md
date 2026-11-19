@@ -1,6 +1,6 @@
 ---
 name: 04-M3 history view, branches pane
-state: progress
+state: complete
 version: 1
 ---
 
@@ -38,12 +38,155 @@ metrics bar / file extension bar / toasts at the same time. Keep changes to shar
 
 ## Steps
 
-- [ ] 1. Tidy first
-- [ ] 2. Route
-- [ ] 3. Repository state
-- [ ] 4. Panel shell
-- [ ] 5. Branches tree
+- [x] 1. Tidy first
+- [x] 2. Route
+- [x] 3. Repository state
+- [x] 4. Panel shell
+- [x] 5. Branches tree
 - [x] 6. Branch chip — replaced by the design (W1)
 
 ## Notes
+
+Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/studio-04-m3` from `feature/studio-stack`
+(`974d2d0e7`).
+
+### 1. Tidy first
+- `JUMP_TARGETS` is `Partial<Record<ViewId, JumpTarget>>`; `jumpTargets` keeps the views that have one.
+  `ViewTab.hasModes` (all `true` in this commit); `openModeBar` previews nothing for a tab without modes and
+  `isModeBarHandleShown` hides the handle while such a view is active (design proposed change 1).
+
+### 2. Route
+- `routePaths.history = "history"`, lazy route without `showSpinnerBeforeBuildingView` (the history never calls
+  `markReady`), `views/historyView` (`cc-history-view`, host classes per H3). Web build: the H1 sentence and "Show
+  the map"; no tab (availability is false without a bridge).
+- The four `ViewId` tables: `VIEW_TABS` (+ `hasModes: false`), `isViewAvailable.history`, `groupLabels.history`,
+  `DRAWING_PHASE_OF_VIEW.history`; `JUMP_TARGETS` has no history entry.
+- `GitHistoryAvailability.isAvailable` = desktop and the active project has a folder of kind `git` (design deviation
+  1, not the plan's "a project is active"). It also leaves History for the metrics view (`replaceUrl`) when the
+  history is lost while shown; in the web build the route stays (it explains the desktop app). The plan's test
+  "leaves History when the project closes" moved here from task 3.
+- **Dependency direction (deviation).** The plan has `features/gitHistory` read `ProjectsService`; but the projects
+  feature shows git state (P1, P3, and later H5 on the overview card), and features may not form cycles. So
+  `projects → gitHistory`, and git reads the projects through the port `ports/workingFolderSource.port.ts`
+  (`WORKING_FOLDER_SOURCE { activeProject, workingFolder }`), provided in `app.config.ts` as
+  `useExisting: ProjectsFacade` (which now exposes those two signals). Without a provider (web, specs) the source is
+  empty.
+- Shared files touched: `app.config.ts` (route + one provider), `viewSwitcher.component.ts|html`,
+  `viewModeBar.component.ts`, `loadingFileProgressSpinner.service.ts`, `nodeContextMenu.component.ts`, `routePaths.ts`,
+  `projectsFacade.ts`.
+
+### 3. Repository state
+- `services/gitApi.service.ts` (the only `git.*` caller; `GitResult<T>`; RPC errors → `GitError { code, message,
+  detail, repositoryPath }` from `details.detail` / `details.repositoryPath`; a rejected request or a missing bridge
+  → `COMMAND_FAILED` with its text). `model/loadState.ts`, `model/gitError.ts`, `services/gitApi.mocks.ts`.
+- `services/gitRepository.service.ts` (`GitRepositoryService`): `activeRepository` follows the working folder (OD1,
+  design deviation 3; no `selectFolder`, no `activeFolder.repo.ts` — the plan's tests "opens the first repository
+  folder" / "remembers the folder per project" became "opens the working folder" / "follows the working folder").
+  `repository`, `status`, `refs` (`LoadState`), `isRefreshing`, `refresh("manual" | "focus" | "afterWrite")`;
+  `repository.changed` reloads the named parts (`workingTree` counts as status). Late answers are dropped per part
+  (a ticket per repository / status / refs read) rather than by one generation counter, so a refs-only change does
+  not orphan a status read in flight. A re-linked folder (same id, new path or status) is read again.
+  Focus: window `focus`, at most every `FOCUS_REFRESH_THROTTLE_MS = 5 s` (plan 4.7), `git.status` +
+  `git.refsFingerprint`, refs re-read only on a new fingerprint; while the repository has a problem a focus re-reads
+  everything (git may have been installed meanwhile).
+- **`FolderGitService` taken over (moved, not delegated).** Its cache and calls now live in `GitRepositoryService`
+  (`statusOf`, `refreshFolders` (was `refresh`), `recentCommits`, `RECENT_COMMIT_COUNT`), built on `GitApiService`;
+  the status read for the working folder also fills that cache. `features/projects/services/folderGit.service.ts`
+  and its spec are gone; P1, P3 and the working-folder card inject `GitRepositoryService` from the git facade.
+  The projects overview keeps its own 10 s focus refresh of the folder rows.
+- Fake bridge: the 04-M1 seed `git?: Record<folderId, FakeGitRepository { info, status, refs, commits, failures }>`
+  answers `git.repositoryInfo`, `git.status`, `git.branches`, `git.refsFingerprint`, `git.log`; a missing value is
+  `NOT_A_REPOSITORY`, `failures[method]` fails one method. 03-M5's `gitStatuses` / `gitLogs` stay as shorthands folded
+  into `git` (no projects spec had to change).
+
+### 4. Panel shell and problems
+- Structural commit first: `util/wording.ts` (kernel) takes `counted`, `shortSha`, `relativeTime` from
+  `features/projects/util/folderWording.ts`, which re-exports them (git cannot import the projects feature).
+- `components/gitHistoryPanel` (`cc-git-history-panel`): H4 toolbar, then either the H6 problem notice or the shallow
+  notice and the three H3 islands (`bg-base-200 p-1.5 gap-1.5`, panes `rounded-[10px] bg-base-100`), side panes with
+  `ccColumnResizeHandle` (drag, arrow keys, double-click resets) and the collapse strip (2.5 rem, `fa-code-branch`
+  "Expand branches", `fa-circle-info` "Expand details"). F5 inside the panel refreshes (`stopPropagation`).
+- `services/historyLayout.service.ts` + `repos/historyLayout.repo.ts` (`codeChartaHistoryLayout`): widths 260
+  (180–480) and 380 (280–640), clamped; collapsed group ids; below `xl` (1280 px) both side panes start collapsed
+  unless the user chose otherwise — only a user's choice is stored, so a narrow start does not stick.
+- `components/historyToolbar` (H4 without the sync button and the tabs): "Repository" caption (hidden below `xl`),
+  working-folder label with the design's `title`, "on" + branch (`max-w-32 xl:max-w-56`) as a button that scopes the
+  commit list, detached "at `a1b2c3d` (detached)", "merging"/"rebasing" badge, Refresh (`fa-spin` while refreshing).
+- `components/gitProblemNotice` + `util/gitErrorText.ts`: the six H6 notices by error code (`TOOL_NOT_FOUND`,
+  `GIT_TOO_OLD`, `NOT_A_REPOSITORY`, `NOT_FOUND`/`FOLDER_UNAVAILABLE`, `DUBIOUS_OWNERSHIP`, `BARE_REPOSITORY`) with the
+  copy block for `git config --global --add safe.directory <path>` (`details.repositoryPath`, else the folder path).
+  `gitErrorSentence` has the read-relevant H6 sentences (`indexLocked`, `timeout`, `commandFailed`/others).
+- `services/gitLog.service.ts` (`GitLogService`): only the scope for now (`scope`, `scopedRefNames`, `scopeTo(ref,
+  { isAdded })`, `showAllBranches`; back to All when the repository changes); M4 adds the pages.
+  `components/commitScopeChip`: "All branches" or the scoped refs with `fa-xmark` "Show all branches".
+- The view composes what the panel cannot import: `cc-relink-folder` (projects facade now exports
+  `RelinkFolderComponent`) and `cc-global-configuration-dialog` (globalSettings imports projects, so git may not
+  import it); the panel only emits `relinkFolder` / `openDesktopTools`.
+- **Design gaps, not improvised:**
+  - "Open desktop tools" opens the Global Configuration dialog; it has no way to jump to its desktop-tools section.
+  - `notARepository`'s "folder select if another git folder exists" is not offered: design deviation 3 says History has
+    no folder select (the project menu chooses the working folder). Open for the owner which one wins.
+  - `gitTooOld`: the core names the version only in its message ("git 2.30.9 is older than the minimum 2.31.0."), so
+    the renderer reads it from there and shows the core's sentence when it cannot.
+  - Merge / rebase / other-operation banners are not built: they need "Abort merge…" (M11) and the branch being
+    rebased, which git reports as a detached head and the core does not expose. The toolbar badge shows the state.
+    The slow-first-page banner belongs to the commit list (M4).
+  - Tabs **Log** / **Changes** and the sync button (H5) are not shown: Changes comes with M9, sync with M8 (plan: unbuilt
+    features are not shown). The commits pane has its header and scope chip, the list comes with M4; the details pane
+    shows the "nothing selected" sentence.
+  - A refs failure that is not a repository-level problem shows inside the branches pane (task 5) as
+    `alert alert-error text-xs` with the H6 sentence and "Retry", borrowed from H9's error state, because error toasts
+    with Details (deviation 4) do not exist on this branch yet.
+
+### 5. Branches tree
+- `util/branchTree.ts`: `buildBranchTree(refs)` → groups Local (n), Remote (one subgroup per remote, `origin (n)`),
+  Tags (n); Remote / Tags absent when empty. `branchRows(tree, { filter, toggledIds, uncappedIds })` flattens to rows
+  (`all`, `group`, `folder`, `ref`, `showAll`). A "/" opens a folder only where two or more refs share it (H7's
+  example keeps `feature/invoice-rounding` as one row and nests `release/`). Defaults: groups open, Tags closed,
+  folders closed except the one holding the current branch; the layout key stores the ids toggled against that
+  default (`toggledGroups`, renamed from `collapsedGroups`). Filter: case-insensitive substring over the full name
+  (`origin/main` for remote branches), groups without a hit hide, parents of a hit stay open. Remote subgroups and
+  Tags stop after `GROUP_ROW_CAP = 200` refs with "Show all <n>" (`btn btn-link btn-xs`).
+- `components/branchesTree` (`cc-branches-tree`): filter input, "All branches" row, 24 px rows (`h-6 rounded-md
+  hover:bg-base-200`), current branch `fa-check text-primary` + bold, `fa-arrow-up n` / `fa-arrow-down n` chips (icons,
+  not Unicode arrows, principles §5), `badge badge-warning badge-xs` "gone", worktree `fa-regular fa-folder-open`
+  "Checked out in <path>", row `title` = full ref + "Last commit: <subject>, <relative date>". Click scopes
+  (`GitLogService.scopeTo`), Ctrl/Shift/Cmd+click adds, the scoped row is `bg-primary/20 font-semibold`; group / folder
+  click toggles. `role="tree"` with `aria-activedescendant`: ↑/↓, → opens or enters, ← closes or goes to the parent,
+  Enter scopes; handled keys `stopPropagation`. Empty: "No commits yet."; no hit: "No branch matches 'xyz'.".
+- Not built here: double-click switch (H15, M8) and the branch context menu (H10, M5/M8).
+
+### E2E, changelog, screenshots
+- `features/gitHistory/e2e/gitHistory.e2e.ts|.po.ts` (web suite, stand-in bridge): open History from its tab and scope
+  to a clicked branch; the dubious-ownership notice with its command; no tab without a bridge and the desktop-only
+  sentence at `#/history`.
+- Changelog (Added): **Git branches** — the plan's sentence without "in the top bar" (no branch chip, H2 → W1).
+- Screenshots (Playwright, stand-in bridge with branches feature/invoice-rounding ↑2 ↓1, main ↓4, release/2.4 and
+  2.5, old-experiment gone, remotes origin (3) and fork (1), two tags; 1600×900 and 1100×900; cc-dark and cc-light;
+  scratch spec, not committed): toolbar "Repository  ⎇ billing-api  on ⎇ feature/invoice-rounding … ⟳" as the
+  mock-up; islands with 6 px backdrop; tree as H7 (LOCAL (5), release/ folded, gone badge, REMOTE with origin / fork,
+  TAGS (2) closed). 1100 px: both side panes start as strips, "Repository" and "on" hide, the branch truncates.
+  Problem notices (no git, too old, missing folder with "Re-link folder…", not a repository, dubious ownership with
+  the copy block, bare) centred with the warning icon, in both themes; refs failure: red alert with Retry in the
+  branches pane. Seen: the scoped row's `bg-primary/20` is faint on cc-dark (it is the design's class, as the
+  explorer's revealed row); the commits pane is empty until M4.
+
+### Gates (final)
+See the final commit: format:check clean; npm test green with the coverage gate; lint (depcruise, styles, knip)
+clean; tsc clean; build ok; e2e:ci on a temporary port 9032 with the chromium channel (both reverted, port 9009 held
+by another worktree): 171/172, the failure `navBarFolderButton.e2e.ts` "should load sample cc.json files" was Playwright
+failing to write its trace file (`browserContext.close: ENOENT … .trace`) and passed rerun alone (11/11); test:electron 69/69; e2e:desktop 14/14 with the core built into
+`core/target/studio-04-m3`.
+
+### For 04-M4 (commit list with graph)
+- `GitLogService` exists with `scope`, `scopedRefNames`, `scopeTo`, `showAllBranches` (reset per repository); add the
+  pages, filter, `graphRows` there. `GitApiService.log` exists. The commits pane in `gitHistoryPanel.component.html`
+  has its header (`COMMITS` + `cc-commit-scope-chip`); put the filters, column header and list below it. The details
+  pane holds the "nothing selected" sentence.
+- Refresh hooks: `GitRepositoryService.refs()` changes on every refs reload (fingerprint in `refs().value`); restart the
+  log at page one when it changes. `repository.changed` is already handled for status/refs.
+- Fake bridge: `git[folderId].commits` answers `git.log` with one page (`nextCursor: null`); extend the seed there for
+  paging. Builders in `services/gitApi.mocks.ts`; spec test bed `services/gitHistoryTestBed.mocks.ts`.
+- Projects depend on gitHistory (not the reverse): git reads the projects only through `WORKING_FOLDER_SOURCE`;
+  anything git needs from projects/globalSettings goes through the view (`historyView`) as an output.
 

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from "@angular/core"
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
-import { FolderGitService, isGitStatus } from "../../services/folderGit.service"
+import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, changesSentence, relativeTime, remoteDisplay, shortSha, upstreamState } from "../../util/folderWording"
 
@@ -13,7 +13,7 @@ import { branchLabel, changesSentence, relativeTime, remoteDisplay, shortSha, up
 })
 export class WorkingFolderCardComponent {
     private readonly projects = inject(ProjectsService)
-    private readonly folderGit = inject(FolderGitService)
+    private readonly gitRepository = inject(GitRepositoryService)
 
     readonly folder = input.required<ProjectFolder>()
     readonly lastCommit = input<GitCommitSummary | null>(null)
@@ -21,7 +21,7 @@ export class WorkingFolderCardComponent {
     readonly relink = output<void>()
 
     readonly projectId = computed(() => this.projects.activeProject()?.id ?? "")
-    readonly gitStatus = computed(() => this.folderGit.statusOf({ projectId: this.projectId(), folderId: this.folder().id }))
+    readonly gitStatus = computed(() => this.gitRepository.statusOf({ projectId: this.projectId(), folderId: this.folder().id }))
     readonly status = computed(() => {
         const status = this.gitStatus()
         return isGitStatus(status) ? status : null

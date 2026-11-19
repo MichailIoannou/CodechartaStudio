@@ -5,8 +5,8 @@ import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import type { ProjectSummary } from "../../../../model/coreApi/ProjectSummary"
 import type { SnapshotSummary } from "../../../../model/coreApi/SnapshotSummary"
 import type { StoreProblemCode } from "../../../../model/coreApi/StoreProblemCode"
+import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
 import { StoreFolderService } from "../../../desktopTools/facade"
-import { FolderGitService, isGitStatus } from "../../services/folderGit.service"
 import { OpenFileService } from "../../services/openFile.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted, relativeTime, shortSha } from "../../util/folderWording"
@@ -56,7 +56,7 @@ interface FolderRow {
 })
 export class ProjectOverviewComponent {
     private readonly projects = inject(ProjectsService)
-    private readonly folderGit = inject(FolderGitService)
+    private readonly gitRepository = inject(GitRepositoryService)
     private readonly openFileService = inject(OpenFileService)
     private readonly storeFolder = inject(StoreFolderService)
     private lastRefreshAt = 0
@@ -146,9 +146,9 @@ export class ProjectOverviewComponent {
         const gitFolders = project.folders.filter(candidate => candidate.kind === "git" && candidate.status === "ok")
         const workingRef = folder?.kind === "git" && folder.status === "ok" ? { projectId: project.id, folderId: folder.id } : null
         const [commits, usage] = await Promise.all([
-            workingRef ? this.folderGit.recentCommits(workingRef) : Promise.resolve(null),
+            workingRef ? this.gitRepository.recentCommits(workingRef) : Promise.resolve(null),
             this.projects.readStoreUsage().catch(() => null),
-            this.folderGit.refresh(gitFolders.map(candidate => ({ projectId: project.id, folderId: candidate.id })))
+            this.gitRepository.refreshFolders(gitFolders.map(candidate => ({ projectId: project.id, folderId: candidate.id })))
         ])
         this.commits.set(commits)
         this.storeBytes.set(usage?.folders.find(entry => entry.folderId === folder?.id)?.bytes ?? null)
@@ -193,7 +193,7 @@ export class ProjectOverviewComponent {
         if (folder.kind === "plain") {
             return "plain folder"
         }
-        const status = this.folderGit.statusOf({ projectId, folderId: folder.id })
+        const status = this.gitRepository.statusOf({ projectId, folderId: folder.id })
         return isGitStatus(status) ? branchLabel(status) : "…"
     }
 }

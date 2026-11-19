@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, ElementRef, HostListener,
 import type { FolderRef } from "../../../../model/coreApi/FolderRef"
 import type { ProjectSummary } from "../../../../model/coreApi/ProjectSummary"
 import type { ProjectSummaryFolder } from "../../../../model/coreApi/ProjectSummaryFolder"
-import { FolderGitService, isGitStatus } from "../../services/folderGit.service"
+import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
 import { OpenFileService } from "../../services/openFile.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted } from "../../util/folderWording"
@@ -38,7 +38,7 @@ interface MenuProject {
 })
 export class ProjectSwitcherComponent {
     private readonly projects = inject(ProjectsService)
-    private readonly folderGit = inject(FolderGitService)
+    private readonly gitRepository = inject(GitRepositoryService)
     private readonly openFileService = inject(OpenFileService)
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
     private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>("trigger")
@@ -184,7 +184,7 @@ export class ProjectSwitcherComponent {
         const refs: FolderRef[] = folders
             .filter(folder => folder.kind === "git" && folder.status === "ok")
             .map(folder => ({ projectId, folderId: folder.id }))
-        return this.folderGit.refresh(refs)
+        return this.gitRepository.refreshFolders(refs)
     }
 
     private menuProject(project: ProjectSummary): MenuProject {
@@ -205,7 +205,7 @@ export class ProjectSwitcherComponent {
         if (folder.kind !== "git" || folder.status !== "ok") {
             return null
         }
-        const status = this.folderGit.statusOf({ projectId, folderId: folder.id })
+        const status = this.gitRepository.statusOf({ projectId, folderId: folder.id })
         if (status === undefined) {
             return UNKNOWN_BRANCH
         }

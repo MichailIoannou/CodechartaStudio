@@ -1,0 +1,105 @@
+<cc-history-toolbar />
+@if (problemNotice(); as notice) {
+    <cc-git-problem-notice [notice]="notice" (relinkFolder)="relinkWorkingFolder()" (openDesktopTools)="openDesktopTools.emit()" />
+} @else {
+    @if (isShallowNoticeShown()) {
+        <div role="status" class="alert alert-info mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="history-shallow-notice">
+            <span class="flex-1">Shallow clone: history is cut off, counts are lower bounds.</span>
+            <button type="button" class="btn btn-ghost btn-xs btn-square" title="Dismiss" aria-label="Dismiss" (click)="dismissShallowNotice()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    }
+    <div class="flex min-h-0 flex-1 gap-1.5 bg-base-200 p-1.5">
+        @if (layout.isBranchesCollapsed()) {
+            <section class="flex w-10 shrink-0 flex-col items-center rounded-[10px] bg-base-100 py-1" aria-label="Branches">
+                <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    title="Expand branches"
+                    aria-label="Expand branches"
+                    data-testid="history-expand-branches"
+                    (click)="layout.toggleCollapsed('branches')"
+                >
+                    <i class="fa-solid fa-code-branch"></i>
+                </button>
+            </section>
+        } @else {
+            <section
+                class="relative flex shrink-0 flex-col overflow-hidden rounded-[10px] bg-base-100"
+                [style.width.px]="layout.branchesWidth()"
+                aria-label="Branches"
+                data-testid="history-branches-pane"
+            >
+                <div class="flex items-center justify-between border-b border-base-300 px-2 py-2">
+                    <span class="text-xs font-semibold uppercase tracking-wide">Branches</span>
+                    <button
+                        type="button"
+                        class="btn btn-ghost btn-xs btn-square"
+                        title="Collapse branches"
+                        aria-label="Collapse branches"
+                        data-testid="history-collapse-branches"
+                        (click)="layout.toggleCollapsed('branches')"
+                    >
+                        <i class="fa fa-angle-double-left"></i>
+                    </button>
+                </div>
+                <cc-branches-tree />
+                <div
+                    ccColumnResizeHandle="right"
+                    (widthChange)="layout.resize('branches', $event)"
+                    (resizeEnd)="layout.save()"
+                    (widthReset)="layout.resetWidth('branches')"
+                ></div>
+            </section>
+        }
+        <section class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] bg-base-100" aria-label="Commits">
+            <div class="flex items-center gap-2 border-b border-base-300 px-2 py-2">
+                <span class="text-xs font-semibold uppercase tracking-wide">Commits</span>
+                <cc-commit-scope-chip />
+            </div>
+        </section>
+        @if (layout.isDetailsCollapsed()) {
+            <section class="flex w-10 shrink-0 flex-col items-center rounded-[10px] bg-base-100 py-1" aria-label="Details">
+                <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    title="Expand details"
+                    aria-label="Expand details"
+                    data-testid="history-expand-details"
+                    (click)="layout.toggleCollapsed('details')"
+                >
+                    <i class="fa-solid fa-circle-info"></i>
+                </button>
+            </section>
+        } @else {
+            <section
+                class="relative flex shrink-0 flex-col overflow-hidden rounded-[10px] bg-base-100"
+                [style.width.px]="layout.detailsWidth()"
+                aria-label="Details"
+                data-testid="history-details-pane"
+            >
+                <div class="flex items-center justify-between border-b border-base-300 px-2 py-2">
+                    <span class="text-xs font-semibold uppercase tracking-wide">Details</span>
+                    <button
+                        type="button"
+                        class="btn btn-ghost btn-xs btn-square"
+                        title="Collapse details"
+                        aria-label="Collapse details"
+                        data-testid="history-collapse-details"
+                        (click)="layout.toggleCollapsed('details')"
+                    >
+                        <i class="fa fa-angle-double-right"></i>
+                    </button>
+                </div>
+                <p class="p-4 text-sm text-base-content/60">Select a commit to see its details.</p>
+                <div
+                    ccColumnResizeHandle="left"
+                    (widthChange)="layout.resize('details', $event)"
+                    (resizeEnd)="layout.save()"
+                    (widthReset)="layout.resetWidth('details')"
+                ></div>
+            </section>
+        }
+    </div>
+}

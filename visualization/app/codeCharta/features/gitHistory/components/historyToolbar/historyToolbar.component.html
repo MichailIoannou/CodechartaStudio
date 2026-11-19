@@ -1,0 +1,37 @@
+<span class="hidden text-xs text-base-content/60 xl:inline">Repository</span>
+<span class="inline-flex shrink-0 items-center gap-1.5 font-medium" [title]="repositoryTitle()" data-testid="history-repository">
+    <i class="fa-solid fa-code-branch"></i>
+    {{ folderLabel() }}
+</span>
+@if (head(); as head) {
+    @if (head.kind === "branch") {
+        <button
+            type="button"
+            class="btn btn-ghost btn-sm min-w-0 gap-1.5 px-1 font-normal"
+            [title]="head.name"
+            data-testid="history-current-branch"
+            (click)="scopeToCurrentBranch()"
+        >
+            <span class="hidden xl:inline">on</span>
+            <i class="fa-solid fa-code-branch"></i>
+            <span class="max-w-32 truncate font-medium xl:max-w-56">{{ head.name }}</span>
+        </button>
+    } @else {
+        <span class="text-sm" data-testid="history-current-branch">
+            at <span class="font-mono">{{ detachedAt() }}</span> (detached)
+        </span>
+    }
+    @if (operationBadge(); as badge) {
+        <span class="badge badge-warning badge-xs">{{ badge }}</span>
+    }
+}
+<button
+    type="button"
+    class="btn btn-ghost btn-sm btn-square ml-auto"
+    title="Refresh (F5)"
+    aria-label="Refresh (F5)"
+    data-testid="history-refresh"
+    (click)="refresh()"
+>
+    <i class="fa-solid fa-rotate" [class.fa-spin]="isRefreshing()"></i>
+</button>

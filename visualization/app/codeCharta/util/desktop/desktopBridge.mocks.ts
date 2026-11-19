@@ -3,6 +3,8 @@ import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
 import type { FolderRef } from "../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../model/coreApi/FolderRole"
 import type { GitCommitSummary } from "../../model/coreApi/GitCommitSummary"
+import type { GitRefs } from "../../model/coreApi/GitRefs"
+import type { GitRepositoryInfo } from "../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../model/coreApi/GitStatus"
 import type { NewFolder } from "../../model/coreApi/NewFolder"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
@@ -26,6 +28,17 @@ type FakeAnswerKey =
     | "setColorScheme"
     | "restartCore"
 
+type FakeGitMethod = "git.repositoryInfo" | "git.status" | "git.branches" | "git.refsFingerprint" | "git.log"
+
+/** What the fake answers for one folder; a method without a value fails with `NOT_A_REPOSITORY`. */
+interface FakeGitRepository {
+    info?: GitRepositoryInfo
+    status?: GitStatus
+    refs?: GitRefs
+    commits?: GitCommitSummary[]
+    failures?: Partial<Record<FakeGitMethod, ErrorPayload>>
+}
+
 export interface FakeDesktopSeed {
     protocolVersion?: number
     coreState?: CoreState
@@ -37,6 +50,9 @@ export interface FakeDesktopSeed {
     pickedFolders?: PickedFolder[]
     pickedImportFile?: PickedImportFile
     snapshotMaps?: Record<string, number[]>
+    /** By folder id. */
+    git?: Record<string, FakeGitRepository>
+    /** Shorthands for `git` with only a status or only commits. */
     gitStatuses?: Record<string, GitStatus>
     gitLogs?: Record<string, GitCommitSummary[]>
     commits?: Record<string, ResolvedCommit[]>
@@ -102,10 +118,15 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         pickedImportFiles: new Map<string, PickedImportFile>(),
         importedContent: new Map<string, FolderRef & { snapshotId: string }>(),
         snapshotMaps: { ...seed.snapshotMaps },
-        gitStatuses: { ...seed.gitStatuses },
-        gitLogs: { ...seed.gitLogs },
+        git: JSON.parse(JSON.stringify(seed.git ?? {})) as Record<string, FakeGitRepository>,
         commits: { ...seed.commits },
         createdIds: 0
+    }
+    for (const [folderId, status] of Object.entries(seed.gitStatuses ?? {})) {
+        store.git[folderId] = { ...store.git[folderId], status }
+    }
+    for (const [folderId, commits] of Object.entries(seed.gitLogs ?? {})) {
+        store.git[folderId] = { ...store.git[folderId], commits }
     }
 
     const succeed = (value: unknown): FakeAnswer => ({ ok: true, value })
@@ -519,16 +540,23 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return succeed({ totalBytes: folders.reduce((total, folder) => total + folder.bytes, 0), folders })
     }
 
-    function seededGitAnswer(answers: Record<string, unknown>, params: FakeRequestParams) {
-        const folderId = params.repo?.folderId ?? ""
-        return Object.hasOwn(answers, folderId)
-            ? succeed(JSON.parse(JSON.stringify(answers[folderId])))
-            : refuse("NOT_A_REPOSITORY", `The fake desktop bridge has no repository for ${folderId}.`)
+    function gitAnswer(method: FakeGitMethod, read: (repository: FakeGitRepository) => unknown) {
+        return (params: FakeRequestParams): FakeAnswer => {
+            const folderId = params.repo?.folderId ?? ""
+            const repository = Object.hasOwn(store.git, folderId) ? store.git[folderId] : undefined
+            const failure = repository?.failures?.[method]
+            if (failure) {
+                return { ok: false, error: failure }
+            }
+            const value = repository ? read(repository) : undefined
+            return value === undefined
+                ? refuse("NOT_A_REPOSITORY", `The fake desktop bridge has no repository for ${folderId}.`)
+                : succeed(JSON.parse(JSON.stringify(value)))
+        }
     }
 
-    function gitLog(params: FakeRequestParams) {
-        const answer = seededGitAnswer(store.gitLogs, params)
-        return answer.ok ? succeed({ commits: answer.value, nextCursor: null, isGraphAvailable: true }) : answer
+    function gitLogPage(repository: FakeGitRepository) {
+        return repository.commits && { commits: repository.commits, nextCursor: null, isGraphAvailable: true }
     }
 
     const backend: Partial<Record<FakeAnswerKey, (params: FakeRequestParams) => FakeAnswer>> = {
@@ -559,8 +587,11 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "snapshots.move": moveSnapshot,
         "snapshots.readMapChunk": readMapChunk,
         "snapshots.usage": storeUsage,
-        "git.status": params => seededGitAnswer(store.gitStatuses, params),
-        "git.log": gitLog
+        "git.repositoryInfo": gitAnswer("git.repositoryInfo", repository => repository.info),
+        "git.status": gitAnswer("git.status", repository => repository.status),
+        "git.branches": gitAnswer("git.branches", repository => repository.refs),
+        "git.refsFingerprint": gitAnswer("git.refsFingerprint", repository => repository.refs?.fingerprint),
+        "git.log": gitAnswer("git.log", gitLogPage)
     }
 
     function answerFromBackend(method: BridgeMethod, params: unknown) {

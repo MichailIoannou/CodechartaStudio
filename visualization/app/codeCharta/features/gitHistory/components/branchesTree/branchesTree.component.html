@@ -1,0 +1,102 @@
+<div class="px-2 py-2">
+    <input
+        type="text"
+        class="input input-bordered input-sm w-full"
+        placeholder="Filter branches"
+        aria-label="Filter branches"
+        data-testid="branches-filter"
+        [value]="filter()"
+        (input)="filter.set($any($event.target).value)"
+    />
+</div>
+@if (refsFailure(); as sentence) {
+    <div role="alert" class="alert alert-error mx-2 mb-2 flex px-2 py-1 text-xs" data-testid="branches-failure">
+        <span class="flex-1">{{ sentence }}</span>
+        <button type="button" class="btn btn-ghost btn-xs" (click)="retry()">Retry</button>
+    </div>
+}
+<div
+    role="tree"
+    aria-label="Branches"
+    tabindex="0"
+    class="group min-h-0 flex-1 overflow-auto px-1 pb-1 outline-none"
+    data-testid="branches-tree"
+    [attr.aria-activedescendant]="activeDescendant()"
+    (keydown)="onKeydown($event)"
+>
+    @for (row of rows(); track row.id) {
+        <div
+            role="treeitem"
+            [id]="rowElementId(row)"
+            class="flex h-6 cursor-pointer select-none items-center gap-1.5 whitespace-nowrap rounded-md pr-2 text-sm hover:bg-base-200"
+            [class]="rowStateClass(row)"
+            [style.padding-left.rem]="indentOf(row)"
+            [attr.aria-level]="row.depth + 1"
+            [attr.aria-selected]="isScoped(row)"
+            [attr.aria-expanded]="row.kind === 'group' || row.kind === 'folder' ? row.isExpanded : null"
+            [attr.data-row-id]="row.id"
+            (click)="activate(row, $event)"
+        >
+            @switch (row.kind) {
+                @case ("all") {
+                    <i class="fa-regular fa-circle-dot fa-fw"></i>
+                    <span class="truncate">All branches</span>
+                }
+                @case ("group") {
+                    <i class="fa-solid fa-fw" [class.fa-caret-down]="row.isExpanded" [class.fa-caret-right]="!row.isExpanded"></i>
+                    @if (row.isRemote) {
+                        <i class="fa-solid fa-cloud fa-fw text-base-content/60"></i>
+                        <span class="truncate">{{ row.label }}</span>
+                        <span class="text-xs tabular-nums text-base-content/60">({{ row.count }})</span>
+                    } @else {
+                        <span class="truncate text-xs font-semibold uppercase tracking-wide text-base-content/60">
+                            {{ row.label }}
+                            @if (row.count !== null) {
+                                ({{ row.count }})
+                            }
+                        </span>
+                    }
+                }
+                @case ("folder") {
+                    <i class="fa-solid fa-fw" [class.fa-caret-down]="row.isExpanded" [class.fa-caret-right]="!row.isExpanded"></i>
+                    <span class="truncate">{{ row.label }}</span>
+                }
+                @case ("ref") {
+                    @if (row.ref.local?.isCurrent) {
+                        <i class="fa-solid fa-check fa-fw text-primary"></i>
+                    } @else if (row.ref.kind === "tag") {
+                        <i class="fa-solid fa-tag fa-fw text-base-content/60"></i>
+                    } @else {
+                        <i class="fa-solid fa-code-branch fa-fw text-base-content/60"></i>
+                    }
+                    <span class="truncate" [class.font-semibold]="row.ref.local?.isCurrent" [title]="titleOf(row.ref)">{{ row.label }}</span>
+                    @if (row.ref.local?.checkedOutInOtherWorktree; as worktreePath) {
+                        <i class="fa-regular fa-folder-open text-base-content/50" [title]="'Checked out in ' + worktreePath"></i>
+                    }
+                    @if (row.ref.local?.upstream; as upstream) {
+                        @if (upstream.isGone) {
+                            <span class="badge badge-warning badge-xs ml-auto">gone</span>
+                        } @else {
+                            <span class="ml-auto inline-flex gap-1.5 text-xs tabular-nums text-base-content/60">
+                                @if (upstream.ahead) {
+                                    <span><i class="fa-solid fa-arrow-up"></i> {{ upstream.ahead }}</span>
+                                }
+                                @if (upstream.behind) {
+                                    <span><i class="fa-solid fa-arrow-down"></i> {{ upstream.behind }}</span>
+                                }
+                            </span>
+                        }
+                    }
+                }
+                @case ("showAll") {
+                    <button type="button" class="btn btn-link btn-xs px-0" tabindex="-1">Show all {{ row.total }}</button>
+                }
+            }
+        </div>
+    }
+    @if (hasNoCommits()) {
+        <p class="px-2 text-xs text-base-content/60">No commits yet.</p>
+    } @else if (hasNoMatch()) {
+        <p class="px-2 text-xs text-base-content/60">No branch matches '{{ filter().trim() }}'.</p>
+    }
+</div>
