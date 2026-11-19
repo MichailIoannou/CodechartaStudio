@@ -38,7 +38,7 @@ Gates with and without `--all-features`.
 - [x] 3. Output and failures
 - [x] 4. Progress
 - [x] 5. fake-ccsh
-- [ ] 6. Launcher
+- [x] 6. Launcher
 - [ ] 7. Runner
 
 ## Notes
@@ -148,3 +148,37 @@ reached through `TargetOs::Windows` in unit tests; nothing Windows-specific ran.
 - For M3: `codecharta-cored` tests cannot use `CARGO_BIN_EXE_fake-ccsh` (another package). Options: build it from
   the test with `CARGO` once, or find it next to the cored test binary in `target/<profile>/` after a workspace
   `cargo test` (cargo builds every member's bins for its integration tests).
+
+### 6. Launcher
+- `analysis/launcher.rs`: `LaunchMode::{JavaDirect, Executable, CmdShim}`, `CcshLaunch { command, prefix_args, env,
+  mode }` (+ `tool()`: java for java-direct, else ccsh; `check_arguments(argv)`), `LaunchOverride::Executable`,
+  `LaunchOptions { worktree_temp_dir, launch_override }` (plan: `override_`), `TargetOs::{Windows, Unix}` (+
+  `current()`), `resolve_ccsh_launch(&ToolsReport, TargetOs, &LaunchOptions) -> Result<CcshLaunch, JobError>`,
+  `CCSH_LAUNCHER_CLASS`.
+- Java-direct prefix (05-M0 findings 7, 8 and design 6): `--enable-native-access=ALL-UNNAMED -Dstdout.encoding=UTF-8
+  -Dstderr.encoding=UTF-8 [-Djava.io.tmpdir=<worktree_temp_dir>] -classpath <APP_HOME>/lib/* CcshLauncher`.
+  Executable and cmd-shim set `CCSH_OPTS="-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"` and **cannot move the
+  temp dir** (a path with spaces does not survive the scripts' word splitting).
+- **Deviation — java-direct on unix too**, when the canonicalised ccsh (npm's `bin/ccsh` symlink resolved) is
+  `<APP_HOME>/bin/ccsh` and `<APP_HOME>/lib` holds a jar: 05-M0 verified this launch on Linux, and it is the only
+  way to pass `-Djava.io.tmpdir=<jobTempDir>` safely. Anything else (a custom wrapper) runs as `Executable`
+  (`should_use_the_executable_itself_on_unix`).
+- **Deviation — the layout needs a `ccsh*.jar`** in `lib/` (plan: any `.jar`), so `/usr/local/bin/ccsh` next to an
+  unrelated `/usr/local/lib/*.jar` is not mistaken for an install (`should_not_take_a_lib_folder_without_a_ccsh_jar_for_an_install`).
+- **Deviation — no own `JAVA_HOME` lookup:** the java command is the tools report's java, and the doctor already
+  ranks a custom path > `$JAVA_HOME/bin` > `PATH` (`SearchLocations::find`); a second rule here could contradict
+  the user's chosen java. Test renamed: "should prefer JAVA_HOME" → `should_start_the_java_the_tools_check_resolved`.
+  A java/ccsh that is `missing`/`failed`/`tooOld` in the report fails with `JAVA_NOT_FOUND`/`CCSH_NOT_FOUND`/
+  `JAVA_TOO_OLD`/`CCSH_TOO_OLD` and the "check the tools" hint.
+- `.cmd` parsing: the first quoted string ending in `ccsh.bat`; `%dp0%`/`%~dp0` (case-insensitive) replaced by the
+  shim's folder, the rest split on `\`/`/` with `.`/`..` applied lexically (global and local npm shims verified
+  against `analysis/node-wrapper/binScripts`).
+- Cmd-shim refusal: `CcshLaunch::check_arguments` reuses plan 01's `process::launch::check_batch_args` (refuses `"`,
+  `%`, `!`, CR, LF, NUL) and maps it with `classify_start_failure` → `INVALID_ARGUMENTS` + the plan's hint; the
+  runner refuses the same arguments again on its own.
+- `tests/ccsh_launch_windows.rs` (`#![cfg(windows)]`, `cc-fake-tool echo-args` behind a `ccsh.cmd` in
+  `folder with spaces`): written, type-checked with `cargo clippy --all-targets --all-features --target
+  x86_64-pc-windows-gnu -- -D warnings`, **not run** (no Windows here).
+- Extra tests: `should_refuse_java_that_is_too_old_or_missing`, `should_refuse_a_missing_or_too_old_ccsh`,
+  `should_accept_any_argument_for_java_direct`, `should_resolve_java_direct_through_a_symlinked_gradle_install_on_unix`,
+  `should_use_the_override_without_a_tools_report`.

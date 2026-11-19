@@ -232,6 +232,8 @@ pub fn resolve_ccsh_launch(tools: &ToolsReport, os: TargetOs, options: &LaunchOp
 2. **`Executable`** (macOS/Linux, or a user-set ccsh that is neither `.cmd` nor `.bat`): run the file itself with `CCSH_OPTS="-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"`.
 3. **`CmdShim` (Windows fallback when the layout cannot be resolved).** Run the shim through plan 01's `plan_launch` (`cmd.exe /d /s /v:off /c "…"`), which refuses `"`, `%`, CR and LF in any argument; no second quoting routine here. A refused argument fails the job with `InvalidArguments` and the hint "set the ccsh path to the ccsh.bat inside codecharta-analysis, or rename the folder". UNVERIFIED: how Rust's `std::process::Command` treats `.cmd`/`.bat` arguments on the installed toolchain — spike M0.
 
+As built (05-M1): `LaunchOptions { worktree_temp_dir, launch_override }`; java-direct is used on unix too when `bin/ccsh` (symlinks resolved) sits in a Gradle install whose `lib/` holds a `ccsh*.jar`, because `-Djava.io.tmpdir` cannot pass through `CCSH_OPTS` word splitting safely; the java command is the tools report's java (which already ranks custom > `JAVA_HOME` > `PATH`); there is no `plan_launch` — `CmdShim` runs the shim through `ProcessRunner`, which applies `check_batch_args`.
+
 All modes run through `ProcessRunner` (no shell, stdin closed, hardened environment, tree kill on cancel). `cwd` is the job temp dir so a stray default output can never land in the repository.
 
 ### Running, progress, cancellation (`analysis/runner.rs`, `progress.rs`, `output.rs`, `janitor.rs`)

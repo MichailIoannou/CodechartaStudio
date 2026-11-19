@@ -18,11 +18,11 @@ const UNKNOWN_COMMIT_MARKER: &str = "No commit found for";
 const WORKTREE_FAILED_MARKER: &str = "Failed to create git worktree";
 const GIT_TIMEOUT_MARKER: &str = "Git command timed out";
 
-const OPEN_TOOLS_HINT: &str = "Check the tools in the settings.";
+pub(super) const OPEN_TOOLS_HINT: &str = "Check the tools in the settings.";
 const REPORT_BUG_HINT: &str = "This is a bug in CodeCharta: please report it and attach the log.";
 const FETCH_COMMIT_HINT: &str = "Fetch the commit, then analyse it again.";
 const LONG_PATHS_HINT: &str = "Paths may exceed 260 characters: run `git config --global core.longpaths true`, or set a short worktree temp folder in the tools settings.";
-const SHIM_REFUSED_HINT: &str =
+pub(super) const SHIM_REFUSED_HINT: &str =
     "Set the ccsh path to the ccsh.bat inside codecharta-analysis, or rename the folder.";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
