@@ -68,7 +68,6 @@ if (greeting) {
         chooseToolExecutable: (tool, options) => ipcRenderer.invoke(CHANNELS.dialog, { kind: "chooseToolExecutable", tool, options }),
         chooseStoreRoot: options => ipcRenderer.invoke(CHANNELS.dialog, { kind: "chooseStoreRoot", options }),
         reveal: target => ipcRenderer.invoke(CHANNELS.shell, { kind: "reveal", target }),
-        readSnapshotMap: target => ipcRenderer.invoke(CHANNELS.shell, { kind: "readSnapshotMap", target }),
         setWindowBackground: color => ipcRenderer.invoke(CHANNELS.shell, { kind: "setWindowBackground", color }),
         setColorScheme: scheme => ipcRenderer.invoke(CHANNELS.shell, { kind: "setColorScheme", scheme }),
         restartCore: () => ipcRenderer.invoke(CHANNELS.shell, { kind: "restartCore" })

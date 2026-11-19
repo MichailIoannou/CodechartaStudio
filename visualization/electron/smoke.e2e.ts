@@ -20,7 +20,6 @@ const BRIDGE_KEYS = [
     "pickFile",
     "pickFolder",
     "protocolVersion",
-    "readSnapshotMap",
     "request",
     "restartCore",
     "reveal",

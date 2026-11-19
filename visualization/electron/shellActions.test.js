@@ -119,17 +119,9 @@ describe("shell actions", () => {
         assert.deepEqual(harness.calls.requests, [{ method: "shell.resolvePath", params: { target: { kind: "storeRoot" } } }])
     })
 
-    test("should read a map inside the store", async () => {
+    test("should no longer read a whole stored map, which the page reads in chunks", async () => {
         // Arrange
-        const mapPath = path.join(dataDir, "store", "map.cc.json.gz")
-        fs.mkdirSync(path.dirname(mapPath))
-        fs.writeFileSync(mapPath, Buffer.from([31, 139, 8]))
-        const harness = createHarness({
-            coreAnswers: {
-                "shell.resolvePath": { ok: true, value: { path: mapPath } },
-                "paths.get": { ok: true, value: { storeRoot: path.join(dataDir, "store") } }
-            }
-        })
+        const harness = createHarness()
 
         // Act
         const answer = await runAction(harness.shellActions, {
@@ -138,28 +130,8 @@ describe("shell actions", () => {
         })
 
         // Assert
-        assert.equal(answer.ok, true)
-        assert.deepEqual([...answer.value], [31, 139, 8])
-        assert.deepEqual(harness.calls.requests[0].params.target, { kind: "snapshotMap", projectId: "p", folderId: "f", snapshotId: "s" })
-    })
-
-    test("should refuse to read a map the core resolves outside the data folder", async () => {
-        // Arrange
-        const harness = createHarness({
-            coreAnswers: {
-                "shell.resolvePath": { ok: true, value: { path: path.join(os.tmpdir(), "elsewhere", "map.cc.json") } },
-                "paths.get": { ok: true, value: { storeRoot: path.join(dataDir, "store") } }
-            }
-        })
-
-        // Act
-        const answer = await runAction(harness.shellActions, {
-            kind: "readSnapshotMap",
-            target: { projectId: "p", folderId: "f", snapshotId: "s" }
-        })
-
-        // Assert
-        assert.equal(answer.error.code, "NOT_ALLOWED")
+        assert.equal(answer.ok, false)
+        assert.deepEqual(harness.calls.requests, [])
     })
 
     test("should remember the window background", async () => {

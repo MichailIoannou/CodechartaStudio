@@ -69,19 +69,17 @@ type BridgeMethods = Pick<CoreMethods, RendererMethod> & ShellMethods
 
 export type BridgeMethod = keyof BridgeMethods
 
-interface SnapshotMapTarget {
-    projectId: string
-    folderId: string
-    snapshotId: string
-}
+export type BridgeParams<Method extends BridgeMethod> = BridgeMethods[Method]["params"]
+
+export type BridgeResult<Method extends BridgeMethod> = BridgeMethods[Method]["result"]
 
 export interface DesktopBridge {
     readonly protocolVersion: number
     request<Method extends BridgeMethod>(
         method: Method,
-        params: BridgeMethods[Method]["params"],
+        params: BridgeParams<Method>,
         options?: { operationId: string }
-    ): Promise<CoreResult<BridgeMethods[Method]["result"]>>
+    ): Promise<CoreResult<BridgeResult<Method>>>
     cancel(operationId: string): Promise<void>
     subscribe<Event extends DesktopEventName>(event: Event, handler: (payload: DesktopEventPayload<Event>) => void): () => void
     pickFolder(options: FolderPickerOptions): Promise<string | null>
@@ -89,7 +87,6 @@ export interface DesktopBridge {
     chooseToolExecutable(tool: ToolId, options: FilePickerOptions): Promise<CoreResult<ToolsReport | null>>
     chooseStoreRoot(options: FolderPickerOptions): Promise<CoreResult<PathsInfo | null>>
     reveal(target: ShellPathTarget): Promise<CoreResult<null>>
-    readSnapshotMap(target: SnapshotMapTarget): Promise<CoreResult<Uint8Array>>
     setWindowBackground(color: string): Promise<CoreResult<null>>
     setColorScheme(scheme: "light" | "dark" | "system"): Promise<CoreResult<null>>
     restartCore(): Promise<CoreResult<null>>

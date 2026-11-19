@@ -209,13 +209,11 @@ describe("createFakeDesktopBridge", () => {
         const folder = await bridge.pickFolder({ title: "Folder" })
         const file = await bridge.pickFile({ title: "File" })
         const chosen = await bridge.chooseStoreRoot({ title: "Store" })
-        const map = await bridge.readSnapshotMap({ projectId: "p", folderId: "f", snapshotId: "s" })
 
         // Assert
         expect(folder).toBe("/projects/app")
         expect(file).toBeNull()
         expect(chosen).toEqual({ ok: true, value: null })
-        expect(map.ok).toBe(false)
     })
 
     it("should create and list a project", async () => {
