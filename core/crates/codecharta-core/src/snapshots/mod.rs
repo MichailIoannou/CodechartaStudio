@@ -1,5 +1,6 @@
 pub mod content;
 pub mod git_state;
+pub mod hosting;
 pub mod import;
 pub mod map_head;
 pub mod move_snapshot;

@@ -34,7 +34,7 @@ here: hosting is tested with a fake runner only. Gates with and without `--all-f
 
 - [x] 1. Map head
 - [x] 2. Git state
-- [ ] 3. Hosting
+- [x] 3. Hosting
 - [ ] 4. Repository
 - [ ] 5. Janitor
 - [ ] 6. Service
@@ -72,3 +72,20 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
   checked-out branch is in `headAtRun.upstream`.
 - A working-tree target on a branch without commits, or a 64-hex sha (the record's `FullCommit` holds 40), fails
   with `NOT_A_COMMIT`.
+
+### 3. Hosting
+- `snapshots/hosting.rs`: port `HostingCli::run(tool, cwd, args, cancel) -> ProcessFuture` (the git runner's future
+  type), implemented by plan 01's `Tools` with `cwd` = repository and the runner's own timeout = `HOSTING_BUDGET`
+  (10 s); `HostingProbe { repository_path, remotes, commit, budget }`; `probe_hosting(&dyn HostingCli, &HostingProbe,
+  &cancel) -> Option<HostingRecord>` (≤ 4 parameters; the plan's `runner, remotes, sha, budget` grouped);
+  `hosting_of(&[GitRemote])` (`origin`, else the first remote).
+- Url rules: `scheme://[user@]host[:port]/path` and scp-like `[user@]host:path`; host lower-cased; path without
+  surrounding slashes and `.git`. `github.com` → `github` and exactly two segments (`owner/repo`); a host containing
+  `gitlab` → `gitlab` with every segment (subgroups); anything else, a local path, or fewer than two segments → `None`.
+- `gh pr list --state all --search <sha> --json number,title,state,baseRefName,headRefName --limit 20`; `glab api
+  projects/:id/repository/commits/<sha>/merge_requests` (`iid`, `title`, `state`, `target_branch`, `source_branch`).
+  Both UNVERIFIED against a real CLI: neither `gh` nor `glab` is installed here (05-M0 W5 stays open); tested with a
+  scripted `HostingCli` only. Missing tool, non-zero exit, unreadable JSON or the budget running out (a
+  `tokio::time::timeout` around the call, besides the runner's timeout) → the provider and repository from the url
+  with an empty list, never an error. State lower-cased (`OPEN` → `open`, gitlab's `opened` stays).
+- Extra test: `should_map_glab_output_to_merge_requests`.
