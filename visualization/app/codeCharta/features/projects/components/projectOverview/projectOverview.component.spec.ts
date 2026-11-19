@@ -168,6 +168,38 @@ describe("ProjectOverviewComponent", () => {
         jest.restoreAllMocks()
     })
 
+    it("should open the manage project dialog", async () => {
+        // Arrange
+        HTMLDialogElement.prototype.showModal = jest.fn()
+        await renderOverview()
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-manage"))
+
+        // Assert
+        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled()
+    })
+
+    it("should re-link a missing working folder and a missing folder row", async () => {
+        // Arrange
+        const gone = aFolder("f-gone", { label: "gone", status: "missing" })
+        const seed = {
+            projects: [aProject("p-1", [gone], { name: "gone project" })],
+            activeProjectId: "p-1",
+            pickedFolders: [aPickedFolder("found"), aPickedFolder("found-again")]
+        }
+        await renderOverview(seed)
+
+        // Act
+        await userEvent.click(screen.getByTestId("working-folder-relink"))
+        await settle()
+        const titles = testBed.requestsOf("projects.pickFolder")
+
+        // Assert
+        expect(titles).toEqual([{ title: "Re-link 'gone'" }])
+        expect(testBed.projects.activeProject()?.folders[0].path).toBe("/work/found")
+    })
+
     it("should list the projects by last update when no project is open", async () => {
         // Arrange & Act
         await renderOverview({ ...SEED, activeProjectId: null })

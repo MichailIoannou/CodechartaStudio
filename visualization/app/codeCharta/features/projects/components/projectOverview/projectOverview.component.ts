@@ -10,6 +10,8 @@ import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted, relativeTime, shortSha } from "../../util/folderWording"
 import { AnalysesCardComponent } from "../analysesCard/analysesCard.component"
 import { CreateProjectDialogComponent } from "../createProjectDialog/createProjectDialog.component"
+import { ManageProjectDialogComponent } from "../manageProjectDialog/manageProjectDialog.component"
+import { RelinkFolderComponent } from "../relinkFolder/relinkFolder.component"
 import { WorkingFolderCardComponent } from "../workingFolderCard/workingFolderCard.component"
 
 const FOCUS_REFRESH_THROTTLE_MS = 10_000
@@ -40,7 +42,13 @@ interface FolderRow {
 @Component({
     selector: "cc-project-overview",
     templateUrl: "./projectOverview.component.html",
-    imports: [WorkingFolderCardComponent, AnalysesCardComponent, CreateProjectDialogComponent],
+    imports: [
+        WorkingFolderCardComponent,
+        AnalysesCardComponent,
+        CreateProjectDialogComponent,
+        ManageProjectDialogComponent,
+        RelinkFolderComponent
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "block min-h-[calc(100vh-var(--cc-bars-height))] overflow-y-auto bg-base-200" }
 })

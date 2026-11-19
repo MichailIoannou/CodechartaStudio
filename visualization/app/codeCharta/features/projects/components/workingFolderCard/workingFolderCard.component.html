@@ -16,6 +16,7 @@
     <div role="alert" class="alert alert-warning text-sm" data-testid="working-folder-missing">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <span>This folder was not found on disk. Its analyses still open.</span>
+        <button type="button" class="btn btn-sm" data-testid="working-folder-relink" (click)="relink.emit()">Re-link…</button>
     </div>
 } @else if (folder().kind === "plain") {
     <p class="text-sm text-base-content/70">Plain folder — no git history.</p>

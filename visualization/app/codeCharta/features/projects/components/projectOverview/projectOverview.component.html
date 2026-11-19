@@ -21,11 +21,15 @@
                     <p class="text-base-content/70">{{ project.description }}</p>
                 }
             </div>
+            <button type="button" class="btn btn-sm ml-auto shrink-0" data-testid="project-overview-manage" (click)="manageDialog.open()">
+                <i class="fa-solid fa-gear fa-fw"></i>
+                Manage project…
+            </button>
         </header>
 
         @if (workingFolder(); as folder) {
             <div class="grid gap-1.5 md:grid-cols-2">
-                <cc-working-folder-card [folder]="folder" [lastCommit]="commits()?.[0] ?? null" [now]="now()" />
+                <cc-working-folder-card [folder]="folder" [lastCommit]="commits()?.[0] ?? null" [now]="now()" (relink)="relink.start(folder)" />
                 <cc-analyses-card [snapshots]="workingSnapshots()" [storeBytes]="storeBytes()" />
             </div>
 
@@ -92,6 +96,9 @@
                                     {{ row.kindText }}
                                 </span>
                                 <span class="w-24 text-base-content/60">{{ row.analysesText }}</span>
+                                @if (row.folder.status === "missing") {
+                                    <button type="button" class="btn btn-xs" (click)="relink.start(row.folder)">Re-link…</button>
+                                }
                                 @if (row.isWorking) {
                                     <span class="w-20 text-base-content/60">(working)</span>
                                 } @else {
@@ -154,3 +161,5 @@
 </div>
 
 <cc-create-project-dialog #createDialog />
+<cc-manage-project-dialog #manageDialog />
+<cc-relink-folder #relink />

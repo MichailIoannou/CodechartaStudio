@@ -94,6 +94,17 @@
                     type="button"
                     class="flex items-center gap-3 rounded-md px-4 py-2 text-left text-sm font-medium hover:bg-base-200 disabled:opacity-40"
                     data-menu-item
+                    data-testid="project-switcher-manage"
+                    [disabled]="!activeProject()"
+                    (click)="manageProject(manageDialog)"
+                >
+                    <i class="fa-solid fa-gear w-4 text-center"></i>
+                    Manage project…
+                </button>
+                <button
+                    type="button"
+                    class="flex items-center gap-3 rounded-md px-4 py-2 text-left text-sm font-medium hover:bg-base-200 disabled:opacity-40"
+                    data-menu-item
                     data-testid="project-switcher-close"
                     [disabled]="!activeProject()"
                     (click)="closeProject()"
@@ -140,3 +151,4 @@
 </ng-template>
 
 <cc-create-project-dialog #createDialog />
+<cc-manage-project-dialog #manageDialog />

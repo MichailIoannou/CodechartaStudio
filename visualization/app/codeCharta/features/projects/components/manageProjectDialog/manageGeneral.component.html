@@ -1,0 +1,67 @@
+@if (failure(); as failure) {
+    <div role="alert" class="alert alert-error mb-3 text-sm" data-testid="manage-general-failure">{{ failure }}</div>
+}
+<div class="form-control mb-3">
+    <label class="label" for="manage-project-name">
+        <span class="label-text">Name</span>
+    </label>
+    <input
+        id="manage-project-name"
+        class="input input-bordered w-full"
+        [attr.maxlength]="nameMaxLength"
+        [value]="name()"
+        (input)="name.set($any($event.target).value)"
+    />
+    @if (name().trim() === "") {
+        <span class="label-text-alt text-error">A name is required.</span>
+    }
+</div>
+<div class="form-control mb-3">
+    <label class="label" for="manage-project-description">
+        <span class="label-text">Description (optional)</span>
+    </label>
+    <textarea
+        id="manage-project-description"
+        class="textarea textarea-bordered w-full"
+        rows="2"
+        [attr.maxlength]="descriptionMaxLength"
+        [value]="description()"
+        (input)="description.set($any($event.target).value)"
+    ></textarea>
+</div>
+<div class="flex justify-end">
+    <button type="button" class="btn btn-primary btn-sm" data-testid="manage-general-save" [disabled]="!canSave()" (click)="save()">
+        @if (isSaving()) {
+            <span class="loading loading-spinner loading-xs"></span>
+        }
+        Save
+    </button>
+</div>
+
+<div class="divider"></div>
+<div class="flex flex-col items-start gap-1">
+    <button type="button" class="btn btn-outline btn-error btn-sm" data-testid="manage-general-delete" (click)="askToDelete()">
+        <i class="fa-solid fa-trash fa-fw"></i>
+        Delete project…
+    </button>
+    <span class="text-xs text-base-content/60">Moves the project and its analyses to the recycle bin. Your folders are not touched.</span>
+</div>
+
+<dialog #deleteDialog class="modal" aria-labelledby="delete-project-title" data-testid="delete-project-dialog">
+    <div class="modal-box max-w-sm">
+        <h3 id="delete-project-title" class="mb-2 text-lg font-bold">Delete Project</h3>
+        <p>{{ deleteQuestion() }}</p>
+        <div class="modal-action">
+            <button type="button" class="btn" autofocus (click)="cancelDelete()">Cancel</button>
+            <button type="button" class="btn btn-error" data-testid="delete-project-confirm" [disabled]="isDeleting()" (click)="confirmDelete()">
+                @if (isDeleting()) {
+                    <span class="loading loading-spinner loading-xs"></span>
+                }
+                Delete project
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>

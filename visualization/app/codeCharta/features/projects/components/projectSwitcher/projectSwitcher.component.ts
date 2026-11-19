@@ -7,6 +7,7 @@ import { FolderGitService, isGitStatus } from "../../services/folderGit.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted } from "../../util/folderWording"
 import { CreateProjectDialogComponent } from "../createProjectDialog/createProjectDialog.component"
+import { ManageProjectDialogComponent } from "../manageProjectDialog/manageProjectDialog.component"
 
 const MENU_ITEM_SELECTOR = "[data-menu-item]:not([disabled])"
 const UNKNOWN_BRANCH = "…"
@@ -28,7 +29,7 @@ interface MenuProject {
 @Component({
     selector: "cc-project-switcher",
     templateUrl: "./projectSwitcher.component.html",
-    imports: [CreateProjectDialogComponent, NgTemplateOutlet],
+    imports: [CreateProjectDialogComponent, ManageProjectDialogComponent, NgTemplateOutlet],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "min-w-0" }
 })
@@ -101,6 +102,11 @@ export class ProjectSwitcherComponent {
     }
 
     newProject(dialog: CreateProjectDialogComponent) {
+        this.close()
+        dialog.open()
+    }
+
+    manageProject(dialog: ManageProjectDialogComponent) {
         this.close()
         dialog.open()
     }

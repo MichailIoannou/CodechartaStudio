@@ -136,6 +136,19 @@ describe("ProjectSwitcherComponent", () => {
         expect(screen.getByTestId("project-switcher-trigger").textContent).toContain("No project")
     })
 
+    it("should open the manage project dialog", async () => {
+        // Arrange
+        await renderSwitcher()
+        await openMenu()
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-switcher-manage"))
+
+        // Assert
+        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled()
+        expect(screen.queryByTestId("project-switcher-menu")).toBeNull()
+    })
+
     it("should say that no project is open and list all projects", async () => {
         // Arrange
         await renderSwitcher({ ...SEED, activeProjectId: null })

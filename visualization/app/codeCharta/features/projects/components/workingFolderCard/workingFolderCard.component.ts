@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from "@angular/core"
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from "@angular/core"
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import { FolderGitService, isGitStatus } from "../../services/folderGit.service"
@@ -18,6 +18,7 @@ export class WorkingFolderCardComponent {
     readonly folder = input.required<ProjectFolder>()
     readonly lastCommit = input<GitCommitSummary | null>(null)
     readonly now = input.required<number>()
+    readonly relink = output<void>()
 
     readonly projectId = computed(() => this.projects.activeProject()?.id ?? "")
     readonly gitStatus = computed(() => this.folderGit.statusOf({ projectId: this.projectId(), folderId: this.folder().id }))
