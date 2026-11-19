@@ -54,7 +54,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M4 Dependency graph, color-range diagram | UI | done | — | feature/studio-02-m4 | ddf7e6b7f (merged 2daeb8b08) |
 | 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | done | — | feature/studio-02-m5 | 057018bc9 (merged a0827d426) |
 | 02-M6 Native window appearance | UI | done | — | feature/studio-02-m6 | b0e051814 (merged 7523f1965) |
-| 02-M7 Metrics bar, file extension bar, toasts (OD6, OD7, OD8; new) | UI | option A committed; merge into the stack after the running stack e2e | — | feature/studio-02-m7 | fb2af451a (not merged) |
+| 02-M7 Metrics bar, file extension bar, toasts (OD6, OD7, OD8; new) | UI | merged into `feature/studio-stack` (a965b437e), web e2e running | — | feature/studio-02-m7 | fb2af451a |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | done on `feature/studio-stack` (part B via feature/studio-03-shell); integration merge pending | integration merge: owner's uncommitted plan 03 edit | feature/studio-03-m2, feature/studio-03-shell | 598d6ffd7 (merged into stack e8de7965e) |
@@ -378,7 +378,7 @@ the milestone is started.
   import wording; remove the 4 GiB drop limit; cancelling "Look for commit… in another folder" removes the
   just-created project), O6 (keep the Dependencies Legend tool; legend above the bar stands), O7 (option A).
   Applied in: 02-M7 (O6/O7), `feature/studio-fixes-owner-answers` (O2, O3, O5 — merged into the stack, web e2e
-  running), 05-M6 renderer later (O4). Drop safeguards after removing the size limit: absolute `.cc.json(.gz)`
+  done on the stack, web e2e 185/185), 05-M6 renderer later (O4). Drop safeguards after removing the size limit: absolute `.cc.json(.gz)`
   path, regular file, native confirmation (checked).
   Designer follow-ups named in the answers: T4 in `02-themes.md`, `05-snapshots.md` (recycle failure state,
   working-folder clean-up), `03-projects.md` (cancel removes the project).
@@ -419,6 +419,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: O2/O3/O5 fixes passed web e2e 185/185 on the stack. 02-M7 merged; the toast conflict resolved as 02-M7's positioned container with the stack's `<ng-content />` (stale notice) first, both sides' specs kept (one missing brace fixed); gates: format, tsc, lint, npm test 752/752, build, test:electron 80/80, e2e:desktop 16/16; web e2e running.
 - 2026-11-19: fixes for O2/O3/O5 merged cleanly into the stack; gates: format, tsc, lint, npm test 749/749, build, test:electron 80/80, e2e:desktop 16/16; web e2e running. 02-M7 resumed to commit its option-A work.
 - 2026-11-19: owner answered O2–O7; resumed 02-M7 for option A, started a Sonnet fixes agent for O2/O3/O5. Closed the old CodeCharta window (opened by the orchestrator) and launched the current stack build with the real ccsh on PATH for the owner.
 - 2026-11-19: 04-M7/M8 renderer passed web e2e 185/185 on the stack. Weekly usage 83%: started the last agent before the reset (04-M9/M10 renderer: changes, diff, commit); no new agents until the weekly reset (2026-11-20 13:00) apart from fixes.
