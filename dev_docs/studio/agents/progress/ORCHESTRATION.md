@@ -377,7 +377,9 @@ the milestone is started.
   replace accepted; clean-up for the working folder only), O5 (keep "Add folder"/"Re-link"; truncation OK; keep
   import wording; remove the 4 GiB drop limit; cancelling "Look for commit… in another folder" removes the
   just-created project), O6 (keep the Dependencies Legend tool; legend above the bar stands), O7 (option A).
-  Applied in: 02-M7 (O6/O7), `feature/studio-fixes-owner-answers` (O2, O3, O5), 05-M6 renderer later (O4).
+  Applied in: 02-M7 (O6/O7), `feature/studio-fixes-owner-answers` (O2, O3, O5 — merged into the stack, web e2e
+  running), 05-M6 renderer later (O4). Drop safeguards after removing the size limit: absolute `.cc.json(.gz)`
+  path, regular file, native confirmation (checked).
   Designer follow-ups named in the answers: T4 in `02-themes.md`, `05-snapshots.md` (recycle failure state,
   working-folder clean-up), `03-projects.md` (cancel removes the project).
 
@@ -411,6 +413,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: fixes for O2/O3/O5 merged cleanly into the stack; gates: format, tsc, lint, npm test 749/749, build, test:electron 80/80, e2e:desktop 16/16; web e2e running. 02-M7 resumed to commit its option-A work.
 - 2026-11-19: owner answered O2–O7; resumed 02-M7 for option A, started a Sonnet fixes agent for O2/O3/O5. Closed the old CodeCharta window (opened by the orchestrator) and launched the current stack build with the real ccsh on PATH for the owner.
 - 2026-11-19: 04-M7/M8 renderer passed web e2e 185/185 on the stack. Weekly usage 83%: started the last agent before the reset (04-M9/M10 renderer: changes, diff, commit); no new agents until the weekly reset (2026-11-20 13:00) apart from fixes.
 - 2026-11-19: 04-M7/M8 renderer merged into the stack (fake-bridge conflict resolved); gates: format, tsc, lint, npm test 749/749, build, test:electron 79/79, e2e:desktop 16/16; full web e2e running (the agent's last full run had 185/186 before its fix).
