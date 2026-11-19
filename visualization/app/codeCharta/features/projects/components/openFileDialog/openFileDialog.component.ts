@@ -11,10 +11,12 @@ import { byteSize, fileDate, shortSha } from "../../util/folderWording"
 const NEW_PROJECT_VALUE = ""
 const FILE_GONE_CODES: ReadonlySet<string> = new Set(["TOKEN_EXPIRED", "NOT_FOUND"])
 
-type TargetSentence =
-    | { kind: "newProject"; name: string; path: string }
-    | { kind: "existing"; project: string; folder: string }
-    | { kind: "import"; project: string; folder: string }
+interface TargetSentence {
+    kind: "newProject" | "existing" | "import"
+    project: string
+    folder: string
+    path: string
+}
 
 @Component({
     selector: "cc-open-file-dialog",
@@ -228,10 +230,11 @@ export class OpenFileDialogComponent {
     private sentenceOf(target: OpenFileTarget): TargetSentence {
         const picked = this.picked()
         if (target.kind === "newProject") {
-            return { kind: "newProject", name: picked?.containingFolder.suggestedName ?? "", path: picked?.containingFolder.path ?? "" }
+            const containing = picked?.containingFolder
+            return { kind: "newProject", project: containing?.suggestedName ?? "", folder: "", path: containing?.path ?? "" }
         }
         const project = this.summaryOf(target)?.name ?? picked?.existingTarget?.projectName ?? ""
-        return { kind: this.isImport() ? "import" : "existing", project, folder: this.folderLabelOf(target) }
+        return { kind: this.isImport() ? "import" : "existing", project, folder: this.folderLabelOf(target), path: "" }
     }
 
     private duplicateProjectNameOf(picked: PickedImportFile | null, target: OpenFileTarget): string | null {

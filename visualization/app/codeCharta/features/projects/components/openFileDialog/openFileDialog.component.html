@@ -18,7 +18,7 @@
                         <span class="break-all">
                             @switch (targetSentence().kind) {
                                 @case ("newProject") {
-                                    New project <strong>{{ targetSentence().name }}</strong> with folder
+                                    New project <strong>{{ targetSentence().project }}</strong> with folder
                                     <code class="font-mono">{{ targetSentence().path }}</code>
                                 }
                                 @case ("existing") {
