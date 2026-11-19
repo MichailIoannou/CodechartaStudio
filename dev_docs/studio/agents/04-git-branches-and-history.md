@@ -816,6 +816,11 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
    - Tests: switch confirmation names both branches and the folder; No sends nothing; refusal shows git's files; second confirmation before force delete; remote named on remote delete; name validated while typing; progress and Cancel while fetching; other actions disabled while one runs; hooks notice once per repository and session.
    - Commit: `feat(visualization): fetch and manage branches from history`
    - Changelog: extend with `, and lets you fetch, switch, create, rename and delete branches`.
+   - As built (design H5/H10/H14/H15 over this text): one `cc-sync-button` (`components/syncButton`) instead of
+     `syncButtons`, Fetch only until M11; branch menu `components/branchContextMenu` with `util/branchMenu.ts`; dialogs
+     `components/branchDialog` (New Branch, Rename Branch, Set Upstream, Check Out as New Local Branch) and
+     `components/gitConfirmDialog` (H15) hosted in the History panel; `services/branchActions.service.ts` runs them;
+     name rules in `util/branchName.ts`; the hooks notice is part of `GitOperationService.run`.
 
 ### M9 — Changes and diff (M)
 

@@ -1,0 +1,123 @@
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, ElementRef, Injector, inject, input, output } from "@angular/core"
+import type { GitLocalBranch } from "../../../../model/coreApi/GitLocalBranch"
+import type { GitRefs } from "../../../../model/coreApi/GitRefs"
+import type { GitRemoteBranch } from "../../../../model/coreApi/GitRemoteBranch"
+import { ContextMenuItemComponent, FloatingMenuAnchor, FloatingMenuComponent } from "../../../shared/facade"
+import { BranchActionsService } from "../../services/branchActions.service"
+import { GitOperationService } from "../../services/gitOperation.service"
+import { BranchMenuAction, BranchMenuItem, branchMenuItems } from "../../util/branchMenu"
+import type { BranchRef } from "../../util/branchTree"
+
+export interface BranchMenuTarget {
+    anchor: FloatingMenuAnchor
+    ref: BranchRef
+    isFromKeyboard: boolean
+}
+
+const STEPS: Readonly<Record<string, number>> = { ArrowDown: 1, ArrowUp: -1 }
+
+/** Design H10 branch menu of the branches tree. */
+@Component({
+    selector: "cc-branch-context-menu",
+    templateUrl: "./branchContextMenu.component.html",
+    imports: [FloatingMenuComponent, ContextMenuItemComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class BranchContextMenuComponent {
+    private readonly actions = inject(BranchActionsService)
+    private readonly operations = inject(GitOperationService)
+    private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
+    private readonly injector = inject(Injector)
+
+    readonly target = input.required<BranchMenuTarget>()
+    /** True when the tree should take the focus back. */
+    readonly closed = output<boolean>()
+
+    readonly items = computed(() => branchMenuItems(this.target().ref, this.operations.isBusy()))
+
+    focusFirstItemIfFromKeyboard() {
+        if (this.target().isFromKeyboard) {
+            afterNextRender(() => this.enabledButtons()[0]?.focus(), { injector: this.injector })
+        }
+    }
+
+    run(item: BranchMenuItem) {
+        const refs = this.actions.refs()
+        if (refs) {
+            this.runAction(item.action, this.target().ref, refs)
+        }
+        this.closed.emit(this.target().isFromKeyboard)
+    }
+
+    dismiss() {
+        this.closed.emit(false)
+    }
+
+    onKeydown(event: KeyboardEvent) {
+        if (event.key === "Escape") {
+            this.closed.emit(true)
+        } else if (event.key in STEPS) {
+            this.moveFocus(STEPS[event.key])
+        } else {
+            return
+        }
+        event.preventDefault()
+        event.stopPropagation()
+    }
+
+    private runAction(action: BranchMenuAction, ref: BranchRef, refs: GitRefs) {
+        const remote = refs.remoteBranches.find(branch => branch.refName === ref.refName)
+        if (action === "newBranch") {
+            this.openNewBranch(ref, refs)
+        } else if (ref.local) {
+            this.runLocal(action, ref.local)
+        } else if (remote) {
+            this.runRemote(action, remote)
+        }
+    }
+
+    private runLocal(action: BranchMenuAction, branch: GitLocalBranch) {
+        switch (action) {
+            case "switch":
+                void this.actions.switchTo(branch)
+                break
+            case "rename":
+                this.actions.openDialog({ kind: "rename", branch })
+                break
+            case "delete":
+                void this.actions.deleteLocal(branch)
+                break
+            case "setUpstream":
+                this.actions.openDialog({ kind: "setUpstream", branch })
+                break
+        }
+    }
+
+    private runRemote(action: BranchMenuAction, remote: GitRemoteBranch) {
+        if (action === "checkOutAsNew") {
+            this.actions.openDialog({ kind: "checkOutRemote", remote })
+        } else if (action === "deleteRemote") {
+            void this.actions.deleteRemote(remote)
+        }
+    }
+
+    private openNewBranch(ref: BranchRef, refs: GitRefs) {
+        const commit = [...refs.localBranches, ...refs.remoteBranches, ...refs.tags].find(
+            candidate => candidate.refName === ref.refName
+        )?.commit
+        if (commit) {
+            this.actions.openDialog({ kind: "create", startPoint: commit, subject: ref.lastCommit?.subject ?? "" })
+        }
+    }
+
+    private moveFocus(step: number) {
+        const buttons = this.enabledButtons()
+        const current = buttons.indexOf(document.activeElement as HTMLButtonElement)
+        const next = current < 0 ? 0 : (current + step + buttons.length) % buttons.length
+        buttons[next]?.focus()
+    }
+
+    private enabledButtons(): HTMLButtonElement[] {
+        return Array.from(this.hostElement.nativeElement.querySelectorAll<HTMLButtonElement>("button:not([disabled])"))
+    }
+}

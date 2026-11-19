@@ -2,10 +2,13 @@ import { computed, Injectable, inject, signal } from "@angular/core"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { ProgressParams } from "../../../model/coreApi/ProgressParams"
 import type { GitResult } from "../model/gitError"
+import { readyValueOf } from "../model/loadState"
+import { HOOKS_NOTICE } from "../util/effectText"
 import { GitApiService } from "./gitApi.service"
+import { GitConfirmationService } from "./gitConfirmation.service"
 import { GitRepositoryService } from "./gitRepository.service"
 
-type GitOperationKind = "fetch" | "switch" | "createBranch" | "renameBranch" | "deleteBranch" | "deleteRemoteBranch" | "setUpstream"
+export type GitOperationKind = "fetch" | "switch" | "createBranch" | "renameBranch" | "deleteBranch" | "deleteRemoteBranch" | "setUpstream"
 
 interface GitOperationProgress {
     message: string
@@ -33,6 +36,9 @@ const NETWORK_OPERATIONS: ReadonlySet<GitOperationKind> = new Set(["fetch", "del
 export class GitOperationService {
     private readonly api = inject(GitApiService)
     private readonly repository = inject(GitRepositoryService)
+    private readonly confirmations = inject(GitConfirmationService)
+    private readonly hooksAcceptedFor = new Set<string>()
+    private isStarting = false
     private readonly runningState = signal<RunningGitOperation | null>(null)
     private operationCount = 0
 
@@ -43,9 +49,17 @@ export class GitOperationService {
         return running !== null && NETWORK_OPERATIONS.has(running.kind)
     })
 
-    /** Null when nothing ran because another operation was running. */
+    /** Null when nothing ran: another operation was running, or the user declined the hooks notice. */
     async run<Value>(request: GitOperationRequest<Value>): Promise<GitResult<Value> | null> {
-        return this.runningState() ? null : this.send(request)
+        if (this.isStarting || this.runningState()) {
+            return null
+        }
+        this.isStarting = true
+        try {
+            return (await this.acceptHooks(request.repo)) ? await this.send(request) : null
+        } finally {
+            this.isStarting = false
+        }
     }
 
     cancel(): void {
@@ -74,5 +88,18 @@ export class GitOperationService {
         if (running?.operationId === requestId) {
             this.runningState.set({ ...running, progress: { message, done, total } })
         }
+    }
+
+    /** Hooks and filters run as in a terminal; the first write per repository and session says so first. */
+    private async acceptHooks(repo: FolderRef): Promise<boolean> {
+        const key = readyValueOf(this.repository.repository())?.repositoryId ?? `${repo.projectId}/${repo.folderId}`
+        if (this.hooksAcceptedFor.has(key)) {
+            return true
+        }
+        const isAccepted = await this.confirmations.ask(HOOKS_NOTICE)
+        if (isAccepted) {
+            this.hooksAcceptedFor.add(key)
+        }
+        return isAccepted
     }
 }

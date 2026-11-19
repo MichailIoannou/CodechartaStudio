@@ -3,6 +3,7 @@ import type { FakeDesktopBridge, FakeDesktopSeed } from "../../../util/desktop/d
 import { aFolder, aProject } from "../../projects/projects.mocks"
 import { aRefs, aRepositoryInfo, aStatusOn } from "./gitApi.mocks"
 import { GitApiService } from "./gitApi.service"
+import { GitConfirmationService } from "./gitConfirmation.service"
 import { provideGitHistory, settleGit } from "./gitHistoryTestBed.mocks"
 import { GitOperationService } from "./gitOperation.service"
 
@@ -17,11 +18,15 @@ function seedWith(extra: Partial<NonNullable<FakeDesktopSeed["git"]>[string]> = 
 describe("GitOperationService", () => {
     let bridge: FakeDesktopBridge
 
-    async function createService(seed = seedWith()) {
+    async function createService(seed = seedWith(), { isHooksNoticeAccepted = true } = {}) {
         bridge = provideGitHistory(seed, BILLING).bridge
+        const confirmations = TestBed.inject(GitConfirmationService)
+        if (isHooksNoticeAccepted) {
+            jest.spyOn(confirmations, "ask").mockResolvedValue(true)
+        }
         const service = TestBed.inject(GitOperationService)
         await settleGit()
-        return { service, api: TestBed.inject(GitApiService) }
+        return { service, api: TestBed.inject(GitApiService), confirmations }
     }
 
     const readsOf = (method: string) => bridge.calls.filter(call => call.name === "request" && call.args[0] === method).length
@@ -107,5 +112,41 @@ describe("GitOperationService", () => {
         // Assert
         expect(bridge.calls.some(call => call.name === "cancel")).toBe(false)
         expect(service.isCancellable()).toBe(false)
+    })
+
+    it("should show the hooks notice before the first write of a repository and session only", async () => {
+        // Arrange
+        const { service, api, confirmations } = await createService(seedWith(), { isHooksNoticeAccepted: false })
+
+        // Act
+        const first = service.run(fetchWith(api))
+        await settleGit()
+        const asked = confirmations.current()
+        confirmations.answer(true)
+        await first
+        await service.run(fetchWith(api))
+
+        // Assert
+        expect(asked).toEqual(expect.objectContaining({ title: "Git Hooks", verb: null }))
+        expect(confirmations.current()).toBe(null)
+        expect(bridge.calls.filter(call => call.args[0] === "git.fetch")).toHaveLength(2)
+    })
+
+    it("should send nothing when the hooks notice is declined, and ask again next time", async () => {
+        // Arrange
+        const { service, api, confirmations } = await createService(seedWith(), { isHooksNoticeAccepted: false })
+
+        // Act
+        const declined = service.run(fetchWith(api))
+        await settleGit()
+        confirmations.answer(false)
+        const answer = await declined
+        void service.run(fetchWith(api))
+        await settleGit()
+
+        // Assert
+        expect(answer).toBe(null)
+        expect(bridge.calls.some(call => call.args[0] === "git.fetch")).toBe(false)
+        expect(confirmations.current()?.title).toBe("Git Hooks")
     })
 })

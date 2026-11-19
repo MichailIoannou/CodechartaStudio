@@ -1,9 +1,12 @@
+import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { fireEvent, render, screen } from "@testing-library/angular"
 import { ToastService } from "../../../shared/facade"
 import type { CommitSelection } from "../../model/commitSelection"
 import { COMMIT_ACTIONS, CommitAction } from "../../ports/commitActions.port"
-import { aLogCommit, aStatusOn } from "../../services/gitApi.mocks"
+import { BranchActionsService } from "../../services/branchActions.service"
+import { aLocalBranch, aLogCommit, aRefs, aRemoteBranch, aStatusOn } from "../../services/gitApi.mocks"
+import { GitOperationService } from "../../services/gitOperation.service"
 import { CommitContextMenuComponent, CommitMenuTarget } from "./commitContextMenu.component"
 
 const REPO = { projectId: "p-billing", folderId: "f-api" }
@@ -57,8 +60,8 @@ describe("CommitContextMenuComponent", () => {
         await renderMenu(aTarget(), [anAction("analyse", "Analyse This Commit"), notOffered])
 
         // Assert
-        expect(itemLabels()).toEqual(["Analyse This Commit", "Copy SHA", "Copy Subject"])
-        expect(screen.getByTestId("commit-context-menu").querySelectorAll(".border-t")).toHaveLength(1)
+        expect(itemLabels()).toEqual(["Analyse This Commit", "Copy SHA", "Copy Subject", "New Branch Here…"])
+        expect(screen.getByTestId("commit-context-menu").querySelectorAll(".border-t")).toHaveLength(2)
         expect(screen.getByText("Copy SHA").closest("button")?.getAttribute("title")).toBe("Copy the full commit hash")
     })
 
@@ -67,8 +70,8 @@ describe("CommitContextMenuComponent", () => {
         await renderMenu(aTarget())
 
         // Assert
-        expect(itemLabels()).toEqual(["Copy SHA", "Copy Subject"])
-        expect(screen.getByTestId("commit-context-menu").querySelector(".border-t")).toBeNull()
+        expect(itemLabels()).toEqual(["Copy SHA", "Copy Subject", "New Branch Here…"])
+        expect(screen.getByTestId("commit-context-menu").querySelectorAll(".border-t")).toHaveLength(1)
     })
 
     it("should copy the full sha with a toast and close", async () => {
@@ -139,7 +142,7 @@ describe("CommitContextMenuComponent", () => {
         // Assert
         expect(firstFocused).toBe("Analyse This Commit")
         expect(afterDown).toBe("Copy SHA")
-        expect(document.activeElement?.textContent?.trim()).toBe("Copy Subject")
+        expect(document.activeElement?.textContent?.trim()).toBe("New Branch Here…")
     })
 
     it("should close on Escape, hand the focus back and keep the key from the list", async () => {
@@ -177,5 +180,76 @@ describe("CommitContextMenuComponent", () => {
 
         // Assert
         expect(event.defaultPrevented).toBe(false)
+    })
+
+    describe("write entries", () => {
+        const refs = aRefs({
+            localBranches: [
+                aLocalBranch("main", { commit: COMMIT.sha, isCurrent: true }),
+                aLocalBranch("release/2.4", { commit: COMMIT.sha }),
+                aLocalBranch("other", { commit: "f".repeat(40) })
+            ],
+            remoteBranches: [{ ...aRemoteBranch("origin", "release/2.4"), commit: COMMIT.sha }]
+        })
+        const branchActions = { refs: signal(refs), switchTo: jest.fn(), openDialog: jest.fn() }
+        const isBusy = signal(false)
+
+        async function renderWithBranches() {
+            branchActions.switchTo.mockClear()
+            branchActions.openDialog.mockClear()
+            TestBed.configureTestingModule({
+                providers: [
+                    { provide: BranchActionsService, useValue: branchActions },
+                    { provide: GitOperationService, useValue: { isBusy } }
+                ]
+            })
+            const closed = jest.fn()
+            await render(CommitContextMenuComponent, { inputs: { target: aTarget() }, on: { closed } })
+            return closed
+        }
+
+        it("should offer to check out the other branches at the commit and a new branch here", async () => {
+            // Arrange & Act
+            isBusy.set(false)
+            await renderWithBranches()
+
+            // Assert
+            expect(itemLabels().slice(2)).toEqual([
+                "Check Out 'release/2.4'",
+                "Check Out 'origin/release/2.4' as New Branch…",
+                "New Branch Here…"
+            ])
+            expect(screen.getByText("Check Out 'release/2.4'").closest("button")?.getAttribute("title")).toBe("Switch to this branch")
+        })
+
+        it("should switch, open the tracking dialog and the new branch dialog, closing the menu each time", async () => {
+            // Arrange
+            isBusy.set(false)
+            const closed = await renderWithBranches()
+
+            // Act
+            fireEvent.click(screen.getByText("Check Out 'release/2.4'"))
+            fireEvent.click(screen.getByText("Check Out 'origin/release/2.4' as New Branch…"))
+            fireEvent.click(screen.getByText("New Branch Here…"))
+
+            // Assert
+            expect(branchActions.switchTo).toHaveBeenCalledWith(refs.localBranches[1])
+            expect(branchActions.openDialog.mock.calls).toEqual([
+                [{ kind: "checkOutRemote", remote: refs.remoteBranches[0] }],
+                [{ kind: "create", startPoint: COMMIT.sha, subject: COMMIT.subject }]
+            ])
+            expect(closed).toHaveBeenCalledTimes(3)
+        })
+
+        it("should disable the write entries while a git operation runs", async () => {
+            // Arrange & Act
+            isBusy.set(true)
+            await renderWithBranches()
+
+            // Assert
+            const newBranch = screen.getByText("New Branch Here…").closest("button")
+            expect(newBranch?.disabled).toBe(true)
+            expect(newBranch?.getAttribute("title")).toBe("Waiting for the previous git operation…")
+        })
     })
 })

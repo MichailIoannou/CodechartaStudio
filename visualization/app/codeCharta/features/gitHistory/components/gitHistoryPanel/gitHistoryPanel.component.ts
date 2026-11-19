@@ -6,12 +6,14 @@ import { GitLogService } from "../../services/gitLog.service"
 import { GitRepositoryService } from "../../services/gitRepository.service"
 import { HistoryLayoutService } from "../../services/historyLayout.service"
 import { problemNoticeOf } from "../../util/gitErrorText"
+import { BranchDialogComponent } from "../branchDialog/branchDialog.component"
 import { BranchesTreeComponent } from "../branchesTree/branchesTree.component"
 import { CommitDetailsComponent } from "../commitDetails/commitDetails.component"
 import { CommitFiltersComponent } from "../commitFilters/commitFilters.component"
 import { CommitGraphLegendComponent } from "../commitGraphLegend/commitGraphLegend.component"
 import { CommitListComponent } from "../commitList/commitList.component"
 import { CommitScopeChipComponent } from "../commitScopeChip/commitScopeChip.component"
+import { GitConfirmDialogComponent } from "../gitConfirmDialog/gitConfirmDialog.component"
 import { GitProblemNoticeComponent } from "../gitProblemNotice/gitProblemNotice.component"
 import { HistoryToolbarComponent } from "../historyToolbar/historyToolbar.component"
 
@@ -34,7 +36,9 @@ export interface FolderToRelink {
         CommitFiltersComponent,
         CommitGraphLegendComponent,
         CommitDetailsComponent,
-        ColumnResizeHandleDirective
+        ColumnResizeHandleDirective,
+        BranchDialogComponent,
+        GitConfirmDialogComponent
     ],
     providers: [CopyToClipboardService],
     changeDetection: ChangeDetectionStrategy.OnPush,

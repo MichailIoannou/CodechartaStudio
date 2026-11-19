@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/angular"
 import type { GitRefs } from "../../../../model/coreApi/GitRefs"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aProject } from "../../../projects/projects.mocks"
+import { BranchActionsService } from "../../services/branchActions.service"
 import {
     aLocalBranch,
     anErrorPayload,
@@ -299,6 +300,67 @@ describe("BranchesTreeComponent", () => {
 
             // Assert
             expect(event.defaultPrevented).toBe(false)
+        })
+    })
+
+    describe("branch menu", () => {
+        it("should open the branch menu of a ref at the pointer and none for a group", async () => {
+            // Arrange
+            const { detectChanges } = await renderTree()
+
+            // Act
+            fireEvent.contextMenu(rowOf("local"), { clientX: 30, clientY: 40 })
+            detectChanges()
+            const afterGroup = screen.queryByTestId("branch-context-menu")
+            fireEvent.contextMenu(rowOf("refs/heads/old-experiment"), { clientX: 30, clientY: 40 })
+            detectChanges()
+
+            // Assert
+            expect(afterGroup).toBe(null)
+            const menu = screen.getByTestId("branch-context-menu")
+            expect(menu.textContent).toContain("Switch To")
+            expect(menu.style.left).toBe("30px")
+        })
+
+        it("should open the menu of the active ref with Shift+F10 and the Menu key, and close it on Escape", async () => {
+            // Arrange
+            const { detectChanges } = await renderTree()
+            const tree = screen.getByTestId("branches-tree")
+            fireEvent.keyDown(tree, { key: "ArrowDown" })
+            fireEvent.keyDown(tree, { key: "ArrowDown" })
+            fireEvent.keyDown(tree, { key: "ArrowDown" })
+
+            // Act
+            fireEvent.keyDown(tree, { key: "F10" })
+            detectChanges()
+            const afterPlainF10 = screen.queryByTestId("branch-context-menu")
+            fireEvent.keyDown(tree, { key: "F10", shiftKey: true })
+            detectChanges()
+            const afterShiftF10 = screen.queryByTestId("branch-context-menu")
+            fireEvent.keyDown(afterShiftF10 as HTMLElement, { key: "Escape" })
+            detectChanges()
+            fireEvent.keyDown(tree, { key: "ContextMenu" })
+            detectChanges()
+
+            // Assert
+            expect(afterPlainF10).toBe(null)
+            expect(afterShiftF10?.textContent).toContain("Rename…")
+            expect(screen.getByTestId("branch-context-menu").textContent).toContain("Rename…")
+        })
+
+        it("should switch to a local branch on double-click, but not to the current one or a tag", async () => {
+            // Arrange
+            await renderTree()
+            const switchTo = jest.spyOn(TestBed.inject(BranchActionsService), "switchTo").mockResolvedValue()
+
+            // Act
+            fireEvent.dblClick(rowOf("refs/heads/old-experiment"))
+            fireEvent.dblClick(rowOf("refs/heads/feature/invoice-rounding"))
+            fireEvent.dblClick(rowOf("local"))
+
+            // Assert
+            expect(switchTo).toHaveBeenCalledTimes(1)
+            expect(switchTo).toHaveBeenCalledWith(expect.objectContaining({ name: "old-experiment" }))
         })
     })
 })

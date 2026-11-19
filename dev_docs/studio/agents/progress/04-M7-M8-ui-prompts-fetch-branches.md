@@ -41,7 +41,7 @@ From `04-M5-selection-menu-ports.md`: contribute "Show in map" as a `CommitActio
 ## Steps
 
 - [x] 1. Credential prompts
-- [ ] 2. Fetch and branches
+- [x] 2. Fetch and branches
 - [ ] 3. Show in map
 
 ## Notes
@@ -94,4 +94,83 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2.2. Branch `feature/st
   running, cancel through `bridge.cancel(operationId)`, progress of other requests ignored, no second operation, cancel
   only for network kinds, re-read after a failure. `shellPolicy.test.js` — three mapping cases. "Stays open across
   view switches" holds by placement (outside the outlet) and is checked in the e2e of task 2.
+
+### 2. Fetch and branches (M8 task 2)
+- **Sync button** (`cc-sync-button`, design H5) after the current branch in `cc-history-toolbar`: `join` of the main part
+  (`fa-rotate` "Fetch", `title` "Fetch from all remotes"; label hidden below `xl`, `aria-label` kept) and the caret
+  ("More sync actions") with a floating menu: Fetch · Fetch and Remove Deleted Branches (`prune: true`) · Set
+  Upstream… (only on a branch). **Design over plan / scope:** the plan's three `cc-sync-buttons` are one split button
+  (OD3); Pull, Push, Publish, Force Push and the state-dependent main action arrive with M11 ("unbuilt features are
+  not shown"), so the main part always fetches for now. "(last fetched 12 min ago)" is left out: nothing reports
+  when the last fetch ran. Running: "Fetching…", disabled, static icon, `title` "Fetching — progress shows in the
+  status at the top" (mock-up), the caret becomes Cancel (`fa-stop`, "Cancel the fetch") → `bridge.cancel`; any
+  other running write disables both parts with "Waiting for the previous git operation…". The button is only in the
+  History toolbar; W1's GIT section and the project overview card get it with M11 (and the confirmation host then has
+  to move next to the credential prompt, see below).
+- **Workspace status (W1)** shows the fetch, as design H5 / W1 ask (the sync button does not animate):
+  `workspaceTrigger` takes an optional `gitActivity` (`gitActivityOf(running, workingFolder)`; only `fetch` is worded,
+  `fa-cloud-arrow-down motion-safe:animate-pulse`, "Fetching · 45 %" / "Fetching…", progress fill from `done/total`,
+  title line "Fetching — <git's progress line>", aria "fetching 45 percent"); it wins over a running analysis, which
+  then shows as the "+1" badge (W1 "two things at once"). Local writes (switch, create…) are quick and show nothing.
+- **Results and failures** (`BranchActionsService.report`): fetch success toasts "Fetched 3 updated refs" / "Already
+  up to date"; branch writes toast nothing on success (no wording in the design; the tree and toolbar update).
+  Failures are **error toasts that stay until dismissed** with "Details" = git's verbatim `detail` (design deviation
+  4, principles §3): `ToastService.show(text, severity, { details?, action? })`, errors no longer time out,
+  `cc-toast` gained the Details expansion (`font-mono text-xs whitespace-pre-wrap max-h-40 overflow-auto`), one action
+  button and `w-96 max-w-[calc(100vw-2rem)]` with wrapping (`whitespace-pre-line` keeps git's file list on lines).
+  `CANCELLED` (the user pressed Cancel) shows nothing. Sentences (`gitErrorSentence(error, context)`) per design H6:
+  `LOCAL_CHANGES_WOULD_BE_OVERWRITTEN` lists git's files (indented lines of `detail`, ≤ 10, "and n more"),
+  `BRANCH_CHECKED_OUT_ELSEWHERE`, `BRANCH_EXISTS`, `AUTHENTICATION_REQUIRED`, `AUTHENTICATION_CANCELLED`,
+  `NETWORK_UNAVAILABLE`; a sentence whose part is unknown falls back to "Git failed: <message>" — for fetch the remote is
+  named only when the repository has exactly one (`fetch --all` does not say which remote failed).
+- **Branch menu** (`cc-branch-context-menu`, H10) from the branches tree: right-click on a ref row, Menu key or
+  Shift+F10 on the active row (inset under it, first enabled item focused, ↑/↓, Escape returns focus to the tree);
+  double-click on a local branch switches (H7). Items per `util/branchMenu.ts`: current — Rename…, Set Upstream…;
+  other local — Switch To, New Branch from Here…, Rename…, Delete…, Set Upstream…; remote — Check Out as New Local
+  Branch…, New Branch from Here…, Delete from Remote…; tag — New Branch from Here…. Push / Force Push (M11) and
+  Compare with… (06) are not shown yet. Disabled with the reason in `title`: "Waiting for the previous git operation…"
+  while one runs; Switch To / Delete… of a branch another worktree holds: "Checked out in <path>" (H7's wording).
+  **Wording supplied here** (design names items, not icons or hints): icons `fa-i-cursor` (Rename), `fa-trash`
+  (Delete, Delete from Remote), `fa-link` (Set Upstream), `fa-cloud` / `fa-plus` / `fa-code-branch` as the commit
+  menu; hints reuse the commit menu's three ("Switch to this branch", "Create a branch at this commit", "Create a
+  local branch that tracks it"), the others have none.
+- **Commit menu write entries** (H10) after a second divider below Copy Subject: "Check Out '<branch>'" per local
+  branch at the commit other than the current one (≤ 3), "Check Out '<remote>' as New Branch…" (≤ 3), "New Branch
+  Here…" (always); disabled while a write runs. `contextMenuItem` gained a `disabled` input (shared, one input +
+  `disabled:` classes); the three menus are now `w-max min-w-64 max-w-[32rem]` (seen: "Check Out 'origin/main' as N…"
+  was cut at `w-64`).
+- **Dialogs** (H14, `cc-branch-dialog`, one native dialog `modal-box max-w-md`, hosted in `cc-git-history-panel`):
+  New Branch ("Name" `font-mono`, live rule messages, "Starts at `a1b2c3d` <subject>", "Switch to the new branch" off,
+  Cancel / Create branch disabled while invalid); Rename Branch (prefilled, the effect sentence follows the typed name,
+  disabled while unchanged); Set Upstream (`select` of remote branches + "No upstream", preselects the current
+  upstream; `aria-label` "Upstream" — no visible label in the design); Check Out as New Local Branch (name prefilled
+  with the remote's branch name). `util/branchName.ts` checks only what H14 words (leading `-`; spaces, `..`, `~`, `^`,
+  `:`, `?`, `*`, `[`, `\`, `@{`; a taken name); the other `BranchName` rules (control characters, `.lock`, a part
+  starting with `.`, `HEAD`) are left to the core, whose `BAD_REQUEST` reaches the user as "Git failed: <message>" —
+  no wording exists for them.
+- **Confirmations** (H15, `cc-git-confirm-dialog` + `GitConfirmationService.ask(): Promise<boolean>`): destructive in the
+  `deleteConfirmDialog` layout (Cancel focused, verb `btn-error`), the rest in the `ConfirmDialogComponent` layout (No
+  focused / Yes) — its own component because `ConfirmDialogComponent` reports no decline. Texts from `util/effectText.ts`
+  (unit-tested): Switch Branch only with changed files (design deviation 5; "from" is the branch in quotes or the
+  short SHA of a detached HEAD; "1 changed file stays"), Delete Branch ("stay reachable from" the upstream when it
+  exists, else the current branch — what `git branch -d` checks; "become unreachable" only when neither exists),
+  Delete Unmerged Branch after `BRANCH_NOT_FULLY_MERGED` with the count from `git.measureDistances` (falls back to
+  "has commits not merged" when it cannot count), then `force: true`; Delete Remote Branch; Git Hooks (once per
+  repository id and session, inside `GitOperationService.run`; No sends nothing and asks again next time). Escape and
+  the backdrop decline. Switching also asks before "Check out as new branch" and "Create … and switch" (both switch).
+- **Hosts:** `cc-branch-dialog` and `cc-git-confirm-dialog` live in the History panel, because only the History starts
+  writes now; when M11 puts the sync button into W1 / the project overview, move `cc-git-confirm-dialog` next to
+  `cc-credential-prompt-dialog` in `views/codeCharta.component.html`.
+- Tests (plan names where they apply): `branchActions.service.spec.ts` — switch confirmation names the folder and both
+  branches; No sends nothing; clean switch asks only the hooks notice; refusal shows git's files (toast + Details);
+  second confirmation before force delete (and declined keeps the branch); remote named on remote delete; fetch
+  toasts and a named-remote failure; `CANCELLED` silent; create / rename / track / set upstream params; declines;
+  detached HEAD wording. `branchDialog.component.spec.ts` — name validated while typing, each dialog's params.
+  `syncButton.component.spec.ts` — progress and Cancel while fetching; disabled while another write runs; caret
+  menu. `gitOperation.service.spec.ts` — hooks notice once per repository and session, declined sends nothing.
+  `commitContextMenu` / `branchContextMenu` / `branchesTree` specs — entries, disabled reasons, keyboard opening,
+  double-click. `effectText`, `branchName`, `branchMenu`, `gitErrorText`, `workspaceTrigger`, toast specs. E2E
+  (`gitHistory.e2e.ts` "History writes"): fetch with hooks notice, W1 "Fetching · 45 %" and Cancel; passphrase prompt
+  over the metrics view, answered once; New Branch Here… then Switch To with the confirmation; refusal toast with
+  git's files and Details.
 

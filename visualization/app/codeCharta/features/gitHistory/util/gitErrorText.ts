@@ -37,15 +37,58 @@ export function problemNoticeOf(error: GitError, folder: ProblemFolder): GitProb
     }
 }
 
-export function gitErrorSentence(error: GitError): string {
+/** What the failed action was about; a sentence that needs a part it lacks falls back to "Git failed: …". */
+export interface GitErrorContext {
+    branch?: string
+    worktreePath?: string | null
+    remote?: string | null
+}
+
+const MAX_LISTED_FILES = 10
+const LISTED_FILE = /^\s+(\S.*)$/
+
+export function gitErrorSentence(error: GitError, context: GitErrorContext = {}): string {
+    return contextSentenceOf(error, context) ?? plainSentenceOf(error)
+}
+
+function plainSentenceOf(error: GitError): string {
     switch (error.code) {
         case "INDEX_LOCKED":
             return "Another git process is using this repository. Wait for it to finish, then retry."
         case "TIMEOUT":
             return "Git did not answer in time."
+        case "AUTHENTICATION_CANCELLED":
+            return "Sign-in cancelled. Nothing was changed."
+        case "LOCAL_CHANGES_WOULD_BE_OVERWRITTEN":
+            return localChangesSentence(error.detail)
         default:
             return `Git failed: ${error.message}`
     }
+}
+
+function contextSentenceOf(error: GitError, { branch, worktreePath, remote }: GitErrorContext): string | null {
+    switch (error.code) {
+        case "BRANCH_CHECKED_OUT_ELSEWHERE":
+            return branch && worktreePath ? `'${branch}' is checked out in another worktree (${worktreePath}).` : null
+        case "BRANCH_EXISTS":
+            return branch ? `A branch named '${branch}' already exists.` : null
+        case "AUTHENTICATION_REQUIRED":
+            return remote
+                ? `Git could not sign in to '${remote}'. Check your credential helper or ssh key; CodeCharta asks only when git asks.`
+                : null
+        case "NETWORK_UNAVAILABLE":
+            return remote ? `'${remote}' could not be reached. Check your connection.` : null
+        default:
+            return null
+    }
+}
+
+/** git lists the files it would overwrite indented, one per line. */
+function localChangesSentence(detail: string | null): string {
+    const files = (detail ?? "").split("\n").flatMap(line => LISTED_FILE.exec(line)?.[1] ?? [])
+    const listed = files.slice(0, MAX_LISTED_FILES)
+    const more = files.length > MAX_LISTED_FILES ? [`and ${files.length - MAX_LISTED_FILES} more`] : []
+    return ["Git did not switch: your changes to these files would be overwritten:", ...listed, ...more].join("\n")
 }
 
 function notice(text: string, action: ProblemAction | null = null): GitProblemNotice {

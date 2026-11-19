@@ -1,0 +1,50 @@
+<div class="join" data-testid="sync-button">
+    <button
+        type="button"
+        class="btn btn-sm btn-outline join-item gap-1.5 border-base-300 font-normal"
+        data-testid="sync-button-main"
+        [disabled]="isBusy()"
+        [title]="mainTitle()"
+        [attr.aria-label]="label()"
+        (click)="fetch()"
+    >
+        <i class="fa-solid fa-rotate fa-fw"></i>
+        <span class="hidden xl:inline">{{ label() }}</span>
+    </button>
+    @if (isFetching()) {
+        <button
+            type="button"
+            class="btn btn-sm btn-outline btn-square join-item border-base-300"
+            title="Cancel the fetch"
+            aria-label="Cancel the fetch"
+            data-testid="sync-button-cancel"
+            (click)="cancel()"
+        >
+            <i class="fa-solid fa-stop"></i>
+        </button>
+    } @else {
+        <button
+            type="button"
+            class="btn btn-sm btn-outline btn-square join-item border-base-300"
+            aria-label="More sync actions"
+            data-testid="sync-button-caret"
+            aria-haspopup="menu"
+            [disabled]="isBusy()"
+            [title]="isBusy() ? mainTitle() : 'More sync actions'"
+            [attr.aria-expanded]="menuAnchor() !== null"
+            (pointerdown)="$event.stopPropagation()"
+            (click)="toggleMenu($event)"
+        >
+            <i class="fa-solid fa-caret-down"></i>
+        </button>
+    }
+</div>
+@if (menuAnchor(); as anchor) {
+    <cc-floating-menu class="w-max min-w-64 max-w-[32rem]" data-testid="sync-menu" [anchor]="anchor" (dismissed)="closeMenu()">
+        <cc-context-menu-item icon="fa-solid fa-rotate" hoverHint="Fetch from all remotes" (itemClick)="fetch()">Fetch</cc-context-menu-item>
+        <cc-context-menu-item icon="fa-solid fa-rotate" (itemClick)="fetch(true)">Fetch and Remove Deleted Branches</cc-context-menu-item>
+        @if (currentBranch()) {
+            <cc-context-menu-item icon="fa-solid fa-link" (itemClick)="setUpstream()">Set Upstream…</cc-context-menu-item>
+        }
+    </cc-floating-menu>
+}
