@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use codecharta_core_api::methods::store::{StoreProblemCode, StoreStatus};
 
@@ -9,14 +10,14 @@ use crate::store::Store;
 /// every request that needs it gets the problem from start-up again.
 #[derive(Debug)]
 pub enum StoreState {
-    Open(Store),
+    Open(Arc<Store>),
     Unavailable(CoreError),
 }
 
 impl StoreState {
     pub fn open(root: &Path) -> Self {
         match Store::open(root) {
-            Ok(store) => Self::Open(store),
+            Ok(store) => Self::Open(Arc::new(store)),
             Err(error) => {
                 tracing::warn!("the store at {} is unavailable: {error}", root.display());
                 Self::Unavailable(error)
@@ -24,9 +25,9 @@ impl StoreState {
         }
     }
 
-    pub fn store(&self) -> CoreResult<&Store> {
+    pub fn store(&self) -> CoreResult<Arc<Store>> {
         match self {
-            Self::Open(store) => Ok(store),
+            Self::Open(store) => Ok(Arc::clone(store)),
             Self::Unavailable(problem) => Err(same_error(problem)),
         }
     }

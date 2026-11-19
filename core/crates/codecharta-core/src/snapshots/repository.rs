@@ -1,6 +1,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use codecharta_core_api::ids::{FolderId, JobId, SnapshotId};
 use codecharta_core_api::methods::projects::FolderRef;
@@ -56,14 +57,14 @@ pub struct MapFacts {
 
 /// Snapshots of the folders of a project. Writes hold the project's lock.
 pub struct SnapshotRepository<'deps> {
-    pub(crate) store: &'deps Store,
+    pub(crate) store: Arc<Store>,
     pub(crate) git: &'deps dyn GitRunner,
     pub(crate) recycler: &'deps dyn Recycler,
 }
 
 impl<'deps> SnapshotRepository<'deps> {
     pub fn new(
-        store: &'deps Store,
+        store: Arc<Store>,
         git: &'deps dyn GitRunner,
         recycler: &'deps dyn Recycler,
     ) -> Self {
@@ -75,7 +76,7 @@ impl<'deps> SnapshotRepository<'deps> {
     }
 
     pub(crate) fn projects(&self) -> ProjectRepository<'deps> {
-        ProjectRepository::new(self.store, self.git, self.recycler)
+        ProjectRepository::new(Arc::clone(&self.store), self.git, self.recycler)
     }
 
     /// Newest first by the time the snapshot entered the store.

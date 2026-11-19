@@ -1,4 +1,5 @@
 use std::process::ExitCode;
+use std::sync::Arc;
 
 use clap::Subcommand;
 use codecharta_core::compare::{changed_files_in_project, resolve_in_project};
@@ -132,10 +133,10 @@ fn run_resolve(
 
 /// Reads the store only, so it works while the app runs.
 async fn resolve(core: &Core, params: &ResolveComparisonParams) -> CoreResult<ResolvedComparison> {
-    let store = Store::open_read_only(&core.paths().store_root())?;
+    let store = Arc::new(Store::open_read_only(&core.paths().store_root())?);
     let resolver = FolderResolver {
-        projects: &ProjectRepository::new(&store, core.tools(), &SystemRecycler),
-        snapshots: &SnapshotRepository::new(&store, core.tools(), &SystemRecycler),
+        projects: &ProjectRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler),
+        snapshots: &SnapshotRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler),
         git: &core.git()?,
         cache: core.resolution_cache(),
     };
@@ -147,8 +148,8 @@ async fn list_changed_files(
     core: &Core,
     params: &ChangedFilesParams,
 ) -> CoreResult<ChangedFilesResult> {
-    let store = Store::open_read_only(&core.paths().store_root())?;
-    let projects = ProjectRepository::new(&store, core.tools(), &SystemRecycler);
+    let store = Arc::new(Store::open_read_only(&core.paths().store_root())?);
+    let projects = ProjectRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler);
     changed_files_in_project(&projects, &core.git()?, params, &CancellationToken::new()).await
 }
 

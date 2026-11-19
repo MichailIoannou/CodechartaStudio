@@ -20,7 +20,7 @@ pub use config::settings::{CoreSettings, SettingsStore};
 pub use error::{CoreError, CoreResult};
 
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, PoisonError, RwLock};
 
 use codecharta_core_api::ids::InvalidStoreId;
 use codecharta_core_api::methods::core::Platform;
@@ -57,7 +57,7 @@ pub struct Core {
     paths: Paths,
     runner: Arc<ProcessRunner>,
     tools: Tools,
-    store: OnceLock<StoreState>,
+    store: RwLock<Option<StoreState>>,
     pick_tokens: PickTokens,
     recycler: SystemRecycler,
     repository_changes: RepositoryChanges,
@@ -89,7 +89,7 @@ impl Core {
             paths: Paths::new(config.data_dir, settings),
             runner,
             tools,
-            store: OnceLock::new(),
+            store: RwLock::new(None),
             pick_tokens: PickTokens::default(),
             recycler: SystemRecycler,
             repository_changes: RepositoryChanges::default(),
@@ -104,12 +104,15 @@ impl Core {
 
     /// Opens the store for writing, once; a problem is kept and answered by every store request.
     pub fn open_store(&self) {
-        self.store
-            .get_or_init(|| StoreState::open(&self.paths.store_root()));
+        let mut state = self.store.write().unwrap_or_else(PoisonError::into_inner);
+        if state.is_none() {
+            *state = Some(StoreState::open(&self.paths.store_root()));
+        }
     }
 
-    pub fn store(&self) -> CoreResult<&Store> {
-        self.store_state()?.store()
+    /// A request keeps the store it started with, even when the store root changes meanwhile.
+    pub fn store(&self) -> CoreResult<Arc<Store>> {
+        self.read_store_state(StoreState::store)
     }
 
     /// The projects of the store this core opened, with the real git and recycle bin.
@@ -213,13 +216,18 @@ impl Core {
     }
 
     pub fn store_status(&self) -> CoreResult<StoreStatus> {
-        Ok(self.store_state()?.status())
+        self.read_store_state(|state| Ok(state.status()))
     }
 
-    fn store_state(&self) -> CoreResult<&StoreState> {
-        self.store
-            .get()
-            .ok_or_else(|| CoreError::Internal("the store was not opened".to_string()))
+    fn read_store_state<Value>(
+        &self,
+        read: impl FnOnce(&StoreState) -> CoreResult<Value>,
+    ) -> CoreResult<Value> {
+        let state = self.store.read().unwrap_or_else(PoisonError::into_inner);
+        let state = state
+            .as_ref()
+            .ok_or_else(|| CoreError::Internal("the store was not opened".to_string()))?;
+        read(state)
     }
 
     pub fn data_dir(&self) -> &Path {

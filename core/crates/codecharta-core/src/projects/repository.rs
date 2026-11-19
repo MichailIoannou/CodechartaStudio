@@ -1,6 +1,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use codecharta_core_api::ids::ProjectId;
 use codecharta_core_api::methods::projects::{
@@ -36,14 +37,14 @@ pub struct NewProject {
 /// Projects in the managed store. Every write holds the project's lock, so two requests never
 /// interleave on one `project.json`.
 pub struct ProjectRepository<'deps> {
-    pub(crate) store: &'deps Store,
+    pub(crate) store: Arc<Store>,
     pub(crate) git: &'deps dyn GitRunner,
     pub(crate) recycler: &'deps dyn Recycler,
 }
 
 impl<'deps> ProjectRepository<'deps> {
     pub fn new(
-        store: &'deps Store,
+        store: Arc<Store>,
         git: &'deps dyn GitRunner,
         recycler: &'deps dyn Recycler,
     ) -> Self {

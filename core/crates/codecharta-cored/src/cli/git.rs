@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
 use std::time::{Duration, UNIX_EPOCH};
 
 use clap::{Args, Subcommand};
@@ -191,11 +192,13 @@ fn git_folder(core: &Core, target: &GitTarget) -> CoreResult<GitFolder> {
             "Name a folder with --path or with --project and --folder.".to_string(),
         ));
     };
-    let store = Store::open_read_only(&core.paths().store_root())?;
-    ProjectRepository::new(&store, core.tools(), &SystemRecycler).git_folder(&FolderRef {
-        project_id,
-        folder_id,
-    })
+    let store = Arc::new(Store::open_read_only(&core.paths().store_root())?);
+    ProjectRepository::new(Arc::clone(&store), core.tools(), &SystemRecycler).git_folder(
+        &FolderRef {
+            project_id,
+            folder_id,
+        },
+    )
 }
 
 fn print_status(status: &GitStatus, json: bool) -> CoreResult<()> {
