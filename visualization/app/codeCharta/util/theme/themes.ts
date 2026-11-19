@@ -1,9 +1,16 @@
-import { ChromeTokens, ColorScheme, MapPaletteSeed, ThemeDefinition, ThemeId } from "../../model/theme.model"
+import { ChromeTokens, ColorScheme, MapPaletteSeed, RenderPalette, ThemeDefinition, ThemeId } from "../../model/theme.model"
 import { buildDarkRenderPalette, darkRenderPalette } from "./palettes/darkRenderPalette"
+import { darculaDependencyGraph, vsDarkDependencyGraph } from "./palettes/neutralDependencyGraphs"
 import { buildLightRenderPalette, lightRenderPalette } from "./palettes/lightRenderPalette"
 
-function darkEditorTheme(id: ThemeId, label: string, chrome: ChromeTokens, seed: MapPaletteSeed): ThemeDefinition {
-    return { id, label, colorScheme: "dark", chrome, render: buildDarkRenderPalette(chrome, seed) }
+function darkEditorTheme(
+    id: ThemeId,
+    label: string,
+    chrome: ChromeTokens,
+    seed: MapPaletteSeed,
+    dependencyGraph?: RenderPalette["dependencyGraph"]
+): ThemeDefinition {
+    return { id, label, colorScheme: "dark", chrome, render: buildDarkRenderPalette(chrome, seed, dependencyGraph) }
 }
 
 function lightEditorTheme(id: ThemeId, label: string, chrome: ChromeTokens, seed: MapPaletteSeed): ThemeDefinition {
@@ -146,7 +153,8 @@ export const THEMES: readonly ThemeDefinition[] = [
             error: "#f44747",
             errorContent: "#1e1e1e"
         },
-        { mapBackground: "#181818", floorRoot: "#505050", floorDeepest: "#d4d4d4", wordCloud: ["#ce9178", "#9cdcfe"] }
+        { mapBackground: "#181818", floorRoot: "#505050", floorDeepest: "#d4d4d4", wordCloud: ["#ce9178", "#9cdcfe"] },
+        vsDarkDependencyGraph
     ),
     lightEditorTheme(
         "vs-light",
@@ -200,7 +208,8 @@ export const THEMES: readonly ThemeDefinition[] = [
             error: "#bc3f3c",
             errorContent: "#ffffff"
         },
-        { mapBackground: "#1e1f22", floorRoot: "#5a5d63", floorDeepest: "#bbbbbb", wordCloud: ["#ffc66d", "#6897bb"] }
+        { mapBackground: "#1e1f22", floorRoot: "#5a5d63", floorDeepest: "#bbbbbb", wordCloud: ["#ffc66d", "#6897bb"] },
+        darculaDependencyGraph
     ),
     lightEditorTheme(
         "rider-day",

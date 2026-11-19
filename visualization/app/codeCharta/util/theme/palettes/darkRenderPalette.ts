@@ -51,7 +51,11 @@ export const darkRenderPalette: RenderPalette = {
     chartTooltip: { background: "#262c34", border: "#3a424d", text: "#e6e9ee" }
 }
 
-export function buildDarkRenderPalette(chrome: ChromeTokens, seed: MapPaletteSeed): RenderPalette {
+export function buildDarkRenderPalette(
+    chrome: ChromeTokens,
+    seed: MapPaletteSeed,
+    dependencyGraph: RenderPalette["dependencyGraph"] = darkRenderPalette.dependencyGraph
+): RenderPalette {
     const [gradientStart, gradientEnd] = seed.wordCloud
     return {
         ...darkRenderPalette,
@@ -68,6 +72,7 @@ export function buildDarkRenderPalette(chrome: ChromeTokens, seed: MapPaletteSee
         viewCube: { face: chrome.base300, outline: seed.floorDeepest, hoverEmissive: chrome.primary },
         radial: { ...darkRenderPalette.radial, pieceBorder: chrome.base100, neutralFolder: seed.floorRoot, tintTarget: chrome.base100 },
         wordCloud: { ...darkRenderPalette.wordCloud, gradientStart, gradientEnd },
+        dependencyGraph,
         chartTooltip: { background: chrome.base200, border: chrome.base300, text: chrome.baseContent }
     }
 }

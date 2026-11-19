@@ -46,4 +46,15 @@ describe("buildDarkRenderPalette", () => {
         // Assert
         expect(dependencyGraph).toBe(darkRenderPalette.dependencyGraph)
     })
+
+    it("should take the dependency graph it is given", () => {
+        // Arrange
+        const ownGraph = { ...darkRenderPalette.dependencyGraph, text: "#abcdef" }
+
+        // Act
+        const palette = buildDarkRenderPalette(BUILDER_CHROME, BUILDER_SEED, ownGraph)
+
+        // Assert
+        expect(palette.dependencyGraph).toBe(ownGraph)
+    })
 })

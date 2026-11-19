@@ -172,6 +172,18 @@ describe("THEMES", () => {
         })
     })
 
+    it.each(["darcula", "vs-dark"])("should give %s a dependency graph of its own", id => {
+        // Arrange
+        const sharedGraph = themeById(DEFAULT_THEME_ID)?.render.dependencyGraph
+
+        // Act
+        const graph = themeById(id)?.render.dependencyGraph
+
+        // Assert
+        expect(graph).toBeDefined()
+        expect(graph).not.toBe(sharedGraph)
+    })
+
     it("should register exactly the themes of the registry in the stylesheet", () => {
         // Arrange
         const registryIds = THEMES.map(theme => theme.id)
