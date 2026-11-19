@@ -1,3 +1,4 @@
+import { chartTooltipStyle } from "../../../util/theme/chartTooltipStyle"
 import { Border, borderWidthThatFits, pieceAnimation, pieceBorder } from "./radialChartStyle"
 import { nodeColor } from "./radialColor"
 import { describeNode, RadialDatum } from "./radialDatum"
@@ -40,7 +41,7 @@ export function buildRadialPiecesOption(inputs: RadialOptionInputs, placements: 
     return {
         aria: { enabled: true },
         hoverLayerThreshold: NEVER_DRAW_HOVER_ON_ITS_OWN_LAYER,
-        tooltip: { show: true, confine: true, formatter: buildTooltipFormatter(inputs.metrics, inputs) },
+        tooltip: { show: true, confine: true, formatter: buildTooltipFormatter(inputs.metrics, inputs), ...chartTooltipStyle() },
         series: [
             {
                 type: "custom",

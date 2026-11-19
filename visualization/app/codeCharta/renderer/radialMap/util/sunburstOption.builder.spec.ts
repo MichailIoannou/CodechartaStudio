@@ -98,6 +98,17 @@ describe("buildSunburstOption", () => {
         expect(tiny.style.stroke).toBe(tiny.style.fill)
     })
 
+    it("should style the tooltip with the theme", () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+
+        // Act
+        const { tooltip } = buildSunburstOption(inputs(TREE), 3)
+
+        // Assert
+        expect(tooltip).toMatchObject({ backgroundColor: "#262c34", borderColor: "#3a424d", textStyle: { color: "#e6e9ee" } })
+    })
+
     it("should outline segments in the theme surface", () => {
         // Arrange
         setActiveTheme(themeById("cc-dark"))

@@ -224,6 +224,17 @@ describe("buildWordCloudOption", () => {
         expect(option.tooltip.show).toBe(true)
     })
 
+    it("should style the tooltip with the theme", () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+
+        // Act
+        const option = buildWordCloudOption([{ text: "invoice", frequency: 12 }], settings(), context)
+
+        // Assert
+        expect(option.tooltip).toMatchObject({ backgroundColor: "#262c34", borderColor: "#3a424d", textStyle: { color: "#e6e9ee" } })
+    })
+
     it("should report both metrics in the tooltip, with the word emphasized", () => {
         // Arrange
         const option = buildWordCloudOption([], settings(), context)

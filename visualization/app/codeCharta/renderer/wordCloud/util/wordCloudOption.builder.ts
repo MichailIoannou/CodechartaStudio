@@ -1,6 +1,7 @@
 import { DomainWord } from "../../../model/codeCharta.model"
 import { WordCloudSettings, WordCloudShape, wordSizingValue } from "../../../model/wordCloud.model"
 import { activeRenderPalette } from "../../../util/theme/activeTheme"
+import { chartTooltipStyle } from "../../../util/theme/chartTooltipStyle"
 import { getWordCloudColors } from "./color.util"
 import { WordCloudDatum, WordCloudOption, WordCloudRenderContext } from "./wordCloudOption.model"
 import { CANVAS_FILL_RATIO, fitSizeRangeToContainer } from "./wordCloudSizeRange"
@@ -22,7 +23,7 @@ export function buildWordCloudOption(
 
     return {
         aria: { enabled: true },
-        tooltip: { show: true, formatter: buildTooltipFormatter() },
+        tooltip: { show: true, formatter: buildTooltipFormatter(), ...chartTooltipStyle() },
         series: [
             {
                 type: "wordCloud",
