@@ -127,6 +127,21 @@ export class ProjectsService {
         await this.showWorkingFolder()
     }
 
+    /** Loads a snapshot of the working folder into the map and stays on the current view. */
+    async loadSnapshot(ref: SnapshotRef): Promise<boolean> {
+        const folder = this.workingFolder()
+        if (folder?.id !== ref.folderId || ref.projectId !== this.project()?.id) {
+            return false
+        }
+        if (!this.hasSnapshot(ref)) {
+            await this.refreshFolderSnapshots(ref)
+        }
+        const snapshot = this.findSnapshot(ref)
+        return snapshot
+            ? this.acceptLoadResult(await this.loadFilesUseCase.loadProjectSnapshots(this.toLoad([{ folder, snapshot }])))
+            : false
+    }
+
     snapshotsToShow(): Promise<ProjectSnapshotToLoad[]> {
         const folder = this.workingFolder()
         const snapshot = folder ? this.candidatesFor(folder)[0] : undefined
@@ -387,6 +402,10 @@ export class ProjectsService {
 
     private nameOf(origin: ProjectSnapshotOrigin): string {
         return snapshotDisplayName(origin.folderLabel, this.findSnapshot(origin))
+    }
+
+    private hasSnapshot(ref: SnapshotRef): boolean {
+        return (this.snapshots()[ref.folderId] ?? []).some(snapshot => snapshot.ref.snapshotId === ref.snapshotId)
     }
 
     private findSnapshot(origin: SnapshotRef): SnapshotSummary {

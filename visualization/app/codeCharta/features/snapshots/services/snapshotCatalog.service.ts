@@ -1,6 +1,8 @@
 import { DestroyRef, Injectable, inject, signal } from "@angular/core"
+import type { AnalysisTarget } from "../../../model/coreApi/AnalysisTarget"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
+import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.service"
 import { valueOrThrow } from "../../../util/desktop/desktopResult"
@@ -40,6 +42,11 @@ export class SnapshotCatalogService {
 
     async readLog(ref: SnapshotRef): Promise<string> {
         return valueOrThrow(await this.environment.requireBridge().request("snapshots.readLog", ref)).log
+    }
+
+    /** Which snapshot answers the target; never starts an analysis. */
+    async resolve(folder: FolderRef, target: AnalysisTarget): Promise<SnapshotResolution> {
+        return valueOrThrow(await this.environment.requireBridge().request("snapshots.resolveForCommit", { ...folder, target }))
     }
 
     async refreshActiveProject(): Promise<void> {
