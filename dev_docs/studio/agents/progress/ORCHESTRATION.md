@@ -67,7 +67,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
 | 04-M3 History view, branches pane (chip replaced by W1) | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-04-m3 | 5877e3661 (merged into stack 14881e68f, fix 5b2462566) |
 | 04-M4 Commit list with graph, filters, details | UI | done on `feature/studio-stack` (385adc20f; web e2e 176/176) | integration merge: as 03-M2 | feature/studio-04-m4 | 8642672fb |
-| 04-M5 Selection, keyboard, context menu, ports (+ 05-M4 task 5 badges) | UI | merged into `feature/studio-stack` (1b38f5819), web e2e running | — | feature/studio-04-m5 | 9e5c3d35c |
+| 04-M5 Selection, keyboard, context menu, ports (+ 05-M4 task 5 badges) | UI | done on `feature/studio-stack` (1b38f5819; web e2e 177/177) | integration merge: as 03-M2 | feature/studio-04-m5 | 9e5c3d35c |
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
 | 04-M7 Operation queue, progress, prompts | core + UI | core on the stack; task 5 (prompt dialog) in progress with 04-M8 task 2 (feature/studio-04-m7m8-ui) | — | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
 | 04-M8 Fetch and branches | core + UI | core on the stack; task 2 in progress with 04-M7 task 5 (feature/studio-04-m7m8-ui) | — | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
