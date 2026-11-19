@@ -18,6 +18,11 @@ pub const STAGING_FOLDER_PREFIX: &str = ".incoming-";
 pub const REPLACED_FOLDER_PREFIX: &str = ".replaced-";
 /// The staging directory of a failed analysis, kept for its `run.log` until the next start.
 pub const FAILED_FOLDER_PREFIX: &str = ".failed-";
+/// What a running analysis needs cleaned up after a crash, in its staging directory; such a directory is
+/// left to the analysis recovery, which runs the worktree janitor first.
+pub const JOB_FILE_NAME: &str = "job.json";
+/// Locked by the process that runs the analysis for as long as it runs.
+pub const JOB_LOCK_FILE_NAME: &str = "job.lock";
 
 /// The only place that builds paths inside the store.
 #[derive(Debug, Clone)]

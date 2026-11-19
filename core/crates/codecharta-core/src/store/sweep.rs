@@ -9,8 +9,8 @@ use serde_json::Value;
 use crate::error::{CoreError, CoreResult};
 use crate::store::atomic::{TEMPORARY_FILE_PREFIX, read_json_if_exists};
 use crate::store::paths::{
-    FAILED_FOLDER_PREFIX, REPLACED_FOLDER_PREFIX, SNAPSHOT_FILE_NAME, STAGING_FOLDER_PREFIX,
-    StorePaths,
+    FAILED_FOLDER_PREFIX, JOB_FILE_NAME, REPLACED_FOLDER_PREFIX, SNAPSHOT_FILE_NAME,
+    STAGING_FOLDER_PREFIX, StorePaths,
 };
 
 const SNAPSHOT_ID_FIELD: &str = "id";
@@ -51,7 +51,8 @@ fn sweep_folder_snapshots(
         let is_leftover = [STAGING_FOLDER_PREFIX, FAILED_FOLDER_PREFIX]
             .iter()
             .any(|prefix| name.starts_with(prefix));
-        if is_leftover {
+        let is_analysis = folder_dir.join(&name).join(JOB_FILE_NAME).is_file();
+        if is_leftover && !is_analysis {
             let leftover = folder_dir.join(&name);
             fs::remove_dir_all(&leftover).map_err(|source| sweep_error(&leftover, source))?;
         } else if name.starts_with(REPLACED_FOLDER_PREFIX) {

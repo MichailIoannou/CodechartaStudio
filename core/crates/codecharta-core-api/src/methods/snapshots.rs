@@ -114,6 +114,13 @@ pub struct MapLocation {
     pub path: String,
 }
 
+/// The captured ccsh output of an analysed snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SnapshotLog {
+    pub log: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RecordMapFactsParams {
@@ -216,6 +223,13 @@ method!(
     Renderer,
     MoveSnapshotParams,
     SnapshotSummary
+);
+method!(
+    SnapshotsReadLog,
+    "snapshots.readLog",
+    Renderer,
+    SnapshotRef,
+    SnapshotLog
 );
 method!(
     SnapshotsDelete,

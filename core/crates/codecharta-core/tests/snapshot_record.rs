@@ -503,3 +503,53 @@ async fn should_reuse_a_map_for_an_identical_tree_when_git_is_left_out() {
         fs::read(second_map.join("map.cc.json.gz")).unwrap()
     );
 }
+
+#[tokio::test]
+async fn should_mark_a_running_commit_analysis_for_the_recovery() {
+    // Arrange
+    let bench = Bench::new();
+    let folder = bench.git_folder().await;
+    let head = bench.head();
+    let pid_file = bench.file("pid");
+    let release = bench.file("release");
+    let scenario = FakeScenario {
+        pid_file: Some(pid_file.clone()),
+        wait_for_file: Some(release.clone()),
+        ..FakeScenario::writing_map()
+    };
+    let read_marker = async {
+        wait_for_file(&pid_file).await;
+        let staging = bench
+            .entries(&folder)
+            .into_iter()
+            .find(|name| name.starts_with(".incoming-"))
+            .expect("the run has a staging folder");
+        let staging_dir = bench.workspace.snapshots_dir(&folder).join(staging);
+        let job: serde_json::Value = serde_json::from_slice(
+            &fs::read(staging_dir.join("job.json")).expect("the job file is written"),
+        )
+        .expect("the job file is JSON");
+        fs::write(&release, "go").expect("the release file is written");
+        job
+    };
+    let cancel = CancellationToken::new();
+
+    // Act
+    let (result, job) = tokio::join!(
+        bench.execute(&folder, commit_target(&head), &scenario, &cancel),
+        read_marker
+    );
+
+    // Assert
+    let id = result.expect("the analysis succeeds");
+    assert_eq!(job["sha"], serde_json::json!(head));
+    assert_eq!(
+        job["repositoryPath"],
+        serde_json::json!(bench.workspace.repo.path())
+    );
+    assert_eq!(job["pid"], serde_json::json!(std::process::id()));
+    assert_eq!(
+        bench.snapshot_files(&folder, &id),
+        ["map.cc.json.gz", "run.log", "snapshot.json"]
+    );
+}

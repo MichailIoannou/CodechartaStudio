@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::ids::{BatchId, FolderId, JobId, ProjectId, SnapshotId};
+use crate::methods::core::EmptyParams;
 use crate::methods::projects::FolderRef;
+use crate::registry::{Audience, Event, method};
 use crate::values::CommitSha;
 
 /// What one analysis maps: a commit, checked out by ccsh in a temporary worktree, or the folder as it is.
@@ -206,6 +208,148 @@ impl PreflightResult {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PreflightParams {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub target: AnalysisTarget,
+}
+
+impl PreflightParams {
+    pub fn folder(&self) -> FolderRef {
+        FolderRef {
+            project_id: self.project_id.clone(),
+            folder_id: self.folder_id.clone(),
+        }
+    }
+}
+
+/// `force` analyses a commit again although it has a snapshot of the current profile.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EnqueueParams {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub target: AnalysisTarget,
+    #[serde(default)]
+    pub force: bool,
+}
+
+impl EnqueueParams {
+    pub fn folder(&self) -> FolderRef {
+        FolderRef {
+            project_id: self.project_id.clone(),
+            folder_id: self.folder_id.clone(),
+        }
+    }
+}
+
+/// `rejected` carries the preflight problems; nothing was queued then.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "status",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum EnqueueResult {
+    Queued { job: AnalysisJob },
+    AlreadyQueued { job: AnalysisJob },
+    AlreadyAnalysed { snapshot_id: SnapshotId },
+    Rejected { problems: Vec<PreflightProblem> },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct JobRefParams {
+    pub job_id: JobId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisJobList {
+    pub jobs: Vec<AnalysisJob>,
+}
+
+/// The payload of every job notification but `analysis.progress`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisJobChanged {
+    pub job: AnalysisJob,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisProgress {
+    pub job_id: JobId,
+    pub progress: JobProgress,
+}
+
+method!(
+    AnalysisPreflight,
+    "analysis.preflight",
+    Renderer,
+    PreflightParams,
+    PreflightResult
+);
+method!(
+    AnalysisEnqueue,
+    "analysis.enqueue",
+    Renderer,
+    EnqueueParams,
+    EnqueueResult
+);
+method!(
+    AnalysisCancel,
+    "analysis.cancel",
+    Renderer,
+    JobRefParams,
+    ()
+);
+method!(
+    AnalysisList,
+    "analysis.list",
+    Renderer,
+    EmptyParams,
+    AnalysisJobList
+);
+method!(
+    AnalysisClearFinished,
+    "analysis.clearFinished",
+    Renderer,
+    EmptyParams,
+    ()
+);
+
+/// Declares a notification the renderer receives: `renderer_event!(Marker, "domain.event", Params)`.
+macro_rules! renderer_event {
+    ($marker:ident, $name:literal, $params:ty) => {
+        pub struct $marker;
+
+        impl Event for $marker {
+            const NAME: &'static str = $name;
+            const AUDIENCE: Audience = Audience::Renderer;
+            type Params = $params;
+        }
+    };
+}
+
+renderer_event!(AnalysisQueuedEvent, "analysis.queued", AnalysisJobChanged);
+renderer_event!(AnalysisStartedEvent, "analysis.started", AnalysisJobChanged);
+renderer_event!(AnalysisProgressEvent, "analysis.progress", AnalysisProgress);
+renderer_event!(
+    AnalysisFinishedEvent,
+    "analysis.finished",
+    AnalysisJobChanged
+);
+renderer_event!(AnalysisFailedEvent, "analysis.failed", AnalysisJobChanged);
+renderer_event!(
+    AnalysisCancelledEvent,
+    "analysis.cancelled",
+    AnalysisJobChanged
+);
+renderer_event!(SnapshotsChangedEvent, "snapshots.changed", FolderRef);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -313,5 +457,44 @@ mod tests {
                 { "code": "DISK_FULL", "severity": "error", "message": "full", "hint": null }
             ] })
         );
+    }
+
+    #[test]
+    fn should_tag_enqueue_results_by_status() {
+        // Arrange
+        let snapshot_id =
+            SnapshotId::try_from("0123456789abcdef0123456789abcdef01234567-0a1b2c3d").unwrap();
+        let results = [
+            EnqueueResult::AlreadyAnalysed { snapshot_id },
+            EnqueueResult::Rejected {
+                problems: Vec::new(),
+            },
+        ];
+
+        // Act
+        let written = serde_json::to_value(results).unwrap();
+
+        // Assert
+        assert_eq!(
+            written,
+            json!([
+                { "status": "alreadyAnalysed", "snapshotId": "0123456789abcdef0123456789abcdef01234567-0a1b2c3d" },
+                { "status": "rejected", "problems": [] }
+            ])
+        );
+    }
+
+    #[test]
+    fn should_enqueue_without_force_when_it_is_left_out() {
+        // Arrange
+        let params =
+            json!({ "projectId": "p-1", "folderId": "f-1", "target": { "kind": "workingTree" } });
+
+        // Act
+        let parsed: EnqueueParams = serde_json::from_value(params).unwrap();
+
+        // Assert
+        assert!(!parsed.force);
+        assert_eq!(parsed.target, AnalysisTarget::WorkingTree);
     }
 }

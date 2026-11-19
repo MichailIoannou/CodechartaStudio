@@ -28,6 +28,8 @@ use codecharta_core_api::methods::shell::ShellPathTarget;
 use codecharta_core_api::methods::snapshots::SnapshotRef;
 use codecharta_core_api::methods::store::StoreStatus;
 
+use analysis::jobs::Analyses;
+use analysis::queue::AnalysisQueue;
 use config::settings::SETTINGS_FILE_NAME;
 use git::changes::RepositoryChanges;
 use git::command::UserEnvironment;
@@ -60,6 +62,7 @@ pub struct Core {
     user_environment: UserEnvironment,
     operation_queue: OperationQueue,
     prompts: Arc<PromptBroker>,
+    analysis_queue: AnalysisQueue,
 }
 
 impl Core {
@@ -90,6 +93,7 @@ impl Core {
             user_environment: UserEnvironment::read(&|name| std::env::var_os(name)),
             operation_queue: OperationQueue::default(),
             prompts: Arc::default(),
+            analysis_queue: AnalysisQueue::new(),
         })
     }
 
@@ -154,6 +158,20 @@ impl Core {
     /// Network git operations open a prompt session here; `serve` starts the askpass server for it.
     pub fn prompts(&self) -> &Arc<PromptBroker> {
         &self.prompts
+    }
+
+    /// The one queue of analysis jobs of this core; `analyses().drive()` runs it.
+    pub fn analysis_queue(&self) -> &AnalysisQueue {
+        &self.analysis_queue
+    }
+
+    pub fn analyses(&self) -> Analyses<'_> {
+        Analyses::new(self)
+    }
+
+    /// Every child process of the core runs through this runner, so `shutdown` can stop them all.
+    pub fn runner(&self) -> &ProcessRunner {
+        &self.runner
     }
 
     pub fn subscribe_repository_changes(

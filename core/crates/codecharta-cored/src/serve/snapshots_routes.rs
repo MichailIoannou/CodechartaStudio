@@ -4,9 +4,10 @@ use codecharta_core::snapshots::{ImportRequest, MapFacts, OpenFileRequest, Snaps
 use codecharta_core::{Core, CoreResult, path_to_wire};
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::methods::snapshots::{
-    ImportSnapshotParams, MapLocation, OpenFileParams, OpenedFile, SnapshotList, SnapshotRef,
-    SnapshotSummary, SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
-    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsRecordMapFacts,
+    ImportSnapshotParams, MapLocation, OpenFileParams, OpenedFile, SnapshotList, SnapshotLog,
+    SnapshotRef, SnapshotSummary, SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile,
+    SnapshotsList, SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsReadLog,
+    SnapshotsRecordMapFacts,
 };
 use codecharta_core_api::registry::Method;
 use serde_json::Value;
@@ -37,6 +38,16 @@ pub fn map_location(core: &Core, _context: RequestContext, params: Value) -> Han
             .and_then(|snapshots| snapshots.map_location(&snapshot))
             .and_then(|path| path_to_wire(&path));
         answer::<SnapshotsMapLocation>(path.map(|path| MapLocation { path }))
+    })
+}
+
+pub fn read_log(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let snapshot = read_params::<SnapshotsReadLog>(params)?;
+        let log = core
+            .snapshots()
+            .and_then(|snapshots| snapshots.read_log(&snapshot));
+        answer::<SnapshotsReadLog>(log.map(|log| SnapshotLog { log }))
     })
 }
 

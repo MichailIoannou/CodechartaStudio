@@ -1,6 +1,18 @@
 {
   "protocolVersion": 1,
-  "rendererEvents": ["core.progress", "repository.changed", "prompt.requested", "prompt.closed"],
+  "rendererEvents": [
+    "core.progress",
+    "repository.changed",
+    "prompt.requested",
+    "prompt.closed",
+    "analysis.queued",
+    "analysis.started",
+    "analysis.progress",
+    "analysis.finished",
+    "analysis.failed",
+    "analysis.cancelled",
+    "snapshots.changed"
+  ],
   "rendererMethods": [
     "core.ping",
     "paths.get",
@@ -28,6 +40,12 @@
     "snapshots.import",
     "snapshots.move",
     "snapshots.delete",
+    "snapshots.readLog",
+    "analysis.preflight",
+    "analysis.enqueue",
+    "analysis.cancel",
+    "analysis.list",
+    "analysis.clearFinished",
     "git.repositoryInfo",
     "git.status",
     "git.branches",

@@ -1,3 +1,4 @@
+mod analysis_routes;
 pub mod dispatch;
 pub mod framing;
 mod git_routes;
@@ -15,6 +16,7 @@ use std::sync::Arc;
 use codecharta_core::Core;
 use tokio::io::{AsyncBufRead, AsyncWrite};
 
+use analysis_routes::AnalysisTasks;
 use dispatch::Notifier;
 use framing::{LineReader, MAX_LINE_BYTES};
 use git_routes::forward_repository_changes;
@@ -36,6 +38,7 @@ where
         core.prompts().subscribe(),
         Notifier::new(lines.clone()),
     ));
+    let analysis_tasks = AnalysisTasks::start(&core, Notifier::new(lines.clone()));
     let askpass_server = start_askpass_server(&core);
     let mut session = Session::new(Arc::clone(&core), lines);
     let mut reader = LineReader::new(input, MAX_LINE_BYTES);
@@ -53,6 +56,7 @@ where
         }
     }
     session.finish().await;
+    analysis_tasks.stop(&core).await;
     drop(askpass_server);
     for task in [forwarder, prompt_forwarder] {
         task.abort();

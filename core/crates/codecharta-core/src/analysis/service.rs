@@ -17,6 +17,7 @@ use super::janitor::{list_codecharta_worktrees, remove_orphans};
 use super::launcher::{LaunchOptions, LaunchOverride, TargetOs, resolve_ccsh_launch};
 use super::output::{CcshRunResult, RunEnd, classify_failure, parse_map_line, parse_not_in_map};
 use super::profile::{ValidProfile, profile_hash, validate_profile};
+use super::recovery::{JobFile, JobMarker};
 use super::runner::{CcshRun, RunHooks, run_ccsh};
 use crate::error::CoreError;
 use crate::git::worktrees::WorktreeEntry;
@@ -221,9 +222,13 @@ impl<'core> AnalysisService<'core> {
             Some(_) => self.worktrees_before(job, plan).await,
             None => Vec::new(),
         };
+        let marker = hold_marker(staged, plan, janitor_scope, &before);
         let run = self.run_ccsh(job, plan, staged, hooks, cancel).await;
         if let Some(sha) = janitor_scope {
             self.remove_orphans(job, plan, &before, sha).await;
+        }
+        if let Some(marker) = marker {
+            marker.release();
         }
         place_map(&run?, staged, commit)
     }
@@ -465,6 +470,24 @@ fn plain_folder_git(target: &AnalysisTarget) -> Result<Option<GitRecord>, JobFai
         )
         .into()),
     }
+}
+
+/// Without the marker a crash leaves the worktree for the user to prune; the analysis itself still runs.
+fn hold_marker(
+    staged: &StagedSnapshot,
+    plan: &JobPlan,
+    sha: Option<&CommitSha>,
+    before: &[WorktreeEntry],
+) -> Option<JobMarker> {
+    let job = JobFile {
+        repository_path: plan.git.as_ref().map(|_| plan.folder_path.clone()),
+        sha: sha.cloned(),
+        worktrees_before: before.iter().map(|entry| entry.path.clone()).collect(),
+        pid: std::process::id(),
+    };
+    JobMarker::hold(staged.directory(), &job)
+        .inspect_err(|error| tracing::warn!("could not mark the running analysis: {error}"))
+        .ok()
 }
 
 fn reuse_map(

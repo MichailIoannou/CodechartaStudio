@@ -383,6 +383,29 @@ mod tests {
     }
 
     #[test]
+    fn should_leave_the_staging_folder_of_an_analysis_to_the_recovery() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+        let root = folder.path();
+        write_store_file(root, STORE_SCHEMA_VERSION);
+        let snapshots = root
+            .join("projects")
+            .join("p-0123456789abcdef")
+            .join("snapshots")
+            .join("f-0000000000000001");
+        fs::create_dir_all(snapshots.join(".incoming-00000001")).unwrap();
+        fs::create_dir_all(snapshots.join(".incoming-00000002")).unwrap();
+        fs::write(snapshots.join(".incoming-00000002").join("job.json"), "{}").unwrap();
+
+        // Act
+        Store::open(root).unwrap();
+
+        // Assert
+        assert!(!snapshots.join(".incoming-00000001").exists());
+        assert!(snapshots.join(".incoming-00000002").exists());
+    }
+
+    #[test]
     fn should_finish_a_snapshot_move_that_a_crash_interrupted() {
         // Arrange
         let folder = tempfile::tempdir().unwrap();

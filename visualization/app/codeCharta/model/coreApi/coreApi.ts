@@ -2,6 +2,9 @@
 
 import type { ActiveProject } from "./ActiveProject"
 import type { AddFolderParams } from "./AddFolderParams"
+import type { AnalysisJobChanged } from "./AnalysisJobChanged"
+import type { AnalysisJobList } from "./AnalysisJobList"
+import type { AnalysisProgress } from "./AnalysisProgress"
 import type { CancelParams } from "./CancelParams"
 import type { ClearToolPathParams } from "./ClearToolPathParams"
 import type { CreateProjectParams } from "./CreateProjectParams"
@@ -9,6 +12,8 @@ import type { DeleteProjectParams } from "./DeleteProjectParams"
 import type { DeleteSnapshotParams } from "./DeleteSnapshotParams"
 import type { DoctorParams } from "./DoctorParams"
 import type { EmptyParams } from "./EmptyParams"
+import type { EnqueueParams } from "./EnqueueParams"
+import type { EnqueueResult } from "./EnqueueResult"
 import type { ErrorCode } from "./ErrorCode"
 import type { FolderPath } from "./FolderPath"
 import type { FolderRef } from "./FolderRef"
@@ -52,6 +57,7 @@ import type { HelloResult } from "./HelloResult"
 import type { ImportSnapshotParams } from "./ImportSnapshotParams"
 import type { InspectFolderParams } from "./InspectFolderParams"
 import type { InspectImportFileParams } from "./InspectImportFileParams"
+import type { JobRefParams } from "./JobRefParams"
 import type { MapLocation } from "./MapLocation"
 import type { MoveSnapshotParams } from "./MoveSnapshotParams"
 import type { OpenedFile } from "./OpenedFile"
@@ -60,6 +66,8 @@ import type { PathsInfo } from "./PathsInfo"
 import type { PickedFolder } from "./PickedFolder"
 import type { PickedImportFile } from "./PickedImportFile"
 import type { PingResult } from "./PingResult"
+import type { PreflightParams } from "./PreflightParams"
+import type { PreflightResult } from "./PreflightResult"
 import type { ProgressParams } from "./ProgressParams"
 import type { Project } from "./Project"
 import type { ProjectIdParams } from "./ProjectIdParams"
@@ -82,6 +90,7 @@ import type { SetStoreRootParams } from "./SetStoreRootParams"
 import type { SetToolPathParams } from "./SetToolPathParams"
 import type { SetViewParams } from "./SetViewParams"
 import type { SnapshotList } from "./SnapshotList"
+import type { SnapshotLog } from "./SnapshotLog"
 import type { SnapshotRef } from "./SnapshotRef"
 import type { SnapshotSummary } from "./SnapshotSummary"
 import type { SourceFileLookup } from "./SourceFileLookup"
@@ -181,6 +190,12 @@ export type CoreMethods = {
     "snapshots.import": { params: ImportSnapshotParams; result: SnapshotSummary }
     "snapshots.move": { params: MoveSnapshotParams; result: SnapshotSummary }
     "snapshots.delete": { params: DeleteSnapshotParams; result: null }
+    "snapshots.readLog": { params: SnapshotRef; result: SnapshotLog }
+    "analysis.preflight": { params: PreflightParams; result: PreflightResult }
+    "analysis.enqueue": { params: EnqueueParams; result: EnqueueResult }
+    "analysis.cancel": { params: JobRefParams; result: null }
+    "analysis.list": { params: EmptyParams; result: AnalysisJobList }
+    "analysis.clearFinished": { params: EmptyParams; result: null }
     "git.repositoryInfo": { params: GitRepoParams; result: GitRepositoryInfo }
     "git.status": { params: GitRepoParams; result: GitStatus }
     "git.branches": { params: GitRepoParams; result: GitRefs }
@@ -218,6 +233,13 @@ export type CoreEvents = {
     "repository.changed": RepositoryChanged
     "prompt.requested": PromptRequested
     "prompt.closed": PromptClosed
+    "analysis.queued": AnalysisJobChanged
+    "analysis.started": AnalysisJobChanged
+    "analysis.progress": AnalysisProgress
+    "analysis.finished": AnalysisJobChanged
+    "analysis.failed": AnalysisJobChanged
+    "analysis.cancelled": AnalysisJobChanged
+    "snapshots.changed": FolderRef
 }
 
 export type CoreClientNotifications = {
@@ -251,6 +273,12 @@ export const RENDERER_METHODS = [
     "snapshots.import",
     "snapshots.move",
     "snapshots.delete",
+    "snapshots.readLog",
+    "analysis.preflight",
+    "analysis.enqueue",
+    "analysis.cancel",
+    "analysis.list",
+    "analysis.clearFinished",
     "git.repositoryInfo",
     "git.status",
     "git.branches",
@@ -289,7 +317,14 @@ export const RENDERER_EVENTS = [
     "core.progress",
     "repository.changed",
     "prompt.requested",
-    "prompt.closed"
+    "prompt.closed",
+    "analysis.queued",
+    "analysis.started",
+    "analysis.progress",
+    "analysis.finished",
+    "analysis.failed",
+    "analysis.cancelled",
+    "snapshots.changed"
 ] as const satisfies ReadonlyArray<keyof CoreEvents>
 
 export type RendererEvent = (typeof RENDERER_EVENTS)[number]

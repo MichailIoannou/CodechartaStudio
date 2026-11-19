@@ -1,7 +1,7 @@
-//! Stand-in for `ccsh analyse` in the core's tests; never packaged. It plays the scenario in the JSON file
-//! named by `FAKE_CCSH_SCENARIO`: stdout lines, stderr chunks with a pause after each, optionally a map
-//! named exactly like ccsh names it (after waiting for a file the test creates, when scripted), optionally
-//! hanging until killed, then the scripted exit code.
+//! Stand-in for `ccsh analyse` (and for java's version answer) in the core's tests; never packaged. It
+//! plays the scenario in the JSON file named by `FAKE_CCSH_SCENARIO`: stdout lines, stderr chunks with a
+//! pause after each, optionally a map named exactly like ccsh names it (after waiting for a file the test
+//! creates, when scripted), optionally hanging until killed, then the scripted exit code.
 
 use std::fs;
 use std::io::Write;
@@ -16,6 +16,9 @@ const SCENARIO_VARIABLE: &str = "FAKE_CCSH_SCENARIO";
 const VERSION_FLAG: &str = "--version";
 const VERSION_ANSWER: &str =
     "CodeCharta ccsh\nversion \"2.4.0\"\nCopyright(c) 2024, MaibornWolff GmbH";
+/// Asked like java, it answers like a JDK 25, so a test can name it as the java of the tools check too.
+const JAVA_VERSION_FLAG: &str = "-version";
+const JAVA_VERSION_ANSWER: &str = "openjdk version \"25.0.1\" 2025-10-21";
 const OUTPUT_OPTION: &str = "-o";
 const COMMIT_OPTION: &str = "--commit=";
 const SHORT_HASH_LENGTH: usize = 7;
@@ -46,6 +49,10 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args == [VERSION_FLAG] {
         println!("{VERSION_ANSWER}");
+        return;
+    }
+    if args == [JAVA_VERSION_FLAG] {
+        eprintln!("{JAVA_VERSION_ANSWER}");
         return;
     }
     let exit_code = play(&args).unwrap_or_else(|message| {

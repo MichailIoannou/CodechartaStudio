@@ -273,6 +273,17 @@ impl<'deps> SnapshotRepository<'deps> {
         })
     }
 
+    /// Removes the log a failed analysis left, if it is still there.
+    pub fn forget_failed(&self, folder: &FolderRef, job: &JobId) -> CoreResult<()> {
+        let failed = self.failed_dir(folder, job)?;
+        match fs::remove_dir_all(&failed) {
+            Err(source) if source.kind() != io::ErrorKind::NotFound => {
+                Err(io_error("remove", &failed, source))
+            }
+            _ => Ok(()),
+        }
+    }
+
     fn failed_dir(&self, folder: &FolderRef, job: &JobId) -> CoreResult<PathBuf> {
         self.store
             .paths()

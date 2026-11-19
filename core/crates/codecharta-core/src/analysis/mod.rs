@@ -1,11 +1,13 @@
 pub mod argv;
 pub mod janitor;
+pub mod jobs;
 pub mod launcher;
 pub mod output;
 pub mod preflight;
 pub mod profile;
 pub mod progress;
 pub mod queue;
+pub mod recovery;
 mod run_log;
 pub mod runner;
 pub mod service;
