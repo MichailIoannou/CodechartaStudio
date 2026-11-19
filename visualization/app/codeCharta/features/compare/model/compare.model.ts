@@ -1,17 +1,29 @@
+import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
 import type { BaseMode } from "../../../model/coreApi/BaseMode"
 import type { ComparedCommit } from "../../../model/coreApi/ComparedCommit"
 import type { CompareIntent } from "../../../model/coreApi/CompareIntent"
+import type { EnqueueResult } from "../../../model/coreApi/EnqueueResult"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { ResolvedComparison } from "../../../model/coreApi/ResolvedComparison"
 import type { ResolvedSide } from "../../../model/coreApi/ResolvedSide"
 import type { SnapshotRelation } from "../../../model/coreApi/SnapshotRelation"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 
-export type { BaseMode, ComparedCommit, CompareIntent, FolderRef, ResolvedComparison, ResolvedSide, SnapshotSummary }
+export type {
+    AnalysisJob,
+    BaseMode,
+    ComparedCommit,
+    CompareIntent,
+    EnqueueResult,
+    FolderRef,
+    ResolvedComparison,
+    ResolvedSide,
+    SnapshotSummary
+}
 
-type ComparePhase = "idle" | "resolving" | "stopped" | "needsDecision" | "loading" | "active" | "noDifferences" | "failed"
+type ComparePhase = "idle" | "resolving" | "stopped" | "needsDecision" | "analysing" | "loading" | "active" | "noDifferences" | "failed"
 
-type CompareErrorKind = "refNotFound" | "loadFailed" | "rootMismatch" | "coreUnavailable" | "coreError"
+type CompareErrorKind = "refNotFound" | "analysisCancelled" | "loadFailed" | "rootMismatch" | "coreUnavailable" | "coreError"
 
 export interface CompareError {
     kind: CompareErrorKind
@@ -30,12 +42,25 @@ export interface LoadedSide {
     checksum: string
 }
 
+/** The analysis of one missing side, started by "Analyse missing". */
+export interface SideAnalysis {
+    side: "base" | "head"
+    commit: string
+    shortCommit: string
+    /** Null when nothing had to be queued: the commit was analysed meanwhile, or the analysis was refused. */
+    jobId: string | null
+    /** Why the analysis failed or was refused. */
+    failure: string | null
+}
+
 export interface CompareState {
     phase: ComparePhase
     resolved: ResolvedComparison | null
     base: LoadedSide | null
     head: LoadedSide | null
     error: CompareError | null
+    /** The analyses of the missing sides, while they run and after one failed. */
+    analyses: SideAnalysis[]
 }
 
 /** The checksums of the two maps now in the store; `base` is null when its content equals the head's and only the head was kept. */
@@ -50,4 +75,4 @@ export interface ComparePrefill {
     head?: string
 }
 
-export const IDLE_COMPARISON: CompareState = { phase: "idle", resolved: null, base: null, head: null, error: null }
+export const IDLE_COMPARISON: CompareState = { phase: "idle", resolved: null, base: null, head: null, error: null, analyses: [] }

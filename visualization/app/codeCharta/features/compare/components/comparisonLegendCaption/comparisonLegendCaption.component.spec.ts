@@ -41,7 +41,8 @@ describe("ComparisonLegendCaptionComponent", () => {
                 staleBy: 0,
                 checksum: TEST_FILE_DATA_JAVA.fileMeta.fileChecksum
             },
-            error: null
+            error: null,
+            analyses: []
         })
 
         // Assert

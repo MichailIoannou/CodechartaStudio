@@ -41,7 +41,8 @@ describe("CompareStore", () => {
             resolved: null,
             base: aLoadedSide(BASE_SHA, baseChecksum),
             head: aLoadedSide(HEAD_SHA, headChecksum),
-            error: null
+            error: null,
+            analyses: []
         })
     }
 

@@ -1,7 +1,16 @@
-import { InjectionToken, inject } from "@angular/core"
+import { InjectionToken, inject, Signal } from "@angular/core"
+import { AnalysisGatewayAdapter } from "../adapters/analysisGateway.adapter"
 import { CoreGatewayAdapter } from "../adapters/coreGateway.adapter"
 import { SnapshotGatewayAdapter } from "../adapters/snapshotGateway.adapter"
-import type { CompareIntent, PairLoad, ResolvedComparison, SnapshotSummary } from "../model/compare.model"
+import type {
+    AnalysisJob,
+    CompareIntent,
+    EnqueueResult,
+    FolderRef,
+    PairLoad,
+    ResolvedComparison,
+    SnapshotSummary
+} from "../model/compare.model"
 
 export interface SnapshotGateway {
     /** Replaces the loaded maps with the two snapshots in one step. */
@@ -10,6 +19,15 @@ export interface SnapshotGateway {
     loadAlone(head: SnapshotSummary): Promise<string | null>
     /** The commit of the snapshot on the map, for "compare with current". */
     shownCommit(): string | null
+    /** Keeps what the map shows until the comparison loads: no resolution of the snapshot view may replace it meanwhile. */
+    holdMap(): void
+}
+
+export interface AnalysisGateway {
+    /** The core's analysis queue, kept current by its events. */
+    readonly jobs: Signal<readonly AnalysisJob[]>
+    enqueue(folder: FolderRef, commit: string): Promise<EnqueueResult>
+    cancel(jobId: string): Promise<void>
 }
 
 export interface CoreGateway {
@@ -19,6 +37,11 @@ export interface CoreGateway {
 export const SNAPSHOT_GATEWAY = new InjectionToken<SnapshotGateway>("SNAPSHOT_GATEWAY", {
     providedIn: "root",
     factory: () => inject(SnapshotGatewayAdapter)
+})
+
+export const ANALYSIS_GATEWAY = new InjectionToken<AnalysisGateway>("ANALYSIS_GATEWAY", {
+    providedIn: "root",
+    factory: () => inject(AnalysisGatewayAdapter)
 })
 
 export const CORE_GATEWAY = new InjectionToken<CoreGateway>("CORE_GATEWAY", {

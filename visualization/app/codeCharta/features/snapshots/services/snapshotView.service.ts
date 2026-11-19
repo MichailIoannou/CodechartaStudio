@@ -145,6 +145,17 @@ export class SnapshotViewService {
         return this.analyse({ folder: { projectId: job.projectId, folderId: job.folderId }, target: job.target, surface })
     }
 
+    /** A comparison is about to take the map: a resolution in flight is dropped and the target becomes what is shown. */
+    holdShownSnapshot(): void {
+        this.latestTicket += 1
+        this.state.update(state => (IN_FLIGHT.has(state.status) ? { ...state, status: "shown" } : state))
+        const folder = this.workingRef()
+        const shown = this.projects.shownSnapshot()?.ref ?? null
+        if (folder && shown && isSameFolder(shown, folder)) {
+            this.setTarget(folder, { kind: "snapshot", ref: shown })
+        }
+    }
+
     dismissProblems(): void {
         this.rejected.set(null)
     }

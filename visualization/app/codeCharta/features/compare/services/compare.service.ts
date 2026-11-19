@@ -1,15 +1,25 @@
-import { Injectable, inject } from "@angular/core"
+import { effect, Injectable, inject, untracked } from "@angular/core"
 import { Router } from "@angular/router"
 import { routeLinks, viewIdForLink } from "../../../routing/routePaths"
 import { DesktopBridgeError } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
-import type { BaseMode, CompareError, CompareIntent, FolderRef, LoadedSide, ResolvedComparison, ResolvedSide } from "../model/compare.model"
-import { CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
+import type {
+    AnalysisJob,
+    BaseMode,
+    CompareError,
+    CompareIntent,
+    FolderRef,
+    LoadedSide,
+    ResolvedComparison,
+    ResolvedSide
+} from "../model/compare.model"
+import { ANALYSIS_GATEWAY, CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
 import { RecentComparisonsRepo } from "../repos/recentComparisons.repo"
 import { CompareReadStore } from "../stores/compare.read.store"
 import { CompareStore } from "../stores/compare.store"
 import { CompareWriteStore } from "../stores/compare.write.store"
 import { refName } from "./comparisonText"
+import { batchOutcome, missingSidesOf, pendingJobIds, queuedAnalysis, withFailures } from "./missingSides"
 
 const METRIC_VIEW_TOAST = "Compare runs in the metric view — the domain and dependency views show a single map."
 const TREEMAP_TOAST = "Switched to the treemap layout — the radial layouts show a single map."
@@ -42,7 +52,18 @@ export class CompareService {
     private readonly router = inject(Router)
     private readonly toastService = inject(ToastService)
     private readonly recents = inject(RecentComparisonsRepo)
+    private readonly analyses = inject(ANALYSIS_GATEWAY)
     private latestTicket = 0
+    private lastIntent: CompareIntent | null = null
+
+    constructor() {
+        effect(() => {
+            const jobs = this.analyses.jobs()
+            if (this.store.state().phase === "analysing") {
+                untracked(() => void this.followAnalyses(jobs))
+            }
+        })
+    }
 
     /** Compares what the user typed or picked; the base stays the base. */
     async compareSides(folder: ComparedFolder, sides: TypedSides): Promise<void> {
@@ -69,6 +90,37 @@ export class CompareService {
         if (resolved) {
             await this.show(resolved, ++this.latestTicket)
         }
+    }
+
+    /** "Analyse missing": queues the sides without an analysis; the comparison goes on once they are analysed. */
+    async analyseMissing(): Promise<void> {
+        const { resolved } = this.store.state()
+        if (!resolved) {
+            return
+        }
+        const ticket = ++this.latestTicket
+        this.snapshots.holdMap()
+        try {
+            const folder = resolved.head.requested.folder
+            const queued = await Promise.all(
+                missingSidesOf(resolved).map(async analysis =>
+                    queuedAnalysis(analysis, await this.analyses.enqueue(folder, analysis.commit))
+                )
+            )
+            if (ticket === this.latestTicket) {
+                this.store.update({ phase: "analysing", analyses: queued, error: null })
+            }
+        } catch (error) {
+            this.fail(ticket, compareErrorOf(error))
+        }
+    }
+
+    /** "Cancel analysis": cancels the whole batch and compares nothing. */
+    async cancelAnalyses(): Promise<void> {
+        const ticket = ++this.latestTicket
+        const pending = pendingJobIds(this.store.state().analyses, this.analyses.jobs())
+        this.fail(ticket, { kind: "analysisCancelled", message: "" })
+        await Promise.all(pending.map(jobId => this.analyses.cancel(jobId).catch(() => undefined)))
     }
 
     swap(): void {
@@ -100,11 +152,33 @@ export class CompareService {
     }
 
     private beginResolving(): number {
-        this.store.set({ phase: "resolving", resolved: null, base: null, head: null, error: null })
+        this.store.set({ phase: "resolving", resolved: null, base: null, head: null, error: null, analyses: [] })
         return ++this.latestTicket
     }
 
+    /** Once no analysis of the batch runs: resolves again, so the sides come from the store, and goes on from there. */
+    private async followAnalyses(jobs: readonly AnalysisJob[]): Promise<void> {
+        const { analyses } = this.store.state()
+        const outcome = batchOutcome(analyses, jobs)
+        const ticket = this.latestTicket
+        if (outcome === "cancelled") {
+            this.fail(ticket, { kind: "analysisCancelled", message: "" })
+        } else if (outcome === "finished" && this.lastIntent) {
+            this.store.update({ phase: "resolving", analyses: withFailures(analyses, jobs) })
+            await this.resolveAgain(this.lastIntent, ticket)
+        }
+    }
+
+    private async resolveAgain(intent: CompareIntent, ticket: number): Promise<void> {
+        try {
+            await this.resolveAndShow(intent, ticket)
+        } catch (error) {
+            this.fail(ticket, compareErrorOf(error))
+        }
+    }
+
     private async resolveAndShow(intent: CompareIntent, ticket: number): Promise<void> {
+        this.lastIntent = intent
         const resolved = await this.core.resolve(intent, this.snapshots.shownCommit())
         if (ticket !== this.latestTicket) {
             return
@@ -128,6 +202,7 @@ export class CompareService {
             return
         }
         this.store.update({ phase: "loading", resolved, error: null })
+        this.snapshots.holdMap()
         try {
             await (resolved.preflight.identicalChecksums ? this.showHeadAlone(base, head, ticket) : this.showPair(base, head, ticket))
         } catch (error) {
