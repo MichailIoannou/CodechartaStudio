@@ -30,7 +30,14 @@ type FakeAnswerKey =
     | "setColorScheme"
     | "restartCore"
 
-type FakeGitMethod = "git.repositoryInfo" | "git.status" | "git.branches" | "git.refsFingerprint" | "git.log" | "git.commitDetails"
+type FakeGitMethod =
+    | "git.repositoryInfo"
+    | "git.status"
+    | "git.branches"
+    | "git.refsFingerprint"
+    | "git.log"
+    | "git.commitDetails"
+    | "git.resolveCommit"
 
 /** What the fake answers for one folder; a method without a value fails with `NOT_A_REPOSITORY`. */
 interface FakeGitRepository {
@@ -95,6 +102,7 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     length?: number
     repo?: FolderRef
     sha?: string
+    revision?: string
     scope?: GitLogParams["scope"]
     filter?: GitLogParams["filter"]
     cursor?: string | null
@@ -668,7 +676,11 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "git.branches": gitAnswer("git.branches", repository => repository.refs),
         "git.refsFingerprint": gitAnswer("git.refsFingerprint", repository => repository.refs?.fingerprint),
         "git.log": gitAnswer("git.log", gitLogPage),
-        "git.commitDetails": gitAnswer("git.commitDetails", gitCommitDetails)
+        "git.commitDetails": gitAnswer("git.commitDetails", gitCommitDetails),
+        "git.resolveCommit": gitAnswer("git.resolveCommit", (repository, params) => {
+            const found = repository.commits?.find(commit => commit.sha === params.revision)
+            return found ?? { code: "UNKNOWN_REVISION", message: `The fake desktop bridge has no commit ${params.revision}.`, details: {} }
+        })
     }
 
     function answerFromBackend(method: BridgeMethod, params: unknown) {

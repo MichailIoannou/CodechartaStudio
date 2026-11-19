@@ -39,6 +39,10 @@ export class GitApiService {
         return this.call("git.commitDetails", { repo, sha })
     }
 
+    resolveCommit(repo: FolderRef, revision: string) {
+        return this.call("git.resolveCommit", { repo, revision })
+    }
+
     onRepositoryChanged(handler: (change: RepositoryChanged) => void): () => void {
         return this.bridge?.subscribe("repository.changed", handler) ?? (() => undefined)
     }

@@ -1,0 +1,89 @@
+@if (workingTreeText(); as text) {
+    <p class="p-4 text-sm" data-testid="commit-details-working-tree">{{ text }}</p>
+} @else if (isLoading()) {
+    <div class="flex flex-col gap-2 p-3" data-testid="commit-details-loading">
+        @for (line of skeletonLines; track line) {
+            <div class="skeleton h-4 w-full"></div>
+        }
+    </div>
+} @else if (failure(); as sentence) {
+    <div role="alert" class="alert alert-error m-2 flex px-2 py-1 text-xs" data-testid="commit-details-failure">
+        <span class="flex-1">{{ sentence }}</span>
+        <button type="button" class="btn btn-ghost btn-xs" (click)="retry()">Retry</button>
+    </div>
+} @else if (details(); as commit) {
+    <div class="flex flex-col gap-2 px-3 pb-3 pt-2">
+        <h3 class="whitespace-pre-wrap text-base font-semibold" data-testid="commit-details-subject">{{ commit.subject }}</h3>
+        @if (body()) {
+            <p class="whitespace-pre-wrap text-sm" data-testid="commit-details-body">{{ body() }}</p>
+        }
+        <div class="flex items-center gap-1">
+            <span class="font-mono text-sm" [title]="commit.sha" data-testid="commit-details-sha">{{ displayedSha() }}</span>
+            <button type="button" class="btn btn-ghost btn-xs btn-square" title="Copy full SHA" aria-label="Copy full SHA" (click)="copySha(commit)">
+                <i [class]="clipboard.copied() ? 'fa-solid fa-check' : 'fa-regular fa-copy'"></i>
+            </button>
+        </div>
+        <span class="text-xs text-base-content/60" data-testid="commit-details-author">{{ authorLine() }}</span>
+        @if (committerLine(); as committer) {
+            <span class="text-xs text-base-content/60" data-testid="commit-details-committer">{{ committer }}</span>
+        }
+        @if (commit.parents.length > 0) {
+            <span class="flex flex-wrap items-center gap-1 text-xs text-base-content/60" data-testid="commit-details-parents">
+                Parents
+                @for (parent of commit.parents; track parent) {
+                    <button type="button" class="btn btn-link btn-xs h-auto min-h-0 px-1 font-mono" [title]="parent" (click)="selectParent(parent)">
+                        {{ shortShaOf(parent) }}
+                    </button>
+                }
+            </span>
+        }
+        <div class="mt-2 flex items-baseline gap-2 text-xs" data-testid="commit-details-totals">
+            <span class="font-semibold uppercase tracking-wide text-base-content/60">Changed files</span>
+            <span>{{ fileCountText() }}</span>
+            <span class="tabular-nums text-success">+{{ commit.totals.insertions }}</span>
+            <span class="tabular-nums text-error">−{{ commit.totals.deletions }}</span>
+        </div>
+        @if (isMerge()) {
+            <span class="text-xs text-base-content/60" data-testid="commit-details-first-parent-note">Changes compared with the first parent</span>
+        }
+        <ul class="flex flex-col">
+            @for (row of files(); track row.file.path) {
+                <li class="grid h-7 grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-2 text-sm" data-testid="changed-file">
+                    <span class="badge badge-soft badge-xs w-16 justify-center" [class]="row.badge.toneClass" [attr.title]="row.badge.title">{{ row.badge.label }}</span>
+                    <span class="flex min-w-0 items-baseline gap-1.5">
+                        @if (row.nodePath; as nodePath) {
+                            <button
+                                type="button"
+                                class="btn btn-link btn-xs h-auto min-h-0 shrink-0 p-0 text-sm"
+                                [title]="'Show ' + row.file.path + ' in the map'"
+                                (click)="showInMap(nodePath)"
+                            >
+                                {{ row.name }}
+                            </button>
+                        } @else {
+                            <span class="shrink-0" [title]="isLocatorProvided ? 'Not in the map shown now' : row.file.path">{{ row.name }}</span>
+                        }
+                        <span class="truncate text-xs text-base-content/60" [title]="row.folder">{{ row.folder }}</span>
+                    </span>
+                    <span class="flex gap-1 text-xs tabular-nums">
+                        @if (row.file.insertions === null || row.file.deletions === null) {
+                            <span class="text-base-content/60">binary</span>
+                        } @else {
+                            @if (row.file.insertions > 0) {
+                                <span class="text-success">+{{ row.file.insertions }}</span>
+                            }
+                            @if (row.file.deletions > 0) {
+                                <span class="text-error">−{{ row.file.deletions }}</span>
+                            }
+                        }
+                    </span>
+                </li>
+            }
+        </ul>
+        @if (omittedFileCount() > 0) {
+            <span class="text-xs text-base-content/60" data-testid="commit-details-truncated">… and {{ omittedFilesText() }} (list truncated)</span>
+        }
+    </div>
+} @else {
+    <p class="p-4 text-sm text-base-content/60">Select a commit to see its details.</p>
+}

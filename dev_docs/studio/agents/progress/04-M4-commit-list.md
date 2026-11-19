@@ -46,7 +46,7 @@ Parallel work note: 05-M4 (snapshots/analyse UI) and 02-M7 (metrics bar) run at 
 - [x] 4. Log service
 - [x] 5. Commit list
 - [x] 6. Toolbar filters
-- [ ] 7. Commit details
+- [x] 7. Commit details
 
 ## Notes
 
@@ -162,4 +162,29 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   fa-circle-question` "How to read the commit list" opens a `cc-settings-popover-shell` (`w-80 p-3 text-sm`) with H8's
   legend table, drawn with `cc-commit-graph-cell` and the real badge classes. Wording: H8's table (it differs slightly
   from the mock-up's legend; the design document wins). The analysis row shows only when the Analysis column does.
+
+### 7. Commit details
+- `services/commitDetails.service.ts` (`CommitDetailsService`): `details: LoadState<GitCommitDetails>` of the one
+  selected commit through `git.commitDetails`; a ticket per read so the latest selection wins; `retry()`;
+  `selectCommit(sha)` for the parent links — from the loaded list, else `git.resolveCommit` (new
+  `GitApiService.resolveCommit`; the fake answers it from its commits), because a filtered or partly loaded list often
+  lacks the parent.
+- `components/commitDetails` (`cc-commit-details`, in the DETAILS pane): subject `text-base font-semibold
+  whitespace-pre-wrap`, body `text-sm whitespace-pre-wrap`, SHA `font-mono` (10 characters as H9's example, full SHA in
+  `title`) with "Copy full SHA", "name <e-mail> · 3 Nov 2026, 14:03", committer line only when name or e-mail differ,
+  "Parents" + short-SHA `btn btn-link btn-xs` per parent, "CHANGED FILES  n files  +i −d", "Changes compared with the
+  first parent" for merges, file rows (worded `badge badge-soft badge-xs w-16 justify-center`, name, folder `/60`,
+  `+n` / `−n` or "binary"; renamed "old.ts → money.ts"), "… and n more files (list truncated)". Working tree: "3 changed
+  files: 1 staged, 2 unstaged" (kinds with a count only). Nothing selected: the H9 sentence. Loading: skeleton lines;
+  error: `alert alert-error text-xs` + "Retry".
+- `ports/loadedMapLocator.port.ts` (`LOADED_MAP_LOCATOR`): with a provider and a node path the file name is a
+  `btn btn-link btn-xs` "Show <path> in the map" that hands the node to the metrics view (`ViewHandoffStore`) and
+  navigates there; without a node, plain text titled "Not in the map shown now"; without a provider, plain text.
+- **Design gaps, not improvised:** the committer line has no wording in H9, so it uses the author line's format
+  without a label; the "Open changes" link of the working-tree details is left out (the Changes tab is not on this
+  branch; unbuilt features are not shown); the resolution line and the action buttons (Show in map, Analyse, Compare)
+  come from areas 05/06 through `COMMIT_ACTIONS` (M5); H9 lists no word for git's `unknown` change kind, so the badge
+  says "unknown" (`badge-ghost`).
+- Changelog: the **Git branches** entry is rewritten as **Git history** (plan sentence without "the top bar shows the
+  current branch", which is W1 / area 05).
 
