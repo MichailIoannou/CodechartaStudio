@@ -15,6 +15,8 @@ const TIME_UNITS: readonly { seconds: number; singular: string; plural: string }
     { seconds: 3600, singular: "hour", plural: "hours" },
     { seconds: SECONDS_PER_MINUTE, singular: "min", plural: "min" }
 ]
+const MS_PER_SECOND = 1000
+const SECONDS_PER_HOUR = 3600
 const BYTES_PER_KB = 1000
 const BYTE_UNITS = ["B", "kB", "MB", "GB", "TB"]
 
@@ -78,6 +80,21 @@ export function byteSize(bytes: number): string {
         unit += 1
     }
     return unit === 0 ? `${value} ${BYTE_UNITS[0]}` : `${value.toFixed(1)} ${BYTE_UNITS[unit]}`
+}
+
+export function shortDate(timestamp: string): string {
+    return new Date(timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+}
+
+export function durationText(milliseconds: number): string {
+    const seconds = Math.round(milliseconds / MS_PER_SECOND)
+    const hours = Math.floor(seconds / SECONDS_PER_HOUR)
+    const minutes = Math.floor((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE)
+    const rest = seconds % SECONDS_PER_MINUTE
+    if (hours > 0) {
+        return `${hours} h ${minutes} min`
+    }
+    return minutes > 0 ? `${minutes} min ${rest} s` : `${rest} s`
 }
 
 function operationName(status: GitStatus): string {

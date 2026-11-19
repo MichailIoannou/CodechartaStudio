@@ -19,6 +19,7 @@ import type { BridgeMethod, BridgeParams, BridgeResult, DesktopBridge } from "..
 import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.service"
 import { DesktopBridgeError, valueOrThrow } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
+import { defaultRoleFor } from "../util/folderRole"
 import { snapshotDisplayName, uniqueDisplayNames } from "../util/snapshotDisplayName"
 import { readSnapshotBytes } from "./snapshotBytes"
 
@@ -182,6 +183,37 @@ export class ProjectsService {
 
     async addFolder(folder: NewFolder): Promise<void> {
         await this.applyProject(await this.request("projects.addFolder", { projectId: this.requireProject().id, folder }))
+    }
+
+    async addPickedFolder(title: string): Promise<void> {
+        const picked = await this.pickFolder(title).catch((error: unknown) => {
+            this.toastUnlessSilent(error, (error as Error).message)
+            return null
+        })
+        if (!picked) {
+            return
+        }
+        try {
+            const role = defaultRoleFor(picked.git, this.requireProject().folders)
+            await this.addFolder({ pickToken: picked.pickToken, label: picked.suggestedLabel, role })
+        } catch (error) {
+            this.toastFolderRefusal(error, picked.path)
+        }
+    }
+
+    toastFolderRefusal(error: unknown, path: string): void {
+        if (error instanceof DesktopBridgeError && error.code === "DUPLICATE_FOLDER") {
+            this.toastService.show(`'${path}' is already part of this project.`, "info")
+            return
+        }
+        this.toastUnlessSilent(error, (error as Error).message)
+    }
+
+    async revealStoreFolder(): Promise<void> {
+        const answer = await this.bridge.reveal({ kind: "storeRoot" })
+        if ("error" in answer) {
+            this.toastUnlessSilent(new DesktopBridgeError(answer.error), answer.error.message)
+        }
     }
 
     async updateFolder(folderId: string, changes: { label?: string; role?: FolderRole }): Promise<void> {

@@ -337,6 +337,90 @@ describe("ProjectsService", () => {
         expect(service.projects()[0].name).toBe("invoices")
     })
 
+    it("should add a picked folder with its suggested label and default role", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-dots", pickedFolders: [aPickedFolder("dotfiles-work")] })
+        await service.initialise()
+
+        // Act
+        await service.addPickedFolder("Add folder")
+
+        // Assert
+        expect(requestsOf("projects.pickFolder")).toEqual([{ title: "Add folder" }])
+        expect(service.activeProject()?.folders.map(folder => [folder.label, folder.role])).toEqual([
+            ["dotfiles", "primary"],
+            ["dotfiles-work", "helper"]
+        ])
+    })
+
+    it("should do nothing when the folder pick is cancelled", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-dots" })
+        await service.initialise()
+
+        // Act
+        await service.addPickedFolder("Add folder")
+
+        // Assert
+        expect(requestsOf("projects.addFolder")).toEqual([])
+        expect(toastService.show).not.toHaveBeenCalled()
+    })
+
+    it("should say so when the picked folder is already part of the project", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-dots", pickedFolders: [aPickedFolder("f-dots")] })
+        await service.initialise()
+
+        // Act
+        await service.addPickedFolder("Add folder")
+
+        // Assert
+        expect(toastService.show).toHaveBeenCalledWith("'/work/f-dots' is already part of this project.", "info")
+    })
+
+    it("should toast another refusal to add a folder with its message", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-dots", pickedFolders: [aPickedFolder("dotfiles")] })
+        await service.initialise()
+        bridge.failWith("projects.addFolder", { code: "DUPLICATE_LABEL", message: "Another folder is called dotfiles.", details: {} })
+
+        // Act
+        await service.addPickedFolder("Add folder")
+
+        // Assert
+        expect(toastService.show).toHaveBeenCalledWith("Another folder is called dotfiles.", "error")
+    })
+
+    it("should toast a folder picker that fails", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-dots" })
+        await service.initialise()
+        bridge.failWith("projects.pickFolder", { code: "BAD_REQUEST", message: "bad title", details: {} })
+
+        // Act
+        await service.addPickedFolder("Add folder")
+
+        // Assert
+        expect(toastService.show).toHaveBeenCalledWith("bad title", "error")
+    })
+
+    it("should reveal the store folder and toast when it cannot", async () => {
+        // Arrange
+        const service = createService()
+        await service.revealStoreFolder()
+        bridge.failWith("reveal", { code: "IO", message: "no file manager", details: {} })
+
+        // Act
+        await service.revealStoreFolder()
+
+        // Assert
+        expect(bridge.calls.filter(call => call.name === "reveal").map(call => call.args[0])).toEqual([
+            { kind: "storeRoot" },
+            { kind: "storeRoot" }
+        ])
+        expect(toastService.show).toHaveBeenCalledTimes(1)
+    })
+
     it("should toast a folder that cannot be revealed", async () => {
         // Arrange
         const service = createService({ activeProjectId: "p-billing" })

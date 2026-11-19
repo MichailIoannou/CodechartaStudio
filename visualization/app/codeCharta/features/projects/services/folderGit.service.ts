@@ -6,13 +6,21 @@ import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.ser
 
 export const RECENT_COMMIT_COUNT = 10
 
-/** `undefined` while unknown, `null` when git could not answer. */
-export type FolderGitStatus = GitStatus | null | undefined
+export function isGitStatus(status: FolderGitStatus): status is GitStatus {
+    return status !== undefined && !("problem" in status)
+}
+
+export interface GitProblem {
+    problem: string
+}
+
+/** `undefined` while unknown. */
+export type FolderGitStatus = GitStatus | GitProblem | undefined
 
 @Injectable({ providedIn: "root" })
 export class FolderGitService {
     private readonly environment = inject(DesktopEnvironment)
-    private readonly statuses = signal<Record<string, GitStatus | null>>({})
+    private readonly statuses = signal<Record<string, GitStatus | GitProblem>>({})
 
     statusOf(folder: FolderRef): FolderGitStatus {
         return this.statuses()[keyOf(folder)]
@@ -31,7 +39,7 @@ export class FolderGitService {
 
     private async refreshOne(folder: FolderRef): Promise<void> {
         const answer = await this.environment.requireBridge().request("git.status", { repo: folder })
-        const status = answer.ok ? answer.value : null
+        const status = "error" in answer ? { problem: answer.error.message } : answer.value
         this.statuses.update(statuses => ({ ...statuses, [keyOf(folder)]: status }))
     }
 }

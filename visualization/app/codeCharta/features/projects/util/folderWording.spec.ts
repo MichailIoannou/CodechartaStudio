@@ -1,5 +1,16 @@
 import { aGitStatus } from "../projects.mocks"
-import { branchLabel, byteSize, changesSentence, counted, relativeTime, remoteDisplay, shortSha, upstreamState } from "./folderWording"
+import {
+    branchLabel,
+    byteSize,
+    changesSentence,
+    counted,
+    durationText,
+    relativeTime,
+    remoteDisplay,
+    shortDate,
+    shortSha,
+    upstreamState
+} from "./folderWording"
 
 const NOW_MS = Date.parse("2026-11-19T12:00:00Z")
 const upstream = { refName: "refs/remotes/origin/main", name: "origin/main", ahead: 0, behind: 0, isGone: false }
@@ -105,5 +116,21 @@ describe("folderWording", () => {
 
         // Assert
         expect(sizes).toEqual(["512 B", "61.2 MB", "4.2 kB"])
+    })
+
+    it("should write a date as day and month", () => {
+        // Arrange & Act
+        const date = shortDate("2026-10-28T09:30:00Z")
+
+        // Assert
+        expect(date).toBe("28 Oct")
+    })
+
+    it("should write how long an analysis took", () => {
+        // Arrange & Act
+        const durations = [400, 45_000, 72_000, 3_900_000].map(durationText)
+
+        // Assert
+        expect(durations).toEqual(["0 s", "45 s", "1 min 12 s", "1 h 5 min"])
     })
 })

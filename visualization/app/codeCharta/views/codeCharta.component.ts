@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, OnInit, signal } from "@angular/cor
 import { RouterOutlet } from "@angular/router"
 import { ChangelogDialogComponent } from "../features/changelog/facade"
 import { NavBarComponent } from "../features/navBar/facade"
+import { ProjectsBootService } from "../features/projects/facade"
 import { BootLoadingIndicatorComponent, ErrorDialogComponent, ToastComponent } from "../features/shared/facade"
-import { LoadFilesUseCase } from "../load/load.facade"
 
 @Component({
     selector: "cc-code-charta",
@@ -14,11 +14,11 @@ import { LoadFilesUseCase } from "../load/load.facade"
 export class CodeChartaComponent implements OnInit {
     isInitialized = signal(false)
 
-    constructor(private readonly loadFilesUseCase: LoadFilesUseCase) {}
+    constructor(private readonly projectsBoot: ProjectsBootService) {}
 
     ngOnInit(): void {
-        this.loadFilesUseCase
-            .loadOnBoot()
+        this.projectsBoot
+            .boot()
             .catch(() => undefined)
             .finally(() => {
                 this.isInitialized.set(true)
