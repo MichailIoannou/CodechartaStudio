@@ -1,6 +1,14 @@
 import { counted } from "../../../util/wording"
 import { parseRefRange } from "../../gitHistory/facade"
-import type { BaseMode, ComparedCommit, CompareError, LoadedSide, ResolvedComparison, ResolvedSide } from "../model/compare.model"
+import type {
+    BaseMode,
+    ComparedCommit,
+    CompareError,
+    LoadedSide,
+    ResolvedComparison,
+    ResolvedSide,
+    SideAnalysis
+} from "../model/compare.model"
 
 const MERGE_BASE_SEPARATOR = "..."
 const TIP_SEPARATOR = ".."
@@ -64,6 +72,8 @@ export function errorSentence(error: CompareError): string {
     switch (error.kind) {
         case "refNotFound":
             return `'${error.input ?? ""}' is not a branch, tag or commit of '${error.folderLabel ?? ""}'.`
+        case "analysisCancelled":
+            return "The analysis was cancelled. Nothing was compared."
         case "loadFailed":
             return `The analyses could not be loaded: ${error.message}`
         case "rootMismatch":
@@ -86,6 +96,10 @@ export function sideStatusText({ status }: ResolvedSide): string {
     }
     const older = nearest.relation === "ancestor" ? `, ${counted(nearest.staleBy, "commit")} older` : ""
     return `not analysed · nearest: ${nearest.snapshot.shortCommit ?? ""}${older}`
+}
+
+export function analysisFailureText({ shortCommit, failure }: SideAnalysis): string {
+    return `The analysis of ${shortCommit} failed: ${failure ?? ""}`
 }
 
 export function staleTitle(side: LoadedSide): string {

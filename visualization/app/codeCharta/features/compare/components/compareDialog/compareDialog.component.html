@@ -83,7 +83,7 @@
             </div>
         }
 
-        @if (!outcome() && !preparation()) {
+        @if (!outcome() && !isPreparing()) {
             <div class="flex flex-col gap-2" data-testid="compare-lists">
                 <fieldset class="join flex" aria-label="Lists">
                     <button type="button" class="btn btn-sm join-item btn-active flex-1 font-normal normal-case" aria-pressed="true">
@@ -117,75 +117,13 @@
             <div role="status" class="alert text-sm" [class.alert-info]="outcome.tone === 'info'" [class.alert-warning]="outcome.tone === 'warning'" data-testid="compare-outcome">
                 <span>{{ outcome.text }}</span>
                 @if (outcome.offersTipVsTip) {
-                    <button type="button" class="btn btn-sm" (click)="continueWithShownSnapshots()">Compare tip vs tip</button>
+                    <button type="button" class="btn btn-sm" (click)="continueAfterOutcome()">Compare tip vs tip</button>
                 }
             </div>
         }
 
-        @if (preparation(); as preparation) {
-            <div class="flex flex-col gap-2" data-testid="compare-preparation">
-                @for (row of preparation.rows; track row.caption) {
-                    <div class="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-2 text-sm">
-                        <span class="text-xs font-semibold">{{ row.caption }}</span>
-                        <span class="truncate"
-                            ><span class="font-mono">{{ row.shortCommit }}</span>
-                            @if (row.label) {
-                                ({{ row.label }})
-                            }
-                        </span>
-                        <span class="flex items-center gap-1">
-                            @switch (row.tone) {
-                                @case ("exact") {
-                                    <i class="fa-solid fa-circle text-success"></i>
-                                }
-                                @case ("nearest") {
-                                    <i class="fa-solid fa-circle-half-stroke text-warning"></i>
-                                }
-                                @default {
-                                    <i class="fa-regular fa-circle text-base-content/50"></i>
-                                }
-                            }
-                            {{ row.status }}
-                        </span>
-                    </div>
-                }
-                @if (preparation.profilesDiffer) {
-                    <div role="alert" class="alert alert-warning text-sm">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>The two analyses used different profiles; some differences may not be code changes.</span>
-                    </div>
-                }
-                @switch (preparation.sizeVerdict) {
-                    @case ("warn") {
-                        <div role="alert" class="alert alert-warning text-sm">
-                            <span>These two analyses are large; comparing may take a while and use several GB of memory.</span>
-                        </div>
-                    }
-                    @case ("block") {
-                        <div role="alert" class="alert alert-error text-sm">
-                            <span>Too large to compare in memory. Analyse with a lighter profile or compare a sub-folder.</span>
-                        </div>
-                    }
-                }
-                @if (preparation.sizeVerdict !== "block") {
-                    <div class="flex justify-end gap-2">
-                        @if (preparation.hasMissingSide) {
-                            <button
-                                type="button"
-                                class="btn btn-sm"
-                                data-testid="compare-use-nearest"
-                                [disabled]="preparation.useNearestRefusal !== null"
-                                [title]="preparation.useNearestRefusal ?? ''"
-                                (click)="continueWithShownSnapshots()"
-                            >
-                                Use nearest
-                            </button>
-                        } @else {
-                            <button type="button" class="btn btn-sm" data-testid="compare-anyway" (click)="continueWithShownSnapshots()">Compare anyway</button>
-                        }
-                    </div>
-                }
-            </div>
+        @if (isPreparing()) {
+            <cc-compare-preparation (goingOn)="hasStartedHere.set(true)" />
         }
 
         @if (errorText(); as errorText) {

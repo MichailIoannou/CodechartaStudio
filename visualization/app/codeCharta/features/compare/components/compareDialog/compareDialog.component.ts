@@ -15,33 +15,19 @@ import {
 import { relativeTime } from "../../../../util/wording"
 import { RefPickerComponent, RefRange, RefResolution } from "../../../gitHistory/facade"
 import { ProjectsFacade } from "../../../projects/facade"
-import type { BaseMode, ComparePrefill, FolderRef, ResolvedComparison, ResolvedSide } from "../../model/compare.model"
+import type { BaseMode, ComparePrefill, FolderRef } from "../../model/compare.model"
 import { BaseModeRepo } from "../../repos/baseMode.repo"
 import { RecentComparison, RecentComparisonsRepo } from "../../repos/recentComparisons.repo"
 import { CompareService } from "../../services/compare.service"
-import {
-    errorSentence,
-    rangeOf,
-    refName,
-    resolveOutcome,
-    sideCaption,
-    sideStatusText,
-    useNearestRefusal
-} from "../../services/comparisonText"
+import { errorSentence, rangeOf, refName, resolveOutcome } from "../../services/comparisonText"
 import { CompareStore } from "../../stores/compare.store"
+import { ComparePreparationComponent } from "../comparePreparation/comparePreparation.component"
 
 const BUSY_PHASES: ReadonlySet<string> = new Set(["resolving", "loading"])
+const PREPARATION_PHASES: ReadonlySet<string> = new Set(["needsDecision", "analysing"])
 const FINISHED_PHASES: ReadonlySet<string> = new Set(["active", "noDifferences"])
 const MILLISECONDS_PER_SECOND = 1000
 const NAMED_REF_KINDS: ReadonlySet<string> = new Set(["branch", "remoteBranch", "tag"])
-
-interface PreparationRow {
-    caption: string
-    shortCommit: string
-    label: string | null
-    tone: "exact" | "nearest" | "missing"
-    status: string
-}
 
 interface RecentRow {
     recent: RecentComparison
@@ -51,18 +37,10 @@ interface RecentRow {
     comparedAtTitle: string
 }
 
-interface Preparation {
-    rows: PreparationRow[]
-    profilesDiffer: boolean
-    sizeVerdict: ResolvedComparison["preflight"]["sizeVerdict"]
-    hasMissingSide: boolean
-    useNearestRefusal: string | null
-}
-
 @Component({
     selector: "cc-compare-dialog",
     templateUrl: "./compareDialog.component.html",
-    imports: [RefPickerComponent],
+    imports: [RefPickerComponent, ComparePreparationComponent],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CompareDialogComponent implements OnInit, AfterViewInit {
@@ -74,7 +52,7 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
     private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
     private readonly basePicker = viewChild<RefPickerComponent>("basePicker")
     private readonly headPicker = viewChild<RefPickerComponent>("headPicker")
-    private readonly hasStartedHere = signal(false)
+    readonly hasStartedHere = signal(false)
 
     readonly prefill = input.required<ComparePrefill>()
     readonly folderId = signal("")
@@ -100,7 +78,10 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
     readonly phase = computed(() => this.store.state().phase)
     readonly isBusy = computed(() => BUSY_PHASES.has(this.phase()))
     readonly isLoading = computed(() => this.phase() === "loading")
-    readonly canCompare = computed(() => Boolean(this.base().trim() && this.head().trim() && this.folderId()) && !this.isBusy())
+    readonly isPreparing = computed(() => PREPARATION_PHASES.has(this.phase()))
+    readonly canCompare = computed(
+        () => Boolean(this.base().trim() && this.head().trim() && this.folderId()) && !this.isBusy() && this.phase() !== "analysing"
+    )
     readonly outcome = computed(() => {
         const { phase, resolved } = this.store.state()
         return phase === "stopped" && resolved ? resolveOutcome(resolved) : null
@@ -110,10 +91,6 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         return phase === "failed" && error ? errorSentence(error) : null
     })
     readonly canRetry = computed(() => this.store.state().error?.kind === "coreUnavailable")
-    readonly preparation = computed(() => {
-        const { phase, resolved } = this.store.state()
-        return phase === "needsDecision" && resolved ? preparationOf(resolved) : null
-    })
 
     constructor() {
         effect(() => {
@@ -187,7 +164,7 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         )
     }
 
-    async continueWithShownSnapshots(): Promise<void> {
+    async continueAfterOutcome(): Promise<void> {
         this.hasStartedHere.set(true)
         await this.service.continueWithShownSnapshots()
     }
@@ -216,21 +193,4 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         }
         this.store.closeDialog()
     }
-}
-
-function preparationOf(resolved: ResolvedComparison): Preparation {
-    const { base, head, preflight } = resolved
-    return {
-        rows: [rowOf("BASE", base), rowOf("HEAD", head)],
-        profilesDiffer: preflight.profilesDiffer,
-        sizeVerdict: preflight.sizeVerdict,
-        hasMissingSide: [base, head].some(side => side.status.status === "missing"),
-        useNearestRefusal: useNearestRefusal(resolved)
-    }
-}
-
-function rowOf(caption: string, side: ResolvedSide): PreparationRow {
-    const { status } = side
-    const tone = status.status === "exact" ? "exact" : status.nearest ? "nearest" : "missing"
-    return { caption, shortCommit: side.requested.shortCommit, label: sideCaption(side.requested), tone, status: sideStatusText(side) }
 }
