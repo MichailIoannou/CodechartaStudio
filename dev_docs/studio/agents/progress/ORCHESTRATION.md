@@ -49,9 +49,9 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M6 Native window appearance | UI | done | — | feature/studio-02-m6 | b0e051814 (merged 7523f1965) |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
-| 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | part A (tasks 1–7) verified, **merge pending**; part B todo | merge: uncommitted owner/designer edits to plan 03 in the main checkout; part B (tasks 8–9): 01-M4.1 | feature/studio-03-m2 | 168d4fa21 (verified, not merged) |
-| 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | part A (tasks 1–5) verified, **merge pending** (after 03-M2; resolve the add/add conflict on `03-m3-snapshots.md` with the branch's version); part B todo | merge: same as 03-M2; part B (task 6): 01-M4.1 | feature/studio-03-m3 | f93165d40 (verified, not merged) |
-| 03-M4 Renderer load path | renderer | todo | 03-M3; check for visible parts first | — | — |
+| 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | done on `feature/studio-stack` (part B via feature/studio-03-shell); integration merge pending | integration merge: owner's uncommitted plan 03 edit | feature/studio-03-m2, feature/studio-03-shell | 598d6ffd7 (merged into stack e8de7965e) |
+| 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | done on `feature/studio-stack` (task 6 via feature/studio-03-shell); integration merge pending | integration merge: as 03-M2 | feature/studio-03-m3, feature/studio-03-shell | 1b51a0bb3 (merged into stack e8de7965e) |
+| 03-M4 Renderer load path | renderer | in progress (from feature/studio-stack) | — | feature/studio-03-m4 | — |
 | 03-M5 Projects UI | UI | todo | 03-M4 | — | — |
 | 03-M6 Import and store settings | UI | todo | 03-M5 | — | — |
 | 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
@@ -282,6 +282,13 @@ the milestone is started.
   not in the clone is the new error `HEAD_NOT_LOCAL`; a missing base branch is `UNKNOWN_REVISION` (the plan's
   base-branch fetch is not built); folder record gains an optional `hosting` override (cannot be cleared
   yet); new codes `REF_NOT_ON_REMOTE`, `HEAD_NOT_LOCAL`.
+- 03-M2/M3 shell (see `03-m2-projects.md`, `03-m3-snapshots.md` on the stack): shell-composed methods go through
+  `bridge.request(...)` (no new bridge keys): `projects.pickFolder`, `projects.readSourceFile`,
+  `projects.revealFolder` (new name), `snapshots.pickImportFile` (filters from the caller: `json`, `gz`),
+  `snapshots.readMapChunk` (≤ 32 MiB, realpath inside the store root). The relay runs composed methods
+  before the allow-list; the composed set is exactly those five (checked) and shell-only core methods stay
+  out of the allow-list (checked). Fake bridge gained an in-memory projects/snapshots backend. 03-M0 item 1
+  (64 MiB IPC timing) still not run.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -313,6 +320,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 03-M2/M3 shell and fake bridge verified on `feature/studio-stack` (format, lint, tsc, contract drift, npm test 663/663, build, test:electron 70/70, e2e:desktop 14/14, web e2e:ci 165/165) and merged into the stack. 03-M4 started from the stack.
 - 2026-11-19: owner asked why no custom UI was being built in parallel. Orchestrator error: UI agents were
   only allowed to start from `feature/studio-integration`, which lacked the unmerged core stack. Fixed by
   creating `feature/studio-stack` (verified, see Branching) and starting the UI lane from it. `/tmp` (tmpfs)
