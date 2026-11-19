@@ -1,3 +1,4 @@
+export { CredentialPromptDialogComponent } from "./components/credentialPromptDialog/credentialPromptDialog.component"
 export { GitHistoryPanelComponent } from "./components/gitHistoryPanel/gitHistoryPanel.component"
 export type { CommitSelection } from "./model/commitSelection"
 export { isGitStatus } from "./model/folderGitStatus"

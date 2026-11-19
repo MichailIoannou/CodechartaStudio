@@ -13,6 +13,8 @@ const MAX_DROPPED_FILE_BYTES = 4 * 1024 * 1024 * 1024
 const COLOR_SCHEMES = ["light", "dark", "system"]
 const WINDOW_BACKGROUND_COLOR = /^#[0-9a-fA-F]{6}$/
 const FILTER_EXTENSION = /^(\*|[A-Za-z0-9]+)$/
+const PROGRESS_EVENT = "core.progress"
+const PROMPT_REQUESTED_EVENT = "prompt.requested"
 
 function describeTrustedPage({ isPackaged, indexHtmlPath, devServerUrl, platform }) {
     if (!isPackaged && LOCAL_DEV_SERVER.test(devServerUrl ?? "")) {
@@ -105,6 +107,21 @@ function isValidOperationId(operationId) {
     return operationId === undefined || (typeof operationId === "string" && operationId.length <= MAX_OPERATION_ID_LENGTH)
 }
 
+/**
+ * The payload a renderer event reaches the page with, or null when it must not reach it. The core names the
+ * JSON-RPC request; the page knows its own operation id. A prompt always reaches the page, since git waits for it.
+ */
+function pageNotificationOf(method, params, operationIdOf) {
+    if (method === PROGRESS_EVENT) {
+        const operationId = operationIdOf(params?.requestId)
+        return operationId === undefined ? null : { ...params, requestId: operationId }
+    }
+    if (method === PROMPT_REQUESTED_EVENT) {
+        return { ...params, requestId: operationIdOf(params?.requestId) ?? null }
+    }
+    return params
+}
+
 function isInsideFolder(filePath, folder, platform) {
     const isWindows = platform === "win32"
     const pathFlavour = isWindows ? path.win32 : path.posix
@@ -181,6 +198,7 @@ module.exports = {
     isValidOperationId,
     isWindowBackgroundColor,
     judgeNavigation,
+    pageNotificationOf,
     planCoreRestart,
     resolveCoreExecutable,
     toDialogOptions

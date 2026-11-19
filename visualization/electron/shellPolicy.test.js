@@ -15,6 +15,7 @@ const {
     isMapChunkRange,
     isWindowBackgroundColor,
     judgeNavigation,
+    pageNotificationOf,
     planCoreRestart,
     resolveCoreExecutable,
     toDialogOptions
@@ -278,6 +279,45 @@ describe("allow-list", () => {
 
         // Assert
         assert.deepEqual(verdicts, [true, false, false])
+    })
+
+    test("should hand progress to the page under its operation id and drop progress of other requests", () => {
+        // Arrange
+        const operationIdOf = wireId => (wireId === 3 ? "fetch-1" : undefined)
+        const progress = { requestId: 3, message: "Receiving objects: 45%", done: 45, total: 100 }
+
+        // Act
+        const mapped = pageNotificationOf("core.progress", progress, operationIdOf)
+        const dropped = pageNotificationOf("core.progress", { ...progress, requestId: 9 }, operationIdOf)
+
+        // Assert
+        assert.deepEqual(mapped, { ...progress, requestId: "fetch-1" })
+        assert.equal(dropped, null)
+    })
+
+    test("should hand a prompt to the page under its operation id, and without one when no operation asked", () => {
+        // Arrange
+        const operationIdOf = wireId => (wireId === 3 ? "fetch-1" : undefined)
+        const prompt = { promptId: "p1", requestId: 3, repositoryLabel: "billing-api", kind: "secret", message: "Password: " }
+
+        // Act
+        const mapped = pageNotificationOf("prompt.requested", prompt, operationIdOf)
+        const unmapped = pageNotificationOf("prompt.requested", { ...prompt, requestId: 9 }, operationIdOf)
+
+        // Assert
+        assert.deepEqual(mapped, { ...prompt, requestId: "fetch-1" })
+        assert.deepEqual(unmapped, { ...prompt, requestId: null })
+    })
+
+    test("should hand other notifications to the page unchanged", () => {
+        // Arrange
+        const closed = { promptId: "p1" }
+
+        // Act
+        const forwarded = pageNotificationOf("prompt.closed", closed, () => "fetch-1")
+
+        // Assert
+        assert.deepEqual(forwarded, closed)
     })
 
     test("should accept only absent or short string operation ids", () => {

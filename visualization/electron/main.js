@@ -18,7 +18,6 @@ const CHANNELS = {
     shell: "codecharta:shell"
 }
 const CORE_STATE_EVENT = "shell.coreState"
-const PROGRESS_EVENT = "core.progress"
 const CLIENT_NAME = "codecharta-visualization"
 const WINDOW_SIZE = { width: 1400, height: 900 }
 const DEFAULT_WINDOW_BACKGROUND = "#1e2329"
@@ -90,13 +89,9 @@ function forwardCoreNotification(method, params) {
     if (!policy.isRendererEvent(method, contract)) {
         return
     }
-    if (method !== PROGRESS_EVENT) {
-        sendToPage(method, params)
-        return
-    }
-    const operationId = operationIdOf(params?.requestId)
-    if (operationId !== undefined) {
-        sendToPage(method, { ...params, requestId: operationId })
+    const payload = policy.pageNotificationOf(method, params, operationIdOf)
+    if (payload !== null) {
+        sendToPage(method, payload)
     }
 }
 
