@@ -1,7 +1,14 @@
+mod analysis_routes;
+mod compare_routes;
 pub mod dispatch;
 pub mod framing;
+mod git_routes;
+mod hosting_routes;
 pub mod output;
+mod projects_routes;
+mod prompt_routes;
 pub mod session;
+mod snapshots_routes;
 mod store_routes;
 mod test_methods;
 mod tools_routes;
@@ -11,8 +18,12 @@ use std::sync::Arc;
 use codecharta_core::Core;
 use tokio::io::{AsyncBufRead, AsyncWrite};
 
+use analysis_routes::AnalysisTasks;
+use dispatch::Notifier;
 use framing::{LineReader, MAX_LINE_BYTES};
+use git_routes::forward_repository_changes;
 use output::spawn_writer;
+use prompt_routes::{forward_prompt_events, start_askpass_server};
 use session::{Flow, SHUTDOWN_GRACE, Session};
 
 pub async fn serve<Input, Output>(core: Arc<Core>, input: Input, output: Output)
@@ -21,6 +32,16 @@ where
     Output: AsyncWrite + Unpin + Send + 'static,
 {
     let (lines, writer) = spawn_writer(output);
+    let forwarder = tokio::spawn(forward_repository_changes(
+        core.subscribe_repository_changes(),
+        Notifier::new(lines.clone()),
+    ));
+    let prompt_forwarder = tokio::spawn(forward_prompt_events(
+        core.prompts().subscribe(),
+        Notifier::new(lines.clone()),
+    ));
+    let analysis_tasks = AnalysisTasks::start(&core, Notifier::new(lines.clone()));
+    let askpass_server = start_askpass_server(&core);
     let mut session = Session::new(Arc::clone(&core), lines);
     let mut reader = LineReader::new(input, MAX_LINE_BYTES);
     loop {
@@ -37,6 +58,12 @@ where
         }
     }
     session.finish().await;
+    analysis_tasks.stop(&core).await;
+    drop(askpass_server);
+    for task in [forwarder, prompt_forwarder] {
+        task.abort();
+        let _cancelled = task.await;
+    }
     core.shutdown().await;
     match tokio::time::timeout(SHUTDOWN_GRACE, writer).await {
         Ok(Ok(())) => {}

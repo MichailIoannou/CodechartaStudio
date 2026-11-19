@@ -1,4 +1,11 @@
+mod analyse;
+mod arguments;
+mod compare;
 mod doctor;
+mod git;
+mod output;
+mod projects;
+mod snapshots;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -9,8 +16,18 @@ use clap::{Parser, Subcommand};
 use codecharta_core::{Core, CoreConfig};
 use tracing_subscriber::filter::LevelFilter;
 
+use codecharta_core_api::ids::{FolderId, ProjectId};
+use codecharta_core_api::values::CommitSha;
+
+use crate::askpass::run_askpass;
 use crate::serve::serve;
+use analyse::{AnalyseOptions, run_analyse};
+use arguments::{parse_commit_sha, parse_folder_id, parse_project_id};
+use compare::{CompareCommand, run_compare};
 use doctor::{DoctorOptions, run_doctor};
+use git::{GitCommand, run_git};
+use projects::{ProjectsCommand, run_projects};
+use snapshots::{SnapshotsCommand, run_snapshots};
 
 /// The stdin reader blocks a runtime thread until the client closes the pipe; after a `core.shutdown`
 /// request that may never happen, so the runtime does not wait for it.
@@ -49,14 +66,91 @@ pub enum Command {
         #[arg(long)]
         refresh: bool,
     },
+    /// List, create and extend projects in the store, without the app
+    Projects {
+        #[command(subcommand)]
+        command: ProjectsCommand,
+    },
+    /// List the snapshots of a project folder and import cc.json files, without the app
+    Snapshots {
+        #[command(subcommand)]
+        command: SnapshotsCommand,
+    },
+    /// Analyse a project folder with ccsh into a new snapshot, without the app: the working tree, or a
+    /// commit with --commit. Prints the snapshot id; exits 0 when done, 1 when refused or failed (the
+    /// error code on stderr), 2 for invalid arguments, 130 when cancelled with Ctrl-C
+    Analyse {
+        #[arg(long, value_parser = parse_project_id)]
+        project: ProjectId,
+        #[arg(long, value_parser = parse_folder_id)]
+        folder: FolderId,
+        /// The commit to analyse, all 40 (or 64) hexadecimal digits
+        #[arg(long, value_parser = parse_commit_sha)]
+        commit: Option<CommitSha>,
+        /// Analyse a commit again although it has a snapshot of the current profile
+        #[arg(long)]
+        force: bool,
+        /// Print the snapshot id and the finished job as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Resolve a comparison of two commits of a project folder to its base, head and their snapshots,
+    /// without the app
+    Compare {
+        #[command(subcommand)]
+        command: CompareCommand,
+    },
+    /// Read the git status, branches and history of a project folder or any folder, without the app
+    Git {
+        #[command(subcommand)]
+        command: GitCommand,
+    },
+    /// Ask the running app for a credential git or ssh needs and print the answer; git and ssh call the
+    /// binary with the prompt alone, which does the same
+    Askpass { prompt: String },
 }
 
+/// The askpass helper logs nothing: git would show its stderr to the user.
 pub fn run(cli: Cli) -> ExitCode {
-    init_logging(cli.log_level);
+    let data_dir = cli.data_dir;
+    if !matches!(cli.command, Command::Askpass { .. }) {
+        init_logging(cli.log_level);
+    }
     match cli.command {
-        Command::Serve => run_serve(cli.data_dir),
+        Command::Askpass { prompt } => run_askpass(&prompt, &|name| std::env::var_os(name)),
+        Command::Serve => run_serve(data_dir),
         Command::Doctor { json, refresh } => {
-            run_doctor_command(cli.data_dir, &DoctorOptions { json, refresh })
+            run_doctor_command(data_dir, &DoctorOptions { json, refresh })
+        }
+        Command::Projects { command } => run_store_command(data_dir, |core, runtime| {
+            run_projects(core, runtime, command)
+        }),
+        Command::Snapshots { command } => run_store_command(data_dir, |core, runtime| {
+            run_snapshots(core, runtime, command)
+        }),
+        Command::Analyse {
+            project,
+            folder,
+            commit,
+            force,
+            json,
+        } => {
+            let options = AnalyseOptions {
+                project,
+                folder,
+                commit,
+                force,
+                json,
+            };
+            run_store_command(data_dir, |core, runtime| {
+                run_analyse(core, runtime, options)
+            })
+        }
+        Command::Compare { command } => run_store_command(data_dir, |core, runtime| {
+            run_compare(core, runtime, command)
+        }),
+        Command::Git { command } => {
+            run_store_command(data_dir, |core, runtime| run_git(core, runtime, command))
         }
     }
 }
@@ -88,6 +182,18 @@ fn run_doctor_command(data_dir: Option<PathBuf>, options: &DoctorOptions) -> Exi
         return ExitCode::FAILURE;
     };
     let exit_code = run_doctor(&core, &runtime, options);
+    runtime.block_on(core.shutdown());
+    exit_code
+}
+
+fn run_store_command(
+    data_dir: Option<PathBuf>,
+    command: impl FnOnce(&Core, &tokio::runtime::Runtime) -> ExitCode,
+) -> ExitCode {
+    let (Some(core), Some(runtime)) = (open_core(data_dir), start_runtime()) else {
+        return ExitCode::FAILURE;
+    };
+    let exit_code = command(&core, &runtime);
     runtime.block_on(core.shutdown());
     exit_code
 }

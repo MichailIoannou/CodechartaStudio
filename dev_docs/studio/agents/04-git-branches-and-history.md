@@ -73,7 +73,7 @@ From plan 01 (core):
 - Workspace `core/` with `codecharta-core`, `codecharta-core-api`, `codecharta-cored`; the async runtime it chose (tokio expected; if plan 01 is synchronous, keep these signatures without `async`).
 - **Process runner** (expected `codecharta_core::process::Runner`): argv vector, cwd, environment overlay **and removal list**, optional **stdin text** (closed after writing), timeout, stdout cap, cancellation token that kills the process tree, **stderr chunk callback** and **stdout line callback** (streaming rev-list, progress). Errors distinguish timeout, cancelled, output too large, executable missing. Add whatever is missing in plan 01's module, test first, in the milestone that needs it (stdin: M2; streaming stdout: M2; env removal: M7).
 - **Tools check** (expected `codecharta_core::tools`): resolved `git` path and version; set git's minimum version to **2.31.0** (M1 task 1; test "should report git below the minimum as too old").
-- **JSON-RPC dispatcher** (expected `codecharta-cored/src/rpc/`): method registration, typed params / results from `codecharta-core-api`, notification sink, domain error mapping (`error.data` carries the domain code), generic cancel `operations.cancel { operationId }` (if plan 01 has none, add it there, not a git-specific cancel).
+- **JSON-RPC dispatcher** (expected `codecharta-cored/src/rpc/`): method registration, typed params / results from `codecharta-core-api`, notification sink, domain error mapping (`error.data` carries the domain code), generic cancel (as built: the `core.cancel` notification with the request id, overview section 10).
 - **CLI** (clap expected) with a subcommand slot for `git`, and the `askpass` mode slot in `main` (section 4.6).
 - **Core data directory** (expected `AppPaths::data_dir()`): cwd for git, temporary commit-message files.
 - **Contract generation** into `visualization/app/codeCharta/model/coreApi/` with the drift check.
@@ -106,7 +106,7 @@ Core:
 
 ```
 core/crates/codecharta-core-api/src/git.rs        contract types (section 4.4); re-exported from lib.rs
-core/crates/codecharta-core-api/src/prompt.rs     PromptRequested, PromptAnswer, PromptKind
+core/crates/codecharta-core-api/src/methods/prompt.rs  PromptRequested, PromptClosed, PromptAnswerParams, PromptCancelParams, PromptKind (as built; Secret in src/secret.rs, PromptId in values.rs)
 core/crates/codecharta-core/src/git/
   mod.rs                 pub use of GitService, GitRunner, OperationQueue, error helpers
   command.rs             GLOBAL_ARGS, READ_ARGS, read / mutating / network environments, timeouts, caps (named consts)
@@ -122,7 +122,7 @@ core/crates/codecharta-core/src/git/
   locator.rs             version check, rev-parse, repository id
   read.rs                status, refs, log sessions and pages, commit details
   query.rs               resolve_commit, rev_list_count, rev_list stream, merge_base, is_ancestor, measure_distances, refs_at, changed_files
-  queue.rs               OperationQueue (G10)
+  queue.rs               OperationQueue (G10); progress.rs: ProgressReporter, ProgressThrottle (as built in M7)
   working_tree.rs        working tree, diff, stage, unstage, discard
   commit.rs              commit, amend
   branch.rs              switch, checkout remote, create, rename, delete, delete remote, set upstream
@@ -136,7 +136,7 @@ core/crates/codecharta-core/src/prompt/
   kind.rs                classify prompt text as secret / text / confirm
   helper.rs              askpass client: connect, send, print answer (used by codecharta-cored)
 core/crates/codecharta-cored/src/rpc/git.rs       git.* method handlers (param validation + GitService call)
-core/crates/codecharta-cored/src/rpc/prompt.rs    prompt.answer, prompt.cancel
+core/crates/codecharta-cored/src/serve/prompt_routes.rs  prompt.answer, prompt.cancel, askpass server start, event forwarding (as built)
 core/crates/codecharta-cored/src/cli/git.rs       `codecharta-core git status|branches|log`
 core/crates/codecharta-cored/src/askpass.rs       askpass mode entry (section 4.6)
 core/crates/codecharta-core/tests/support/{mod.rs,git_fixture.rs}
@@ -241,14 +241,17 @@ pub struct GitWorkingTreeEntry { pub path: String, pub previous_path: Option<Str
     pub change: GitFileChange, pub conflict: Option<String> }
 pub struct GitWorkingTree { pub status: GitStatus, pub entries: Vec<GitWorkingTreeEntry>, pub are_entries_truncated: bool }
 pub struct GitDiff { pub path: String, pub text: String, pub is_binary: bool, pub is_truncated: bool }
-pub struct DiscardEntry { pub path: String, pub kind: GitEntryKind, pub change: GitFileChange }
+pub struct DiscardEntry { pub path: WorkingTreePath, pub kind: GitEntryKind, pub change: GitFileChange }
+// as built in M9: paths from the client are the api value `WorkingTreePath` (1–4096 bytes, no NUL, relative,
+// no drive prefix, no `..` segment); `git.stage` takes `target: GitStageTarget` = { kind: "paths", paths } | { kind: "all" }
 
 pub struct GitOperationResult { pub status: GitStatus, pub refs: GitRefs, pub message: Option<String> }
 pub struct GitFetchResult { pub updated_refs: u32, pub refs: GitRefs }
 pub enum GitPullMode { FfOnly, Rebase, Merge }
+pub enum GitAbortableOperation { Merge, Rebase }        // as built in M11
 pub struct GitStashEntry { pub index: u32, pub sha: String, pub subject: String }
 
-// notifications
+// notifications (as built in M7: GitOperationProgress is not added — progress travels as plan 01's core.progress)
 pub struct GitOperationProgress { pub operation_id: String, pub repository_id: String, pub message: String,
     pub done: Option<u32>, pub total: Option<u32> }
 pub enum ChangedPart { Status, Refs, WorkingTree }
@@ -260,16 +263,16 @@ pub struct RepositoryChanged { pub repo: FolderRef, pub repository_id: String, p
 
 ```rust
 pub enum PromptKind { Secret, Text, Confirm }
-pub struct PromptRequested { pub prompt_id: String, pub operation_id: Option<String>, pub repository_label: Option<String>,
+pub struct PromptRequested { pub prompt_id: String, pub request_id: Option<RequestId> /* as built: the JSON-RPC id, mapped to the operationId by the shell */, pub repository_label: Option<String>,
     pub kind: PromptKind, pub message: String }                     // message verbatim from git / ssh
 pub struct PromptClosed { pub prompt_id: String }
-pub struct PromptAnswerParams { pub prompt_id: String, pub answer: String }   // never logged (Debug prints "***")
+pub struct PromptAnswerParams { pub prompt_id: PromptId, pub answer: Secret }   // never logged (Debug prints "***"); ids are PromptId as built
 pub struct PromptCancelParams { pub prompt_id: String }
 ```
 
 #### JSON-RPC methods
 
-Every `repo` param is a `FolderRef`. Methods marked **(op)** take `operationId: String` (client-generated UUID), run in the operation queue, report `git.operationProgress` when they talk to a remote, are cancellable through `operations.cancel`, and emit `repository.changed` when done (success or failure).
+Every `repo` param is a `FolderRef`. Methods marked **(op)** are called with the bridge's `operationId` (the shell maps it to the JSON-RPC request id), run in the operation queue, report `core.progress` (plan 01; `requestId` = the request) when they talk to a remote, are cancellable through the `core.cancel` notification with that request id, and emit `repository.changed` when done (success or failure).
 
 | Method | Params | Result |
 |---|---|---|
@@ -283,29 +286,29 @@ Every `repo` param is a `FolderRef`. Methods marked **(op)** take `operationId: 
 | `git.revListCount` | `{ repo, from, to }` | `u64` (reachable from `to`, not from `from`) |
 | `git.mergeBase` | `{ repo, left, right }` | `Option<String>` |
 | `git.isAncestor` | `{ repo, ancestor, descendant }` | `bool` |
-| `git.measureDistances` | `{ repo, target, candidates }` | `Vec<GitCommitDistance>` |
+| `git.measureDistances` | `{ repo, target, candidates }` | `GitCommitDistances { distances: Vec<GitCommitDistance> }` (as built in M2: the contract generator exports only named result types) |
 | `git.refsAt` | `{ repo, sha }` | `{ branches: Vec<String>, tags: Vec<String> }` |
 | `git.changedFiles` | `{ repo, from, to, mode: ChangedFilesMode }` | `GitChangedFiles` |
 | `git.workingTree` | `{ repo }` | `GitWorkingTree` |
 | `git.diffFile` | `{ repo, path, kind: GitEntryKind }` | `GitDiff` |
-| `git.stage` (op) | `{ repo, paths }` or `{ repo, all: true }` | `GitWorkingTree` |
+| `git.stage` (op) | `{ repo, target: GitStageTarget }` — `{ kind: "paths", paths }` or `{ kind: "all" }` (as built in M9, like M8's tagged targets) | `GitWorkingTree` |
 | `git.unstage` (op) | `{ repo, paths }` | `GitWorkingTree` |
 | `git.discard` (op) | `{ repo, entries: Vec<DiscardEntry> }` | `GitWorkingTree` |
-| `git.commit` (op) | `{ repo, subject, body, amend }` | `GitOperationResult` |
+| `git.commit` (op) | `{ repo, subject, body, amend }` (as built in M10: `GitCreateCommitParams`, since `GitCommitParams` is `{ repo, sha }`; `body` is `""` for none) | `GitOperationResult` |
 | `git.fetch` (op) | `{ repo, prune }` | `GitFetchResult` |
 | `git.pull` (op) | `{ repo, mode: GitPullMode }` | `GitOperationResult` |
-| `git.push` (op) | `{ repo, branchRefName, remote, setUpstream, forceWithLeaseExpected: Option<String> }` | `GitOperationResult` |
-| `git.switch` (op) | `{ repo, refName }` or `{ repo, remoteRefName, localName }` (track remote) | `GitOperationResult` |
+| `git.push` (op) | `{ repo, branchRefName, remote, setUpstream, forceWithLeaseExpected: Option<CommitSha> }` (as built in M11: `GitPushParams`) | `GitOperationResult` |
+| `git.switch` (op) | `{ repo, target: GitSwitchTarget }` — `{ kind: "local", refName }` or `{ kind: "trackRemote", remoteRefName, localName }` (as built in M8: a tagged `target` instead of two param shapes) | `GitOperationResult` |
 | `git.branchCreate` (op) | `{ repo, name, startPoint, checkout }` | `GitOperationResult` |
 | `git.branchRename` (op) | `{ repo, refName, newName }` | `GitOperationResult` |
-| `git.branchDelete` (op) | `{ repo, refName, force }` or `{ repo, remoteRefName }` (on the remote) | `GitOperationResult` |
+| `git.branchDelete` (op) | `{ repo, target: GitBranchDeleteTarget }` — `{ kind: "local", refName, force }` or `{ kind: "remote", remoteRefName }` (on the remote; as built in M8) | `GitOperationResult` |
 | `git.setUpstream` (op) | `{ repo, refName, upstreamRefName: Option<String> }` | `GitOperationResult` |
-| `git.abortOperation` (op) | `{ repo, operation: "merge" \| "rebase" }` | `GitOperationResult` |
+| `git.abortOperation` (op) | `{ repo, operation: GitAbortableOperation }` — `"merge"` or `"rebase"` (as built in M11: `GitAbortOperationParams`) | `GitOperationResult` |
 | `git.stashList` / `git.stashPush` (op) / `git.stashPop` (op) | stretch (M12): `{ repo }` / `{ repo, message, includeUntracked }` / `{ repo, index }` | `Vec<GitStashEntry>` / `GitOperationResult` |
 | `prompt.answer` | `PromptAnswerParams` | `null` |
 | `prompt.cancel` | `PromptCancelParams` | `null` |
 
-Notifications: `git.operationProgress` (`GitOperationProgress`, at most every 200 ms per operation), `repository.changed` (`RepositoryChanged`), `prompt.requested` (`PromptRequested`), `prompt.closed` (`PromptClosed`).
+Notifications: `core.progress` (plan 01's `ProgressParams`, at most every 200 ms per operation; as built in M7 there is no `git.operationProgress`), `repository.changed` (`RepositoryChanged`), `prompt.requested` (`PromptRequested`), `prompt.closed` (`PromptClosed`).
 
 #### Parameter validation (in `rpc/git.rs`, before anything runs; failure → `invalidArgument`)
 
@@ -316,7 +319,7 @@ Notifications: `git.operationProgress` (`GitOperationProgress`, at most every 20
 - `remote`: a configured remote name, never a URL.
 - `name`, `localName`, `newName`: `validate_new_branch_name` (section 4.6).
 - `paths[i]`, `entries[i].path`, `path` (1–1000 entries): ≤ 4096 chars, no NUL, relative, no `..` segment, and present in the working-tree listing re-read **inside the queue** (else `changedSinceListed`).
-- `subject` 1–200 chars, `body` ≤ 20 000, no NUL; stash `message` ≤ 200.
+- `subject` 1–200 chars, `body` ≤ 20 000, no NUL; stash `message` ≤ 200. As built in M10 (api values `CommitSubject`, `CommitBody`): the subject is one line, not only spaces, without control characters.
 - `filter.text`, `filter.author` ≤ 200; `filter.path` ≤ 1024, relative, no NUL, no `..`.
 - `cursor` ≤ 128 chars of `[A-Za-z0-9_-]`; `promptId` ≤ 64 chars of `[A-Za-z0-9_-]` and pending; `answer` ≤ 4096 chars, no NUL, CR or LF.
 
@@ -329,14 +332,18 @@ args = [...GLOBAL_ARGS, ("--no-optional-locks", "-c", "core.fsmonitor=false" for
 GLOBAL_ARGS = ["--no-pager", "--literal-pathspecs", "-c", "core.quotepath=off", "-c", "color.ui=false",
                "-c", "log.showSignature=false", "-c", "i18n.logOutputEncoding=UTF-8"]
 base env (all git calls) = GIT_TERMINAL_PROMPT=0, GIT_PAGER=cat, PAGER=cat, GCM_INTERACTIVE=never;
-                           removed: GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, CODECHARTA_ASKPASS*
+                           removed: GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, CODECHARTA_ASKPASS_ENDPOINT,
+                           CODECHARTA_ASKPASS_TOKEN
 READ env      = GIT_OPTIONAL_LOCKS=0, LC_ALL=C, LANG=C
-MUTATING env  = LC_MESSAGES=C, LANGUAGE="", GIT_EDITOR=true, GIT_SEQUENCE_EDITOR=true, GIT_MERGE_AUTOEDIT=no
-NETWORK env   = MUTATING env + askpass env (section 4.6); GCM_INTERACTIVE removed unless the user set it
+MUTATING env  = LC_MESSAGES=C, LANGUAGE="", GIT_EDITOR=true, GIT_SEQUENCE_EDITOR=true, GIT_MERGE_AUTOEDIT=no;
+                removed: LC_ALL — when the user set LC_ALL=<x>, LC_CTYPE, LC_COLLATE, LC_NUMERIC, LC_TIME and
+                LC_MONETARY get <x> instead (verified in M7 task 1: LC_ALL outranks LC_MESSAGES)
+NETWORK env   = MUTATING env + askpass env (section 4.6); GCM_INTERACTIVE removed unless the user set it (then
+                the user's value); DISPLAY=:0 only when the user has no DISPLAY
 cwd           = the core data directory (the repository goes in through -C)
 ```
 
-Reads use `LC_ALL=C` (parsers rely on `-z`, `core.quotepath=off` and explicit formats; stderr stays English for classification). Mutating commands run hooks and gpg, so they keep the user's locale and set only `LC_MESSAGES=C` (UNVERIFIED that this gives English messages when the user has `LC_ALL` set — M7 task 1; otherwise classification falls back to `commandFailed`, and git's verbatim text is always shown). `--literal-pathspecs` makes path arguments literal; M2 task 1 checks it does not conflict with the log filter's explicit `:(top,literal)` magic and drops the magic if it does.
+Reads use `LC_ALL=C` (parsers rely on `-z`, `core.quotepath=off` and explicit formats; stderr stays English for classification). Mutating commands run hooks and gpg, so they keep the user's locale and set only `LC_MESSAGES=C`. Verified in M7 task 1 (git 2.56, Greek and German catalogues): `LC_MESSAGES=C` gives English under `LANG=<other>` and under `LANGUAGE=de`, but **not** under `LC_ALL=<other>`, hence the `LC_ALL` rule above. The user's values of `LC_ALL`, `GCM_INTERACTIVE` and `DISPLAY` are read once when the core starts (`git::command::UserEnvironment`), because the process runner's base environment already replaced `GCM_INTERACTIVE`. `--literal-pathspecs` makes path arguments literal; it also disables the `:(top,literal)` magic (verified in M2 task 1), so the log filter's path goes without magic and the log runs with `-C <repository root>`.
 
 ```rust
 pub struct GitRunner { /* runner handle, git path, data dir */ }
@@ -429,7 +436,7 @@ Arguments are validated SHAs, so `A..B` cannot read as an option. Results are ca
 
 ```rust
 pub struct RevListRequest { pub include: Vec<CommitSha>, pub exclude: Vec<CommitSha>, pub first_parent: bool, pub max_count: Option<u32> }
-pub struct FetchRefspecsRequest { pub remote: String, pub refspecs: Vec<Refspec> }   // Refspec { force: bool, source: String, destination: FullRefName } — destination under refs/codecharta/
+pub struct FetchRefspecsRequest { pub remote: String, pub refspecs: Vec<Refspec> }   // as built (git/sync.rs): Refspec::new(force, source, destination) -> CoreResult<Refspec>; both full well-formed ref names, destination under refs/codecharta/, else BAD_REQUEST
 pub struct ChangedFilesRequest { pub from: CommitSha, pub to: CommitSha, pub mode: ChangedFilesMode }
 
 impl GitService {
@@ -477,7 +484,7 @@ impl OperationQueue {
 
 The newtypes `CommitSha`, `FullRefName`, `Revision`, `BranchName`, `RepoPath` are constructed only through validating `TryFrom<&str>` (section 4.4 rules), so a value reaching the runner is always valid.
 
-**Failure classification** (`failure.rs`), first match wins. Runner errors map to `timeout`, `cancelled`, `outputTooLarge`, `gitNotFound`; `cancelled` while the user cancelled a prompt of that operation → `authenticationCancelled`. For a non-zero exit, stderr (and stdout where noted) is matched: `dubious ownership` → dubiousOwnership; `not a git repository` → notARepository; `index.lock` → indexLocked; `terminal prompts disabled`, `Authentication failed`, `could not read Username`, `Permission denied (publickey`, `Host key verification failed` → authenticationRequired; `Could not resolve host`, `unable to access`, `Connection timed out` → networkUnavailable; `already exists` (branch create / rename) → branchExists; `is already checked out at`, `already used by worktree` → branchCheckedOutElsewhere; `would be overwritten by` → localChangesWouldBeOverwritten; `is not fully merged` → branchNotFullyMerged; `Author identity unknown`, `Please tell me who you are` → identityUnknown; `nothing to commit`, `no changes added to commit` (stdout) → nothingToCommit; `pre-receive hook declined` → pushRejected; `Diverging branches can't be fast-forwarded`, `Not possible to fast-forward` → notFastForward; `stale info` → stalePushLease; `! [rejected]`, `failed to push some refs` → pushRejected; `has no upstream branch` → noUpstream; `CONFLICT` (stdout or stderr), `could not apply` → conflicts; any other non-zero exit of `commit` → hookFailed (UNVERIFIED: M10 task 1 confirms with a fixture hook that exits 1); anything else → commandFailed. Every error carries git's verbatim `detail`, and the UI always shows it. Each rule gets a test with a captured or fixture-produced text.
+**Failure classification** (`failure.rs`), first match wins. Runner errors map to `timeout`, `cancelled`, `outputTooLarge`, `gitNotFound`; any failure after the user cancelled a prompt of that operation → `AUTHENTICATION_CANCELLED` (as built in M7: `PromptSession::settle`, applied before these rules; a cancelled helper makes git or ssh fail with varying texts). For a non-zero exit, stderr (and stdout where noted) is matched: `dubious ownership` → dubiousOwnership; `not a git repository` → notARepository; `index.lock` → indexLocked; `terminal prompts disabled`, `Authentication failed`, `could not read Username`, `Permission denied (publickey`, `Host key verification failed` → authenticationRequired; `Could not resolve host`, `unable to access`, `Connection timed out` → networkUnavailable; `already exists` (branch create / rename) → branchExists; `is already checked out at`, `used by worktree` → branchCheckedOutElsewhere; `would be overwritten by` → localChangesWouldBeOverwritten; `is not fully merged` → branchNotFullyMerged; `Author identity unknown`, `Please tell me who you are` → identityUnknown; `nothing to commit`, `no changes added to commit` (stdout) → nothingToCommit; `pre-receive hook declined` → pushRejected; `Diverging branches can't be fast-forwarded`, `Not possible to fast-forward` → notFastForward; `stale info` → stalePushLease; `! [rejected]`, `failed to push some refs` → pushRejected; `has no upstream branch` → noUpstream; `CONFLICT` (stdout or stderr), `could not apply` → conflicts (as built in M11: network commands are classified over stderr and stdout, since a merge names its conflicts and a porcelain push its refused refs on stdout — `[rejected]`, `[remote rejected]`; the pull and push rules come before the branch rules, as a refused tag push says `already exists`; `There is no tracking information` → noUpstream too); any other non-zero exit of `commit` → hookFailed (verified in M10, git 2.56: a `pre-commit` hook exiting 1 leaves only its own output on stderr; the commit rules live in `commit.rs`, checked in stderr and stdout before the general ones, plus `You have nothing to amend` → nothingToCommit, `unmerged files` → conflicts and `gpg failed to sign` → commandFailed); anything else → commandFailed. Every error carries git's verbatim `detail`, and the UI always shows it. Each rule gets a test with a captured or fixture-produced text.
 
 ### 4.6 Mutating operations and credential prompts (core)
 
@@ -489,15 +496,15 @@ All mutating operations run in `OperationQueue::run_exclusive(repository_id, …
 
 | Operation | Command | Notes |
 |---|---|---|
-| `working_tree` | the status command of 4.5, parsed by `parse/status_entries.rs` | `1`/`2` with `X ≠ .` → staged entry, `Y ≠ .` → unstaged entry (both possible); `2` consumes the original path; `u` → conflicted with its `XY`; `?` → untracked. ≤ 5 000 entries (`are_entries_truncated`). |
-| `diff_file` | staged: `diff --cached --no-ext-diff --no-textconv --no-color -M -- <path>`; unstaged: `diff --no-ext-diff --no-textconv --no-color -- <path>`; untracked: `diff --no-index --no-ext-diff --no-textconv --no-color -- /dev/null <path>` (exit 1 = differences); conflicted: `diff --no-ext-diff --no-color -- <path>` | read environment; `is_binary` on `Binary files … differ`; cut at 2 MB |
-| `stage` | `add -- <paths…>`; all: `add -A` | paths listed as unstaged, untracked or conflicted (staging a conflicted file marks it resolved) |
-| `unstage` | `restore --staged -- <paths…>`; without commits `rm --cached -- <paths…>` | paths listed as staged |
-| `discard` | tracked: `restore --source=HEAD --staged --worktree -- <paths…>`; staged addition without a `HEAD` version: `rm --cached -- <path>` then recycle bin; untracked: recycle bin only | G12. The client sends the rows it named; if any `(path, kind, change)` changed, the whole call fails with `changedSinceListed`. Recycle bin only after confinement: the joined path stays inside the root and the canonical parent lies inside the canonical root; a symlink is trashed as a link. Renames discard both paths; conflicted entries are not discardable (use Abort). UNVERIFIED: `restore --source=HEAD --staged --worktree` on the new path of a staged rename — M9 task 1 decides; fallback: unstage, discard the old path, trash the new one. |
+| `working_tree` | the status command of 4.5 with `--untracked-files=all` and without `--branch` (as built in M9: every untracked file is a row of its own, so it can be staged, shown and discarded by itself), run at the repository root, parsed by `parse/status_entries.rs` | `1`/`2` with `X ≠ .` → staged entry, `Y ≠ .` → unstaged entry (both possible); `2` consumes the original path; `u` → conflicted with its `XY` (change `modified`); `?` → untracked (change `added`). ≤ 5 000 entries (`are_entries_truncated`). Paths are repository-relative whichever folder the project names. |
+| `diff_file` | staged: `diff --no-ext-diff --no-textconv --no-color --cached -M -- <path> [<previous path>]`; unstaged: `diff --no-ext-diff --no-textconv --no-color -- <path> [<previous path>]`; untracked: `diff --no-ext-diff --no-textconv --no-color --no-index -- /dev/null <path>` (exit 1 = differences); conflicted: `diff --no-ext-diff --no-textconv --no-color -- <path>` (as built in M9: `--no-textconv` here too, G8; a rename's previous path goes along so git pairs them) | read environment at the root; `(path, kind)` must be listed (else `CHANGED_SINCE_LISTED`); `is_binary` on `Binary files … differ`; > 4 MiB → `OUTPUT_TOO_LARGE`, else cut after the last whole line within 2 MiB |
+| `stage` | `add --pathspec-from-file=- --pathspec-file-nul --` (paths NUL-separated on stdin; as built in M9, see below); all: `add -A` | paths listed as unstaged, untracked or conflicted (staging a conflicted file marks it resolved); a rename's previous path goes along |
+| `unstage` | `restore --staged …`; without commits `rm --cached --force --quiet …` (as built in M9: without `--force` git refuses a staged new file changed again since; `--cached` keeps the working tree), paths on stdin as for `stage` | paths listed as staged; a rename's previous path goes along |
+| `discard` | as built in M9, per named row: staged modification / deletion / type change → `restore --source=HEAD --staged --worktree`; unstaged one → `restore --worktree` (back to the index, the staged change stays); added, renamed or copied path (staged, or unstaged intent-to-add) → unstage as above, then recycle bin, and a rename's previous path back from `HEAD` (staged) or the index (unstaged); untracked → recycle bin only. Paths on stdin as for `stage`. | G12. The client sends the rows it named; if any `(path, kind, change)` is no longer listed, the whole call fails with `CHANGED_SINCE_LISTED` and changes nothing. A staged row of a path that also has an unstaged row needs that row named too (`NOT_ALLOWED`), since returning the file to `HEAD` would drop it. Conflicted rows → `NOT_ALLOWED` (use Abort). All checks, including confinement (`store::paths::confine_entry_to_folder`: the canonical parent lies inside the canonical root, the entry itself is not followed, so a symlink is trashed as a link), run before anything changes; the recycle bin goes first, then the git commands. Decided in M9 (spike, git 2.56): `restore --source=HEAD --staged --worktree` on the new path of a staged rename leaves the old path deleted, and on both paths it deletes the new file for good — so the fallback is built: restore the old path, unstage the new one, recycle it. |
 
 **Commit** (`commit.rs`)
-- Preconditions: at least one staged entry unless `amend`; `operation_in_progress` is `None` or `Merge` (`Rebase` → `operationInProgress`); no conflicted entries (`conflicts`).
-- Message written to `<dataDir>/git-messages/<random>.txt` (subject, blank line, body, UTF-8, LF), then `-c user.useConfigOnly=true commit -F <file> --cleanup=whitespace [--amend]`; the file is deleted on every path (drop guard).
+- Preconditions: at least one staged entry unless `amend`; `operation_in_progress` is `None` or `Merge` (`Rebase` → `operationInProgress`); no conflicted entries (`conflicts`). As built in M10: checked inside the queue against the status counts (not the listing, which stops at 5 000 entries); concluding a merge needs no staged entry (a merge whose result equals `HEAD` could not be concluded otherwise); amend during a merge → `operationInProgress`, as git refuses it; cherry-pick, revert and bisect → `operationInProgress` like a rebase.
+- Message written to `<dataDir>/git-messages/message-<random>.txt` (subject, blank line, body — left out when blank —, UTF-8, LF; CRLF in the body becomes LF), then `-c user.useConfigOnly=true commit --cleanup=whitespace [--amend] -F <absolute file>`; the file is deleted on every path (drop guard: `tempfile::TempPath`). Timeout 600 s (`COMMIT_LIMITS`).
 - `identityUnknown`: the UI shows `git config --global user.name "Your Name"` and `git config --global user.email "you@example.com"` to copy. The core never runs them.
 - Hooks and gpg run as in a terminal; `--no-verify` is not offered; a failing hook → `hookFailed` with its output.
 - Amend of a commit on the upstream (`is_ancestor(HEAD, upstream)`) needs the renderer's extra confirmation (G12). The commit box pre-fills the previous message from `git.commitDetails` of `HEAD`.
@@ -507,24 +514,24 @@ All mutating operations run in `OperationQueue::run_exclusive(repository_id, …
 | Operation | Preconditions (inside the queue) | Command |
 |---|---|---|
 | switch to local | branch exists; not checked out elsewhere; no operation in progress. **No app-side dirty-tree check** (owner decision): git carries changes over or refuses. | `switch --no-guess --no-recurse-submodules --end-of-options <name>`; refusal → `localChangesWouldBeOverwritten` with git's file list |
-| switch tracking a remote branch | as above; `localName` unused | `switch --no-guess --no-recurse-submodules -c <localName> --track --end-of-options <remote>/<branch>` |
-| `branch_create` | name valid and unused; start point a commit; with `checkout` the switch preconditions | `branch --no-track --end-of-options <name> <startPoint>`, then the switch command if `checkout` |
+| switch tracking a remote branch | as above; `localName` unused | `switch --no-guess --no-recurse-submodules -c <localName> --track --end-of-options refs/remotes/<remote>/<branch>` (as built in M8: the full remote-tracking ref; `localName` is the value of `-c`, a validated `BranchName`) |
+| `branch_create` | name valid and unused; start point a commit; with `checkout` the switch preconditions | `branch --no-track --end-of-options <name> <startPoint>`; with `checkout` one command instead, `switch --no-guess --no-recurse-submodules -c <name> --no-track --end-of-options <startPoint>` (as built in M8: no branch is left behind when the switch is refused) |
 | `branch_rename` | local ref exists; new name valid and unused | `branch -m --end-of-options <old> <new>` |
 | `branch_delete` local | not current; not checked out elsewhere | `branch -d --end-of-options <name>`; after `branchNotFullyMerged` and a second confirmation `force: true` → `branch -D --end-of-options <name>` |
-| `branch_delete` remote | remote ref exists | `push --progress --end-of-options <remote> --delete <branch>` (network) |
-| `set_upstream` | local ref; upstream a remote-tracking ref or none | `branch --set-upstream-to=<remote>/<branch> --end-of-options <name>` / `branch --unset-upstream --end-of-options <name>` |
+| `branch_delete` remote | remote ref exists | `push --progress --delete --end-of-options <remote> refs/heads/<branch>` (network; as built in M8 — after `--end-of-options` git would read `--delete` as a refspec) |
+| `set_upstream` | local ref; upstream a remote-tracking ref or none | `branch --set-upstream-to=refs/remotes/<remote>/<branch> --end-of-options <name>` / `branch --unset-upstream --end-of-options <name>` |
 
-**Sync** (`sync.rs`) — network environment with askpass, `--progress`, stderr through `parse/progress.rs` (split on `\r` and `\n`, keep the last non-empty line, strip `remote: ` and trailing spaces, `NN%` → `done/total = NN/100`), throttled to one `git.operationProgress` per 200 ms, cancellable (kills the process tree and closes the operation's open prompts).
+**Sync** (`sync.rs`) — network environment with askpass, `--progress`, stderr through `parse/progress.rs` (split on `\r` and `\n`, keep the last non-empty line, strip `remote: ` and trailing spaces, `NN%` → `done/total = NN/100`), throttled to one `core.progress` per 200 ms (`GitCli::run_reporting`), cancellable (kills the process tree and closes the operation's open prompts).
 
 | Operation | Command | Outcome |
 |---|---|---|
 | `fetch` | `fetch --all --progress [--prune] --no-recurse-submodules --no-auto-maintenance` | `updated_refs` = changed fingerprint lines |
-| `fetch_refspecs` | `fetch --progress --no-recurse-submodules --no-auto-maintenance --end-of-options <remote> <refspec…>` | for plan 06; destinations under `refs/codecharta/` only |
+| `fetch_refspecs` | `fetch --progress --no-recurse-submodules --no-auto-maintenance --no-tags --refmap= --no-write-fetch-head --end-of-options <remote> <refspec…>` | for plan 06; destinations under `refs/codecharta/` only. As built in M8: without the empty `--refmap` git also updated `refs/remotes/<remote>/…` (found by the test), without `--no-tags` it follows tags. Not an RPC method: plan 06 builds the refspec from a PR number |
 | `pull` FfOnly (default) | `pull --ff-only --progress --no-recurse-submodules` | `notFastForward` → renderer opens the pull choice; repository unchanged |
 | `pull` Rebase | `pull --rebase --progress --no-recurse-submodules` | `conflicts` → stop, banner |
 | `pull` Merge | `pull --no-rebase --no-edit --progress --no-recurse-submodules` | `conflicts` → stop, banner |
-| `push` | `push --progress --porcelain [-u] [--force-with-lease=refs/heads/<b>:<expectedSha>] --end-of-options <remote> refs/heads/<b>:refs/heads/<upstream branch or b>` | `-u` on first push; `pushRejected` → "Pull first"; `stalePushLease` → "fetch, review, retry". Never `--force`; never a bare `--force-with-lease`. |
-| `abort_operation` | `merge --abort` / `rebase --abort` (not network) | only when `operation_in_progress` matches |
+| `push` | `push --progress --porcelain [-u] [--force-with-lease=refs/heads/<upstream branch or b>:<expectedSha>] --end-of-options <remote> refs/heads/<b>:refs/heads/<upstream branch or b>` (as built in M11: the lease names the remote ref being replaced, the destination) | `-u` on first push; `pushRejected` → "Pull first"; `stalePushLease` → "fetch, review, retry". Never `--force`; never a bare `--force-with-lease`. |
+| `abort_operation` | `merge --abort` / `rebase --abort` (not network) | only when `operation_in_progress` matches (as built in M11: else `NOT_ALLOWED`) |
 
 Conflicts are not resolved in the app: the banner lists conflicted files, says "Resolve the conflicts in your editor, stage the files, then commit (merge) or continue the rebase in a terminal", and offers Abort (confirmed) and Refresh. `rebase --continue` is not offered; after a merge, Commit concludes it.
 
@@ -534,25 +541,31 @@ Conflicts are not resolved in the app: the banner lists conflicted files, says "
 
 #### Credential prompts (askpass)
 
-**Mode selection** (decision; UNVERIFIED until the M7 spike): `GIT_ASKPASS` and `SSH_ASKPASS` point **directly at the `codecharta-core` executable**. Git and ssh call it with the prompt as `argv[1]` only, so the mode is chosen by environment: `main()` checks `CODECHARTA_ASKPASS=1` **before** CLI parsing and, if set, runs `askpass::run(argv[1])` and exits; the serving core never has that variable itself, and the runner removes `CODECHARTA_ASKPASS*` from every child except the network commands of its own operation. Running a native executable avoids the `.cmd` quoting problems with `"`, `%`, `&` in prompts. Fallback if the spike shows git or ssh cannot run the binary directly: a two-line `askpass.sh` / `askpass.cmd` wrapper written into the data directory that sets the variable and calls the binary.
+**Mode selection** (as built in M7; verified on Linux with the real binary, Windows open — progress file 04-M7): `GIT_ASKPASS` and `SSH_ASKPASS` point **directly at the `codecharta-core` executable**. Git and ssh call it with the prompt as `argv[1]` only, so the mode is chosen by environment (overview section 10): `main()` checks, **before** CLI parsing, that `CODECHARTA_ASKPASS_ENDPOINT` is set and that there is exactly one argument naming no subcommand (`codecharta_cored::askpass::askpass_prompt`), then runs the helper and exits; `codecharta-core askpass <prompt>` is the explicit form. The serving core never has the endpoint variable itself, and the runner removes `CODECHARTA_ASKPASS_ENDPOINT` / `CODECHARTA_ASKPASS_TOKEN` from every child except the network commands of its own operation. Running a native executable avoids the `.cmd` quoting problems with `"`, `%`, `&` in prompts. Fallback if the Windows spike shows git or ssh cannot run the binary directly: a two-line `askpass.sh` / `askpass.cmd` wrapper written into the data directory that calls the binary.
 
-Askpass environment of a network command (`AskpassEnv`):
+Askpass environment of a network command (as built in M7: `process::AskpassSetup { git_helper, ssh_helper,
+endpoint, token: Secret }` carried by `GitCommand::network(…)` → `GitInvocation.askpass` → `RunRequest.askpass`;
+the runner adds these variables last, so nothing else can replace them, and the token exists as text only in
+the child's environment):
 ```
 GIT_ASKPASS=<core exe>   SSH_ASKPASS=<core exe, space-free form>   SSH_ASKPASS_REQUIRE=force
-DISPLAY=:0 only when DISPLAY is unset (older OpenSSH)
-CODECHARTA_ASKPASS=1   CODECHARTA_ASKPASS_PIPE=<pipe or socket name>   CODECHARTA_ASKPASS_TOKEN=<per-operation token>
+  (without a space-free form: SSH_ASKPASS and SSH_ASKPASS_REQUIRE are removed, also the user's own)
+DISPLAY=:0 only when the user has no DISPLAY (older OpenSSH)
+CODECHARTA_ASKPASS_ENDPOINT=<pipe or socket name>   CODECHARTA_ASKPASS_TOKEN=<per-operation token>
 GIT_TERMINAL_PROMPT=0 (kept)   GCM_INTERACTIVE removed unless the user set it (GCM may show its own window)
 ```
+The helper paths come from `git::askpass::askpass_helpers` (`AskpassHelpers { git, ssh }`, platform and file
+system injected; `SystemHelperFiles` is the real one).
 
 Space-free path for `SSH_ASKPASS` on Windows (Git for Windows' ssh failed on a helper path with a space; UNVERIFIED whether that also holds for an `.exe`): use the path as is when it has no space; otherwise its 8.3 short name via `GetShortPathNameW` (`windows-sys`); otherwise copy the executable to `<dataDir>/askpass/codecharta-core.exe` when that path has no space (re-copied when the size or modification time differs); otherwise leave `SSH_ASKPASS` unset (HTTPS prompts still work) and fail ssh prompts with "CodeCharta cannot ask for ssh passphrases on this machine. Load the key into ssh-agent / Pageant first."
 
-Flow for one network operation:
-1. `PromptBroker::open_session(operation_id, repository_label)` → a 32-byte random token (hex) bound to the operation; returns `AskpassEnv`.
+Flow for one network operation (as built in M7):
+1. `core.prompts().open_session(SessionRequest { request_id: Some(context.id), repository_label })` → a `PromptSession` guard with a 32-byte random token (64 hex digits) bound to the operation; `session.askpass()` is the `AskpassSetup` for `GitCommand::network(…)` (`None` while no askpass server listens).
 2. Git (or ssh) runs `codecharta-core` with the prompt text as `argv[1]`.
-3. The helper (`prompt/helper.rs`) connects to `CODECHARTA_ASKPASS_PIPE`, sends one JSON line `{ "token", "prompt" }` (prompt ≤ 4096 chars), waits for `{ "answer" }` or `{ "cancel": true }`, writes `answer + "\n"` to stdout and exits 0; exits 1 on cancel, any error, or no answer within 30 min. It prints nothing else, writes nothing to disk, logs nothing (stderr stays empty).
-4. `prompt/server.rs` listens on `\\.\pipe\codecharta-askpass-<random>` (Windows; `reject_remote_clients`) or `<tmp>/cc-askpass-<random>.sock` (mode 0600, path ≤ 100 bytes) — one listener per `serve` run. The token is compared in constant time against open sessions; an unknown token gets the connection closed without an answer. A known token creates `PromptRequested { promptId, operationId, repositoryLabel, kind, message }` (`kind.rs`: ends in `(yes/no)?` or `(yes/no/[fingerprint])?` → confirm; contains `Username` → text; else secret) and emits `prompt.requested`.
-5. The renderer answers with `prompt.answer` or `prompt.cancel`. The broker writes the answer to that one connection and drops it; answers are held in a `Secret` wrapper (`zeroize` on drop, `Debug` prints `***`) and never logged, including in the JSON-RPC trace.
-6. Ending the operation (success, failure, cancel) closes its session: pending prompts get `prompt.closed`, their connections close, later connections with that token are refused. A prompt cancelled by the user makes the operation fail with `authenticationCancelled`.
+3. The helper (`prompt/helper.rs` `ask_broker`, entered from `codecharta-cored/src/askpass.rs`) connects to `CODECHARTA_ASKPASS_ENDPOINT`, sends one JSON line `{ "token", "prompt" }`, waits for `{ "answer": "…" }` or `{ "cancel": true }`, writes `answer + "\n"` to stdout and exits 0; exits 1 on cancel, any error, or no answer within 30 min. It prints nothing else, writes nothing to disk, logs nothing (stderr stays empty; logging is not even initialised).
+4. `prompt/server.rs` `AskpassServer` listens on `\\.\pipe\codecharta-askpass-<16 hex>` (Windows; `first_pipe_instance`, `reject_remote_clients`; the default pipe DACL gives other local users read access only, so they cannot send a token) or `<tmp>/cc-askpass-<16 hex>/s` (folder created `0700` before the socket exists, socket `0600`, `/tmp` instead when the path would exceed 100 bytes; removed when the server is dropped) — one listener per `serve` run, started by `serve` with `askpass_helpers(current_exe)`. A request line is at most 64 KiB and must arrive within 10 s. The token is compared in constant time against every open session; an unknown token, a closed session or a prompt over 4096 characters gets the connection closed without an answer. A known token creates `PromptRequested { promptId, requestId, repositoryLabel, kind, message }` (`kind.rs`: ends in `(yes/no)?` or `(yes/no/[fingerprint])?` → confirm; contains `Username` → text; else secret) and emits `prompt.requested`.
+5. The renderer answers with `prompt.answer` or `prompt.cancel`. The broker writes the answer to that one connection and drops it; answers are `codecharta_core_api::secret::Secret` (`zeroize` on drop, `Debug` / `Display` print `***`) and never logged: the session traces method names only, and a refused answer (`BAD_REQUEST`: more than 4096 characters, NUL, CR or LF) is described without repeating it. A second answer to the same prompt is `NOT_FOUND`.
+6. Ending the operation (success, failure, cancel) drops its session: pending prompts get `prompt.closed`, their helpers exit 1, later connections with that token are refused. Every prompt that leaves the pending set (answered, cancelled, closed) is announced with `prompt.closed`. A prompt cancelled by the user makes the operation fail with `AUTHENTICATION_CANCELLED` (`session.settle(result)`), whatever git or ssh said (ssh-keygen reports a cancelled passphrase as a wrong one).
 
 The token travels only by environment, never on a command line. HTTPS with a configured credential helper never reaches the broker.
 
@@ -574,7 +587,7 @@ Changes tab panes: `cc-changes-panel` (360 px, 260–640) — groups Conflicted 
 
 `cc-commit-box`: subject (counter, warning > 72), body, "Amend last commit" (fills the last message when the box is empty; off restores the draft), **Commit** (`btn btn-primary btn-sm`, disabled without staged files unless amending, without subject, or while an operation runs; Ctrl+Enter). Draft per repository in `codeChartaCommitDraft.<repositoryId>` (message only), cleared after a commit. During a merge: "This commit concludes the merge."
 
-Toolbar: folder picker (`select select-sm` of project folders that are repositories; hidden for one), search / author / path (debounced 300 ms; Log tab only), Refresh (`fa-rotate`, F5), and from M8 `cc-sync-buttons`: Fetch (`fa-cloud-arrow-down`, prune option), Pull (`fa-arrow-down`, badge `behind`), Push (`fa-arrow-up`, badge `ahead`; "Publish branch" without upstream). While an operation runs: spinner, last `git.operationProgress` message, Cancel (`operations.cancel`); other mutating controls of that repository disabled ("Waiting for the previous git operation…").
+Toolbar: folder picker (`select select-sm` of project folders that are repositories; hidden for one), search / author / path (debounced 300 ms; Log tab only), Refresh (`fa-rotate`, F5), and from M8 `cc-sync-buttons`: Fetch (`fa-cloud-arrow-down`, prune option), Pull (`fa-arrow-down`, badge `behind`), Push (`fa-arrow-up`, badge `ahead`; "Publish branch" without upstream). While an operation runs: spinner, last `core.progress` message, Cancel (`core.cancel` through `bridge.cancel(operationId)`); other mutating controls of that repository disabled ("Waiting for the previous git operation…").
 
 **Branch actions** (`cc-branch-context-menu`, also in the commit context menu): local → Switch to, New branch from here…, Rename…, Delete…, Set upstream…, Push / Force push (with lease)…; remote → Check out as new local branch…, New branch from here…, Delete from remote…; tag → New branch from here…. The current branch offers Rename, Push, Set upstream only.
 
@@ -682,7 +695,7 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 
 ### M1 — Core: fixtures, contract, runner, repository, status, refs (M)
 
-1. **Reconcile and fixtures.** Read plans 01 and 03 as implemented; record real names in section 9. Build `core/crates/codecharta-core/tests/support/git_fixture.rs` (`tempfile`): `FixtureRepo::new()` runs git with `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` = an empty file, `GIT_CONFIG_NOSYSTEM=1`, `HOME`/`USERPROFILE` = the temp dir, `GIT_AUTHOR_NAME=Ada Author`, `GIT_AUTHOR_EMAIL=ada@example.test`, `GIT_COMMITTER_NAME=Carl Committer`, `GIT_COMMITTER_EMAIL=carl@example.test`, `GIT_AUTHOR_DATE` = `GIT_COMMITTER_DATE` = `@<1700000000 + 60·n> +0000`, `-c init.defaultBranch=main -c commit.gpgsign=false -c core.autocrlf=false`. API: `commit(msg, files)`, `write_file`, `branch`, `checkout`, `merge(names, msg)` (`--no-ff`), `tag(name, annotated)`, `with_bare_origin()` (a bare repository added as `origin` by path, `push -u`), `clone_of_origin()` (second working clone for "remote moved" scenarios), `linear_history(n)` (via `git fast-import`), `path()`, `env()`. Also a `FolderResolver` fake mapping `FolderRef` → fixture path. Record outputs of every section 4.5 command into `src/git/parse/testdata/` and correct section 4.5 if git differs. Spike (findings in the progress file): with git 2.31 (portable or container) confirm `--end-of-options` on `switch`, `branch`, `push`, `rev-parse`, and `rev-parse --path-format=absolute`; set git's minimum version in plan 01's tools check.
+1. **Reconcile and fixtures.** Read plans 01 and 03 as implemented; record real names in section 9. Build `core/crates/codecharta-core/tests/support/git_fixture.rs` (`tempfile`): `TempRepo::new()` (the existing fixture, extended) runs git with `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` = an empty file, `GIT_CONFIG_NOSYSTEM=1`, `HOME`/`USERPROFILE` = the temp dir, `GIT_AUTHOR_NAME=Ada Author`, `GIT_AUTHOR_EMAIL=ada@example.test`, `GIT_COMMITTER_NAME=Carl Committer`, `GIT_COMMITTER_EMAIL=carl@example.test`, `GIT_AUTHOR_DATE` = `GIT_COMMITTER_DATE` = `@<1700000000 + 60·n> +0000`, `-c init.defaultBranch=main -c commit.gpgsign=false -c core.autocrlf=false`. API: `commit(msg, files)`, `write_file`, `branch`, `checkout`, `merge(names, msg)` (`--no-ff`), `tag(name, annotated)`, `with_bare_origin()` (a bare repository added as `origin` by path, `push -u`), `clone_of_origin()` (second working clone for "remote moved" scenarios), `linear_history(n)` (via `git fast-import`), `path()`, `env()`. (No `FolderResolver` fake: the service takes a resolved `GitFolder`, see section 9.) Record outputs of every section 4.5 command into `src/git/parse/testdata/` and correct section 4.5 if git differs. Spike (findings in the progress file): with git 2.31 (portable or container) confirm `--end-of-options` on `switch`, `branch`, `push`, `rev-parse`, and `rev-parse --path-format=absolute`; set git's minimum version in plan 01's tools check.
    - Tests: should_create_identical_shas_on_every_run; should_not_read_the_user_git_configuration; should_fail_commit_without_identity_when_use_config_only_is_set; plan 01 tools: should_report_git_below_minimum_as_too_old.
    - Commit: `test(core): add deterministic git fixture repositories`
 2. **Contract and helpers.** `codecharta-core-api/src/git.rs` (read types only; mutating types arrive with their milestone), `nul.rs`, `revisions.rs`, `cache.rs`; regenerate TS types.
@@ -700,7 +713,7 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 6. **Refs and remotes.** `parse/refs.rs`, `parse/remotes.rs`, `fingerprint.rs`, `refs`, `refs_fingerprint`.
    - Tests (captured): split local / remote / tags; peel annotated tags; skip symbolic remote head; parse `ahead 2, behind 1`, `gone`, empty; remote name with a slash; strip https credentials, keep scp-like url. (fixture): mark current branch; fingerprint changes when a branch moves, stable otherwise.
    - Commit: `feat(core): list git branches, tags and remotes`
-7. **RPC and CLI.** `rpc/git.rs` (`git.repositoryInfo`, `git.status`, `git.branches`, `git.refsFingerprint`), `changes.rs` (emit `repository.changed` when a read sees a new fingerprint), `cli/git.rs` (`status`, `branches`), plan 01's fake bridge gets a self-contained `git` seed (refs, status, commits, per-method failures).
+7. **RPC and CLI.** `serve/git_routes.rs` (`git.repositoryInfo`, `git.status`, `git.branches`, `git.refsFingerprint`), `changes.rs` (emit `repository.changed` when a read sees a new fingerprint), `cli/git.rs` (`status`, `branches`), plan 01's fake bridge gets a self-contained `git` seed (refs, status, commits, per-method failures).
    - Tests (`codecharta-cored/tests/git_protocol.rs`): should_answer_git_status_over_stdio_for_a_fixture_folder; should_return_folder_not_found_for_unknown_or_detached_folder; should_reject_malformed_params_without_running_git (one per section 4.4 rule that applies); should_emit_repository_changed_when_fingerprint_changes; should_print_status_and_branches_from_cli_with_path_and_json.
    - Commit: `feat(core): expose git status and branches over json-rpc and cli`
    - Acceptance: `codecharta-core git branches --path <real repo>` lists its branches.
@@ -765,21 +778,21 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 
 ### M7 — Operation queue, progress, credential prompts (L)
 
-1. **Spike (no commit; findings in the progress file, then correct 4.5 / 4.6).** In throwaway repositories, no network: (a) git with `GIT_ASKPASS` = the debug `codecharta-core` binary and `CODECHARTA_ASKPASS=1` — does git pass the prompt as `argv[1]` and use stdout? (b) Git for Windows' ssh with `SSH_ASKPASS` = the `.exe`, from a path with and without a space, and via `GetShortPathNameW`; (c) offline ssh passphrase prompt through `ssh-keygen -y -f <encrypted key>` with `SSH_ASKPASS_REQUIRE=force` and no tty; (d) inbox OpenSSH 9.5 (`core.sshCommand=C:/Windows/System32/OpenSSH/ssh.exe`) with the same; (e) prompts containing `"`, `%`, `&`, non-ASCII; (f) `LC_MESSAGES=C` under a German `LANG`; (g) GCM with `GCM_INTERACTIVE` unset against a non-resolving `https://` host (which prompt path GCM takes). If (a) or (b) fails, switch to the wrapper fallback of 4.6. Anything needing a real remote becomes a manual check (section 6).
+1. **Spike (no commit; findings in the progress file, then correct 4.5 / 4.6).** In throwaway repositories, no network: (a) git with `GIT_ASKPASS` = the debug `codecharta-core` binary and `CODECHARTA_ASKPASS_ENDPOINT` + `CODECHARTA_ASKPASS_TOKEN` (overview section 10) — does git pass the prompt as `argv[1]` and use stdout? (b) Git for Windows' ssh with `SSH_ASKPASS` = the `.exe`, from a path with and without a space, and via `GetShortPathNameW`; (c) offline ssh passphrase prompt through `ssh-keygen -y -f <encrypted key>` with `SSH_ASKPASS_REQUIRE=force` and no tty; (d) inbox OpenSSH 9.5 (`core.sshCommand=C:/Windows/System32/OpenSSH/ssh.exe`) with the same; (e) prompts containing `"`, `%`, `&`, non-ASCII; (f) `LC_MESSAGES=C` under a German `LANG`; (g) GCM with `GCM_INTERACTIVE` unset against a non-resolving `https://` host (which prompt path GCM takes). If (a) or (b) fails, switch to the wrapper fallback of 4.6. Anything needing a real remote becomes a manual check (section 6).
 2. **Runner environment.** Plan 01 runner env removal if missing; `AskpassEnv` building in `command.rs` (space-free path logic with injected platform and file system).
    - Tests: should_set_askpass_variables_only_for_network_commands; should_remove_gcm_interactive_unless_user_set; should_set_display_only_when_unset; should_use_short_path_or_copy_when_exe_path_has_space; should_leave_ssh_askpass_unset_without_space_free_path; should_never_log_the_token.
    - Commit: `feat(core): prepare askpass environment for network git commands`
 3. **Queue and progress.** `queue.rs`, `parse/progress.rs`.
    - Tests: two operations of one repository run in order; two repositories in parallel; next starts after a failure; cancelled queued task never runs; last progress line of a `\r` stream; `NN%` → done/total; strip `remote: ` and trailing spaces; progress throttled to 200 ms.
    - Commit: `feat(core): queue git operations per repository`
-4. **Prompt broker, server, helper.** `prompt/{broker,server,kind,helper}.rs`, `codecharta-cored/src/askpass.rs`, `main` check of `CODECHARTA_ASKPASS`, RPC `prompt.answer` / `prompt.cancel`, notifications `prompt.requested` / `prompt.closed`.
+4. **Prompt broker, server, helper.** `prompt/{broker,server,kind,helper}.rs`, `codecharta-cored/src/askpass.rs`, `main` check of `CODECHARTA_ASKPASS_ENDPOINT`, RPC `prompt.answer` / `prompt.cancel`, notifications `prompt.requested` / `prompt.closed`.
    - Tests (unit): classify yes/no as confirm, `Username` as text, else secret; constant-time token check refuses a wrong token and sends nothing; refuses a token of a closed session; answers each prompt once; closes pending prompts when the operation ends; `Secret` Debug prints `***`.
    - Tests (`codecharta-core/tests/prompt_roundtrip.rs`): broker + server in-process, a client using `helper.rs` receives the answer; cancel → helper error.
-   - Tests (`codecharta-cored/tests/askpass_mode.rs`, real binary via `env!("CARGO_BIN_EXE_codecharta-core")`): with `CODECHARTA_ASKPASS=1` + pipe + token, the binary prints exactly the answer plus newline and exits 0; exits 1 on cancel and on a wrong token; prints nothing to stderr.
+   - Tests (`codecharta-cored/tests/askpass_mode.rs`, real binary via `env!("CARGO_BIN_EXE_codecharta-core")`): with `CODECHARTA_ASKPASS_ENDPOINT` + token, the binary prints exactly the answer plus newline and exits 0; exits 1 on cancel and on a wrong token; prints nothing to stderr.
    - Tests (real git, offline): `git -c credential.helper= credential fill` with stdin `protocol=https\nhost=example.test\n\n` and the askpass env → two `prompt.requested` (Username, then Password), answers appear as `username=` / `password=` in git's output (UNVERIFIED that git asks through askpass here — spike (a) settles it); if spike (c) succeeded, `ssh-keygen -y` on an encrypted fixture key receives the passphrase through the broker. SSH host-key and remote password prompts stay manual.
    - Commit: `feat(core): broker git and ssh credential prompts through askpass`
 5. **Renderer prompt and operations.** `credentialPrompt.service.ts`, `credentialPromptDialog` in `views/codeCharta.component.html`, `gitOperation.service.ts` (fresh `operationId`, `running: Signal<{ repositoryId; label; progress } | null>`, cancel, refresh afterwards).
-   - Tests: dialog shows the message verbatim; password input for secret, text for text; yes/no for confirm; input cleared after answering; `prompt.cancel` on Cancel and Escape; second prompt queued; closes on `prompt.closed`; stays open across view switches; refresh after an operation, also after failure; cancel goes through `operations.cancel`.
+   - Tests: dialog shows the message verbatim; password input for secret, text for text; yes/no for confirm; input cleared after answering; `prompt.cancel` on Cancel and Escape; second prompt queued; closes on `prompt.closed`; stays open across view switches; refresh after an operation, also after failure; cancel goes through `bridge.cancel(operationId)` (`core.cancel`).
    - Commit: `feat(visualization): answer git credential prompts in a dialog`
 
 ### M8 — Fetch and branches (M)
@@ -787,6 +800,9 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 1. **Core.** `sync.rs` fetch and `fetch_refspecs`, `branch.rs`, `validate_new_branch_name`, RPC entries; contract types for these calls.
    - Tests (fixture with bare origin): fetch a new remote branch and prune a deleted one only when asked; progress reported; cancel aborts a running fetch; `fetch_refspecs` writes `refs/codecharta/…` and refuses other destinations; switch to an existing branch; unrelated local change carried over; refusal leaves the tree untouched with git's file list; refuse during a merge; refuse a branch checked out in another worktree; tracking branch from a remote branch, refuse an existing local name; create at a commit without touching the tree; rename keeps upstream; delete merged; unmerged → `branchNotFullyMerged`, deleted only with force; refuse deleting the current branch; delete on the remote; set and unset upstream; reject invalid names (`-x`, `..`, `@{`, `HEAD`, control chars); `--end-of-options` before every ref (faked runner); `repository.changed` after each operation.
    - Commit: `feat(core): add fetch and branch management`
+   - As built: the tests live in `tests/git_branches.rs`, `tests/git_fetch.rs` (fixture helpers
+     `tests/support/git_operations.rs`) and `codecharta-cored/tests/git_protocol.rs`; the refusal of other
+     `fetch_refspecs` destinations is a `Refspec::new` refusal, so no such refspec can be built.
 2. **Renderer.** `syncButtons` (Fetch), `branchContextMenu`, commit-menu write entries, create / rename / delete dialogs, `util/effectText.ts`, hooks notice.
    - Tests: switch confirmation names both branches and the folder; No sends nothing; refusal shows git's files; second confirmation before force delete; remote named on remote delete; name validated while typing; progress and Cancel while fetching; other actions disabled while one runs; hooks notice once per repository and session.
    - Commit: `feat(visualization): fetch and manage branches from history`
@@ -797,6 +813,9 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 1. **Core.** `parse/status_entries.rs`, `working_tree.rs`, RPC `git.workingTree`, `git.diffFile`, `git.stage`, `git.unstage`, `git.discard`.
    - Tests (captured): file changed in index and worktree listed twice; rename with previous path; conflicted with code; untracked. (fixture): stage / unstage a file with space and brackets; stage all; unstage without commits; discard a modified tracked file; discard a staged new file and an untracked file to the recycle bin (trash injected); discard a staged rename (decides the UNVERIFIED item); `changedSinceListed` when the listing changed; refuse an unlisted path; refuse trashing through a symlinked folder outside the repository; untracked file as added diff; binary diff flagged; large diff truncated.
    - Commit: `feat(core): stage, unstage, discard and diff working tree files`
+   - As built: tests in `tests/git_working_tree.rs` (plus unit tests in `parse/status_entries.rs`,
+     `working_tree.rs`, `store/paths.rs`) and `codecharta-cored/tests/git_protocol.rs`; details in
+     `progress/04-M9-changes-diff.md`.
 2. **Renderer.** Tabs, `gitChanges.service.ts`, `changesPanel`, `changeRow`, `diffView`, `util/diffLines.ts`.
    - Tests: four groups; stage / unstage from row and group; discard confirmation names the files and sends exactly those rows; diff lines coloured; diff rendered through interpolation only; list refreshed after each action and on focus; tab remembered per project.
    - Commit: `feat(visualization): show working tree changes with a diff`
@@ -807,6 +826,8 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 1. **Core.** `commit.rs`, RPC `git.commit`.
    - Tests (fixture): commit staged files with subject and body; body line starting with `#` kept; amend; refuse with nothing staged; `identityUnknown` without identity (fixture without identity env, `user.useConfigOnly=true`) and git config unchanged; pre-commit hook exiting 1 → `hookFailed` with its output; conclude a merge; refuse during a rebase; message file deleted after success and failure.
    - Commit: `feat(core): commit and amend`
+   - As built: tests in `tests/git_commit.rs` (plus unit tests in `git/commit.rs`) and
+     `codecharta-cored/tests/git_protocol.rs`; details in `progress/04-M10-commit.md`.
 2. **Renderer.** `commitBox`, `commitMessage.service.ts`, `commitDraft.repo.ts`, amend-of-pushed confirmation.
    - Tests: Commit disabled without staged files or subject; Ctrl+Enter commits; amend fills the last message into an empty box; asks before amending a pushed commit; draft per repository, cleared after commit; identity instructions with both commands; hook output after a failed hook.
    - Commit: `feat(visualization): commit staged changes from the changes panel`
@@ -817,6 +838,9 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 1. **Core.** `sync.rs` pull, push, abort; RPC entries.
    - Tests (fixture with bare origin and a second clone): fast-forward pull; `notFastForward` leaves the repository unchanged; rebase / merge when asked; `conflicts` leaves the operation in progress; abort merge and rebase; first push sets upstream; `pushRejected` when the remote is ahead; force with lease only with the expected SHA; `stalePushLease` when the remote moved; never `--force` (faked runner); askpass env and progress on every network command (faked runner).
    - Commit: `feat(core): pull, push and abort`
+   - As built: tests in `tests/git_sync.rs` (plus unit tests in `git/sync.rs`, `git/failure.rs`,
+     `git/error.rs`, `methods/git.rs`) and `codecharta-cored/tests/git_protocol.rs`; details in
+     `progress/04-M11-pull-push.md`.
 2. **Renderer.** Pull and Push in `syncButtons`, `pullChoiceDialog`, `pushDialog` with the separate force-push confirmation, `operationStateBanner`.
    - Tests: fast-forward-only by default; rebase / merge offered only after `notFastForward`; conflicted files listed with a confirmed Abort; publish without upstream; Pull offered after a rejected push; force-push text with both SHAs and that SHA sent; ahead/behind badges.
    - Commit: `feat(visualization): pull and push from history`
@@ -894,7 +918,78 @@ Open, proceeding on the default: commit order by date (Rider) rather than topolo
 Reconciled names from plans 01 and 03, deviations and measured numbers are recorded here by the implementing agent (details in `dev_docs/studio/agents/progress/`).
 
 Cross-plan items:
-- Plan 01: runner stdin, stdout line streaming, env removal; generic `operations.cancel`; git minimum version 2.31; the `askpass` mode check in `main` before CLI parsing; redaction of `prompt.answer` in the RPC trace; relay forwarding `prompt.*` and `repository.changed`.
+- Plan 01: runner stdin, stdout line streaming, env removal; generic `core.cancel` (as built); git minimum version 2.31; the `askpass` mode check in `main` before CLI parsing; redaction of `prompt.answer` in the RPC trace; relay forwarding `prompt.*` and `repository.changed`.
 - Plan 03: `FolderRef` in the API crate, the core folder resolver, the recycle-bin helper, `ProjectsService` exported from `features/projects/facade.ts`.
 - Plan 05: in-core `GitService` (`rev_list` stream, `measure_distances`, `status`, `subscribe_changes`), the `workingTree` selection item, `ANALYSED_COMMITS` / `COMMIT_ACTIONS` / `LOADED_MAP_LOCATOR` ports; mutating git only through `OperationQueue`; fixtures from `tests/support/git_fixture.rs`.
 - Plan 06: `merge_base`, `changed_files` / `git.changedFiles`, `fetch_refspecs` into `refs/codecharta/pr/<n>` (prompts and progress included), `COMMIT_ACTIONS` for "Compare with…"; fixtures from `tests/support/git_fixture.rs`.
+
+Reconciled with plans 01 and 03 as implemented (04-M1 task 1, 2026-11-18):
+- Async runtime: tokio. Process runner: `codecharta_core::process::ProcessRunner::run(RunRequest, &CancellationToken)`
+  (`RunRequest { tool, program, args, cwd, env, timeout, max_output_bytes, askpass, output }`, `RunOutput
+  { exit_code, stdout: String, stderr: String, duration }`; output is decoded UTF-8 with U+FFFD, not bytes).
+  Tools: `codecharta_core::tools::Tools::run(ToolId::Git, args, ToolRunOptions, &cancel)`; git's minimum
+  `2.31.0` is already in `tools/definitions.rs`, and the plan 01 test is `tests/tools.rs`
+  `should_report_too_old_below_minimum`. No stdin, no stdout line streaming yet (M2), env removal added in M1.
+- Dispatcher: `codecharta-cored/src/serve/dispatch.rs` (`ROUTES`, `read_params`, `write_result`,
+  `domain_error`, `Notifier`), one `serve/<domain>_routes.rs` per domain — so `rpc/git.rs` is
+  `serve/git_routes.rs`. Cancel is the `core.cancel` notification (overview section 10). CLI: clap in
+  `codecharta-cored/src/cli/` — `cli/git.rs` as planned; refusals print `<ERROR_CODE>: <message>`, exit 1.
+- Contract: one `codecharta-core-api/src/methods/<domain>.rs` per domain (so `git.rs` is `methods/git.rs`),
+  `method!` macro, `METHODS` / `EVENTS` in `registry.rs`; `npm run contract` regenerates
+  `visualization/app/codeCharta/model/coreApi/`. Error codes are `ErrorCode` (SCREAMING_SNAKE_CASE,
+  append-only, `ErrorCode::ALL`); JSON-RPC `-32000` with `data = { code, message, details }`. There is no
+  separate `GitErrorCode` on the wire: git codes are appended to `ErrorCode`, git's text goes in
+  `details.detail` (plan 01 wins, overview section 10).
+- Plan 03: `FolderRef { projectId, folderId }` in `methods/projects.rs`; `GitRemote { name, url }` exists there
+  too and is reused; folder lookup is `ProjectRepository::resolve_folder(&FolderRef) -> ResolvedFolder
+  { path, kind, status }` (unknown → `NOT_FOUND`, a missing folder → status `missing` → `FOLDER_UNAVAILABLE`);
+  recycle bin `codecharta_core::recycle::SystemRecycler`; credential stripping
+  `folders::inspector::strip_credentials`. Plan 03's simple `git::GitRunner` trait (`run(cwd, args)`, used
+  by the folder inspector) stays; plan 04's richer runner is `git::GitCli` over a new port `git::GitProcess`.
+- Fixture: `tests/support/git_fixture.rs` `TempRepo` (plan's `FixtureRepo`), extended as M1 task 1 lists;
+  `FixtureGit` (its `GitRunner`) gains the plan 04 port too.
+- As built in M1: api `methods/git.rs` (not `src/git.rs`), routes `serve/git_routes.rs` (not `rpc/git.rs`),
+  plan 04's runner struct is `git::GitCli` over the port `git::GitProcess`, `GitService` methods take a
+  resolved `GitFolder` and the request's `CancellationToken`, git error codes are appended `ErrorCode` values
+  (SCREAMING_SNAKE_CASE) with git's text in `details.detail`, `CommitSha` / `FullRefName` are api `values.rs`
+  types. Details and the open git 2.31 spike: `progress/04-M1-core-status-refs.md`.
+- As built in M2 (details: `progress/04-M2-core-log-details.md`): runner stdin is `RunRequest.stdin`;
+  stdout line streaming is `GitCli::stream_lines` over plan 01's existing chunk stream plus
+  `process::lines::LineSplitter` and the port method `GitProcess::stream`. Log in `git/log.rs`
+  (`LogRequest`, `log_page`), details and changed files in `git/details.rs` (`ChangedFilesRequest`), queries
+  and the stream in `git/query.rs` (`RevListRequest`, `ShaSink`), caches in `git/memory.rs` (`GitMemory`,
+  held by `Core`; `fetched(repository_id, is_shallow)`, `forget_logs`, `forget_answers`). Service reads
+  take `(&GitFolder, …, &CancellationToken)`; internal reads take a `FolderGit { git, folder, cancel }`.
+  New api values `Revision`, `LogCursor`, `LogFilterText`, `RepoRelativePath`; error codes
+  `LOG_SESSION_EXPIRED`, `UNKNOWN_REVISION`. `git.measureDistances` answers `GitCommitDistances`.
+- As built in M8 (details: `progress/04-M8-fetch-branches.md`): mutating operations take `(&GitFolder, …,
+  &OperationContext { cancel, request_id, progress })` (`git/operation.rs`) and need
+  `GitService::with_operations(Operations { queue, prompts })`, which `Core::git()` sets. Inside the queue a
+  `Mutation { git, folder, repository, prompts, context }` re-reads refs and runs `run` (mutating) or
+  `run_network` (prompt session, progress, `settle`); every operation ends with `forget_logs`, a fresh
+  status + refs read and `RepositoryChanges::announce_operation` (`repository.changed` with parts
+  `status`, `refs`), also after a failure. Branch commands in `git/branch.rs` (`BranchCreateRequest`,
+  `BranchRenameRequest`, `SetUpstreamRequest`), fetch in `git/sync.rs` (`Refspec`, `FetchRefspecsRequest`,
+  `count_updated_refs`). New api value `BranchName`; api enums `GitSwitchTarget`, `GitBranchDeleteTarget`;
+  error codes `BRANCH_EXISTS`, `BRANCH_NOT_FULLY_MERGED`, `BRANCH_CHECKED_OUT_ELSEWHERE`,
+  `LOCAL_CHANGES_WOULD_BE_OVERWRITTEN`, `OPERATION_IN_PROGRESS`, `AUTHENTICATION_REQUIRED`,
+  `NETWORK_UNAVAILABLE`.
+- As built in M9 (details: `progress/04-M9-changes-diff.md`): `git/working_tree.rs` (the `GitService` entry
+  points `working_tree`, `diff_file`, `stage`, `unstage`, `discard`, and `read_entries`) over
+  `parse/status_entries.rs`; `Operations` and `Mutation` carry the injected `recycler` (`Core` gives its
+  `SystemRecycler`); `Mutation::run_command` / `root`. Every operation now announces `repository.changed` with
+  parts `status`, `refs`, `workingTree`. New api value `WorkingTreePath`, api enum `GitStageTarget`, error code
+  `CHANGED_SINCE_LISTED`. Path lists reach git on stdin (`--pathspec-from-file=- --pathspec-file-nul --`), so
+  no path is ever an argument and 1 000 long paths fit any command-line limit.
+- As built in M10 (details: `progress/04-M10-commit.md`): `git/commit.rs` (`GitService::commit(&GitFolder,
+  CommitRequest, &OperationContext)`, `CommitRequest { subject, body, amend }`, `MESSAGE_FOLDER_NAME`),
+  `GitCli::data_dir`, `COMMIT_LIMITS`. New api values `CommitSubject`, `CommitBody`; params
+  `GitCreateCommitParams`; method `git.commit` answering `GitOperationResult`; error codes `IDENTITY_UNKNOWN`,
+  `NOTHING_TO_COMMIT`, `HOOK_FAILED`, `CONFLICTS` (M11's pull reuses `CONFLICTS`).
+- As built in M11 (details: `progress/04-M11-pull-push.md`): `GitService::pull(&GitFolder, GitPullMode, …)`,
+  `push(&GitFolder, &PushRequest, …)` and `abort_operation(&GitFolder, GitAbortableOperation, …)` in
+  `git/sync.rs`; params `GitPullParams`, `GitPushParams`, `GitAbortOperationParams`, api enums `GitPullMode`,
+  `GitAbortableOperation`; methods `git.pull`, `git.push`, `git.abortOperation` answering
+  `GitOperationResult`. Error codes `NOT_FAST_FORWARD`, `PUSH_REJECTED`, `NO_UPSTREAM`, `STALE_PUSH_LEASE`.
+  `Mutation::run_network` classifies stderr and stdout (`error::network_failed`) and, without an ssh helper,
+  words ssh refusals as the ssh-agent / Pageant message (`error::SSH_AGENT_MESSAGE`).

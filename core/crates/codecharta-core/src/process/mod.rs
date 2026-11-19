@@ -1,5 +1,6 @@
 pub mod env;
 pub mod launch;
+pub mod lines;
 pub mod output;
 pub mod runner;
 pub mod tree;

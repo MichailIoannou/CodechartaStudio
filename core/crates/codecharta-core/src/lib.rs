@@ -1,23 +1,52 @@
+pub mod analysis;
+pub mod compare;
 pub mod config;
 pub mod error;
+pub mod folders;
+pub mod git;
+pub mod hosting;
 pub mod ids;
 pub mod process;
+pub mod projects;
+pub mod prompt;
+pub mod recycle;
+pub mod snapshots;
 pub mod store;
+pub mod timestamps;
 pub mod tools;
 
 pub use config::paths::{CoreConfig, Paths};
 pub use config::settings::{CoreSettings, SettingsStore};
 pub use error::{CoreError, CoreResult};
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
+use codecharta_core_api::ids::InvalidStoreId;
 use codecharta_core_api::methods::core::Platform;
+use codecharta_core_api::methods::git::RepositoryChanged;
+use codecharta_core_api::methods::projects::FolderRef;
+use codecharta_core_api::methods::shell::ShellPathTarget;
+use codecharta_core_api::methods::snapshots::SnapshotRef;
 use codecharta_core_api::methods::store::StoreStatus;
 
+use analysis::jobs::Analyses;
+use analysis::queue::AnalysisQueue;
 use config::settings::SETTINGS_FILE_NAME;
+use git::changes::RepositoryChanges;
+use git::command::UserEnvironment;
+use git::memory::GitMemory;
+use git::operation::Operations;
+use git::queue::OperationQueue;
+use git::{GitFolder, GitService};
 use process::ProcessRunner;
 use process::env::hardened_env;
+use projects::ProjectRepository;
+use projects::tokens::PickTokens;
+use prompt::PromptBroker;
+use recycle::SystemRecycler;
+use snapshots::SnapshotRepository;
+use snapshots::nearest::ResolutionCache;
 use store::Store;
 use store::state::StoreState;
 use tools::{SearchLocations, Tools, ToolsSetup};
@@ -29,6 +58,15 @@ pub struct Core {
     runner: Arc<ProcessRunner>,
     tools: Tools,
     store: OnceLock<StoreState>,
+    pick_tokens: PickTokens,
+    recycler: SystemRecycler,
+    repository_changes: RepositoryChanges,
+    git_memory: GitMemory,
+    user_environment: UserEnvironment,
+    operation_queue: OperationQueue,
+    prompts: Arc<PromptBroker>,
+    analysis_queue: AnalysisQueue,
+    resolutions: ResolutionCache,
 }
 
 impl Core {
@@ -52,6 +90,15 @@ impl Core {
             runner,
             tools,
             store: OnceLock::new(),
+            pick_tokens: PickTokens::default(),
+            recycler: SystemRecycler,
+            repository_changes: RepositoryChanges::default(),
+            git_memory: GitMemory::default(),
+            user_environment: UserEnvironment::read(&|name| std::env::var_os(name)),
+            operation_queue: OperationQueue::default(),
+            prompts: Arc::default(),
+            analysis_queue: AnalysisQueue::new(),
+            resolutions: ResolutionCache::default(),
         })
     }
 
@@ -63,6 +110,106 @@ impl Core {
 
     pub fn store(&self) -> CoreResult<&Store> {
         self.store_state()?.store()
+    }
+
+    /// The projects of the store this core opened, with the real git and recycle bin.
+    pub fn projects(&self) -> CoreResult<ProjectRepository<'_>> {
+        Ok(ProjectRepository::new(
+            self.store()?,
+            &self.tools,
+            &self.recycler,
+        ))
+    }
+
+    /// The snapshots of the store this core opened.
+    pub fn snapshots(&self) -> CoreResult<SnapshotRepository<'_>> {
+        Ok(SnapshotRepository::new(
+            self.store()?,
+            &self.tools,
+            &self.recycler,
+        ))
+    }
+
+    /// git runs in the data folder, which is created for it when it does not exist yet.
+    pub fn git(&self) -> CoreResult<GitService<'_>> {
+        std::fs::create_dir_all(self.data_dir()).map_err(|source| CoreError::Io {
+            context: format!(
+                "Could not create the data folder {}",
+                self.data_dir().display()
+            ),
+            source,
+        })?;
+        Ok(GitService::new(&self.tools, self.data_dir())
+            .with_changes(&self.repository_changes)
+            .with_memory(&self.git_memory)
+            .with_user_environment(self.user_environment.clone())
+            .with_operations(Operations {
+                queue: &self.operation_queue,
+                prompts: &self.prompts,
+                recycler: &self.recycler,
+            }))
+    }
+
+    /// The project folder a git request names, resolved through the store.
+    pub fn git_folder(&self, repo: &FolderRef) -> CoreResult<GitFolder> {
+        self.projects()?.git_folder(repo)
+    }
+
+    /// Every mutating git command of the core waits its turn here (plans 04–06).
+    pub fn operation_queue(&self) -> &OperationQueue {
+        &self.operation_queue
+    }
+
+    /// Network git operations open a prompt session here; `serve` starts the askpass server for it.
+    pub fn prompts(&self) -> &Arc<PromptBroker> {
+        &self.prompts
+    }
+
+    /// The one queue of analysis jobs of this core; `analyses().drive()` runs it.
+    pub fn analysis_queue(&self) -> &AnalysisQueue {
+        &self.analysis_queue
+    }
+
+    pub fn analyses(&self) -> Analyses<'_> {
+        Analyses::new(self)
+    }
+
+    /// The snapshot resolutions of this core, shared by every request.
+    pub fn resolution_cache(&self) -> &ResolutionCache {
+        &self.resolutions
+    }
+
+    /// Every child process of the core runs through this runner, so `shutdown` can stop them all.
+    pub fn runner(&self) -> &ProcessRunner {
+        &self.runner
+    }
+
+    pub fn subscribe_repository_changes(
+        &self,
+    ) -> tokio::sync::broadcast::Receiver<RepositoryChanged> {
+        self.repository_changes.subscribe()
+    }
+
+    /// A snapshot map is found through the store; every other target through the paths alone.
+    pub fn resolve_path(&self, target: &ShellPathTarget) -> CoreResult<PathBuf> {
+        let ShellPathTarget::SnapshotMap {
+            project_id,
+            folder_id,
+            snapshot_id,
+        } = target
+        else {
+            return self.paths.resolve(target);
+        };
+        let snapshot = SnapshotRef {
+            project_id: store_id(project_id)?,
+            folder_id: store_id(folder_id)?,
+            snapshot_id: store_id(snapshot_id)?,
+        };
+        self.snapshots()?.map_location(&snapshot)
+    }
+
+    pub fn pick_tokens(&self) -> &PickTokens {
+        &self.pick_tokens
     }
 
     pub fn store_status(&self) -> CoreResult<StoreStatus> {
@@ -103,6 +250,10 @@ fn platform_of(operating_system: &str) -> Platform {
         "macos" => Platform::Darwin,
         _ => Platform::Linux,
     }
+}
+
+fn store_id<Id: TryFrom<String, Error = InvalidStoreId>>(value: &str) -> CoreResult<Id> {
+    Id::try_from(value.to_string()).map_err(|error| CoreError::BadRequest(error.to_string()))
 }
 
 pub fn path_to_wire(path: &Path) -> CoreResult<String> {

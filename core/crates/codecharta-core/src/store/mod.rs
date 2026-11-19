@@ -344,4 +344,92 @@ mod tests {
         assert!(leftovers.iter().all(|file| !file.exists()));
         assert!(kept.iter().all(|file| file.exists()));
     }
+
+    #[test]
+    fn should_restore_or_drop_a_replaced_snapshot_and_drop_failed_runs_on_open() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+        let root = folder.path();
+        write_store_file(root, STORE_SCHEMA_VERSION);
+        let snapshots = root
+            .join("projects")
+            .join("p-0123456789abcdef")
+            .join("snapshots")
+            .join("f-0000000000000001");
+        let write_record = |name: &str, id: &str| {
+            fs::create_dir_all(snapshots.join(name)).unwrap();
+            let record = json!({ "id": id, "folderId": "f-0000000000000001" });
+            fs::write(
+                snapshots.join(name).join("snapshot.json"),
+                record.to_string(),
+            )
+            .unwrap();
+        };
+        write_record(".replaced-00000001", "s-lost");
+        write_record(".replaced-00000002", "s-kept");
+        write_record("s-kept", "s-kept");
+        write_record(".failed-job-1", "s-failed");
+
+        // Act
+        Store::open(root).unwrap();
+
+        // Assert
+        let mut names: Vec<String> = fs::read_dir(&snapshots)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        assert_eq!(names, ["s-kept", "s-lost"]);
+    }
+
+    #[test]
+    fn should_leave_the_staging_folder_of_an_analysis_to_the_recovery() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+        let root = folder.path();
+        write_store_file(root, STORE_SCHEMA_VERSION);
+        let snapshots = root
+            .join("projects")
+            .join("p-0123456789abcdef")
+            .join("snapshots")
+            .join("f-0000000000000001");
+        fs::create_dir_all(snapshots.join(".incoming-00000001")).unwrap();
+        fs::create_dir_all(snapshots.join(".incoming-00000002")).unwrap();
+        fs::write(snapshots.join(".incoming-00000002").join("job.json"), "{}").unwrap();
+
+        // Act
+        Store::open(root).unwrap();
+
+        // Assert
+        assert!(!snapshots.join(".incoming-00000001").exists());
+        assert!(snapshots.join(".incoming-00000002").exists());
+    }
+
+    #[test]
+    fn should_finish_a_snapshot_move_that_a_crash_interrupted() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+        let root = folder.path();
+        write_store_file(root, STORE_SCHEMA_VERSION);
+        let snapshots = root
+            .join("projects")
+            .join("p-0123456789abcdef")
+            .join("snapshots");
+        let old_place = snapshots
+            .join("f-0000000000000001")
+            .join("imported-0123456789abcdef");
+        fs::create_dir_all(&old_place).unwrap();
+        let record = json!({ "id": "imported-0123456789abcdef", "folderId": "f-0000000000000002" });
+        fs::write(old_place.join("snapshot.json"), record.to_string()).unwrap();
+
+        // Act
+        Store::open(root).unwrap();
+
+        // Assert
+        let new_place = snapshots
+            .join("f-0000000000000002")
+            .join("imported-0123456789abcdef");
+        assert!(!old_place.exists());
+        assert!(new_place.join("snapshot.json").is_file());
+    }
 }

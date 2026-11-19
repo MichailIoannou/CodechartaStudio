@@ -4,9 +4,40 @@ use serde::{Serialize, de::DeserializeOwned};
 use ts_rs::{Config, ExportError, TS};
 
 use crate::events::CoreProgress;
+use crate::methods::analysis::{
+    AnalysisCancel, AnalysisCancelBatch, AnalysisCancelledEvent, AnalysisClearFinished,
+    AnalysisEnqueue, AnalysisEnqueueBatch, AnalysisFailedEvent, AnalysisFinishedEvent,
+    AnalysisList, AnalysisPreflight, AnalysisProgressEvent, AnalysisQueuedEvent,
+    AnalysisStartedEvent, SnapshotsChangedEvent,
+};
+use crate::methods::compare::{CompareChangedFiles, CompareResolve};
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
+use crate::methods::git::{
+    GitAbortOperationMethod, GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod,
+    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitMethod,
+    GitDiffFileMethod, GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod,
+    GitMeasureDistancesMethod, GitMergeBaseMethod, GitPullMethod, GitPushMethod, GitRefsAtMethod,
+    GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
+    GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
+    GitUnstageMethod, GitWorkingTreeMethod, RepositoryChangedEvent,
+};
+use crate::methods::hosting::{HostingFetchChangeRequestHead, HostingStatusMethod};
 use crate::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use crate::methods::projects::{
+    ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
+    ProjectsGetActive, ProjectsInspectFolder, ProjectsList, ProjectsRefreshFolder,
+    ProjectsRelinkFolder, ProjectsRemoveFolder, ProjectsResolveCommit, ProjectsSetActive,
+    ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
+};
+use crate::methods::prompt::{
+    PromptAnswerMethod, PromptCancelMethod, PromptClosedEvent, PromptRequestedEvent,
+};
 use crate::methods::shell::ShellResolvePath;
+use crate::methods::snapshots::{
+    SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
+    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsPlanPrune, SnapshotsPrune,
+    SnapshotsReadLog, SnapshotsRecordMapFacts, SnapshotsResolveForCommit, SnapshotsUsage,
+};
 use crate::methods::store::StoreGetStatus;
 use crate::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 
@@ -23,6 +54,22 @@ pub trait Method {
     type Params: Serialize + DeserializeOwned + TS + 'static;
     type Result: Serialize + DeserializeOwned + TS + 'static;
 }
+
+/// Declares a method marker: `method!(Marker, "domain.verb", Renderer | Shell, Params, Result)`.
+macro_rules! method {
+    ($marker:ident, $name:literal, $audience:ident, $params:ty, $result:ty) => {
+        pub struct $marker;
+
+        impl $crate::registry::Method for $marker {
+            const NAME: &'static str = $name;
+            const AUDIENCE: $crate::registry::Audience = $crate::registry::Audience::$audience;
+            type Params = $params;
+            type Result = $result;
+        }
+    };
+}
+
+pub(crate) use method;
 
 pub trait Event {
     const NAME: &'static str;
@@ -99,9 +146,92 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<ToolsClearPath>(),
     MethodSpec::of::<ShellResolvePath>(),
     MethodSpec::of::<StoreGetStatus>(),
+    MethodSpec::of::<ProjectsList>(),
+    MethodSpec::of::<ProjectsGet>(),
+    MethodSpec::of::<ProjectsInspectFolder>(),
+    MethodSpec::of::<ProjectsCreate>(),
+    MethodSpec::of::<ProjectsUpdate>(),
+    MethodSpec::of::<ProjectsDelete>(),
+    MethodSpec::of::<ProjectsAddFolder>(),
+    MethodSpec::of::<ProjectsUpdateFolder>(),
+    MethodSpec::of::<ProjectsRemoveFolder>(),
+    MethodSpec::of::<ProjectsRelinkFolder>(),
+    MethodSpec::of::<ProjectsRefreshFolder>(),
+    MethodSpec::of::<ProjectsGetActive>(),
+    MethodSpec::of::<ProjectsSetActive>(),
+    MethodSpec::of::<ProjectsSetView>(),
+    MethodSpec::of::<ProjectsResolveCommit>(),
+    MethodSpec::of::<ProjectsFolderPath>(),
+    MethodSpec::of::<ProjectsSourceFileLocation>(),
+    MethodSpec::of::<SnapshotsList>(),
+    MethodSpec::of::<SnapshotsMapLocation>(),
+    MethodSpec::of::<SnapshotsRecordMapFacts>(),
+    MethodSpec::of::<SnapshotsInspectImportFile>(),
+    MethodSpec::of::<SnapshotsOpenFile>(),
+    MethodSpec::of::<SnapshotsImport>(),
+    MethodSpec::of::<SnapshotsMove>(),
+    MethodSpec::of::<SnapshotsDelete>(),
+    MethodSpec::of::<SnapshotsReadLog>(),
+    MethodSpec::of::<SnapshotsResolveForCommit>(),
+    MethodSpec::of::<SnapshotsUsage>(),
+    MethodSpec::of::<SnapshotsPlanPrune>(),
+    MethodSpec::of::<SnapshotsPrune>(),
+    MethodSpec::of::<CompareResolve>(),
+    MethodSpec::of::<CompareChangedFiles>(),
+    MethodSpec::of::<HostingStatusMethod>(),
+    MethodSpec::of::<HostingFetchChangeRequestHead>(),
+    MethodSpec::of::<AnalysisPreflight>(),
+    MethodSpec::of::<AnalysisEnqueue>(),
+    MethodSpec::of::<AnalysisCancel>(),
+    MethodSpec::of::<AnalysisEnqueueBatch>(),
+    MethodSpec::of::<AnalysisCancelBatch>(),
+    MethodSpec::of::<AnalysisList>(),
+    MethodSpec::of::<AnalysisClearFinished>(),
+    MethodSpec::of::<GitRepositoryInfoMethod>(),
+    MethodSpec::of::<GitStatusMethod>(),
+    MethodSpec::of::<GitBranchesMethod>(),
+    MethodSpec::of::<GitRefsFingerprintMethod>(),
+    MethodSpec::of::<GitLogMethod>(),
+    MethodSpec::of::<GitCommitDetailsMethod>(),
+    MethodSpec::of::<GitResolveCommitMethod>(),
+    MethodSpec::of::<GitRevListCountMethod>(),
+    MethodSpec::of::<GitMergeBaseMethod>(),
+    MethodSpec::of::<GitIsAncestorMethod>(),
+    MethodSpec::of::<GitMeasureDistancesMethod>(),
+    MethodSpec::of::<GitRefsAtMethod>(),
+    MethodSpec::of::<GitChangedFilesMethod>(),
+    MethodSpec::of::<GitFetchMethod>(),
+    MethodSpec::of::<GitSwitchMethod>(),
+    MethodSpec::of::<GitBranchCreateMethod>(),
+    MethodSpec::of::<GitBranchRenameMethod>(),
+    MethodSpec::of::<GitBranchDeleteMethod>(),
+    MethodSpec::of::<GitSetUpstreamMethod>(),
+    MethodSpec::of::<GitWorkingTreeMethod>(),
+    MethodSpec::of::<GitDiffFileMethod>(),
+    MethodSpec::of::<GitStageMethod>(),
+    MethodSpec::of::<GitUnstageMethod>(),
+    MethodSpec::of::<GitDiscardMethod>(),
+    MethodSpec::of::<GitCommitMethod>(),
+    MethodSpec::of::<GitPullMethod>(),
+    MethodSpec::of::<GitPushMethod>(),
+    MethodSpec::of::<GitAbortOperationMethod>(),
+    MethodSpec::of::<PromptAnswerMethod>(),
+    MethodSpec::of::<PromptCancelMethod>(),
 ];
 
-pub const EVENTS: &[EventSpec] = &[EventSpec::of::<CoreProgress>()];
+pub const EVENTS: &[EventSpec] = &[
+    EventSpec::of::<CoreProgress>(),
+    EventSpec::of::<RepositoryChangedEvent>(),
+    EventSpec::of::<PromptRequestedEvent>(),
+    EventSpec::of::<PromptClosedEvent>(),
+    EventSpec::of::<AnalysisQueuedEvent>(),
+    EventSpec::of::<AnalysisStartedEvent>(),
+    EventSpec::of::<AnalysisProgressEvent>(),
+    EventSpec::of::<AnalysisFinishedEvent>(),
+    EventSpec::of::<AnalysisFailedEvent>(),
+    EventSpec::of::<AnalysisCancelledEvent>(),
+    EventSpec::of::<SnapshotsChangedEvent>(),
+];
 
 pub const CLIENT_NOTIFICATIONS: &[EventSpec] = &[EventSpec::of::<CoreCancel>()];
 

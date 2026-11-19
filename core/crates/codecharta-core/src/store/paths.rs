@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
+use codecharta_core_api::ids::{FolderId, JobId, ProjectId, SnapshotId};
 
 use crate::error::{CoreError, CoreResult};
 
@@ -10,8 +10,19 @@ pub const LOCK_FILE_NAME: &str = ".lock";
 pub const PROJECTS_FOLDER_NAME: &str = "projects";
 pub const PROJECT_FILE_NAME: &str = "project.json";
 pub const SNAPSHOTS_FOLDER_NAME: &str = "snapshots";
+pub const SNAPSHOT_FILE_NAME: &str = "snapshot.json";
 pub const MAP_FILE_NAME: &str = "map.cc.json.gz";
+pub const RUN_LOG_FILE_NAME: &str = "run.log";
 pub const STAGING_FOLDER_PREFIX: &str = ".incoming-";
+/// The snapshot a replacing commit moved aside; deleted once the new one is in place.
+pub const REPLACED_FOLDER_PREFIX: &str = ".replaced-";
+/// The staging directory of a failed analysis, kept for its `run.log` until the next start.
+pub const FAILED_FOLDER_PREFIX: &str = ".failed-";
+/// What a running analysis needs cleaned up after a crash, in its staging directory; such a directory is
+/// left to the analysis recovery, which runs the worktree janitor first.
+pub const JOB_FILE_NAME: &str = "job.json";
+/// Locked by the process that runs the analysis for as long as it runs.
+pub const JOB_LOCK_FILE_NAME: &str = "job.lock";
 
 /// The only place that builds paths inside the store.
 #[derive(Debug, Clone)]
@@ -85,6 +96,61 @@ impl StorePaths {
         self.inside_root(snapshot_dir.join(MAP_FILE_NAME))
     }
 
+    pub fn snapshot_file(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        snapshot: &SnapshotId,
+    ) -> CoreResult<PathBuf> {
+        let snapshot_dir = self.snapshot_dir(project, folder, snapshot)?;
+        self.inside_root(snapshot_dir.join(SNAPSHOT_FILE_NAME))
+    }
+
+    /// A directory a snapshot is built in before it is renamed to its id; `suffix` is generated.
+    pub fn staging_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        suffix: &str,
+    ) -> CoreResult<PathBuf> {
+        self.hidden_dir(project, folder, &format!("{STAGING_FOLDER_PREFIX}{suffix}"))
+    }
+
+    /// Where a replacing commit moves the old snapshot; `suffix` is generated.
+    pub fn replaced_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        suffix: &str,
+    ) -> CoreResult<PathBuf> {
+        self.hidden_dir(
+            project,
+            folder,
+            &format!("{REPLACED_FOLDER_PREFIX}{suffix}"),
+        )
+    }
+
+    /// Where the staging directory of a failed analysis is kept for its log.
+    pub fn failed_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        job: &JobId,
+    ) -> CoreResult<PathBuf> {
+        self.hidden_dir(project, folder, &format!("{FAILED_FOLDER_PREFIX}{job}"))
+    }
+
+    /// `name` starts with a dot, so it is never a snapshot id.
+    fn hidden_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        name: &str,
+    ) -> CoreResult<PathBuf> {
+        let folder_dir = self.folder_snapshots_dir(project, folder)?;
+        self.inside_root(folder_dir.join(name))
+    }
+
     fn inside_root(&self, candidate: PathBuf) -> CoreResult<PathBuf> {
         let below_root = candidate
             .strip_prefix(&self.root)
@@ -109,18 +175,43 @@ impl StorePaths {
 /// Resolves a path a caller names relative to a user folder and refuses anything that leaves it,
 /// including through a symbolic link.
 pub fn confine_to_folder(folder: &Path, relative: &str) -> CoreResult<PathBuf> {
+    let relative_path = names_only(relative)?;
+    let canonical_folder = canonicalize(folder)?;
+    let resolved = canonicalize(&canonical_folder.join(relative_path))?;
+    inside(&canonical_folder, resolved, relative)
+}
+
+/// Like `confine_to_folder`, but the entry itself is not followed: a symbolic link stays the link, while
+/// the folders leading to it must not leave `folder`. The entry need not exist.
+pub fn confine_entry_to_folder(folder: &Path, relative: &str) -> CoreResult<PathBuf> {
+    let relative_path = names_only(relative)?;
+    let (Some(parent), Some(name)) = (relative_path.parent(), relative_path.file_name()) else {
+        return Err(not_inside(relative));
+    };
+    let canonical_folder = canonicalize(folder)?;
+    let canonical_parent = canonicalize(&canonical_folder.join(parent))?;
+    inside(&canonical_folder, canonical_parent.join(name), relative)
+}
+
+fn names_only(relative: &str) -> CoreResult<&Path> {
     let relative_path = Path::new(relative);
     let only_names = relative_path
         .components()
         .all(|component| matches!(component, Component::Normal(_) | Component::CurDir));
     if relative.is_empty() || !only_names {
-        return Err(CoreError::BadRequest(format!(
-            "{relative:?} is not a relative path inside the folder."
-        )));
+        return Err(not_inside(relative));
     }
-    let canonical_folder = canonicalize(folder)?;
-    let resolved = canonicalize(&canonical_folder.join(relative_path))?;
-    if resolved.starts_with(&canonical_folder) {
+    Ok(relative_path)
+}
+
+fn not_inside(relative: &str) -> CoreError {
+    CoreError::BadRequest(format!(
+        "{relative:?} is not a relative path inside the folder."
+    ))
+}
+
+fn inside(canonical_folder: &Path, resolved: PathBuf, relative: &str) -> CoreResult<PathBuf> {
+    if resolved.starts_with(canonical_folder) {
         Ok(resolved)
     } else {
         Err(CoreError::NotAllowed(format!(
@@ -249,5 +340,62 @@ mod tests {
             matches!(result, Err(CoreError::NotAllowed(_))),
             "{result:?}"
         );
+    }
+    #[cfg(unix)]
+    #[test]
+    fn should_keep_a_symlink_entry_as_the_link_inside_the_folder() {
+        // Arrange
+        let workspace = tempfile::tempdir().unwrap();
+        let folder = workspace.path().join("folder");
+        std::fs::create_dir(&folder).unwrap();
+        std::fs::write(workspace.path().join("secret.txt"), "x").unwrap();
+        std::os::unix::fs::symlink(workspace.path().join("secret.txt"), folder.join("link.txt"))
+            .unwrap();
+
+        // Act
+        let result = confine_entry_to_folder(&folder, "link.txt");
+
+        // Assert
+        let canonical_folder = folder.canonicalize().unwrap();
+        assert_eq!(result.unwrap(), canonical_folder.join("link.txt"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_refuse_an_entry_below_a_symlinked_folder_outside() {
+        // Arrange
+        let workspace = tempfile::tempdir().unwrap();
+        let (folder, outside) = (
+            workspace.path().join("folder"),
+            workspace.path().join("outside"),
+        );
+        std::fs::create_dir(&folder).unwrap();
+        std::fs::create_dir(&outside).unwrap();
+        std::fs::write(outside.join("victim.txt"), "x").unwrap();
+        std::os::unix::fs::symlink(&outside, folder.join("linked")).unwrap();
+
+        // Act
+        let result = confine_entry_to_folder(&folder, "linked/victim.txt");
+
+        // Assert
+        assert!(
+            matches!(result, Err(CoreError::NotAllowed(_))),
+            "{result:?}"
+        );
+    }
+
+    #[test]
+    fn should_refuse_an_entry_naming_no_file_in_the_folder() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+
+        // Act
+        let refused = [".", "a/../..", "/etc/hosts"]
+            .map(|relative| confine_entry_to_folder(folder.path(), relative).is_err());
+        let missing = confine_entry_to_folder(folder.path(), "missing.txt");
+
+        // Assert
+        assert_eq!(refused, [true; 3]);
+        assert!(missing.unwrap().ends_with("missing.txt"));
     }
 }

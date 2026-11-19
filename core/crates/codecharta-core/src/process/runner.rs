@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use codecharta_core_api::methods::tools::ToolId;
+use tokio::io::AsyncWriteExt;
 use tokio::process::{Child, Command};
 use tokio_util::sync::CancellationToken;
 
@@ -21,7 +22,7 @@ pub const DEFAULT_MAX_OUTPUT_BYTES: u64 = 16 * MEBIBYTE;
 pub const MAX_OUTPUT_CEILING_BYTES: u64 = 256 * MEBIBYTE;
 const TERMINATE_GRACE: Duration = Duration::from_secs(3);
 /// Exit code reported for a child that ended by a signal and has no exit code of its own.
-const NO_EXIT_CODE: i32 = -1;
+pub const NO_EXIT_CODE: i32 = -1;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -31,10 +32,14 @@ pub struct RunRequest {
     pub args: Vec<OsString>,
     pub cwd: Option<PathBuf>,
     pub env: EnvVars,
+    /// Variables of the base environment the child must not inherit.
+    pub env_remove: Vec<OsString>,
     pub timeout: Duration,
     pub max_output_bytes: u64,
     pub askpass: Option<AskpassSetup>,
     pub output: OutputMode,
+    /// Written to the child's stdin, which is then closed; without it the child's stdin is closed at once.
+    pub stdin: Option<String>,
 }
 
 impl RunRequest {
@@ -45,10 +50,12 @@ impl RunRequest {
             args,
             cwd: None,
             env: Vec::new(),
+            env_remove: Vec::new(),
             timeout,
             max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES,
             askpass: None,
             output: OutputMode::Collect,
+            stdin: None,
         }
     }
 }
@@ -89,6 +96,7 @@ impl ProcessRunner {
         let started = Instant::now();
         let mut child = self.spawn(&request)?;
         let tree = Arc::new(ProcessTree::attach(&child)?);
+        feed_stdin(&mut child, request.stdin.clone());
         let _registration = LiveTree::register(self, Arc::clone(&tree));
         let result = supervise(&mut child, &tree, &request, cancel).await;
         log_finished(&request, &result, started.elapsed());
@@ -116,10 +124,15 @@ impl ProcessRunner {
             .env_clear()
             .envs(child_env(
                 &self.base_env,
+                &request.env_remove,
                 &request.env,
                 request.askpass.as_ref(),
             ))
-            .stdin(Stdio::null())
+            .stdin(if request.stdin.is_some() {
+                Stdio::piped()
+            } else {
+                Stdio::null()
+            })
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true);
@@ -137,6 +150,18 @@ impl ProcessRunner {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
     }
+}
+
+/// A child that stops reading early (a stopped stream) makes the write fail; that is its choice, not an error.
+fn feed_stdin(child: &mut Child, text: Option<String>) {
+    let (Some(mut pipe), Some(text)) = (child.stdin.take(), text) else {
+        return;
+    };
+    tokio::spawn(async move {
+        if let Err(error) = pipe.write_all(text.as_bytes()).await {
+            tracing::debug!("the child process stopped reading its input: {error}");
+        }
+    });
 }
 
 struct LiveTree<'runner> {

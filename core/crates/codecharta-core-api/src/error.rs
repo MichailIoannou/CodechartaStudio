@@ -21,10 +21,47 @@ pub enum ErrorCode {
     Internal,
     StoreNewerSchema,
     StoreLocked,
+    TokenExpired,
+    DuplicateFolder,
+    DuplicateLabel,
+    FolderUnavailable,
+    DifferentHistory,
+    TooLarge,
+    NotACommit,
+    GitTooOld,
+    NotARepository,
+    DubiousOwnership,
+    BareRepository,
+    IndexLocked,
+    ParseFailed,
+    CommandFailed,
+    LogSessionExpired,
+    UnknownRevision,
+    AuthenticationCancelled,
+    BranchExists,
+    BranchNotFullyMerged,
+    BranchCheckedOutElsewhere,
+    LocalChangesWouldBeOverwritten,
+    OperationInProgress,
+    AuthenticationRequired,
+    NetworkUnavailable,
+    ChangedSinceListed,
+    IdentityUnknown,
+    NothingToCommit,
+    HookFailed,
+    Conflicts,
+    NotFastForward,
+    PushRejected,
+    NoUpstream,
+    StalePushLease,
+    SnapshotBeingWritten,
+    RecycleFailed,
+    RefNotOnRemote,
+    HeadNotLocal,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 15] = [
+    pub const ALL: [ErrorCode; 52] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -40,6 +77,43 @@ impl ErrorCode {
         ErrorCode::Internal,
         ErrorCode::StoreNewerSchema,
         ErrorCode::StoreLocked,
+        ErrorCode::TokenExpired,
+        ErrorCode::DuplicateFolder,
+        ErrorCode::DuplicateLabel,
+        ErrorCode::FolderUnavailable,
+        ErrorCode::DifferentHistory,
+        ErrorCode::TooLarge,
+        ErrorCode::NotACommit,
+        ErrorCode::GitTooOld,
+        ErrorCode::NotARepository,
+        ErrorCode::DubiousOwnership,
+        ErrorCode::BareRepository,
+        ErrorCode::IndexLocked,
+        ErrorCode::ParseFailed,
+        ErrorCode::CommandFailed,
+        ErrorCode::LogSessionExpired,
+        ErrorCode::UnknownRevision,
+        ErrorCode::AuthenticationCancelled,
+        ErrorCode::BranchExists,
+        ErrorCode::BranchNotFullyMerged,
+        ErrorCode::BranchCheckedOutElsewhere,
+        ErrorCode::LocalChangesWouldBeOverwritten,
+        ErrorCode::OperationInProgress,
+        ErrorCode::AuthenticationRequired,
+        ErrorCode::NetworkUnavailable,
+        ErrorCode::ChangedSinceListed,
+        ErrorCode::IdentityUnknown,
+        ErrorCode::NothingToCommit,
+        ErrorCode::HookFailed,
+        ErrorCode::Conflicts,
+        ErrorCode::NotFastForward,
+        ErrorCode::PushRejected,
+        ErrorCode::NoUpstream,
+        ErrorCode::StalePushLease,
+        ErrorCode::SnapshotBeingWritten,
+        ErrorCode::RecycleFailed,
+        ErrorCode::RefNotOnRemote,
+        ErrorCode::HeadNotLocal,
     ];
 }
 
@@ -75,6 +149,90 @@ mod tests {
 
         // Assert
         assert_eq!(json, "\"OUTPUT_TOO_LARGE\"");
+    }
+
+    #[test]
+    fn should_serialize_git_error_codes_as_stable_screaming_snake_case_strings() {
+        // Arrange
+        let codes = [
+            ErrorCode::GitTooOld,
+            ErrorCode::NotARepository,
+            ErrorCode::DubiousOwnership,
+            ErrorCode::BareRepository,
+            ErrorCode::IndexLocked,
+            ErrorCode::ParseFailed,
+            ErrorCode::CommandFailed,
+            ErrorCode::LogSessionExpired,
+            ErrorCode::UnknownRevision,
+            ErrorCode::AuthenticationCancelled,
+            ErrorCode::BranchExists,
+            ErrorCode::BranchNotFullyMerged,
+            ErrorCode::BranchCheckedOutElsewhere,
+            ErrorCode::LocalChangesWouldBeOverwritten,
+            ErrorCode::OperationInProgress,
+            ErrorCode::AuthenticationRequired,
+            ErrorCode::NetworkUnavailable,
+            ErrorCode::ChangedSinceListed,
+            ErrorCode::IdentityUnknown,
+            ErrorCode::NothingToCommit,
+            ErrorCode::HookFailed,
+            ErrorCode::Conflicts,
+            ErrorCode::NotFastForward,
+            ErrorCode::PushRejected,
+            ErrorCode::NoUpstream,
+            ErrorCode::StalePushLease,
+        ];
+
+        // Act
+        let json = serde_json::to_value(codes).unwrap();
+
+        // Assert
+        assert_eq!(
+            json,
+            serde_json::json!([
+                "GIT_TOO_OLD",
+                "NOT_A_REPOSITORY",
+                "DUBIOUS_OWNERSHIP",
+                "BARE_REPOSITORY",
+                "INDEX_LOCKED",
+                "PARSE_FAILED",
+                "COMMAND_FAILED",
+                "LOG_SESSION_EXPIRED",
+                "UNKNOWN_REVISION",
+                "AUTHENTICATION_CANCELLED",
+                "BRANCH_EXISTS",
+                "BRANCH_NOT_FULLY_MERGED",
+                "BRANCH_CHECKED_OUT_ELSEWHERE",
+                "LOCAL_CHANGES_WOULD_BE_OVERWRITTEN",
+                "OPERATION_IN_PROGRESS",
+                "AUTHENTICATION_REQUIRED",
+                "NETWORK_UNAVAILABLE",
+                "CHANGED_SINCE_LISTED",
+                "IDENTITY_UNKNOWN",
+                "NOTHING_TO_COMMIT",
+                "HOOK_FAILED",
+                "CONFLICTS",
+                "NOT_FAST_FORWARD",
+                "PUSH_REJECTED",
+                "NO_UPSTREAM",
+                "STALE_PUSH_LEASE"
+            ])
+        );
+    }
+
+    #[test]
+    fn should_serialize_retention_error_codes_as_stable_screaming_snake_case_strings() {
+        // Arrange
+        let codes = [ErrorCode::SnapshotBeingWritten, ErrorCode::RecycleFailed];
+
+        // Act
+        let json = serde_json::to_value(codes).unwrap();
+
+        // Assert
+        assert_eq!(
+            json,
+            serde_json::json!(["SNAPSHOT_BEING_WRITTEN", "RECYCLE_FAILED"])
+        );
     }
 
     #[test]
