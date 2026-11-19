@@ -66,8 +66,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
 | 04-M3 History view, branches pane (chip replaced by W1) | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-04-m3 | 5877e3661 (merged into stack 14881e68f, fix 5b2462566) |
-| 04-M4 Commit list with graph, filters, details | UI | in progress (from feature/studio-stack, parallel) | — | feature/studio-04-m4 | — |
-| 04-M5 Selection, keyboard, context menu, ports | UI | todo | 04-M4 | — | — |
+| 04-M4 Commit list with graph, filters, details | UI | merged into `feature/studio-stack` (385adc20f), web e2e running | — | feature/studio-04-m4 | 8642672fb |
+| 04-M5 Selection, keyboard, context menu, ports (+ 05-M4 task 5 badges) | UI | in progress (from feature/studio-stack, parallel) | — | feature/studio-04-m5 | — |
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
 | 04-M7 Operation queue, progress, prompts | core + UI | core half (tasks 1–4) verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (UI): 04 History UI | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
 | 04-M8 Fetch and branches | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
@@ -336,6 +336,12 @@ the milestone is started.
   Merge into the stack conflicted with 04-M3 (05-M4 still used `FolderGitService`): ported the snapshots dialog
   and W1 to `GitRepositoryService`, kept 04-M3's fake `git` handlers plus 05-M4's analysis handlers, removed a
   duplicated `activeProject`/`workingFolder` in `projectsFacade.ts`.
+- 04-M4 (see `04-M4-commit-list.md` on the stack): 100 000 commits — first rows 146 ms, page median 33 ms,
+  scroll frames median 16.6 ms, 35 rows in the DOM. Design over plan: lanes join at the fork dot; filters in the
+  COMMITS pane header (`commitFilters`), no folder picker (OD1); uncommitted changes as a dashed lane into HEAD.
+  Design gaps left open (no invented wording): committer line label, "Open changes" (no Changes tab yet), git's
+  `unknown` change kind, analysing without percent. cc-light contrast notes (two blue lanes, faint selection)
+  left to the designer. Merge conflict in the fake bridge with 05-M4: kept both sides' handlers.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -367,6 +373,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 04-M4 merged into the stack (fake-bridge conflict resolved); gates on the merged stack: format, lint, tsc, npm test 720/720, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 04-M5 (+ history badges) started in parallel with the 05-M5 UI.
 - 2026-11-19: 05-M4 merged into the stack with conflicts resolved and ported; gates on the merged stack: cargo with and without features 844/848, contract drift, format, lint, tsc, npm test 708/708, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 05-M5 UI started in parallel (weekly usage 75%: two UI agents at a time).
 - 2026-11-19: 04-M3 stack merge passed web e2e 173/173 — done on the stack. 02-M7 held: its wider bar sits under the open explorer (Layout cell unreachable by mouse at 1920 px); the agent had switched the e2e page object to keyboard, which hides it. Fixing needs a design change (T4 and upstream PR #4557 keep the bar centred on the window) — asked as O7.
 - 2026-11-19: 04-M3 merged into the stack with conflicts resolved; gates on the merged stack: format (after an import-order fix), lint, tsc, npm test 698/698, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 04-M4 started in parallel.
