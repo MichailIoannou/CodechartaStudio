@@ -1,6 +1,6 @@
 ---
 name: 02-M6 native window appearance
-state: progress
+state: complete
 version: 1
 ---
 
@@ -23,7 +23,20 @@ edit); record plan corrections in Notes.
 
 ## Steps
 
-- [ ] 1. Native appearance
+- [x] 1. Native appearance
 
 ## Notes
 
+
+- Reused: `setWindowBackground` (shell action, `shell.json` `windowBackgroundColor`, `BrowserWindow.backgroundColor`
+  read at start), `DESKTOP_BRIDGE` (no new port/token; the plan's `NATIVE_APPEARANCE` token and
+  `codeChartaDesktop.appearance` were not built: plan 01 shipped a flat bridge).
+- Added: shell action `setColorScheme` (`light|dark|system`, validated by `isColorScheme` in `shellPolicy.js`,
+  sets `nativeTheme.themeSource`, persists `colorScheme` in `shell.json`); `main.js` applies the persisted scheme
+  (default dark) before creating the window; bridge method `setColorScheme` in preload, `DesktopBridge`, fake.
+- Deviations: separate `setWindowBackground` + `setColorScheme` calls instead of one `setAppearance`; default window
+  background changed from `#ffffff` to `#1e2329` (plan: cc-dark surface); a persisted background that fails
+  validation falls back to the default. The effect sends `system` while the preference is "Follow system".
+  The colour sent is `theme.render.surface` (equals `chrome.base100`).
+- Plan correction for 02-themes M6: use the existing `setWindowBackground` and `DESKTOP_BRIDGE`; no
+  `NATIVE_APPEARANCE` token.

@@ -21,6 +21,7 @@ const BRIDGE_KEYS = [
     "request",
     "restartCore",
     "reveal",
+    "setColorScheme",
     "setWindowBackground",
     "subscribe"
 ]

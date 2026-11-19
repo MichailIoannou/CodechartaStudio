@@ -62,5 +62,6 @@ export interface DesktopBridge {
     reveal(target: ShellPathTarget): Promise<CoreResult<null>>
     readSnapshotMap(target: SnapshotMapTarget): Promise<CoreResult<Uint8Array>>
     setWindowBackground(color: string): Promise<CoreResult<null>>
+    setColorScheme(scheme: "light" | "dark" | "system"): Promise<CoreResult<null>>
     restartCore(): Promise<CoreResult<null>>
 }

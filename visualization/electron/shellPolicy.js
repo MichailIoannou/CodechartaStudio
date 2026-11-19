@@ -8,6 +8,7 @@ const CORE_RESTART_DELAYS_MS = [500, 1000, 2000, 4000, 8000]
 const CORE_FAILURE_WINDOW_MS = 60_000
 const MAX_OPERATION_ID_LENGTH = 64
 const MAP_FILE_ENDINGS = [".cc.json", ".cc.json.gz"]
+const COLOR_SCHEMES = ["light", "dark", "system"]
 const WINDOW_BACKGROUND_COLOR = /^#[0-9a-fA-F]{6}$/
 const FILTER_EXTENSION = /^(\*|[A-Za-z0-9]+)$/
 
@@ -117,6 +118,10 @@ function isWindowBackgroundColor(color) {
     return typeof color === "string" && WINDOW_BACKGROUND_COLOR.test(color)
 }
 
+function isColorScheme(scheme) {
+    return COLOR_SCHEMES.includes(scheme)
+}
+
 function isDialogFilter(filter) {
     return (
         typeof filter?.name === "string" &&
@@ -141,6 +146,7 @@ module.exports = {
     isReadableMapPath,
     isRendererEvent,
     isRendererMethod,
+    isColorScheme,
     isTrustedSender,
     isValidOperationId,
     isWindowBackgroundColor,
