@@ -622,6 +622,7 @@ No production code; record the answers in Notes and adjust later tasks if an ass
 6. `cc-snapshot-chip`. Tests: should show name and "stale by N"; should stay after the banner is dismissed; should open the snapshots dialog. Commit: `feat(visualization): keep staleness visible in the nav bar`
 7. Changelog → Added: `- **Nearest analysis**: selecting a commit without an analysis shows the closest analysed commit, says how many commits it is off, and offers to analyse the selected one.` Commit: `docs(visualization): announce the stale-analysis notice`
 - Acceptance: manual checklist items 4–8.
+- As built (05-M5 renderer, design `05-snapshots.md` over this plan's UI): `SelectedTarget` lives in `features/snapshots/model/snapshotTarget.ts` (`workingTree` | `commit` | `snapshot`; no `snapshotView.model.ts`); `noticeText({ folderLabel, target, resolution, job }) -> { notice, badge }` (text as parts so SHAs are `font-mono`); task 5's notice is a persistent toast projected into `cc-toast` (OD9), shown over map views only; task 6 is not a `cc-snapshot-chip` but W1's badge, title line and MAP section ("Asked for", "Show current checkout", "Analyse <short>"); the target follows the design's "What the map follows" table, not every selection. Details in `progress/05-m5-nearest-snapshot.md`.
 
 ### M6 — Batches, retention, cleanup (M)
 
