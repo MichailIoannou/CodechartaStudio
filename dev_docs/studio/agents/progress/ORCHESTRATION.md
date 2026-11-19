@@ -57,7 +57,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M10 Commit | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
 | 04-M11 Pull, push, abort | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
-| 05-M0 Spikes on a real Windows machine | spike | in progress (Linux parts; Windows items open for owner) | owner hardware for items 1 (npm layout), 2 | feature/studio-05-m0 | — |
+| 05-M0 Spikes on a real Windows machine | spike | done (Linux); Windows items W1–W5 open for owner | owner hardware (W1–W5) | feature/studio-05-m0 | 071cfd98a |
 | 05-M1 Run one analysis from the core | core | todo | plan 04 core | — | — |
 | 05-M2 Snapshot records | core | todo | 05-M1 | — | — |
 | 05-M3 Queue, preflight, RPC, CLI | core | todo | 05-M2 | — | — |
@@ -208,6 +208,18 @@ the milestone is started.
   stderr and stdout; ssh-agent hint added; checked: push never uses plain `--force`. Known gap: rebase
   pull with uncommitted changes fails as `COMMAND_FAILED` (no autostash). New codes `NOT_FAST_FORWARD`,
   `PUSH_REJECTED`, `NO_UPSTREAM`, `STALE_PUSH_LEASE`. Plan 04's core work is complete (M1, M2, M7–M11 cores).
+- 05-M0 Linux (see `05-m0-spikes.md`): the plan's direct-java launch holds; exit 2 messages go to stderr
+  (exit 1 to stdout); `meta.commitHash` absent; a non-sha `--commit` silently analyses HEAD (exit 0), so
+  preflight must resolve the sha; a killed run leaves a `locked initializing` worktree that needs
+  `git worktree remove -f -f`; progress must key on the `Files` unit only; pass
+  `-Djava.io.tmpdir=<jobTempDir>`; keep `-Dstdout.encoding=UTF-8`; signal exits never map to
+  `analysis-failed`; non-empty stderr is not a failure (JDK 27 reflection warnings). `gh` not installed.
+- 02-M5 (see `02-m5-editor-schemes.md`): the JetBrains light scheme is `rider-day` / "Rider Day" (design),
+  token values derived from Rider's own theme file — logged as O3 for confirmation. Registry order:
+  cc-dark, cc-light, nord, one-dark, vs-dark, vs-light, darcula, rider-day. Plan corrections for
+  `02-themes.md` (not applied because of the owner's uncommitted edit there): retitle M5 "Editor color
+  schemes" and drop task 4; replace `intellij-light`/"IntelliJ Light" with `rider-day`/"Rider Day"; use the
+  registry order above.
 
 ## Known environment issues (not caused by the milestones)
 

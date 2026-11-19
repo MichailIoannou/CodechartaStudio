@@ -96,3 +96,9 @@ answer that differs means the named file is changed, nothing else.
      "The chosen file is not a working <tool>: <message>" instead of naming the file.
   4. A custom path whose file was deleted still shows "not found on PATH" — which text should it show?
   5. In the light theme, the success and warning summary lines are pale on white — token choice?
+
+- **O3 (2026-11-19). Rider Day token values (02-M5).** `02-themes.md` names the light JetBrains scheme
+  "Rider Day" but gives no token values. 02-M5 derived them from Rider 2026.2's `RiderDay.theme.json`
+  (values listed in `progress/02-m5-editor-schemes.md`). Please confirm or replace them. Also: the shared
+  dark dependency-graph palette has a slight blue cast on the neutral Darcula and VS Dark chrome — keep
+  one shared dark graph palette, or give those two their own?
