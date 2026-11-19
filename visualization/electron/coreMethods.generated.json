@@ -47,6 +47,11 @@
     "git.branchRename",
     "git.branchDelete",
     "git.setUpstream",
+    "git.workingTree",
+    "git.diffFile",
+    "git.stage",
+    "git.unstage",
+    "git.discard",
     "prompt.answer",
     "prompt.cancel"
   ]

@@ -11,10 +11,11 @@ use codecharta_core_api::methods::core::{
 };
 use codecharta_core_api::methods::git::{
     GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod, GitBranchesMethod,
-    GitChangedFilesMethod, GitCommitDetailsMethod, GitFetchMethod, GitIsAncestorMethod,
-    GitLogMethod, GitMeasureDistancesMethod, GitMergeBaseMethod, GitRefsAtMethod,
-    GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
-    GitRevListCountMethod, GitSetUpstreamMethod, GitStatusMethod, GitSwitchMethod,
+    GitChangedFilesMethod, GitCommitDetailsMethod, GitDiffFileMethod, GitDiscardMethod,
+    GitFetchMethod, GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod,
+    GitMergeBaseMethod, GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod,
+    GitResolveCommitMethod, GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod,
+    GitStatusMethod, GitSwitchMethod, GitUnstageMethod, GitWorkingTreeMethod,
 };
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use codecharta_core_api::methods::projects::{
@@ -273,6 +274,26 @@ const ROUTES: &[Route] = &[
     Route {
         name: GitSetUpstreamMethod::NAME,
         handler: git_routes::set_upstream,
+    },
+    Route {
+        name: GitWorkingTreeMethod::NAME,
+        handler: git_routes::working_tree,
+    },
+    Route {
+        name: GitDiffFileMethod::NAME,
+        handler: git_routes::diff_file,
+    },
+    Route {
+        name: GitStageMethod::NAME,
+        handler: git_routes::stage,
+    },
+    Route {
+        name: GitUnstageMethod::NAME,
+        handler: git_routes::unstage,
+    },
+    Route {
+        name: GitDiscardMethod::NAME,
+        handler: git_routes::discard,
     },
     Route {
         name: PromptAnswerMethod::NAME,

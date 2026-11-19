@@ -241,7 +241,9 @@ pub struct GitWorkingTreeEntry { pub path: String, pub previous_path: Option<Str
     pub change: GitFileChange, pub conflict: Option<String> }
 pub struct GitWorkingTree { pub status: GitStatus, pub entries: Vec<GitWorkingTreeEntry>, pub are_entries_truncated: bool }
 pub struct GitDiff { pub path: String, pub text: String, pub is_binary: bool, pub is_truncated: bool }
-pub struct DiscardEntry { pub path: String, pub kind: GitEntryKind, pub change: GitFileChange }
+pub struct DiscardEntry { pub path: WorkingTreePath, pub kind: GitEntryKind, pub change: GitFileChange }
+// as built in M9: paths from the client are the api value `WorkingTreePath` (1–4096 bytes, no NUL, relative,
+// no drive prefix, no `..` segment); `git.stage` takes `target: GitStageTarget` = { kind: "paths", paths } | { kind: "all" }
 
 pub struct GitOperationResult { pub status: GitStatus, pub refs: GitRefs, pub message: Option<String> }
 pub struct GitFetchResult { pub updated_refs: u32, pub refs: GitRefs }
@@ -288,7 +290,7 @@ Every `repo` param is a `FolderRef`. Methods marked **(op)** are called with the
 | `git.changedFiles` | `{ repo, from, to, mode: ChangedFilesMode }` | `GitChangedFiles` |
 | `git.workingTree` | `{ repo }` | `GitWorkingTree` |
 | `git.diffFile` | `{ repo, path, kind: GitEntryKind }` | `GitDiff` |
-| `git.stage` (op) | `{ repo, paths }` or `{ repo, all: true }` | `GitWorkingTree` |
+| `git.stage` (op) | `{ repo, target: GitStageTarget }` — `{ kind: "paths", paths }` or `{ kind: "all" }` (as built in M9, like M8's tagged targets) | `GitWorkingTree` |
 | `git.unstage` (op) | `{ repo, paths }` | `GitWorkingTree` |
 | `git.discard` (op) | `{ repo, entries: Vec<DiscardEntry> }` | `GitWorkingTree` |
 | `git.commit` (op) | `{ repo, subject, body, amend }` | `GitOperationResult` |
@@ -493,11 +495,11 @@ All mutating operations run in `OperationQueue::run_exclusive(repository_id, …
 
 | Operation | Command | Notes |
 |---|---|---|
-| `working_tree` | the status command of 4.5, parsed by `parse/status_entries.rs` | `1`/`2` with `X ≠ .` → staged entry, `Y ≠ .` → unstaged entry (both possible); `2` consumes the original path; `u` → conflicted with its `XY`; `?` → untracked. ≤ 5 000 entries (`are_entries_truncated`). |
-| `diff_file` | staged: `diff --cached --no-ext-diff --no-textconv --no-color -M -- <path>`; unstaged: `diff --no-ext-diff --no-textconv --no-color -- <path>`; untracked: `diff --no-index --no-ext-diff --no-textconv --no-color -- /dev/null <path>` (exit 1 = differences); conflicted: `diff --no-ext-diff --no-color -- <path>` | read environment; `is_binary` on `Binary files … differ`; cut at 2 MB |
-| `stage` | `add -- <paths…>`; all: `add -A` | paths listed as unstaged, untracked or conflicted (staging a conflicted file marks it resolved) |
-| `unstage` | `restore --staged -- <paths…>`; without commits `rm --cached -- <paths…>` | paths listed as staged |
-| `discard` | tracked: `restore --source=HEAD --staged --worktree -- <paths…>`; staged addition without a `HEAD` version: `rm --cached -- <path>` then recycle bin; untracked: recycle bin only | G12. The client sends the rows it named; if any `(path, kind, change)` changed, the whole call fails with `changedSinceListed`. Recycle bin only after confinement: the joined path stays inside the root and the canonical parent lies inside the canonical root; a symlink is trashed as a link. Renames discard both paths; conflicted entries are not discardable (use Abort). UNVERIFIED: `restore --source=HEAD --staged --worktree` on the new path of a staged rename — M9 task 1 decides; fallback: unstage, discard the old path, trash the new one. |
+| `working_tree` | the status command of 4.5 with `--untracked-files=all` and without `--branch` (as built in M9: every untracked file is a row of its own, so it can be staged, shown and discarded by itself), run at the repository root, parsed by `parse/status_entries.rs` | `1`/`2` with `X ≠ .` → staged entry, `Y ≠ .` → unstaged entry (both possible); `2` consumes the original path; `u` → conflicted with its `XY` (change `modified`); `?` → untracked (change `added`). ≤ 5 000 entries (`are_entries_truncated`). Paths are repository-relative whichever folder the project names. |
+| `diff_file` | staged: `diff --no-ext-diff --no-textconv --no-color --cached -M -- <path> [<previous path>]`; unstaged: `diff --no-ext-diff --no-textconv --no-color -- <path> [<previous path>]`; untracked: `diff --no-ext-diff --no-textconv --no-color --no-index -- /dev/null <path>` (exit 1 = differences); conflicted: `diff --no-ext-diff --no-textconv --no-color -- <path>` (as built in M9: `--no-textconv` here too, G8; a rename's previous path goes along so git pairs them) | read environment at the root; `(path, kind)` must be listed (else `CHANGED_SINCE_LISTED`); `is_binary` on `Binary files … differ`; > 4 MiB → `OUTPUT_TOO_LARGE`, else cut after the last whole line within 2 MiB |
+| `stage` | `add --pathspec-from-file=- --pathspec-file-nul --` (paths NUL-separated on stdin; as built in M9, see below); all: `add -A` | paths listed as unstaged, untracked or conflicted (staging a conflicted file marks it resolved); a rename's previous path goes along |
+| `unstage` | `restore --staged …`; without commits `rm --cached --force --quiet …` (as built in M9: without `--force` git refuses a staged new file changed again since; `--cached` keeps the working tree), paths on stdin as for `stage` | paths listed as staged; a rename's previous path goes along |
+| `discard` | as built in M9, per named row: staged modification / deletion / type change → `restore --source=HEAD --staged --worktree`; unstaged one → `restore --worktree` (back to the index, the staged change stays); added, renamed or copied path (staged, or unstaged intent-to-add) → unstage as above, then recycle bin, and a rename's previous path back from `HEAD` (staged) or the index (unstaged); untracked → recycle bin only. Paths on stdin as for `stage`. | G12. The client sends the rows it named; if any `(path, kind, change)` is no longer listed, the whole call fails with `CHANGED_SINCE_LISTED` and changes nothing. A staged row of a path that also has an unstaged row needs that row named too (`NOT_ALLOWED`), since returning the file to `HEAD` would drop it. Conflicted rows → `NOT_ALLOWED` (use Abort). All checks, including confinement (`store::paths::confine_entry_to_folder`: the canonical parent lies inside the canonical root, the entry itself is not followed, so a symlink is trashed as a link), run before anything changes; the recycle bin goes first, then the git commands. Decided in M9 (spike, git 2.56): `restore --source=HEAD --staged --worktree` on the new path of a staged rename leaves the old path deleted, and on both paths it deletes the new file for good — so the fallback is built: restore the old path, unstage the new one, recycle it. |
 
 **Commit** (`commit.rs`)
 - Preconditions: at least one staged entry unless `amend`; `operation_in_progress` is `None` or `Merge` (`Rebase` → `operationInProgress`); no conflicted entries (`conflicts`).
@@ -810,6 +812,9 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 1. **Core.** `parse/status_entries.rs`, `working_tree.rs`, RPC `git.workingTree`, `git.diffFile`, `git.stage`, `git.unstage`, `git.discard`.
    - Tests (captured): file changed in index and worktree listed twice; rename with previous path; conflicted with code; untracked. (fixture): stage / unstage a file with space and brackets; stage all; unstage without commits; discard a modified tracked file; discard a staged new file and an untracked file to the recycle bin (trash injected); discard a staged rename (decides the UNVERIFIED item); `changedSinceListed` when the listing changed; refuse an unlisted path; refuse trashing through a symlinked folder outside the repository; untracked file as added diff; binary diff flagged; large diff truncated.
    - Commit: `feat(core): stage, unstage, discard and diff working tree files`
+   - As built: tests in `tests/git_working_tree.rs` (plus unit tests in `parse/status_entries.rs`,
+     `working_tree.rs`, `store/paths.rs`) and `codecharta-cored/tests/git_protocol.rs`; details in
+     `progress/04-M9-changes-diff.md`.
 2. **Renderer.** Tabs, `gitChanges.service.ts`, `changesPanel`, `changeRow`, `diffView`, `util/diffLines.ts`.
    - Tests: four groups; stage / unstage from row and group; discard confirmation names the files and sends exactly those rows; diff lines coloured; diff rendered through interpolation only; list refreshed after each action and on focus; tab remembered per project.
    - Commit: `feat(visualization): show working tree changes with a diff`
@@ -963,3 +968,10 @@ Reconciled with plans 01 and 03 as implemented (04-M1 task 1, 2026-11-18):
   error codes `BRANCH_EXISTS`, `BRANCH_NOT_FULLY_MERGED`, `BRANCH_CHECKED_OUT_ELSEWHERE`,
   `LOCAL_CHANGES_WOULD_BE_OVERWRITTEN`, `OPERATION_IN_PROGRESS`, `AUTHENTICATION_REQUIRED`,
   `NETWORK_UNAVAILABLE`.
+- As built in M9 (details: `progress/04-M9-changes-diff.md`): `git/working_tree.rs` (the `GitService` entry
+  points `working_tree`, `diff_file`, `stage`, `unstage`, `discard`, and `read_entries`) over
+  `parse/status_entries.rs`; `Operations` and `Mutation` carry the injected `recycler` (`Core` gives its
+  `SystemRecycler`); `Mutation::run_command` / `root`. Every operation now announces `repository.changed` with
+  parts `status`, `refs`, `workingTree`. New api value `WorkingTreePath`, api enum `GitStageTarget`, error code
+  `CHANGED_SINCE_LISTED`. Path lists reach git on stdin (`--pathspec-from-file=- --pathspec-file-nul --`), so
+  no path is ever an argument and 1 000 long paths fit any command-line limit.

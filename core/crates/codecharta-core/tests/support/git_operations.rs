@@ -17,13 +17,16 @@ use codecharta_core_api::methods::projects::FolderRef;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
-/// What the core shares between git operations, owned by one test.
+use super::RecordingRecycler;
+
+/// What the core shares between git operations, owned by one test; its recycle bin is a temporary folder.
 #[derive(Default)]
 pub struct OperationsHarness {
     queue: OperationQueue,
     prompts: PromptBroker,
     changes: RepositoryChanges,
     memory: GitMemory,
+    recycler: RecordingRecycler,
 }
 
 impl OperationsHarness {
@@ -38,7 +41,12 @@ impl OperationsHarness {
             .with_operations(Operations {
                 queue: &self.queue,
                 prompts: &self.prompts,
+                recycler: &self.recycler,
             })
+    }
+
+    pub fn recycler(&self) -> &RecordingRecycler {
+        &self.recycler
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<RepositoryChanged> {

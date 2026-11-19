@@ -132,18 +132,43 @@ impl StorePaths {
 /// Resolves a path a caller names relative to a user folder and refuses anything that leaves it,
 /// including through a symbolic link.
 pub fn confine_to_folder(folder: &Path, relative: &str) -> CoreResult<PathBuf> {
+    let relative_path = names_only(relative)?;
+    let canonical_folder = canonicalize(folder)?;
+    let resolved = canonicalize(&canonical_folder.join(relative_path))?;
+    inside(&canonical_folder, resolved, relative)
+}
+
+/// Like `confine_to_folder`, but the entry itself is not followed: a symbolic link stays the link, while
+/// the folders leading to it must not leave `folder`. The entry need not exist.
+pub fn confine_entry_to_folder(folder: &Path, relative: &str) -> CoreResult<PathBuf> {
+    let relative_path = names_only(relative)?;
+    let (Some(parent), Some(name)) = (relative_path.parent(), relative_path.file_name()) else {
+        return Err(not_inside(relative));
+    };
+    let canonical_folder = canonicalize(folder)?;
+    let canonical_parent = canonicalize(&canonical_folder.join(parent))?;
+    inside(&canonical_folder, canonical_parent.join(name), relative)
+}
+
+fn names_only(relative: &str) -> CoreResult<&Path> {
     let relative_path = Path::new(relative);
     let only_names = relative_path
         .components()
         .all(|component| matches!(component, Component::Normal(_) | Component::CurDir));
     if relative.is_empty() || !only_names {
-        return Err(CoreError::BadRequest(format!(
-            "{relative:?} is not a relative path inside the folder."
-        )));
+        return Err(not_inside(relative));
     }
-    let canonical_folder = canonicalize(folder)?;
-    let resolved = canonicalize(&canonical_folder.join(relative_path))?;
-    if resolved.starts_with(&canonical_folder) {
+    Ok(relative_path)
+}
+
+fn not_inside(relative: &str) -> CoreError {
+    CoreError::BadRequest(format!(
+        "{relative:?} is not a relative path inside the folder."
+    ))
+}
+
+fn inside(canonical_folder: &Path, resolved: PathBuf, relative: &str) -> CoreResult<PathBuf> {
+    if resolved.starts_with(canonical_folder) {
         Ok(resolved)
     } else {
         Err(CoreError::NotAllowed(format!(
@@ -272,5 +297,62 @@ mod tests {
             matches!(result, Err(CoreError::NotAllowed(_))),
             "{result:?}"
         );
+    }
+    #[cfg(unix)]
+    #[test]
+    fn should_keep_a_symlink_entry_as_the_link_inside_the_folder() {
+        // Arrange
+        let workspace = tempfile::tempdir().unwrap();
+        let folder = workspace.path().join("folder");
+        std::fs::create_dir(&folder).unwrap();
+        std::fs::write(workspace.path().join("secret.txt"), "x").unwrap();
+        std::os::unix::fs::symlink(workspace.path().join("secret.txt"), folder.join("link.txt"))
+            .unwrap();
+
+        // Act
+        let result = confine_entry_to_folder(&folder, "link.txt");
+
+        // Assert
+        let canonical_folder = folder.canonicalize().unwrap();
+        assert_eq!(result.unwrap(), canonical_folder.join("link.txt"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_refuse_an_entry_below_a_symlinked_folder_outside() {
+        // Arrange
+        let workspace = tempfile::tempdir().unwrap();
+        let (folder, outside) = (
+            workspace.path().join("folder"),
+            workspace.path().join("outside"),
+        );
+        std::fs::create_dir(&folder).unwrap();
+        std::fs::create_dir(&outside).unwrap();
+        std::fs::write(outside.join("victim.txt"), "x").unwrap();
+        std::os::unix::fs::symlink(&outside, folder.join("linked")).unwrap();
+
+        // Act
+        let result = confine_entry_to_folder(&folder, "linked/victim.txt");
+
+        // Assert
+        assert!(
+            matches!(result, Err(CoreError::NotAllowed(_))),
+            "{result:?}"
+        );
+    }
+
+    #[test]
+    fn should_refuse_an_entry_naming_no_file_in_the_folder() {
+        // Arrange
+        let folder = tempfile::tempdir().unwrap();
+
+        // Act
+        let refused = [".", "a/../..", "/etc/hosts"]
+            .map(|relative| confine_entry_to_folder(folder.path(), relative).is_err());
+        let missing = confine_entry_to_folder(folder.path(), "missing.txt");
+
+        // Assert
+        assert_eq!(refused, [true; 3]);
+        assert!(missing.unwrap().ends_with("missing.txt"));
     }
 }

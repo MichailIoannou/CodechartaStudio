@@ -140,6 +140,18 @@ pub const BRANCH_LIMITS: Limits = Limits {
     max_stdout_bytes: MEBIBYTE,
 };
 
+/// Staging runs filters such as LFS on the files it adds.
+pub const WORKING_TREE_LIMITS: Limits = Limits {
+    timeout: Duration::from_secs(60),
+    max_stdout_bytes: MEBIBYTE,
+};
+
+/// A longer diff fails with `OUTPUT_TOO_LARGE`; a shorter one is cut to `MAX_DIFF_TEXT_BYTES`.
+pub const DIFF_LIMITS: Limits = Limits {
+    timeout: Duration::from_secs(30),
+    max_stdout_bytes: 4 * MEBIBYTE,
+};
+
 /// A person may be answering a credential prompt meanwhile.
 pub const NETWORK_LIMITS: Limits = Limits {
     timeout: Duration::from_secs(1800),

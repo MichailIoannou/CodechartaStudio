@@ -20,6 +20,7 @@ pub mod read;
 pub mod runner;
 pub mod service;
 pub mod sync;
+pub mod working_tree;
 
 pub use error::GitError;
 pub use runner::{FolderGit, GitCli, GitFuture, GitOutput, GitProcess, GitRunner};

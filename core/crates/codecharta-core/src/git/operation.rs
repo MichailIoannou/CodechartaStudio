@@ -21,6 +21,7 @@ use super::sync::{self, FetchRefspecsRequest, count_updated_refs};
 use crate::error::{CoreError, CoreResult};
 use crate::process::RunOutput;
 use crate::prompt::{PromptBroker, SessionRequest};
+use crate::recycle::Recycler;
 
 /// One mutating request: its cancellation, the JSON-RPC id its credential prompts name, and where git's
 /// progress goes.
@@ -30,11 +31,13 @@ pub struct OperationContext<'call> {
     pub progress: ProgressSink<'call>,
 }
 
-/// What every mutating operation of the core shares: the per-repository queue and the credential prompts.
+/// What every mutating operation of the core shares: the per-repository queue, the credential prompts and
+/// the recycle bin discarded files go to.
 #[derive(Clone, Copy)]
 pub struct Operations<'core> {
     pub queue: &'core OperationQueue,
     pub prompts: &'core PromptBroker,
+    pub recycler: &'core dyn Recycler,
 }
 
 /// One operation's access to its repository. Its commands run only inside the queue.
@@ -43,6 +46,7 @@ pub struct Mutation<'call> {
     pub folder: &'call GitFolder,
     pub repository: &'call Repository,
     pub prompts: &'call PromptBroker,
+    pub recycler: &'call dyn Recycler,
     pub context: &'call OperationContext<'call>,
 }
 
@@ -73,7 +77,16 @@ impl Mutation<'_> {
     /// A local mutation that must succeed.
     pub async fn run(&self, args: &[&str]) -> CoreResult<String> {
         let command = GitCommand::mutating(&self.folder.path, args, BRANCH_LIMITS);
-        self.git.run(&command, self.context.cancel).await
+        self.run_command(&command).await
+    }
+
+    pub async fn run_command(&self, command: &GitCommand) -> CoreResult<String> {
+        self.git.run(command, self.context.cancel).await
+    }
+
+    /// Paths of the working tree are relative to this folder.
+    pub fn root(&self) -> &Path {
+        Path::new(&self.repository.info.root_path)
     }
 
     /// A command that talks to a remote: it may ask for credentials through a prompt session of this
@@ -93,7 +106,7 @@ impl Mutation<'_> {
     }
 
     fn repository_label(&self) -> String {
-        let root = Path::new(&self.repository.info.root_path);
+        let root = self.root();
         root.file_name()
             .map_or_else(|| root.to_string_lossy(), |name| name.to_string_lossy())
             .into_owned()
@@ -221,7 +234,7 @@ impl<'core> GitService<'core> {
         Ok(settled.await?.into_operation_result())
     }
 
-    fn mutation<'call>(
+    pub(super) fn mutation<'call>(
         &'call self,
         folder: &'call GitFolder,
         repository: &'call Repository,
@@ -235,13 +248,14 @@ impl<'core> GitService<'core> {
             folder,
             repository,
             prompts: operations.prompts,
+            recycler: operations.recycler,
             context,
         })
     }
 
     /// Runs `work` in the repository's turn and ends it the same way whether it succeeded or not: logs
     /// start again, status and refs are read afresh, and the change is announced.
-    async fn operate<T>(
+    pub(super) async fn operate<T>(
         &self,
         mutation: &Mutation<'_>,
         work: impl Future<Output = CoreResult<T>>,

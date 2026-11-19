@@ -21,11 +21,13 @@ pub const MAX_PROMPT_ID_LENGTH: usize = 64;
 pub const MAX_LOG_FILTER_CHARS: usize = 200;
 pub const MAX_REPO_PATH_LENGTH: usize = 1024;
 pub const MAX_BRANCH_NAME_CHARS: usize = 200;
+pub const MAX_WORKING_TREE_PATH_LENGTH: usize = 4096;
 const LOCAL_BRANCH_PREFIX: &str = "refs/heads/";
 const OPTION_PREFIX: char = '-';
 const PARENT_SEGMENT: &str = "..";
 const PATH_SEPARATORS: [char; 2] = ['/', '\\'];
 const DRIVE_SEPARATOR: char = ':';
+const NUL_CHARACTER: char = '\0';
 const HEAD_REVISION: &str = "HEAD";
 /// git reads a lone `@` as `HEAD`.
 const HEAD_SHORTHAND: &str = "@";
@@ -152,6 +154,27 @@ fn is_repo_relative_path(value: &str) -> bool {
         && !value
             .split(PATH_SEPARATORS)
             .any(|segment| segment == PARENT_SEGMENT)
+}
+
+/// A path of the working-tree listing as git prints it: relative, inside the repository, without NUL. The
+/// core still accepts it only when the current listing names it.
+fn is_working_tree_path(value: &str) -> bool {
+    (1..=MAX_WORKING_TREE_PATH_LENGTH).contains(&value.len())
+        && !value.contains(NUL_CHARACTER)
+        && !value.starts_with(PATH_SEPARATORS)
+        && !has_drive_prefix(value)
+        && !value
+            .split(PATH_SEPARATORS)
+            .any(|segment| segment == PARENT_SEGMENT)
+}
+
+/// `C:` names a drive on Windows, so `C:x` would leave the repository there.
+fn has_drive_prefix(value: &str) -> bool {
+    let mut characters = value.chars();
+    characters
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic())
+        && characters.next() == Some(DRIVE_SEPARATOR)
 }
 
 /// `HEAD`, a commit sha or a full ref name that git's `check-ref-format` would accept; never an expression
@@ -324,6 +347,12 @@ validated_text!(
     RepoRelativePath,
     is_repo_relative_path,
     "use a relative path inside the repository: at most 1024 bytes, no .. segment, no : and no control characters"
+);
+
+validated_text!(
+    WorkingTreePath,
+    is_working_tree_path,
+    "use a path of the working-tree listing: relative, at most 4096 bytes, no .. segment, no drive and no NUL"
 );
 
 validated_text!(
@@ -581,6 +610,38 @@ mod tests {
         // Assert
         assert_eq!(rejected, vec![true; rejected.len()]);
         assert!(RepoRelativePath::try_from("docs/with space [1]/a..b.md").is_ok());
+    }
+
+    #[test]
+    fn should_reject_working_tree_paths_that_could_leave_the_repository() {
+        // Arrange
+        let candidates = [
+            "/etc/passwd".to_string(),
+            "\\\\server\\share".to_string(),
+            "C:/repo".to_string(),
+            "c:relative".to_string(),
+            "src/../../etc".to_string(),
+            "..".to_string(),
+            "src\\..\\x".to_string(),
+            "nul\0byte".to_string(),
+            String::new(),
+            "x".repeat(MAX_WORKING_TREE_PATH_LENGTH + 1),
+        ];
+
+        // Act
+        let rejected: Vec<bool> = candidates
+            .into_iter()
+            .map(|candidate| WorkingTreePath::try_from(candidate).is_err())
+            .collect();
+
+        // Assert
+        assert_eq!(rejected, vec![true; rejected.len()]);
+        let accepted = ["docs/with space [1]/a..b.md", "notes:1.txt", "-n", "*.txt"];
+        assert!(
+            accepted
+                .into_iter()
+                .all(|path| WorkingTreePath::try_from(path).is_ok())
+        );
     }
 
     #[test]

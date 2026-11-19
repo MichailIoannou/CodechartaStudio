@@ -8,11 +8,12 @@ use codecharta_core::{Core, CoreResult};
 use codecharta_core_api::events::ProgressParams;
 use codecharta_core_api::methods::git::{
     GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod, GitBranchesMethod,
-    GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitDistances, GitFetchMethod,
-    GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod, GitMergeBaseMethod,
-    GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
-    GitRevListCountMethod, GitSetUpstreamMethod, GitStatusMethod, GitSwitchMethod,
-    RepositoryChanged, RepositoryChangedEvent,
+    GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitDistances, GitDiffFileMethod,
+    GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod,
+    GitMergeBaseMethod, GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod,
+    GitResolveCommitMethod, GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod,
+    GitStatusMethod, GitSwitchMethod, GitUnstageMethod, GitWorkingTreeMethod, RepositoryChanged,
+    RepositoryChangedEvent,
 };
 use codecharta_core_api::registry::{Event, Method};
 use serde_json::Value;
@@ -143,6 +144,18 @@ folder_route!(
     )
 );
 
+folder_route!(
+    working_tree,
+    GitWorkingTreeMethod,
+    |git, folder, _params, cancel| git.working_tree(&folder, cancel)
+);
+
+folder_route!(
+    diff_file,
+    GitDiffFileMethod,
+    |git, folder, params, cancel| git.diff_file(&folder, &params.path, params.kind, cancel)
+);
+
 /// git's progress as `core.progress` notifications of the request.
 fn progress_of(context: &RequestContext) -> impl Fn(ProgressUpdate) + Send + Sync + use<> {
     let notifier = context.notifier.clone();
@@ -222,6 +235,21 @@ operation_route!(
         &SetUpstreamRequest::from(params.clone()),
         operation
     )
+);
+
+operation_route!(stage, GitStageMethod, |git, folder, params, operation| git
+    .stage(&folder, &params.target, operation));
+
+operation_route!(
+    unstage,
+    GitUnstageMethod,
+    |git, folder, params, operation| git.unstage(&folder, &params.paths, operation)
+);
+
+operation_route!(
+    discard,
+    GitDiscardMethod,
+    |git, folder, params, operation| git.discard(&folder, &params.entries, operation)
 );
 
 /// Sends every repository change the core announces as a `repository.changed` notification.

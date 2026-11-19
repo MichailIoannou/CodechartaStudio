@@ -45,10 +45,11 @@ pub enum ErrorCode {
     OperationInProgress,
     AuthenticationRequired,
     NetworkUnavailable,
+    ChangedSinceListed,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 39] = [
+    pub const ALL: [ErrorCode; 40] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -88,6 +89,7 @@ impl ErrorCode {
         ErrorCode::OperationInProgress,
         ErrorCode::AuthenticationRequired,
         ErrorCode::NetworkUnavailable,
+        ErrorCode::ChangedSinceListed,
     ];
 }
 
@@ -146,6 +148,7 @@ mod tests {
             ErrorCode::OperationInProgress,
             ErrorCode::AuthenticationRequired,
             ErrorCode::NetworkUnavailable,
+            ErrorCode::ChangedSinceListed,
         ];
 
         // Act
@@ -171,7 +174,8 @@ mod tests {
                 "LOCAL_CHANGES_WOULD_BE_OVERWRITTEN",
                 "OPERATION_IN_PROGRESS",
                 "AUTHENTICATION_REQUIRED",
-                "NETWORK_UNAVAILABLE"
+                "NETWORK_UNAVAILABLE",
+                "CHANGED_SINCE_LISTED"
             ])
         );
     }

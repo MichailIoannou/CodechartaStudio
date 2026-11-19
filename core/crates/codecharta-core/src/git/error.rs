@@ -93,6 +93,9 @@ pub fn message_for(code: ErrorCode) -> &'static str {
         }
         ErrorCode::AuthenticationRequired => "The remote needs credentials that git could not get.",
         ErrorCode::NetworkUnavailable => "git could not reach the remote.",
+        ErrorCode::ChangedSinceListed => {
+            "The changes are no longer as listed; look at them again before you retry."
+        }
         _ => "git failed.",
     }
 }

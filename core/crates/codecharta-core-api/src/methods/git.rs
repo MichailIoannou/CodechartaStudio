@@ -5,6 +5,7 @@ use crate::methods::projects::{FolderRef, GitRemote};
 use crate::registry::{Audience, Event, method};
 use crate::values::{
     BranchName, CommitSha, FullRefName, LogCursor, LogFilterText, RepoRelativePath, Revision,
+    WorkingTreePath,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -472,6 +473,109 @@ pub struct GitSetUpstreamParams {
     pub upstream_ref_name: Option<FullRefName>,
 }
 
+/// The group of the changes panel an entry belongs to; a file changed in the index and in the working
+/// tree is listed once as `staged` and once as `unstaged`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum GitEntryKind {
+    Staged,
+    Unstaged,
+    Untracked,
+    Conflicted,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitWorkingTreeEntry {
+    /// Relative to the repository root, with `/` separators.
+    pub path: String,
+    /// The path before a rename or copy.
+    pub previous_path: Option<String>,
+    pub kind: GitEntryKind,
+    /// `modified` for a conflicted entry, whose kind of conflict is `conflict`.
+    pub change: GitFileChange,
+    /// git's two-letter conflict code (`UU`, `AA`, `DU`, …) of a conflicted entry.
+    pub conflict: Option<String>,
+}
+
+/// The changes of the whole repository, whichever folder of it the project names; at most 5000 entries,
+/// untracked files listed one by one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitWorkingTree {
+    pub status: GitStatus,
+    pub entries: Vec<GitWorkingTreeEntry>,
+    pub are_entries_truncated: bool,
+}
+
+/// One file's unified diff, cut after 2 MiB.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitDiff {
+    pub path: String,
+    pub text: String,
+    pub is_binary: bool,
+    pub is_truncated: bool,
+}
+
+/// A path of the working-tree listing and how it was listed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitDiffFileParams {
+    pub repo: FolderRef,
+    pub path: WorkingTreePath,
+    pub kind: GitEntryKind,
+}
+
+/// `paths` stages 1 to 1000 paths listed as unstaged, untracked or conflicted (a conflicted one counts as
+/// resolved then); `all` stages every change.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum GitStageTarget {
+    Paths { paths: Vec<WorkingTreePath> },
+    All,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitStageParams {
+    pub repo: FolderRef,
+    pub target: GitStageTarget,
+}
+
+/// 1 to 1000 paths listed as staged.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitUnstageParams {
+    pub repo: FolderRef,
+    pub paths: Vec<WorkingTreePath>,
+}
+
+/// A row of the working-tree listing as the user saw it when confirming the discard.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DiscardEntry {
+    pub path: WorkingTreePath,
+    pub kind: GitEntryKind,
+    pub change: GitFileChange,
+}
+
+/// 1 to 1000 rows. A staged row returns its file to the last commit, so the file's unstaged row must be
+/// named too; an unstaged row returns the file to its staged state. Files the last commit does not have
+/// go to the recycle bin. Fails with `CHANGED_SINCE_LISTED`, changing nothing, when a row is no longer
+/// listed as named.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitDiscardParams {
+    pub repo: FolderRef,
+    pub entries: Vec<DiscardEntry>,
+}
+
 method!(
     GitRepositoryInfoMethod,
     "git.repositoryInfo",
@@ -601,6 +705,42 @@ method!(
     GitOperationResult
 );
 
+method!(
+    GitWorkingTreeMethod,
+    "git.workingTree",
+    Renderer,
+    GitRepoParams,
+    GitWorkingTree
+);
+method!(
+    GitDiffFileMethod,
+    "git.diffFile",
+    Renderer,
+    GitDiffFileParams,
+    GitDiff
+);
+method!(
+    GitStageMethod,
+    "git.stage",
+    Renderer,
+    GitStageParams,
+    GitWorkingTree
+);
+method!(
+    GitUnstageMethod,
+    "git.unstage",
+    Renderer,
+    GitUnstageParams,
+    GitWorkingTree
+);
+method!(
+    GitDiscardMethod,
+    "git.discard",
+    Renderer,
+    GitDiscardParams,
+    GitWorkingTree
+);
+
 pub struct RepositoryChangedEvent;
 
 impl Event for RepositoryChangedEvent {
@@ -686,5 +826,34 @@ mod tests {
             }
         );
         assert!(refused.is_err());
+    }
+
+    #[test]
+    fn should_tag_stage_targets_and_refuse_a_path_leaving_the_repository() {
+        // Arrange
+        let repo = json!({ "projectId": "p-0123456789abcdef", "folderId": "f-0123456789abcdef" });
+        let all = json!({ "repo": repo, "target": { "kind": "all" } });
+        let escaping = json!({ "repo": repo, "target": { "kind": "paths", "paths": ["../x"] } });
+        let discard = json!({
+            "repo": repo,
+            "entries": [{ "path": "a b.txt", "kind": "untracked", "change": "added" }]
+        });
+
+        // Act
+        let stage_all = serde_json::from_value::<GitStageParams>(all);
+        let refused = serde_json::from_value::<GitStageParams>(escaping);
+        let discarded = serde_json::from_value::<GitDiscardParams>(discard);
+
+        // Assert
+        assert_eq!(stage_all.unwrap().target, GitStageTarget::All);
+        assert!(refused.is_err());
+        assert_eq!(
+            discarded.unwrap().entries,
+            vec![DiscardEntry {
+                path: WorkingTreePath::try_from("a b.txt").unwrap(),
+                kind: GitEntryKind::Untracked,
+                change: GitFileChange::Added,
+            }]
+        );
     }
 }

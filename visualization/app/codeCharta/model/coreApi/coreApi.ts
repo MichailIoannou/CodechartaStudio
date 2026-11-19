@@ -21,6 +21,9 @@ import type { GitCommitDetails } from "./GitCommitDetails"
 import type { GitCommitDistances } from "./GitCommitDistances"
 import type { GitCommitParams } from "./GitCommitParams"
 import type { GitCommitSummary } from "./GitCommitSummary"
+import type { GitDiff } from "./GitDiff"
+import type { GitDiffFileParams } from "./GitDiffFileParams"
+import type { GitDiscardParams } from "./GitDiscardParams"
 import type { GitFetchParams } from "./GitFetchParams"
 import type { GitFetchResult } from "./GitFetchResult"
 import type { GitIsAncestorParams } from "./GitIsAncestorParams"
@@ -35,8 +38,11 @@ import type { GitRepositoryInfo } from "./GitRepositoryInfo"
 import type { GitResolveCommitParams } from "./GitResolveCommitParams"
 import type { GitRevListCountParams } from "./GitRevListCountParams"
 import type { GitSetUpstreamParams } from "./GitSetUpstreamParams"
+import type { GitStageParams } from "./GitStageParams"
 import type { GitStatus } from "./GitStatus"
 import type { GitSwitchParams } from "./GitSwitchParams"
+import type { GitUnstageParams } from "./GitUnstageParams"
+import type { GitWorkingTree } from "./GitWorkingTree"
 import type { HelloParams } from "./HelloParams"
 import type { HelloResult } from "./HelloResult"
 import type { ImportSnapshotParams } from "./ImportSnapshotParams"
@@ -122,7 +128,8 @@ export const CORE_ERROR_CODES = [
     "LOCAL_CHANGES_WOULD_BE_OVERWRITTEN",
     "OPERATION_IN_PROGRESS",
     "AUTHENTICATION_REQUIRED",
-    "NETWORK_UNAVAILABLE"
+    "NETWORK_UNAVAILABLE",
+    "CHANGED_SINCE_LISTED"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {
@@ -181,6 +188,11 @@ export type CoreMethods = {
     "git.branchRename": { params: GitBranchRenameParams; result: GitOperationResult }
     "git.branchDelete": { params: GitBranchDeleteParams; result: GitOperationResult }
     "git.setUpstream": { params: GitSetUpstreamParams; result: GitOperationResult }
+    "git.workingTree": { params: GitRepoParams; result: GitWorkingTree }
+    "git.diffFile": { params: GitDiffFileParams; result: GitDiff }
+    "git.stage": { params: GitStageParams; result: GitWorkingTree }
+    "git.unstage": { params: GitUnstageParams; result: GitWorkingTree }
+    "git.discard": { params: GitDiscardParams; result: GitWorkingTree }
     "prompt.answer": { params: PromptAnswerParams; result: null }
     "prompt.cancel": { params: PromptCancelParams; result: null }
 }
@@ -242,6 +254,11 @@ export const RENDERER_METHODS = [
     "git.branchRename",
     "git.branchDelete",
     "git.setUpstream",
+    "git.workingTree",
+    "git.diffFile",
+    "git.stage",
+    "git.unstage",
+    "git.discard",
     "prompt.answer",
     "prompt.cancel"
 ] as const satisfies ReadonlyArray<keyof CoreMethods>

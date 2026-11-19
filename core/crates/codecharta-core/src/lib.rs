@@ -136,6 +136,7 @@ impl Core {
             .with_operations(Operations {
                 queue: &self.operation_queue,
                 prompts: &self.prompts,
+                recycler: &self.recycler,
             }))
     }
 

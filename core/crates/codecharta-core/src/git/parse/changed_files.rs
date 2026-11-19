@@ -30,7 +30,7 @@ const STATUS_CHANGES: [(char, GitFileChange); 6] = [
     ('C', GitFileChange::Copied),
     ('T', GitFileChange::TypeChanged),
 ];
-const TWO_PATH_CHANGES: [GitFileChange; 2] = [GitFileChange::Renamed, GitFileChange::Copied];
+pub const TWO_PATH_CHANGES: [GitFileChange; 2] = [GitFileChange::Renamed, GitFileChange::Copied];
 const BINARY: LineCounts = LineCounts {
     insertions: None,
     deletions: None,
@@ -92,10 +92,15 @@ fn change_of(status: &str) -> CoreResult<GitFileChange> {
         .next()
         .filter(char::is_ascii_uppercase)
         .ok_or_else(|| parse_failed(WHAT))?;
-    Ok(STATUS_CHANGES
+    Ok(change_of_letter(letter))
+}
+
+/// git's status letter of a file; a letter git may add later is `Unknown`.
+pub fn change_of_letter(letter: char) -> GitFileChange {
+    STATUS_CHANGES
         .iter()
         .find(|(known, _)| *known == letter)
-        .map_or(GitFileChange::Unknown, |(_, change)| *change))
+        .map_or(GitFileChange::Unknown, |(_, change)| *change)
 }
 
 /// `<ins>\t<del>\t<path>\0`, or `<ins>\t<del>\t\0<old>\0<new>\0` for a rename; keyed by the new path.

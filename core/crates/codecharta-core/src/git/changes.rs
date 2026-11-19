@@ -7,6 +7,12 @@ use tokio::sync::broadcast;
 
 /// Notifications a slow subscriber may fall behind by before it misses some.
 const CHANGES_BUFFER: usize = 64;
+/// Any operation may change all of them: a switch the working tree, a commit the refs.
+const OPERATION_PARTS: [ChangedPart; 3] = [
+    ChangedPart::Status,
+    ChangedPart::Refs,
+    ChangedPart::WorkingTree,
+];
 
 /// Remembers the last refs fingerprint seen per repository and announces a different one (G13).
 pub struct RepositoryChanges {
@@ -55,7 +61,7 @@ impl RepositoryChanges {
         self.send(RepositoryChanged {
             repo: repo.clone(),
             repository_id: repository_id.to_string(),
-            parts: vec![ChangedPart::Status, ChangedPart::Refs],
+            parts: OPERATION_PARTS.to_vec(),
             fingerprint: fingerprint.map(str::to_string),
         });
     }
@@ -119,7 +125,7 @@ mod tests {
         let first = receiver.try_recv().unwrap();
         let second = receiver.try_recv().unwrap();
         assert_eq!(first.fingerprint.as_deref(), Some("one"));
-        assert_eq!(first.parts, vec![ChangedPart::Status, ChangedPart::Refs]);
+        assert_eq!(first.parts, OPERATION_PARTS.to_vec());
         assert_eq!(second.fingerprint, None);
         assert!(receiver.try_recv().is_err());
     }

@@ -14,6 +14,11 @@ use support::TempRepo;
 use support::git_operations::{OperationsHarness, code_of, context, detail_of, project_folder};
 
 const END_OF_OPTIONS: &str = "--end-of-options";
+const ALL_PARTS: [ChangedPart; 3] = [
+    ChangedPart::Status,
+    ChangedPart::Refs,
+    ChangedPart::WorkingTree,
+];
 
 fn ref_name(text: &str) -> FullRefName {
     FullRefName::try_from(text).expect("a full ref name")
@@ -549,11 +554,7 @@ async fn should_announce_repository_changed_after_each_operation() {
         announced[0].fingerprint.as_deref(),
         Some(switched.refs.fingerprint.as_str())
     );
-    assert!(
-        announced
-            .iter()
-            .all(|changed| changed.parts == vec![ChangedPart::Status, ChangedPart::Refs])
-    );
+    assert!(announced.iter().all(|changed| changed.parts == ALL_PARTS));
 }
 
 #[tokio::test]

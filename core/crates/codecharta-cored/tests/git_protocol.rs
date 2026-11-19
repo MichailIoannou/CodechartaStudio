@@ -127,7 +127,10 @@ fn should_create_a_branch_over_stdio_and_announce_the_change() {
     let result = &answer["result"];
     assert_eq!(result["status"]["head"]["name"], "work");
     assert_eq!(result["message"], Value::Null);
-    assert_eq!(changed["params"]["parts"], json!(["status", "refs"]));
+    assert_eq!(
+        changed["params"]["parts"],
+        json!(["status", "refs", "workingTree"])
+    );
     assert_eq!(
         changed["params"]["fingerprint"],
         result["refs"]["fingerprint"]
@@ -523,6 +526,108 @@ fn should_reject_malformed_history_params_without_running_git() {
 
     // Assert
     assert_eq!(codes, vec![json!("BAD_REQUEST"); codes.len()]);
+}
+
+#[test]
+fn should_stage_diff_and_discard_working_tree_files_over_stdio() {
+    // Arrange
+    let repo = TempRepo::new();
+    repo.commit("Add a", &[("a.txt", "a\n")]);
+    repo.write_file("a.txt", "changed\n");
+    repo.write_file("new file.txt", "new\n");
+    let mut core = GitCore::start(&repo);
+    let folder = core.project_of(repo.path());
+    let stage = json!({ "repo": folder, "target": { "kind": "paths", "paths": ["new file.txt"] } });
+    let diff = json!({ "repo": folder, "path": "a.txt", "kind": "unstaged" });
+    let discard = json!({
+        "repo": folder,
+        "entries": [{ "path": "a.txt", "kind": "unstaged", "change": "modified" }]
+    });
+
+    // Act
+    let listed = core.request("git.workingTree", json!({ "repo": folder }));
+    let (staged, changed) = core.request_awaiting("git.stage", stage, REPOSITORY_CHANGED);
+    let shown = core.request("git.diffFile", diff);
+    let discarded = core.request("git.discard", discard);
+
+    // Assert
+    assert_eq!(listed["result"]["entries"][1]["kind"], "untracked");
+    assert_eq!(staged["result"]["entries"][1]["kind"], "staged");
+    assert_eq!(staged["result"]["status"]["counts"]["staged"], 1);
+    assert!(
+        changed["params"]["parts"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("workingTree"))
+    );
+    assert!(
+        shown["result"]["text"]
+            .as_str()
+            .unwrap()
+            .contains("+changed")
+    );
+    assert_eq!(
+        discarded["result"]["entries"],
+        json!([{
+            "path": "new file.txt",
+            "previousPath": null,
+            "kind": "staged",
+            "change": "added",
+            "conflict": null
+        }])
+    );
+    assert_eq!(
+        std::fs::read_to_string(repo.path().join("a.txt")).unwrap(),
+        "a\n"
+    );
+}
+
+#[test]
+fn should_reject_malformed_working_tree_params_without_touching_the_index() {
+    // Arrange
+    let repo = TempRepo::new();
+    repo.commit("Add a", &[("a.txt", "a")]);
+    repo.write_file("a.txt", "changed");
+    let mut core = GitCore::start(&repo);
+    let folder = core.project_of(repo.path());
+    let too_many: Vec<String> = (0..=1000).map(|number| format!("f{number}.txt")).collect();
+    let malformed = [
+        (
+            "git.stage",
+            json!({ "repo": folder, "target": { "kind": "paths", "paths": ["../outside.txt"] } }),
+        ),
+        (
+            "git.stage",
+            json!({ "repo": folder, "target": { "kind": "paths", "paths": [] } }),
+        ),
+        (
+            "git.stage",
+            json!({ "repo": folder, "target": { "kind": "paths", "paths": too_many } }),
+        ),
+        ("git.stage", json!({ "repo": folder, "paths": ["a.txt"] })),
+        (
+            "git.unstage",
+            json!({ "repo": folder, "paths": ["/etc/passwd"] }),
+        ),
+        (
+            "git.diffFile",
+            json!({ "repo": folder, "path": "a.txt", "kind": "both" }),
+        ),
+        (
+            "git.discard",
+            json!({ "repo": folder, "entries": [{ "path": "a.txt", "kind": "unstaged" }] }),
+        ),
+    ];
+
+    // Act
+    let codes: Vec<Value> = malformed
+        .iter()
+        .map(|(method, params)| error_data_code(&core.request(method, params.clone())).clone())
+        .collect();
+
+    // Assert
+    assert_eq!(codes, vec![json!("BAD_REQUEST"); codes.len()]);
+    assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "");
 }
 
 #[test]

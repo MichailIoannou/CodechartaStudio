@@ -3,7 +3,8 @@ use std::path::Path;
 
 use crate::error::{CoreError, CoreResult};
 
-/// Moves a store directory to the operating system's recycle bin, so a deletion can be undone there.
+/// Moves a store directory or a discarded file to the operating system's recycle bin, so a deletion can be
+/// undone there.
 pub trait Recycler: Send + Sync {
     fn recycle(&self, path: &Path) -> CoreResult<()>;
 }
@@ -13,7 +14,7 @@ pub struct SystemRecycler;
 
 impl Recycler for SystemRecycler {
     fn recycle(&self, path: &Path) -> CoreResult<()> {
-        if !path.exists() {
+        if path.symlink_metadata().is_err() {
             return Err(CoreError::NotFound(format!(
                 "{} does not exist.",
                 path.display()
