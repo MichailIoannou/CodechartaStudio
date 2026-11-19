@@ -117,3 +117,8 @@ answer that differs means the named file is changed, nothing else.
   native folder pickers. 03-M5 used "Add folder" (P4/P5 add) and "Re-link '<label>'" (P6 re-link). Please
   confirm or replace. Also: at 1024–1279 px the project trigger truncates to e.g. "bill…" with the full name
   in the tooltip, as the width budget implies — acceptable?
+- **O5 addendum (03-M6).** More wording 03-M6 had to supply: the import picker's filter name "cc.json files",
+  its picker titles, and a 4 GiB size limit on dropped files (no import limit exists otherwise). Also: "Look
+  for commit… in another folder" creates the new project as soon as the folder is picked, so cancelling
+  afterwards keeps that project — acceptable? Store change has no confirmation step (per the design) and
+  no relaunch (OD5: the core swaps the store live).

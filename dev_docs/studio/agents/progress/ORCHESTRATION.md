@@ -23,7 +23,9 @@ orchestrator after every change of state. Another machine continues from this fi
   orchestrator merges them into the stack one at a time, resolves conflicts in shared files (nav bar,
   `VIEW_TABS`, `app.config.ts`, fake bridge, `CHANGELOG.md`) and re-runs every gate after each merge. This
   replaces the prompt's "at most one agent changing `visualization/`" rule for UI work.
-- Builds: Rust output goes to the main checkout's `core/target` (real disk) via `CARGO_TARGET_DIR`; never
+- Builds: Rust output goes to a per-branch folder under the main checkout's `core/target` (e.g.
+  `core/target/studio-05-m4`; the stack uses `core/target/stack`) via `CARGO_TARGET_DIR` — a single shared
+  folder let one agent's smoke test run another branch's binary; never
   under `/tmp` (16 GB RAM tmpfs — filled once on 2026-11-19).
 
 ## Design gate
@@ -59,7 +61,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | done on `feature/studio-stack` (task 6 via feature/studio-03-shell); integration merge pending | integration merge: as 03-M2 | feature/studio-03-m3, feature/studio-03-shell | 1b51a0bb3 (merged into stack e8de7965e) |
 | 03-M4 Renderer load path | renderer | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m4 | ce4e78324 (merged into stack e041d661a) |
 | 03-M5 Projects UI | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m5 | 8c93d3f13 (merged into stack 10b8b4135) |
-| 03-M6 Import and store settings | UI + core | in progress (from feature/studio-stack) | — | feature/studio-03-m6 | — |
+| 03-M6 Import and store settings | UI + core | merged into `feature/studio-stack` (1ebe30d2c), web e2e running | — | feature/studio-03-m6 | 0994d5f75 |
 | 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
@@ -77,7 +79,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M1 Run one analysis from the core | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m1 | a6eff44c7 (verified, not merged) |
 | 05-M2 Snapshot records | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m2 | 3eff64af5 (verified, not merged) |
 | 05-M3 Queue, preflight, RPC, CLI | core (+ fake bridge) | tasks 1–4 verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (fake bridge): core stack merge | feature/studio-05-m3 | b3b7a6164 (verified, not merged) |
-| 05-M4 Analyse from the UI, browse snapshots | UI | todo | 05-M3; 04 UI | — | — |
+| 05-M4 Analyse from the UI, browse snapshots | UI | in progress (from feature/studio-stack, parallel; W1 + S4 + S9; history badges after 04-M4) | — | — | — |
 | 05-M5 Nearest snapshot and stale notice | core + UI | core half verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge, 05-M4 | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
 | 05-M6 Batches, retention, cleanup | core + UI | core tasks 1, 3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge; design O4 | feature/studio-05-m6 | 9acf7a56b (verified, not merged) |
 | 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
@@ -308,6 +310,13 @@ the milestone is started.
   `GitRepositoryService` exists. `readSnapshotMap` retired. Picker titles chosen by the implementer → O5.
   Left: 03-M6 (open/import P8, P11, Snapshots…), area 04 (sync, Open History), area 05 (W1 status,
   Analyse), reload after core reconnect (OD5).
+- 03-M6 (see `03-m6-import-store.md` on the stack): `store.changeRoot` replaces plan 01's `paths.setStoreRoot`
+  (copies or adopts; old store left in place; refused while analyses run); no relaunch (OD5: the core swaps the
+  store live); drag and drop built after spike item 4 passed on Linux (`webUtils.getPathForFile` works in the
+  sandboxed preload); dropped paths checked (absolute, cc.json ending, regular file, ≤ 4 GiB) and confirmed
+  natively before inspection (checked); move dialog (P9) built without a host until area 05's snapshots dialog.
+  Commit 27dd9d99d does not build alone (fixed in aa02ef516; interactive rebase unavailable). Wording supplied
+  → O5 addendum.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -339,6 +348,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 03-M6 verified on `feature/studio-stack` (cargo with and without features 843/847, cargo-deny, contract drift, format, lint, tsc, npm test 686/686, build, test:electron 76/76, e2e:desktop 16/16; web e2e running on port 9031). 05-M4 started in parallel; running agents told to use per-branch cargo folders and their own e2e port.
 - 2026-11-19: owner asked for UI agents in parallel. Started 04-M3 (History view) and the new 02-M7 (metrics bar, file extension bar, toasts) alongside 03-M6, three UI agents at once, each on its own branch from the stack.
 - 2026-11-19: 03-M5 verified on `feature/studio-stack` (cargo with and without features 834/838, contract drift, format, lint, tsc, npm test 681/681, build, test:electron 69/69, e2e:desktop 14/14, web e2e:ci 169/169). Screenshots sent to the owner. 03-M6 started.
 - 2026-11-19: 03-M4 verified on `feature/studio-stack` (format, lint, tsc, npm test 664/664, build, test:electron 70/70, e2e:desktop 14/14, web e2e:ci run alone 165/165) and merged into the stack. 03-M5 started.
