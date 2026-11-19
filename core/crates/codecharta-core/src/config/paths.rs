@@ -113,7 +113,7 @@ impl Paths {
         })
     }
 
-    /// Existing content is not moved; copying the store over is the store's own job (plan 03).
+    /// Only remembers the folder; `Core::change_store_root` prepares and opens the store there first.
     pub async fn set_store_root(&self, path: &Path) -> CoreResult<PathsInfo> {
         if !path.is_absolute() {
             return Err(CoreError::BadRequest(format!(
@@ -153,7 +153,7 @@ impl Paths {
         }
     }
 
-    fn default_store_root(&self) -> PathBuf {
+    pub fn default_store_root(&self) -> PathBuf {
         self.data_dir.join(STORE_FOLDER_NAME)
     }
 }

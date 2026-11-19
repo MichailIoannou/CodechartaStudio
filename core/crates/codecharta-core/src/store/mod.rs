@@ -1,6 +1,7 @@
 pub mod atomic;
 pub mod lock;
 pub mod paths;
+pub mod root_change;
 pub mod session;
 pub mod state;
 mod sweep;

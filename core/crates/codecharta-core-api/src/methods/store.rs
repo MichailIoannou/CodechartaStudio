@@ -28,6 +28,31 @@ impl Method for StoreGetStatus {
     type Result = StoreStatus;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ChangeStoreRootParams {
+    pub path: String,
+}
+
+/// The folder the core serves the store from now on; `adopted` when it already held a store, so
+/// nothing was copied.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreRootChange {
+    pub store_root: String,
+    pub adopted: bool,
+}
+
+/// Only after the shell's folder picker: the path must not come from page content.
+pub struct StoreChangeRoot;
+
+impl Method for StoreChangeRoot {
+    const NAME: &'static str = "store.changeRoot";
+    const AUDIENCE: Audience = Audience::Shell;
+    type Params = ChangeStoreRootParams;
+    type Result = StoreRootChange;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -53,6 +78,24 @@ mod tests {
         assert_eq!(
             json,
             json!([{ "problem": null }, { "problem": "STORE_NEWER_SCHEMA" }, { "problem": "IO" }])
+        );
+    }
+
+    #[test]
+    fn should_write_the_store_root_change_in_camel_case() {
+        // Arrange
+        let change = StoreRootChange {
+            store_root: "/elsewhere/store".to_string(),
+            adopted: false,
+        };
+
+        // Act
+        let json = serde_json::to_value(change).unwrap();
+
+        // Assert
+        assert_eq!(
+            json,
+            json!({ "storeRoot": "/elsewhere/store", "adopted": false })
         );
     }
 }

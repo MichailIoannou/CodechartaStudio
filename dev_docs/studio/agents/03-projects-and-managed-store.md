@@ -155,7 +155,7 @@ Modules in `core/crates/codecharta-core/src/` (no function bodies here; signatur
 | `store/atomic.rs` | `read_json<T: DeserializeOwned>(path: &Path) -> Result<T, CoreError>`, `write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), CoreError>`, `ProjectLocks` |
 | `store/lock.rs` | `StoreLock::acquire(root: &Path) -> Result<StoreLock, CoreError>` (released on drop) |
 | `store/session.rs` | `SessionRepository::{active_project, set_active_project}` |
-| `store/root_change.rs` | `change_store_root(current: &Path, target: &Path) -> Result<StoreRootChange, CoreError>` (adopt an existing store, copy into an empty folder without `.lock`, else `BAD_REQUEST`) |
+| `store/root_change.rs` | `prepare_store_root(current: Option<&Path>, target: &Path) -> CoreResult<PreparedRoot>` (adopt an existing store, copy into an empty folder without `.lock`, else `BAD_REQUEST`); `Core::change_store_root(target)` / `Core::reset_store_root()` open the store there, update the settings and swap the open store at runtime (as built in 03-M6, owner decision OD5) |
 | `recycle.rs` | `trait Recycler { fn recycle(&self, path: &Path) -> Result<(), CoreError>; }`, `SystemRecycler` (crate candidate `trash`) |
 | `git/runner.rs` | `trait GitRunner { fn run(&self, cwd: &Path, args: &[&str]) -> GitFuture }` (boxed future of `CoreResult<GitOutput { exit_code, stdout }>`), implemented by `Tools`; `GIT_TIMEOUT` (as built in 03-M2) |
 | `folders/inspector.rs` | `async inspect_folder(git: &dyn GitRunner, path: &Path) -> FolderInspection`, `resolve_commit(git: &dyn GitRunner, folder: &Path, hash: &CommitHash) -> Result<Option<ResolvedCommit>, CoreError>`, `commit_details(..) -> CoreResult<Option<CommitDetails { resolved, commit_date, parents }>>` (03-M3, for binding) |
@@ -262,8 +262,8 @@ JSON-RPC methods (params → result; `ok` types are the success payload; failure
 | `snapshots.move` | `SnapshotRef & { toFolderId, bindToCommit }` | `SnapshotSummary` | imported snapshots only |
 | `snapshots.delete` | `SnapshotRef & { permanently }` | void | |
 | `store.status` | — | `StoreStatus` | problem `Store::open` reported at startup |
-| `store.changeRoot` | `{ path }` | `StoreRootChange` | shell-only |
-| `store.chooseRoot` | — | `StoreRootChange \| null` | shell: native folder dialog → `store.changeRoot` → `app.relaunch()` |
+| `store.changeRoot` | `{ path }` | `StoreRootChange` | shell-only; replaces plan 01's `paths.setStoreRoot` (as built in 03-M6) |
+| `store.chooseRoot` | — | `PathsInfo \| null` | shell: the existing bridge function `chooseStoreRoot({ title })`: native folder dialog → `store.changeRoot` → `paths.get`; no relaunch (OD5, as built in 03-M6) |
 
 This plan adds **no notifications**: the store has a single writing process, so nothing changes behind the renderer's back.
 
@@ -276,7 +276,7 @@ Behaviour rules
 - `openFile` (section 6): `target: null` → reuse `existing_target` or create a project named after the containing folder with that folder as its only (`primary`) folder; then the same steps as `import`. A duplicate returns the existing snapshot with `was_already_imported: true` and writes nothing.
 - `import`: copies the file into a staging directory — gzip-compressing unless it starts with the gzip magic bytes — writes `snapshot.json`, renames the directory. With `bindToCommit` the core re-verifies the commit in the folder (`NOT_A_COMMIT`, or `FOLDER_UNAVAILABLE` when the folder is not an `ok` git folder) and fills `git.commit`, `shortCommit`, `subject`, `authorName`, `authorDate`, `commitDate`, `parents`, `dirty: false`, `remotes`; the other `git` fields are left empty (`branchesAtRun: []`, `tagsAtRun: []`, `headAtRun: null`).
 - `move`: imported snapshots only (`BAD_REQUEST` otherwise); target folder in the same project. With `bindToCommit` the commit is verified in the **target** folder. The new id is computed, `snapshot.json` rewritten atomically with the new id/folder/`git` block, then the directory renamed `snapshots/<from>/<old>` → `snapshots/<to>/<new>` (`Store::open` repairs a record whose `id`/`folderId` disagree with its directory after a crash in between). `toFolderId` equal to the current folder with a `bindToCommit` = "bind later". `view.shownSnapshotIdByFolder` entries pointing at the old id are updated.
-- `store.changeRoot`: adopt the target when it contains `store.json`; copy the current store into it when it is empty; otherwise `BAD_REQUEST` ("Choose an empty folder or an existing CodeCharta store"). Then update the core settings; the shell relaunches the app. The old folder is left untouched (owner default: copy, do not move).
+- `store.changeRoot`: adopt the target when it contains `store.json`; copy the current store into it when it is empty; otherwise `BAD_REQUEST` ("Choose an empty folder or an existing CodeCharta store"). Then update the core settings and serve the new store at once (no relaunch, OD5); requests already running finish on the old store. Refused with `CONFLICT` while analyses are queued or running. `paths.resetStoreRoot` does the same into the default folder. The old folder is left untouched (owner default: copy, do not move).
 
 Offered to plan 05 (library, `snapshots/repository.rs`):
 

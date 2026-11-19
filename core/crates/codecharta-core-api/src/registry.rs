@@ -22,7 +22,7 @@ use crate::methods::git::{
     GitUnstageMethod, GitWorkingTreeMethod, RepositoryChangedEvent,
 };
 use crate::methods::hosting::{HostingFetchChangeRequestHead, HostingStatusMethod};
-use crate::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use crate::methods::paths::{PathsGet, PathsResetStoreRoot};
 use crate::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
     ProjectsGetActive, ProjectsInspectFolder, ProjectsList, ProjectsRefreshFolder,
@@ -38,7 +38,7 @@ use crate::methods::snapshots::{
     SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsPlanPrune, SnapshotsPrune,
     SnapshotsReadLog, SnapshotsRecordMapFacts, SnapshotsResolveForCommit, SnapshotsUsage,
 };
-use crate::methods::store::StoreGetStatus;
+use crate::methods::store::{StoreChangeRoot, StoreGetStatus};
 use crate::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,13 +139,13 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<CorePing>(),
     MethodSpec::of::<CoreShutdown>(),
     MethodSpec::of::<PathsGet>(),
-    MethodSpec::of::<PathsSetStoreRoot>(),
     MethodSpec::of::<PathsResetStoreRoot>(),
     MethodSpec::of::<ToolsDoctor>(),
     MethodSpec::of::<ToolsSetPath>(),
     MethodSpec::of::<ToolsClearPath>(),
     MethodSpec::of::<ShellResolvePath>(),
     MethodSpec::of::<StoreGetStatus>(),
+    MethodSpec::of::<StoreChangeRoot>(),
     MethodSpec::of::<ProjectsList>(),
     MethodSpec::of::<ProjectsGet>(),
     MethodSpec::of::<ProjectsInspectFolder>(),

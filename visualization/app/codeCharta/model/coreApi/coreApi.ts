@@ -10,6 +10,7 @@ import type { BatchResult } from "./BatchResult"
 import type { CancelParams } from "./CancelParams"
 import type { ChangedFilesParams } from "./ChangedFilesParams"
 import type { ChangedFilesResult } from "./ChangedFilesResult"
+import type { ChangeStoreRootParams } from "./ChangeStoreRootParams"
 import type { ClearToolPathParams } from "./ClearToolPathParams"
 import type { CreateProjectParams } from "./CreateProjectParams"
 import type { DeleteProjectParams } from "./DeleteProjectParams"
@@ -102,7 +103,6 @@ import type { ResolveForCommitParams } from "./ResolveForCommitParams"
 import type { ResolvePathParams } from "./ResolvePathParams"
 import type { ResolvePathResult } from "./ResolvePathResult"
 import type { SetActiveProjectParams } from "./SetActiveProjectParams"
-import type { SetStoreRootParams } from "./SetStoreRootParams"
 import type { SetToolPathParams } from "./SetToolPathParams"
 import type { SetViewParams } from "./SetViewParams"
 import type { SnapshotList } from "./SnapshotList"
@@ -112,6 +112,7 @@ import type { SnapshotResolution } from "./SnapshotResolution"
 import type { SnapshotSummary } from "./SnapshotSummary"
 import type { SourceFileLookup } from "./SourceFileLookup"
 import type { SourceFileParams } from "./SourceFileParams"
+import type { StoreRootChange } from "./StoreRootChange"
 import type { StoreStatus } from "./StoreStatus"
 import type { StoreUsage } from "./StoreUsage"
 import type { ToolsReport } from "./ToolsReport"
@@ -180,13 +181,13 @@ export type CoreMethods = {
     "core.ping": { params: EmptyParams; result: PingResult }
     "core.shutdown": { params: EmptyParams; result: null }
     "paths.get": { params: EmptyParams; result: PathsInfo }
-    "paths.setStoreRoot": { params: SetStoreRootParams; result: PathsInfo }
     "paths.resetStoreRoot": { params: EmptyParams; result: PathsInfo }
     "tools.doctor": { params: DoctorParams; result: ToolsReport }
     "tools.setPath": { params: SetToolPathParams; result: ToolsReport }
     "tools.clearPath": { params: ClearToolPathParams; result: ToolsReport }
     "shell.resolvePath": { params: ResolvePathParams; result: ResolvePathResult }
     "store.status": { params: EmptyParams; result: StoreStatus }
+    "store.changeRoot": { params: ChangeStoreRootParams; result: StoreRootChange }
     "projects.list": { params: EmptyParams; result: ProjectList }
     "projects.get": { params: ProjectIdParams; result: Project }
     "projects.inspectFolder": { params: InspectFolderParams; result: PickedFolder }

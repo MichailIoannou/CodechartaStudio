@@ -72,6 +72,38 @@ impl ProjectsCore {
 }
 
 #[test]
+fn should_serve_the_copied_projects_after_the_store_folder_changed_and_back() {
+    // Arrange
+    let mut core = ProjectsCore::start();
+    let first_folder = tempfile::tempdir().unwrap();
+    let second_folder = tempfile::tempdir().unwrap();
+    let chosen = tempfile::tempdir().unwrap();
+    core.project_of(first_folder.path());
+
+    // Act
+    let changed = core.request("store.changeRoot", json!({ "path": chosen.path() }));
+    let copied = core.request("projects.list", json!({}));
+    let added = core.project_of(second_folder.path());
+    let reset = core.request("paths.resetStoreRoot", json!({}));
+    let back = core.request("projects.list", json!({}));
+
+    // Assert
+    assert_eq!(changed["result"]["adopted"], json!(false));
+    assert_eq!(copied["result"]["projects"].as_array().unwrap().len(), 1);
+    let added_id = added["projectId"].as_str().unwrap();
+    assert!(
+        chosen
+            .path()
+            .join("projects")
+            .join(added_id)
+            .join("project.json")
+            .is_file()
+    );
+    assert_eq!(reset["result"]["isDefaultStoreRoot"], json!(true));
+    assert_eq!(back["result"]["projects"].as_array().unwrap().len(), 1);
+}
+
+#[test]
 fn should_create_list_and_activate_a_picked_project() {
     // Arrange
     let mut core = ProjectsCore::start();

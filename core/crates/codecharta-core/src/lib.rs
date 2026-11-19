@@ -23,12 +23,14 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, PoisonError, RwLock};
 
 use codecharta_core_api::ids::InvalidStoreId;
+use codecharta_core_api::methods::analysis::AnalysisJob;
 use codecharta_core_api::methods::core::Platform;
 use codecharta_core_api::methods::git::RepositoryChanged;
+use codecharta_core_api::methods::paths::PathsInfo;
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::methods::shell::ShellPathTarget;
 use codecharta_core_api::methods::snapshots::SnapshotRef;
-use codecharta_core_api::methods::store::StoreStatus;
+use codecharta_core_api::methods::store::{StoreRootChange, StoreStatus};
 
 use analysis::jobs::Analyses;
 use analysis::queue::AnalysisQueue;
@@ -48,6 +50,7 @@ use recycle::SystemRecycler;
 use snapshots::SnapshotRepository;
 use snapshots::nearest::ResolutionCache;
 use store::Store;
+use store::root_change::{PreparedRoot, prepare_store_root};
 use store::state::StoreState;
 use tools::{SearchLocations, Tools, ToolsSetup};
 
@@ -113,6 +116,56 @@ impl Core {
     /// A request keeps the store it started with, even when the store root changes meanwhile.
     pub fn store(&self) -> CoreResult<Arc<Store>> {
         self.read_store_state(StoreState::store)
+    }
+
+    /// Serves the store from `target` from now on: adopts the store there, or copies the open store
+    /// into the empty folder. The old folder is left as it is.
+    pub async fn change_store_root(&self, target: &Path) -> CoreResult<StoreRootChange> {
+        let (store, prepared) = self.open_store_at(target)?;
+        self.paths.set_store_root(target).await?;
+        self.replace_store(store);
+        Ok(StoreRootChange {
+            store_root: path_to_wire(target)?,
+            adopted: prepared == PreparedRoot::Adopted,
+        })
+    }
+
+    /// As `change_store_root`, into the default folder inside the data folder.
+    pub async fn reset_store_root(&self) -> CoreResult<PathsInfo> {
+        let (store, _) = self.open_store_at(&self.paths.default_store_root())?;
+        let info = self.paths.reset_store_root().await?;
+        self.replace_store(store);
+        Ok(info)
+    }
+
+    /// `None` when `target` is the folder of the store that is open already.
+    fn open_store_at(&self, target: &Path) -> CoreResult<(Option<Store>, PreparedRoot)> {
+        self.ensure_no_analysis_runs()?;
+        let current = self.store().ok();
+        let current_root = current.as_ref().map(|store| store.paths().root());
+        if current_root.is_some_and(|root| is_same_folder(root, target)) {
+            return Ok((None, PreparedRoot::Adopted));
+        }
+        let prepared = prepare_store_root(current_root, target)?;
+        Ok((Some(Store::open(target)?), prepared))
+    }
+
+    fn ensure_no_analysis_runs(&self) -> CoreResult<()> {
+        let is_running = |job: &AnalysisJob| !job.state.is_finished();
+        if !self.analysis_queue.list().iter().any(is_running) {
+            return Ok(());
+        }
+        Err(CoreError::Conflict(
+            "Analyses are running; change the store folder when they are done.".to_string(),
+        ))
+    }
+
+    /// Requests that are running keep the store they started with until they end.
+    fn replace_store(&self, store: Option<Store>) {
+        if let Some(store) = store {
+            let mut state = self.store.write().unwrap_or_else(PoisonError::into_inner);
+            *state = Some(StoreState::Open(Arc::new(store)));
+        }
     }
 
     /// The projects of the store this core opened, with the real git and recycle bin.
@@ -257,6 +310,13 @@ fn platform_of(operating_system: &str) -> Platform {
         "windows" => Platform::Win32,
         "macos" => Platform::Darwin,
         _ => Platform::Linux,
+    }
+}
+
+fn is_same_folder(first: &Path, second: &Path) -> bool {
+    match (std::fs::canonicalize(first), std::fs::canonicalize(second)) {
+        (Ok(first), Ok(second)) => first == second,
+        _ => first == second,
     }
 }
 

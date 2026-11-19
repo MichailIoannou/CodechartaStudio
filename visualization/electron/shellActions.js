@@ -97,7 +97,7 @@ function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, request
             chooseToolExecutable: ({ tool, options }) =>
                 pickThenRequest(FILE_PICKER, options, "tools.setPath", pickedPath => ({ tool, path: pickedPath })),
             chooseStoreRoot: ({ options }) =>
-                pickThenRequest(FOLDER_PICKER, options, "paths.setStoreRoot", pickedPath => ({ path: pickedPath }))
+                pickThenRequest(FOLDER_PICKER, options, "store.changeRoot", pickedPath => ({ path: pickedPath }))
         },
         shellActions: {
             reveal,
