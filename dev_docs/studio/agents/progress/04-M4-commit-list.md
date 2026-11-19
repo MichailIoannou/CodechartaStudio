@@ -1,6 +1,6 @@
 ---
 name: 04-M4 commit list with graph, filters, details
-state: progress
+state: complete
 version: 1
 ---
 
@@ -210,4 +210,62 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   at least 10 rem and the labels follow it directly. daisyUI's `.badge` sets `flex-shrink: 0`, so each label also
   gets `shrink min-w-0`: a long label ends in "…" inside its rounded badge instead of being clipped (H8 "a label never
   cuts off").
+
+### E2E
+- `e2e/gitHistory.e2e.ts` gains "should list the commits with their graph, show a merge commit's files and search
+  without the graph" (stand-in bridge: 5 commits with a merge, dirty working tree, merge details with two files);
+  `gitHistory.po.ts` gains `commitListHeader`, `commitRows`, `uncommittedChangesRow`, `commitDetails`, `changedFiles`,
+  `search`. M6 extends this (plan M6 scenario).
+
+### Screenshots (Playwright, stand-in bridge; scratch spec, not committed)
+- Seed: feature/invoice-rounding (current, ↑1) with HEAD "Fix invoice rounding", a merge of main into it, "Add
+  currency table" / "Release 2.4.0" (main, origin/main, v2.4.0) forking at "Start the invoice module", an
+  old-experiment branch of two commits off the same fork, tag v2.3.0, 40 older commits, 3 changed files; merge details
+  with modified / added / renamed / deleted / binary files. 1600×900 and 1100×900 in cc-dark and cc-light, plus 700×900.
+- Seen, against the mock-up: rows as the mock-up's (dashed warning circle above the ringed HEAD, the merge curve from
+  the merge's dot into main's lane, both side lanes curving into the fork's dot, lane colours primary / secondary /
+  accent), labels per kind (filled current branch with the check, outlined local, grey cloud remote, accent tag),
+  relative dates right-aligned, the merge's details (subject, body, 10-character SHA with copy, author line, two
+  parent links, "CHANGED FILES 5 files +120 −20", "Changes compared with the first parent", worded change badges
+  lined up at `w-16`, "binary"). Search "invoice": the graph column and the uncommitted row disappear, the note line
+  shows, Clear appears. Legend popover opens below the (?) with the drawn marks. At 1100 px the side panes are strips
+  and the list keeps all columns; at 700 px the pane is under 640 px: Author / Path fold into "Filters" (popover with
+  both inputs) and rows show one label plus "+n".
+- Observations for the theme owner (not changed here, the classes are the design's): in cc-light, `text-primary` and
+  `text-secondary` lanes are both blue and hard to tell apart (principles §11 check 3); the selected row's
+  `bg-primary/20` is faint in cc-light (as M3 noted for cc-dark); `badge-soft` change badges and the warning dashed
+  line have low contrast on white.
+
+### Shared files touched
+- `util/desktop/desktopBridge.mocks.ts` (+ spec): `git.log` paging / scope / filter, `git.commitDetails`,
+  `git.resolveCommit`; self-contained body kept.
+- `visualization/CHANGELOG.md`: one entry rewritten.
+- Nothing else outside `features/gitHistory/`.
+
+### For 04-M5 (selection, keyboard, context menu, ports)
+- `CommitSelectionService` (`services/commitSelection.service.ts`) holds one item (`select`, `clear`, `selection`,
+  `selectedSha`, `isWorkingTreeSelected`) and clears on a repository change; M5 adds the second item (Ctrl+click,
+  Shift+↑/↓, list order with the working tree first), keeping the selection across a log restart when still listed,
+  and the facade export. The list reads `selectedSha()` for the row highlight; the second-selection style
+  (`border-l-2 border-primary`) is not built.
+- Keyboard: the viewport (`data-testid="commit-list"`) already is `role="listbox"` `tabindex="0"`; rows are
+  `role="option"` without ids. Add row ids, `aria-activedescendant`, the H8 keys (stop propagation), and scroll the
+  focused row into the window: set the viewport's `scrollTop` (the window follows on the next frame); row index =
+  commit index + 1 while `uncommittedChangeCount()` is not null.
+- Rows are cached per SHA in `CommitListComponent.rowViews` until graph, labels, markers, HEAD or the selection
+  change; anything new that a row shows (e.g. a second-selection flag, a focus flag) must be added to that
+  computed's dependencies or rows will not update.
+- Ports: `ANALYSED_COMMITS` (marker shape extended, see task 5) and `LOADED_MAP_LOCATOR` exist, not exported from the
+  facade yet; `COMMIT_ACTIONS` and the details action buttons / resolution line are M5 / area 05. The details pane
+  has no action row yet; put it between the parents line and CHANGED FILES (H9).
+- `CommitDetailsService.selectCommit(sha)` selects a commit by SHA from the list or through `git.resolveCommit` —
+  reuse it for "select that commit" actions.
+- `GitLogService.refLabels()` maps SHA → labels (current branch, detached HEAD, local, remote, tags); the context
+  menu's "Check Out 'x'" entries can read the local / remote labels of a commit from it.
+
+### Gates (final)
+format:check clean; npm test 710 suites / 5588 tests green with the coverage gate; lint (depcruise, styles, knip)
+clean; tsc clean; build ok; e2e:ci 174/174 (temporary port 9035 and the chromium channel, both reverted);
+test:electron 76/76; e2e:desktop 16/16 with the core built into `core/target/studio-04-m4`.
+Plan text annotated "as built in M4" (4.7 marker, 4.8 step 4, M4 task 6).
 

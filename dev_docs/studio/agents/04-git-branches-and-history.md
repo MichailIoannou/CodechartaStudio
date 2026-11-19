@@ -625,6 +625,7 @@ A third Ctrl+click replaces the second item.
 ```ts
 // analysedCommits.port.ts — plan 05
 export interface AnalysedCommitMarker { state: "analysed" | "running" | "failed"; isLoadedInMap: boolean }
+// as built in M4 (design H8 words more states): state adds "queued"; optional progressPercent, analysedAt, note, failureMessage
 export interface AnalysedCommitsProvider { markersFor(repo: FolderRef): Signal<ReadonlyMap<string, AnalysedCommitMarker>> }
 export const ANALYSED_COMMITS = new InjectionToken<AnalysedCommitsProvider>("ANALYSED_COMMITS")
 // commitActions.port.ts — plan 05 ("Analyse this commit", "Analyse working tree"), plan 06 ("Compare with…")
@@ -668,7 +669,7 @@ Per commit in list order (`lanes[i]` = SHA lane `i` waits for, or null):
 1. `waiting` = lanes waiting for this SHA. If none, take the lowest free lane (append if none) with the next colour (cycling `LANE_COLOR_COUNT = 8`). The commit's lane = lowest in `waiting`.
 2. `incoming` = one edge per waiting lane to the commit's lane; free the others.
 3. `passing` = every other occupied lane, straight.
-4. First parent: if a lane already waits for it, edge there and free the commit's lane; else the commit's lane waits for it.
+4. First parent: if a lane already waits for it, edge there and free the commit's lane; else the commit's lane waits for it. (As built in M4, after design H8 and the mock-up: the commit's lane always waits for its first parent, so lanes join at the fork point's dot through step 2.)
 5. Further parents: existing waiting lane, else lowest free lane with a new colour.
 6. No parents: free the commit's lane. 7. Trim trailing free lanes.
 
@@ -761,7 +762,7 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 3. `virtualWindow.ts` — tests: first rows at top; overscan; clamp at end; empty for zero rows. Commit: `feat(visualization): add a fixed-row virtual window helper`
 4. `gitLog.service.ts`, `refLabels.ts`, `commitDate.ts` — tests: first page on open; next page carries graph state; no parallel page requests; restart on scope/filter and drop late pages; no graph with a filter; one restart on expired session; labels on their commits; date for a given locale and zone. Commit: `feat(visualization): load commit history page by page`
 5. `commitList`, `commitRow` — tests: renders only windowed rows; requests next page near the end; subject, labels, author, date; retry row; no-commits message; "Uncommitted changes (n)" row only when dirty; Analysed column hidden without provider, each marker state with a fake provider. Commit: `feat(visualization): list commits with graph and ref labels`
-6. `historyToolbar` — tests: debounced filters; reset button; folder picker hidden for one repository; refresh on button and F5. Commit: `feat(visualization): filter commit history by text, author and path`
+6. `historyToolbar` (as built: `commitFilters` in the COMMITS pane header, design deviation 10; no folder picker, OD1) — tests: debounced filters; reset button; folder picker hidden for one repository; refresh on button and F5. Commit: `feat(visualization): filter commit history by text, author and path`
 7. `commitDetails.service.ts`, `commitDetails` — tests: message, author, date, SHA; files with change and counts; first-parent note for merges; truncation note; latest answer wins on fast selection changes; parent link selects parent; file button only with a locator node, handing over to metrics. Commit: `feat(visualization): show commit details and changed files`
    - Changelog: rewrite to `- **Git history**: a project folder that is a git repository gets a History view with its branches, tags and commit graph, a search by text, author and path, and the changed files of each commit; the top bar shows the current branch.`
 
