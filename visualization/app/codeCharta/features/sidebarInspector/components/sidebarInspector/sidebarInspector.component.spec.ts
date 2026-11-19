@@ -82,6 +82,20 @@ describe("SidebarInspectorComponent", () => {
         expect(screen.getByTestId("inspector-node-name").textContent).toContain("invoice.ts")
     })
 
+    it("should tell the floating bars the width it covers only while it is shown", async () => {
+        // Arrange
+        const { detectChanges } = await render(SidebarInspectorComponent)
+        const coveredWhileHidden = document.documentElement.style.getPropertyValue("--cc-bar-inset-right")
+
+        // Act
+        selectBuilding()
+        detectChanges()
+
+        // Assert
+        expect(coveredWhileHidden).toBe("0px")
+        expect(document.documentElement.style.getPropertyValue("--cc-bar-inset-right")).toBe("calc(var(--cc-inspector-width) + 6px)")
+    })
+
     it("should deselect the building and slide out when clicking the close button", async () => {
         // Arrange
         const { fixture, detectChanges } = await render(SidebarInspectorComponent)

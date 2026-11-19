@@ -71,9 +71,7 @@ export class MetricsBarPageObject {
     }
 
     async openLayoutPicker() {
-        // The bar sits behind the open explorer, which covers its first cell on a wide screen; the keyboard reaches it anyway.
-        await this.layoutCell().focus()
-        await this.page.keyboard.press("Enter")
+        await this.layoutCell().click()
         await this.page.getByTestId("metrics-bar-layout-picker").waitFor({ state: "visible", timeout: 10_000 })
     }
 

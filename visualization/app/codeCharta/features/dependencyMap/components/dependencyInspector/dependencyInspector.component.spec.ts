@@ -147,6 +147,20 @@ describe("DependencyInspectorComponent", () => {
         expect(referenceChosen).toHaveBeenCalledWith(ROOT_FOLDER)
     })
 
+    it("should tell the floating bars the width it covers only while it shows something", async () => {
+        // Arrange
+        const { fixture, shown } = await renderInspector()
+        const coveredWhileShown = document.documentElement.style.getPropertyValue("--cc-bar-inset-right")
+
+        // Act
+        shown.model.set(null)
+        fixture.detectChanges()
+
+        // Assert
+        expect(coveredWhileShown).toBe("calc(var(--cc-inspector-width) + 6px)")
+        expect(document.documentElement.style.getPropertyValue("--cc-bar-inset-right")).toBe("0px")
+    })
+
     it("should copy the path and say so for a moment", async () => {
         // Arrange
         jest.useFakeTimers()

@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, injec
 import { DependencyLeafEdge } from "../../../../model/codeCharta.model"
 import { EDGE_TYPE_LABELS } from "../../../../renderer/dependencyGraph/dependencyGraph.facade"
 import { CopyToClipboardService } from "../../../../util/copyToClipboard.service"
-import { InspectorResizeHandleComponent } from "../../../shared/facade"
+import { InspectorResizeHandleComponent, PANEL_ISLAND_MARGIN_PX, publishBarInset } from "../../../shared/facade"
 import { InspectorCycle } from "../../inspector/inspectorCycles"
 import {
     INSPECTOR_SECTION_TITLES,
@@ -54,6 +54,7 @@ export class DependencyInspectorComponent {
     readonly copied = this.clipboard.copied
 
     constructor() {
+        publishBarInset("right", () => (this.model() === null ? "0px" : `calc(var(--cc-inspector-width) + ${PANEL_ISLAND_MARGIN_PX}px)`))
         effect(() => {
             const request = this.store.sectionRequest()
             const badgeSections = { cycles: this.cyclesSection(), upward: this.upwardSection() }

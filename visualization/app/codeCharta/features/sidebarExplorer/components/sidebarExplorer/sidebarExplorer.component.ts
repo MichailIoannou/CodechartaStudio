@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, inject, viewChild } from "@angular/core"
-import { ColumnResizeHandleDirective } from "../../../shared/facade"
+import { ColumnResizeHandleDirective, PANEL_ISLAND_MARGIN_PX, publishBarInset } from "../../../shared/facade"
 import { EXPLORER_CAPABILITIES } from "../../explorerCapabilities"
 import { EXPLORER_METRIC_RULES } from "../../explorerMetricRules.port"
 import { ExplorerCollapseService } from "../../services/explorerCollapse.service"
@@ -60,6 +60,7 @@ export class SidebarExplorerComponent {
 
     constructor() {
         effect(() => this.scrollHostService.register(this.scrollHost()?.nativeElement ?? null))
+        publishBarInset("left", () => (this.isCollapsed() ? "0px" : `${this.width() + PANEL_ISLAND_MARGIN_PX}px`))
     }
 
     toggle() {
