@@ -1,7 +1,7 @@
 import { ChromeTokens, ColorScheme, MapPaletteSeed, RenderPalette, ThemeDefinition, ThemeId } from "../../model/theme.model"
 import { buildDarkRenderPalette, darkRenderPalette } from "./palettes/darkRenderPalette"
-import { darculaDependencyGraph, vsDarkDependencyGraph } from "./palettes/neutralDependencyGraphs"
 import { buildLightRenderPalette, lightRenderPalette } from "./palettes/lightRenderPalette"
+import { darculaDependencyGraph, vsDarkDependencyGraph } from "./palettes/neutralDependencyGraphs"
 
 function darkEditorTheme(
     id: ThemeId,
