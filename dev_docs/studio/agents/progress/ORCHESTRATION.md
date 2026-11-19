@@ -52,8 +52,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | done on `feature/studio-stack` (part B via feature/studio-03-shell); integration merge pending | integration merge: owner's uncommitted plan 03 edit | feature/studio-03-m2, feature/studio-03-shell | 598d6ffd7 (merged into stack e8de7965e) |
 | 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | done on `feature/studio-stack` (task 6 via feature/studio-03-shell); integration merge pending | integration merge: as 03-M2 | feature/studio-03-m3, feature/studio-03-shell | 1b51a0bb3 (merged into stack e8de7965e) |
 | 03-M4 Renderer load path | renderer | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m4 | ce4e78324 (merged into stack e041d661a) |
-| 03-M5 Projects UI | UI | merged into `feature/studio-stack` (10b8b4135), web e2e running | — | feature/studio-03-m5 | 8c93d3f13 |
-| 03-M6 Import and store settings | UI | todo | 03-M5 | — | — |
+| 03-M5 Projects UI | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m5 | 8c93d3f13 (merged into stack 10b8b4135) |
+| 03-M6 Import and store settings | UI + core | in progress (from feature/studio-stack) | — | feature/studio-03-m6 | — |
 | 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
@@ -333,6 +333,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 03-M5 verified on `feature/studio-stack` (cargo with and without features 834/838, contract drift, format, lint, tsc, npm test 681/681, build, test:electron 69/69, e2e:desktop 14/14, web e2e:ci 169/169). Screenshots sent to the owner. 03-M6 started.
 - 2026-11-19: 03-M4 verified on `feature/studio-stack` (format, lint, tsc, npm test 664/664, build, test:electron 70/70, e2e:desktop 14/14, web e2e:ci run alone 165/165) and merged into the stack. 03-M5 started.
 - 2026-11-19: 03-M2/M3 shell and fake bridge verified on `feature/studio-stack` (format, lint, tsc, contract drift, npm test 663/663, build, test:electron 70/70, e2e:desktop 14/14, web e2e:ci 165/165) and merged into the stack. 03-M4 started from the stack.
 - 2026-11-19: owner asked why no custom UI was being built in parallel. Orchestrator error: UI agents were
