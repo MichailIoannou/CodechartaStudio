@@ -61,7 +61,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | done on `feature/studio-stack` (task 6 via feature/studio-03-shell); integration merge pending | integration merge: as 03-M2 | feature/studio-03-m3, feature/studio-03-shell | 1b51a0bb3 (merged into stack e8de7965e) |
 | 03-M4 Renderer load path | renderer | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m4 | ce4e78324 (merged into stack e041d661a) |
 | 03-M5 Projects UI | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m5 | 8c93d3f13 (merged into stack 10b8b4135) |
-| 03-M6 Import and store settings | UI + core | merged into `feature/studio-stack` (1ebe30d2c), web e2e running | — | feature/studio-03-m6 | 0994d5f75 |
+| 03-M6 Import and store settings | UI + core | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m6 | 0994d5f75 (merged into stack 1ebe30d2c) |
 | 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
