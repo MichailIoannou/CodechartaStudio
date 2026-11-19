@@ -510,6 +510,23 @@ describe("ProjectsService", () => {
         expect(usage?.totalBytes).toBe(3 * API_NEW.mapBytes)
     })
 
+    it("should re-read the snapshots of one folder of the active project and ignore other projects", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        await bridge.request("snapshots.delete", { ...API_OLD.ref, permanently: false })
+        await bridge.request("snapshots.delete", { ...WEB.ref, permanently: false })
+
+        // Act
+        await service.refreshFolderSnapshots({ projectId: "p-billing", folderId: "f-api" })
+        await service.refreshFolderSnapshots({ projectId: "p-dots", folderId: "f-dots" })
+
+        // Assert
+        expect(service.snapshotsByFolder()["f-api"].map(snapshot => snapshot.ref.snapshotId)).toEqual(["s-new"])
+        expect(service.snapshotsByFolder()["f-web"].map(snapshot => snapshot.ref.snapshotId)).toEqual(["s-web"])
+        expect(requestsOf("snapshots.list")).not.toContainEqual({ projectId: "p-dots", folderId: "f-dots" })
+    })
+
     it("should reload the shown snapshot with the default metrics after a reset", async () => {
         // Arrange
         const service = createService({ activeProjectId: "p-billing" })

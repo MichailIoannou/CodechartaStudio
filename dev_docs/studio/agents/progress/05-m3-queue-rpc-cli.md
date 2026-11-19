@@ -1,6 +1,6 @@
 ---
 name: 05-M3 queue, preflight, RPC and CLI
-state: progress
+state: complete
 version: 1
 ---
 
@@ -37,7 +37,7 @@ custom ccsh path pointing at fake-ccsh (plan 01's `tools.setPath`). Gates with a
 - [x] 2. Queue
 - [x] 3. RPC
 - [x] 4. CLI
-- [ ] 5. Fake bridge (later)
+- [x] 5. Fake bridge (done in 05-M4, see `05-m4-analyse-ui.md`)
 
 ## Notes
 

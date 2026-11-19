@@ -6,8 +6,10 @@ use codecharta_core_api::methods::analysis::{
     AnalysisCancel, AnalysisCancelBatch, AnalysisCancelledEvent, AnalysisClearFinished,
     AnalysisEnqueue, AnalysisEnqueueBatch, AnalysisFailedEvent, AnalysisFinishedEvent,
     AnalysisJobChanged, AnalysisJobList, AnalysisList, AnalysisPreflight, AnalysisProgress,
-    AnalysisProgressEvent, AnalysisQueuedEvent, AnalysisStartedEvent, SnapshotsChangedEvent,
+    AnalysisProgressEvent, AnalysisQueuedEvent, AnalysisReadLog, AnalysisStartedEvent,
+    SnapshotsChangedEvent,
 };
+use codecharta_core_api::methods::snapshots::SnapshotLog;
 use codecharta_core_api::registry::{Event, Method};
 use serde_json::Value;
 use tokio::sync::broadcast;
@@ -75,6 +77,14 @@ pub fn list(core: &Core, _context: RequestContext, params: Value) -> HandlerFutu
         read_params::<AnalysisList>(params)?;
         let jobs = core.analyses().list();
         write_result::<AnalysisList>(AnalysisJobList { jobs })
+    })
+}
+
+pub fn read_log(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<AnalysisReadLog>(params)?;
+        let log = core.analyses().read_failed_log(&params.job_id);
+        answer::<AnalysisReadLog>(log.map(|log| SnapshotLog { log }))
     })
 }
 

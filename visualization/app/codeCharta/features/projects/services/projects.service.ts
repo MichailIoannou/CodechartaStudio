@@ -298,6 +298,14 @@ export class ProjectsService {
         await this.showSnapshot(moved.ref)
     }
 
+    async refreshFolderSnapshots(folder: FolderRef): Promise<void> {
+        if (folder.projectId !== this.project()?.id) {
+            return
+        }
+        const { snapshots } = await this.request("snapshots.list", folder)
+        this.snapshots.update(byFolder => ({ ...byFolder, [folder.folderId]: snapshots }))
+    }
+
     async readStoreUsage(): Promise<StoreUsage | null> {
         const project = this.project()
         return project ? this.request("snapshots.usage", { projectId: project.id }) : null

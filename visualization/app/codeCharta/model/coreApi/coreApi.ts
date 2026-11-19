@@ -228,6 +228,7 @@ export type CoreMethods = {
     "analysis.enqueueBatch": { params: EnqueueBatchParams; result: BatchResult }
     "analysis.cancelBatch": { params: BatchRefParams; result: null }
     "analysis.list": { params: EmptyParams; result: AnalysisJobList }
+    "analysis.readLog": { params: JobRefParams; result: SnapshotLog }
     "analysis.clearFinished": { params: EmptyParams; result: null }
     "git.repositoryInfo": { params: GitRepoParams; result: GitRepositoryInfo }
     "git.status": { params: GitRepoParams; result: GitStatus }
@@ -321,6 +322,7 @@ export const RENDERER_METHODS = [
     "analysis.enqueueBatch",
     "analysis.cancelBatch",
     "analysis.list",
+    "analysis.readLog",
     "analysis.clearFinished",
     "git.repositoryInfo",
     "git.status",

@@ -1,0 +1,116 @@
+<div class="flex items-center gap-2 px-2 py-1">
+    <span class="text-xs font-semibold uppercase tracking-wide">Activity</span>
+    @if (hasFinished()) {
+        <button type="button" class="btn btn-ghost btn-xs ml-auto" data-menu-item data-testid="activity-clear-finished" (click)="clearFinished()">Clear finished</button>
+    }
+</div>
+
+@if (problems(); as problems) {
+    <div class="px-1 pb-1">
+        <cc-preflight-problems [problems]="problems" />
+    </div>
+}
+
+<div class="flex max-h-60 flex-col gap-0.5 overflow-y-auto">
+    @for (row of rows(); track row.job.id) {
+        <div class="flex flex-col gap-1 rounded-md px-2 py-1 text-sm" [attr.data-testid]="'activity-' + row.job.state">
+            <div class="flex min-w-0 items-center gap-2">
+                <span class="grid size-4 shrink-0 place-items-center">
+                    @switch (row.job.state) {
+                        @case ("running") {
+                            <span class="loading loading-spinner loading-xs"></span>
+                        }
+                        @case ("queued") {
+                            <i class="fa-regular fa-clock fa-fw text-[0.875rem] text-base-content/60"></i>
+                        }
+                        @case ("done") {
+                            <i class="fa-solid fa-check fa-fw text-[0.875rem] text-success"></i>
+                        }
+                        @case ("failed") {
+                            <i class="fa-solid fa-circle-xmark fa-fw text-[0.875rem] text-error"></i>
+                        }
+                        @default {
+                            <i class="fa-solid fa-stop fa-fw text-[0.875rem] text-base-content/60"></i>
+                        }
+                    }
+                </span>
+                <span class="min-w-0 truncate">
+                    <ng-container *ngTemplateOutlet="sentence; context: { $implicit: row }" />
+                    @if (row.otherFolderLabel) {
+                        <span class="text-base-content/60">{{ " · " + row.otherFolderLabel }}</span>
+                    }
+                </span>
+                <span class="ml-auto flex shrink-0 items-center gap-1">
+                    @if (row.job.state === "running" && row.percent !== null) {
+                        <span class="tabular-nums text-base-content/70">{{ row.percent }} %</span>
+                    }
+                    @if (row.job.state === "running" || row.job.state === "queued") {
+                        <button
+                            type="button"
+                            class="btn btn-ghost btn-xs btn-square"
+                            title="Cancel this analysis"
+                            aria-label="Cancel this analysis"
+                            data-menu-item
+                            data-testid="activity-cancel"
+                            (click)="cancel(row.job)"
+                        >
+                            <i class="fa-solid fa-stop"></i>
+                        </button>
+                    }
+                    @if (row.job.state === "done" && row.job.snapshotId) {
+                        <button type="button" class="btn btn-ghost btn-xs" data-menu-item data-testid="activity-open" (click)="open(row.job)">Open</button>
+                    }
+                    @if (row.job.state === "failed") {
+                        <button
+                            type="button"
+                            class="btn btn-ghost btn-xs"
+                            data-menu-item
+                            data-testid="activity-show-log"
+                            (click)="logRequested.emit(row.job)"
+                        >
+                            <i class="fa-solid fa-file-lines fa-fw"></i>
+                            Show log
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-xs" data-menu-item data-testid="activity-retry" (click)="retry(row.job)">Retry</button>
+                    }
+                </span>
+            </div>
+            @if (row.job.state === "running") {
+                @if (row.percent === null) {
+                    <progress class="progress progress-primary h-1.5 w-full"></progress>
+                } @else {
+                    <progress class="progress progress-primary h-1.5 w-full" max="100" [value]="row.percent"></progress>
+                }
+            }
+            @if (row.job.state === "failed" && row.job.error; as error) {
+                <span class="pl-6 text-xs text-error">{{ error.message }}</span>
+                @if (error.hint) {
+                    <span class="pl-6 text-xs text-base-content/60">{{ error.hint }}</span>
+                }
+            }
+        </div>
+    }
+</div>
+
+<ng-template #sentence let-row>
+    @switch (row.job.state) {
+        @case ("running") {
+            Analysing <span [class.font-mono]="row.isCommit">{{ row.label }}</span>
+        }
+        @case ("queued") {
+            Queued: <span [class.font-mono]="row.isCommit">{{ row.label }}</span>
+        }
+        @case ("done") {
+            Analysed <span [class.font-mono]="row.isCommit">{{ row.label }}</span>
+            @if (row.duration) {
+                <span class="text-base-content/60">{{ " · " + row.duration }}</span>
+            }
+        }
+        @case ("failed") {
+            Analysis of <span [class.font-mono]="row.isCommit">{{ row.label }}</span> failed
+        }
+        @default {
+            Analysis of <span [class.font-mono]="row.isCommit">{{ row.label }}</span> cancelled
+        }
+    }
+</ng-template>

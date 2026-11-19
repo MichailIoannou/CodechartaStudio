@@ -1,3 +1,5 @@
+import type { AnalysisJob } from "../../model/coreApi/AnalysisJob"
+import type { AnalysisTarget } from "../../model/coreApi/AnalysisTarget"
 import type { ErrorCode } from "../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
 import type { FolderRef } from "../../model/coreApi/FolderRef"
@@ -6,6 +8,8 @@ import type { GitCommitSummary } from "../../model/coreApi/GitCommitSummary"
 import type { GitRefs } from "../../model/coreApi/GitRefs"
 import type { GitRepositoryInfo } from "../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../model/coreApi/GitStatus"
+import type { JobError } from "../../model/coreApi/JobError"
+import type { JobProgress } from "../../model/coreApi/JobProgress"
 import type { NewFolder } from "../../model/coreApi/NewFolder"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
 import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
@@ -56,6 +60,9 @@ export interface FakeDesktopSeed {
     gitStatuses?: Record<string, GitStatus>
     gitLogs?: Record<string, GitCommitSummary[]>
     commits?: Record<string, ResolvedCommit[]>
+    analysisJobs?: AnalysisJob[]
+    snapshotLogs?: Record<string, string>
+    failedJobLogs?: Record<string, string>
     now?: string
 }
 
@@ -69,6 +76,10 @@ export interface FakeDesktopBridge extends DesktopBridge {
     emit(event: string, payload: unknown): void
     respondWith(key: FakeAnswerKey, value: unknown): void
     failWith(key: FakeAnswerKey, error: ErrorPayload): void
+    startJob(jobId: string): void
+    reportProgress(jobId: string, progress: JobProgress): void
+    completeJob(jobId: string, snapshot?: SnapshotSummary): void
+    failJob(jobId: string, error: JobError, log?: string): void
 }
 
 interface FakeRequestParams extends Partial<UpdateProjectParams> {
@@ -82,7 +93,9 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     view?: ProjectView
     checksum?: string
     importToken?: string
-    target?: FolderRef | null
+    target?: FolderRef | AnalysisTarget | null
+    force?: boolean
+    jobId?: string
     bindToCommit?: string | null
     toFolderId?: string
     hash?: string
@@ -120,6 +133,9 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         snapshotMaps: { ...seed.snapshotMaps },
         git: JSON.parse(JSON.stringify(seed.git ?? {})) as Record<string, FakeGitRepository>,
         commits: { ...seed.commits },
+        jobs: JSON.parse(JSON.stringify(seed.analysisJobs ?? [])) as AnalysisJob[],
+        snapshotLogs: { ...seed.snapshotLogs },
+        failedJobLogs: { ...seed.failedJobLogs },
         createdIds: 0
     }
     for (const [folderId, status] of Object.entries(seed.gitStatuses ?? {})) {
@@ -476,7 +492,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         if (!file) {
             return refuse("TOKEN_EXPIRED", "Pick the file again.")
         }
-        const target = params.target ?? existingTargetOf(file)
+        const target = (params.target as FolderRef | null | undefined) ?? existingTargetOf(file)
         return target ? openInto(file, target, params.bindToCommit, false) : openIntoNewProject(file, params.bindToCommit)
     }
 
@@ -559,6 +575,148 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return repository.commits && { commits: repository.commits, nextCursor: null, isGraphAvailable: true }
     }
 
+    function findJob(jobId: string) {
+        return store.jobs.find(job => job.id === jobId)
+    }
+
+    function isPending(job: AnalysisJob) {
+        return job.state === "queued" || job.state === "running"
+    }
+
+    function targetKeyOf(target: AnalysisTarget) {
+        return target.kind === "commit" ? target.sha : "workingTree"
+    }
+
+    function announceJob(event: string, job: AnalysisJob) {
+        emit(event, { job: JSON.parse(JSON.stringify(job)) })
+    }
+
+    function enqueueAnalysis(params: FakeRequestParams) {
+        const target = params.target as AnalysisTarget
+        const key = `${params.projectId}/${params.folderId}/${targetKeyOf(target)}`
+        const queued = store.jobs.find(job => isPending(job) && `${job.projectId}/${job.folderId}/${targetKeyOf(job.target)}` === key)
+        if (queued) {
+            return succeed({ status: "alreadyQueued", job: JSON.parse(JSON.stringify(queued)) })
+        }
+        const job: AnalysisJob = {
+            id: nextId("job"),
+            batchId: null,
+            projectId: params.projectId ?? "",
+            folderId: params.folderId ?? "",
+            target,
+            profileHash: "0123456789abcdef",
+            state: "queued",
+            progress: { mode: "indeterminate" },
+            queuedAt: now,
+            startedAt: null,
+            finishedAt: null,
+            snapshotId: null,
+            error: null
+        }
+        store.jobs.push(job)
+        announceJob("analysis.queued", job)
+        return succeed({ status: "queued", job: JSON.parse(JSON.stringify(job)) })
+    }
+
+    function cancelAnalysis(params: FakeRequestParams) {
+        const job = findJob(params.jobId ?? "")
+        if (!job) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no job ${String(params.jobId)}.`)
+        }
+        if (isPending(job)) {
+            Object.assign(job, { state: "cancelled", finishedAt: now })
+            announceJob("analysis.cancelled", job)
+        }
+        return succeed(null)
+    }
+
+    function clearFinishedAnalyses() {
+        for (const job of store.jobs.filter(candidate => !isPending(candidate))) {
+            delete store.failedJobLogs[job.id]
+        }
+        store.jobs = store.jobs.filter(isPending)
+        return succeed(null)
+    }
+
+    function readFailedLog(params: FakeRequestParams) {
+        const jobId = params.jobId ?? ""
+        const isFailed = findJob(jobId)?.state === "failed"
+        return isFailed && Object.hasOwn(store.failedJobLogs, jobId)
+            ? succeed({ log: store.failedJobLogs[jobId] })
+            : refuse("NOT_FOUND", `There is no failed analysis ${jobId}.`)
+    }
+
+    function readSnapshotLog(params: FakeRequestParams) {
+        const snapshotId = params.snapshotId ?? ""
+        return Object.hasOwn(store.snapshotLogs, snapshotId)
+            ? succeed({ log: store.snapshotLogs[snapshotId] })
+            : refuse("NOT_FOUND", `The fake desktop bridge has no log for ${snapshotId}.`)
+    }
+
+    function analysedSnapshot(job: AnalysisJob): SnapshotSummary {
+        const commit = job.target.kind === "commit" ? job.target.sha : null
+        return {
+            ref: {
+                projectId: job.projectId,
+                folderId: job.folderId,
+                snapshotId: commit ? `${commit}-01234567` : "worktree-20260101T000000000Z-01234567"
+            },
+            source: "analysed",
+            createdAt: now,
+            commit,
+            shortCommit: commit ? commit.slice(0, 7) : null,
+            subject: null,
+            commitDate: null,
+            dirty: commit === null,
+            originalFileName: null,
+            fileModifiedAt: null,
+            mapBytes: 100,
+            checksum: null,
+            profileHash: job.profileHash,
+            target: job.target.kind,
+            finishedAt: now,
+            durationMs: 1000,
+            notInMap: []
+        }
+    }
+
+    function startJob(jobId: string) {
+        const job = findJob(jobId)
+        if (job) {
+            Object.assign(job, { state: "running", startedAt: now })
+            announceJob("analysis.started", job)
+        }
+    }
+
+    function reportProgress(jobId: string, progress: JobProgress) {
+        const job = findJob(jobId)
+        if (job) {
+            job.progress = progress
+            emit("analysis.progress", { jobId, progress })
+        }
+    }
+
+    function completeJob(jobId: string, snapshot?: SnapshotSummary) {
+        const job = findJob(jobId)
+        if (!job) {
+            return
+        }
+        const summary: SnapshotSummary = JSON.parse(JSON.stringify(snapshot ?? analysedSnapshot(job)))
+        store.snapshots.push(summary)
+        Object.assign(job, { state: "done", finishedAt: now, snapshotId: summary.ref.snapshotId })
+        announceJob("analysis.finished", job)
+        emit("snapshots.changed", { projectId: job.projectId, folderId: job.folderId })
+    }
+
+    function failJob(jobId: string, error: JobError, log?: string) {
+        const job = findJob(jobId)
+        if (job) {
+            Object.assign(job, { state: "failed", finishedAt: now, error })
+            store.failedJobLogs[jobId] = log ?? error.message
+            announceJob("analysis.failed", job)
+        }
+    }
+
     const backend: Partial<Record<FakeAnswerKey, (params: FakeRequestParams) => FakeAnswer>> = {
         "store.status": () => succeed({ problem: null }),
         "projects.list": () => succeed({ projects: store.projects.map(summaryOf) }),
@@ -591,7 +749,14 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "git.status": gitAnswer("git.status", repository => repository.status),
         "git.branches": gitAnswer("git.branches", repository => repository.refs),
         "git.refsFingerprint": gitAnswer("git.refsFingerprint", repository => repository.refs?.fingerprint),
-        "git.log": gitAnswer("git.log", gitLogPage)
+        "git.log": gitAnswer("git.log", gitLogPage),
+        "snapshots.readLog": readSnapshotLog,
+        "analysis.preflight": () => succeed({ ok: true, problems: [] }),
+        "analysis.enqueue": enqueueAnalysis,
+        "analysis.cancel": cancelAnalysis,
+        "analysis.list": () => succeed({ jobs: JSON.parse(JSON.stringify(store.jobs)) }),
+        "analysis.clearFinished": clearFinishedAnalyses,
+        "analysis.readLog": readFailedLog
     }
 
     function answerFromBackend(method: BridgeMethod, params: unknown) {
@@ -634,6 +799,10 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         failWith: (key, error) => {
             failures[key] = error
         },
+        startJob,
+        reportProgress,
+        completeJob,
+        failJob,
         protocolVersion: seed.protocolVersion ?? FALLBACK_PROTOCOL_VERSION,
         request: ((method: BridgeMethod, params: unknown, options?: unknown) =>
             recordAndAnswer(
