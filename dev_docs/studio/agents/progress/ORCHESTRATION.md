@@ -34,8 +34,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M1 Dark by default | UI | done | — | feature/studio-02-m1 | 5fadc0ca3 (merged db5d2dc60) |
 | 02-M2 No-flash boot | UI | done | — | feature/studio-02-m2 | bcd46657d (merged 407d7551e) |
 | 02-M3 Radial map and word cloud | UI | done | — | feature/studio-02-m3 | 45090be56 (merged 660082556) |
-| 02-M4 Dependency graph, color-range diagram | UI | in progress | — | feature/studio-02-m4 | — |
-| 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | todo | 02-M4 | — | — |
+| 02-M4 Dependency graph, color-range diagram | UI | done | — | feature/studio-02-m4 | ddf7e6b7f (merged 2daeb8b08) |
+| 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | in progress | — | feature/studio-02-m5 | — |
 | 02-M6 Native window appearance | UI | todo | plan 01 | — | — |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
@@ -199,6 +199,9 @@ the milestone is started.
   preconditions from status counts; amend/cherry-pick/revert/bisect in progress → `OPERATION_IN_PROGRESS`;
   gpg failures → `COMMAND_FAILED`; new codes `IDENTITY_UNKNOWN`, `NOTHING_TO_COMMIT`, `HOOK_FAILED`,
   `CONFLICTS`. gpg signing and `commit-msg` hooks have no automated tests.
+- 02-M4 (see `02-m4-dependency-graph.md`): `DependencyGraphComponent` reads `activeTheme()` in its render
+  effect (ECharts `renderItem` reads colours lazily); `ChartScreenshotService.exportBackground()` inlined;
+  `badgeContrastColor()` added; "level N" captions on level bands are faint in both themes (unchanged).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -230,6 +233,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 02-M4 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 661/661, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 157/157). 02-M5 started without the quick toggle (OD10).
 - 2026-11-19: 04-M10 core verified on a scratch merge (clippy and cargo test with and without features: 557/561, cargo-deny, contract drift, format, lint, tsc, npm test 661/661). 02-M4 merged; web e2e running. 04-M11 core started.
 - 2026-11-19: 04-M9 core verified on a scratch merge (clippy and cargo test with and without features: 538/542, cargo-deny, contract drift, format, lint, tsc, npm test 659/659). 04-M10 core started.
 - 2026-11-19: 02-M3 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 659/659, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 157/157). 02-M4 started.
