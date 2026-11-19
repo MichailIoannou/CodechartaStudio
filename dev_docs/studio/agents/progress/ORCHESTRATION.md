@@ -84,7 +84,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M6 Batches, retention, cleanup | core + UI | core tasks 1, 3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge; design O4 | feature/studio-05-m6 | 9acf7a56b (verified, not merged) |
 | 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
 | 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
-| 06-M1 Compare core: commit vs commit | core + UI | core and renderer merged into `feature/studio-stack` (renderer web e2e running) | — | feature/studio-06-m1 | 698643e98 (verified, not merged) |
+| 06-M1 Compare core: commit vs commit | core + UI | done on `feature/studio-stack` (renderer web e2e 180/180) | integration merge: as 03-M2 | feature/studio-06-m1 | 698643e98 (verified, not merged) |
 | 06-M2 Entry points (+ core tasks 1–2) | core + UI | in progress with 06-M3 (feature/studio-06-m2m3) | — | feature/studio-06-m2m3 | — |
 | 06-M3 Missing snapshots and staleness | UI (no core tasks) | in progress with 06-M2 (feature/studio-06-m2m3) | — | feature/studio-06-m2m3 | — |
 | 06-M4 Changed files | core + UI | core task 1 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: 06-M3 | feature/studio-06-m4 | 919fb2972 (verified, not merged) |
