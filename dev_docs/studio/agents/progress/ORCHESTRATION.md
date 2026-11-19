@@ -53,8 +53,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
 | 04-M7 Operation queue, progress, prompts | core + UI | core half (tasks 1–4) verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (UI): 04 History UI | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
 | 04-M8 Fetch and branches | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
-| 04-M9 Changes and diff | core + UI | in progress (core, task 1, from feature/studio-04-m8) | task 2 (UI): 04 History UI | feature/studio-04-m9 | — |
-| 04-M10 Commit | core + UI | todo | 04-M9 | — | — |
+| 04-M9 Changes and diff | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
+| 04-M10 Commit | core + UI | in progress (core, task 1, from feature/studio-04-m9) | task 2 (UI): 04 History UI | feature/studio-04-m10 | — |
 | 04-M11 Pull, push, abort | core + UI | todo | 04-M10 | — | — |
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
 | 05-M0 Spikes on a real Windows machine | spike | blocked | owner: needs a Windows machine | — | — |
@@ -189,6 +189,11 @@ the milestone is started.
   returns `null` until M4; `lowestContrastAlongGradient` added; `--wordCloudColor*` CSS variables removed.
   Dark tinted folders fade to a murky burgundy (as planned); a lighter `radial.tintTarget` is the knob if
   the owner dislikes it.
+- 04-M9 core (see `04-M9-changes-diff.md` on `feature/studio-04-m9`): discarding a staged rename uses the
+  fallback (restore old path, unstage new path, recycle it) because `restore --staged --worktree` deletes
+  the new file for good; paths go to git on stdin (`--pathspec-from-file=- --pathspec-file-nul`);
+  discard works per listed row and recycles, never deletes (checked: no direct file removal in `src/git/`);
+  new code `CHANGED_SINCE_LISTED`; diffs over 4 MiB → `OUTPUT_TOO_LARGE`, 2 MiB shown.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -220,6 +225,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 04-M9 core verified on a scratch merge (clippy and cargo test with and without features: 538/542, cargo-deny, contract drift, format, lint, tsc, npm test 659/659). 04-M10 core started.
 - 2026-11-19: 02-M3 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 659/659, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 157/157). 02-M4 started.
 - 2026-11-19: 04-M8 core verified on a scratch merge (clippy and cargo test with and without features: 502/506, cargo-deny, contract drift, format, lint, tsc, npm test 659/659). 02-M3 merged; its web e2e is running. 04-M9 core started.
 - 2026-11-19: 04-M7 core half verified after the fix on a scratch merge (clippy and cargo test with and without features: 471/475, cargo-deny, contract drift, format, lint, tsc, test:electron 42/42, npm test 658/658). 04-M8 core started.
