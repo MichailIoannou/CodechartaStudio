@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 use codecharta_core_api::ids::{BatchId, JobId, SnapshotId};
 use codecharta_core_api::methods::analysis::{AnalysisJob, AnalysisTarget, JobProgress, JobState};
 use codecharta_core_api::methods::projects::FolderRef;
+use codecharta_core_api::values::FullCommit;
 use tokio::sync::{Notify, broadcast, mpsc};
 use tokio_util::sync::CancellationToken;
 
@@ -12,7 +13,7 @@ use super::runner::RunHooks;
 use super::service::{JobFailure, JobRequest};
 use crate::error::{CoreError, CoreResult};
 use crate::git::progress::ProgressThrottle;
-use crate::ids::new_job_id;
+use crate::ids::{commit_snapshot_id, new_job_id};
 use crate::timestamps;
 
 /// Finished jobs stay listed until they are cleared; only the newest ones are kept.
@@ -190,6 +191,22 @@ impl AnalysisQueue {
         Ok(active.len())
     }
 
+    /// The commit snapshots of `folder` that a running job writes; a forced analysis replaces one that
+    /// exists. A working-tree snapshot only appears once written, so none is listed.
+    pub fn snapshots_being_written(&self, folder: &FolderRef) -> Vec<SnapshotId> {
+        self.lock()
+            .entries
+            .iter()
+            .filter(|entry| entry.job.state == JobState::Running && entry.job.folder() == *folder)
+            .filter_map(|entry| written_snapshot_id(&entry.job))
+            .collect()
+    }
+
+    /// Tells listeners that the snapshots of `folder` changed outside an analysis, such as by a deletion.
+    pub fn announce_snapshots_changed(&self, folder: FolderRef) {
+        self.emit(AnalysisEvent::SnapshotsChanged(folder));
+    }
+
     pub fn list(&self) -> Vec<AnalysisJob> {
         self.lock()
             .entries
@@ -355,6 +372,14 @@ impl AnalysisQueue {
     fn lock(&self) -> MutexGuard<'_, QueueState> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
+}
+
+fn written_snapshot_id(job: &AnalysisJob) -> Option<SnapshotId> {
+    let AnalysisTarget::Commit { sha } = &job.target else {
+        return None;
+    };
+    let commit = FullCommit::try_from(sha.as_str()).ok()?;
+    commit_snapshot_id(&commit, &job.profile_hash).ok()
 }
 
 fn known_outcome(

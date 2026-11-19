@@ -33,8 +33,8 @@ use codecharta_core_api::methods::prompt::{PromptAnswerMethod, PromptCancelMetho
 use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
 use codecharta_core_api::methods::snapshots::{
     SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
-    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsReadLog,
-    SnapshotsRecordMapFacts, SnapshotsResolveForCommit,
+    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsPlanPrune, SnapshotsPrune,
+    SnapshotsReadLog, SnapshotsRecordMapFacts, SnapshotsResolveForCommit, SnapshotsUsage,
 };
 use codecharta_core_api::methods::store::StoreGetStatus;
 use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
@@ -213,6 +213,18 @@ const ROUTES: &[Route] = &[
     Route {
         name: SnapshotsResolveForCommit::NAME,
         handler: snapshots_routes::resolve_for_commit,
+    },
+    Route {
+        name: SnapshotsUsage::NAME,
+        handler: snapshots_routes::usage,
+    },
+    Route {
+        name: SnapshotsPlanPrune::NAME,
+        handler: snapshots_routes::plan_prune,
+    },
+    Route {
+        name: SnapshotsPrune::NAME,
+        handler: snapshots_routes::prune,
     },
     Route {
         name: AnalysisPreflight::NAME,

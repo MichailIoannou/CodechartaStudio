@@ -54,10 +54,12 @@ pub enum ErrorCode {
     PushRejected,
     NoUpstream,
     StalePushLease,
+    SnapshotBeingWritten,
+    RecycleFailed,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 48] = [
+    pub const ALL: [ErrorCode; 50] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -106,6 +108,8 @@ impl ErrorCode {
         ErrorCode::PushRejected,
         ErrorCode::NoUpstream,
         ErrorCode::StalePushLease,
+        ErrorCode::SnapshotBeingWritten,
+        ErrorCode::RecycleFailed,
     ];
 }
 
@@ -209,6 +213,21 @@ mod tests {
                 "NO_UPSTREAM",
                 "STALE_PUSH_LEASE"
             ])
+        );
+    }
+
+    #[test]
+    fn should_serialize_retention_error_codes_as_stable_screaming_snake_case_strings() {
+        // Arrange
+        let codes = [ErrorCode::SnapshotBeingWritten, ErrorCode::RecycleFailed];
+
+        // Act
+        let json = serde_json::to_value(codes).unwrap();
+
+        // Assert
+        assert_eq!(
+            json,
+            serde_json::json!(["SNAPSHOT_BEING_WRITTEN", "RECYCLE_FAILED"])
         );
     }
 

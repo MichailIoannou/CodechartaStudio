@@ -3,7 +3,9 @@ use ts_rs::TS;
 
 use crate::ids::{FolderId, ProjectId, SnapshotId};
 use crate::methods::analysis::{AnalysisTarget, TargetKind};
-use crate::methods::projects::{FolderGitFacts, FolderKind, FolderRef, Project, ResolvedCommit};
+use crate::methods::projects::{
+    FolderGitFacts, FolderKind, FolderRef, Project, ProjectIdParams, ResolvedCommit,
+};
 use crate::registry::method;
 use crate::values::{CommitHash, FullCommit, MapChecksum, PickToken, ProjectName, RootName};
 
@@ -233,6 +235,97 @@ pub struct DeleteSnapshotParams {
     pub permanently: bool,
 }
 
+/// The space the snapshots of one project folder take: their maps and analysis logs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderUsage {
+    pub folder_id: FolderId,
+    pub snapshot_count: u32,
+    pub bytes: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreUsage {
+    pub total_bytes: u64,
+    pub folders: Vec<FolderUsage>,
+}
+
+pub const DEFAULT_KEEP_NEWEST_COMMIT_SNAPSHOTS: u32 = 50;
+pub const DEFAULT_KEEP_NEWEST_WORKING_TREE_SNAPSHOTS: u32 = 3;
+
+/// Which analysed snapshots a clean-up keeps; imported snapshots and the shown one are always kept.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PrunePolicy {
+    pub keep_newest_commit_snapshots: u32,
+    pub keep_newest_working_tree_snapshots: u32,
+    pub keep_branch_tips_and_tags: bool,
+}
+
+impl Default for PrunePolicy {
+    fn default() -> Self {
+        Self {
+            keep_newest_commit_snapshots: DEFAULT_KEEP_NEWEST_COMMIT_SNAPSHOTS,
+            keep_newest_working_tree_snapshots: DEFAULT_KEEP_NEWEST_WORKING_TREE_SNAPSHOTS,
+            keep_branch_tips_and_tags: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PlanPruneParams {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub policy: PrunePolicy,
+}
+
+impl PlanPruneParams {
+    pub fn folder(&self) -> FolderRef {
+        FolderRef {
+            project_id: self.project_id.clone(),
+            folder_id: self.folder_id.clone(),
+        }
+    }
+}
+
+/// What a clean-up with a policy would remove; nothing is removed until `snapshots.prune` names the ids.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct PrunePlan {
+    pub delete: Vec<SnapshotSummary>,
+    pub keep: u32,
+    pub freed_bytes: u64,
+}
+
+/// Removes the listed analysed snapshots: to the recycle bin, or for good only with `permanently`, which
+/// the renderer sends only after asking the user.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PruneParams {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub snapshot_ids: Vec<SnapshotId>,
+    pub permanently: bool,
+}
+
+impl PruneParams {
+    pub fn folder(&self) -> FolderRef {
+        FolderRef {
+            project_id: self.project_id.clone(),
+            folder_id: self.folder_id.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct PruneResult {
+    pub deleted: u32,
+    pub freed_bytes: u64,
+}
+
 /// Resolving never starts an analysis.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -322,6 +415,28 @@ method!(
     ()
 );
 
+method!(
+    SnapshotsUsage,
+    "snapshots.usage",
+    Renderer,
+    ProjectIdParams,
+    StoreUsage
+);
+method!(
+    SnapshotsPlanPrune,
+    "snapshots.planPrune",
+    Renderer,
+    PlanPruneParams,
+    PrunePlan
+);
+method!(
+    SnapshotsPrune,
+    "snapshots.prune",
+    Renderer,
+    PruneParams,
+    PruneResult
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -368,6 +483,25 @@ mod tests {
         );
         assert_eq!(json["source"], json!("imported"));
         assert_eq!(json["originalFileName"], json!("map.cc.json"));
+    }
+
+    #[test]
+    fn should_write_the_default_prune_policy_in_camel_case() {
+        // Arrange
+        let policy = PrunePolicy::default();
+
+        // Act
+        let json = serde_json::to_value(policy).unwrap();
+
+        // Assert
+        assert_eq!(
+            json,
+            json!({
+                "keepNewestCommitSnapshots": 50,
+                "keepNewestWorkingTreeSnapshots": 3,
+                "keepBranchTipsAndTags": true
+            })
+        );
     }
 
     #[test]

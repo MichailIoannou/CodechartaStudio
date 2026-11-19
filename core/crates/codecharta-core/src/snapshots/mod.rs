@@ -9,6 +9,7 @@ pub mod nearest;
 pub mod open_file;
 pub mod record;
 pub mod repository;
+pub mod retention;
 
 pub use folder_resolution::FolderResolver;
 pub use import::{ImportOutcome, ImportRequest};

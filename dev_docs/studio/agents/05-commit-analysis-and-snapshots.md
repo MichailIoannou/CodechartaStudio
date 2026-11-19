@@ -176,6 +176,8 @@ pub enum SnapshotResolution {
 pub struct StoreUsage { total_bytes: u64, folders: Vec<FolderUsage> }
 pub struct PrunePolicy { keep_newest_commit_snapshots: u32, keep_newest_working_tree_snapshots: u32, keep_branch_tips_and_tags: bool }
 pub struct PrunePlan { delete: Vec<SnapshotEntry>, keep: u32, freed_bytes: u64 }
+// as built (05-M6): FolderUsage { folder_id, snapshot_count, bytes }; PrunePlan.delete: Vec<SnapshotSummary>;
+// PruneResult { deleted: u32, freed_bytes: u64 }; BatchResult also has left_out: u32
 ```
 
 `ancestor` is `behind = N, ahead = 0`; `descendant` is `behind = 0, ahead = N`; `diverged` carries both. The renderer words them accordingly.
@@ -194,9 +196,9 @@ JSON-RPC methods (params and result are `codecharta-core-api` types; `folder` = 
 | `snapshots.resolveForCommit` | `folder`, `target` | `SnapshotResolution` |
 | `snapshots.mapLocation` | `SnapshotRef` | `{ path }` (consumed by the Electron shell's map read only, never exposed to the renderer) |
 | `snapshots.readLog` | `SnapshotRef` | `string` |
-| `snapshots.delete` | `SnapshotRef` | `null` |
+| `snapshots.delete` | `SnapshotRef`, `permanently` | `null` |
 | `snapshots.usage` | `{ projectId }` | `StoreUsage` |
-| `snapshots.planPrune` / `snapshots.prune` | `folder`, `policy` / `folder`, `snapshotIds` | `PrunePlan` / `null` |
+| `snapshots.planPrune` / `snapshots.prune` | `folder`, `policy` / `folder`, `snapshotIds`, `permanently` | `PrunePlan` / `PruneResult { deleted, freedBytes }` |
 
 Notifications (core → renderer; payload `{ job: AnalysisJob }` unless noted): `analysis.queued`, `analysis.started`, `analysis.progress` (`{ jobId, progress }`, at most every 250 ms), `analysis.finished` (`snapshotId` set), `analysis.failed` (`error` set), `analysis.cancelled`; `snapshots.changed` (`{ projectId, folderId }`). Errors that are not job outcomes (unknown project, malformed id) are JSON-RPC errors with plan 01's `CoreError` codes. The renderer never sends a path, a ref name or an argv: ids resolve through the stores, `sha` is a validated `Sha`, counts are `1..=500` (`LastCommits.count` is capped at `MAX_BATCH_JOBS = 200`).
 
@@ -524,9 +526,11 @@ pub fn store_usage(repo: &SnapshotRepository, project_id: &str) -> Result<StoreU
 pub async fn plan_prune(git: &GitService, repo_path: Option<&Path>, snapshots: &[SnapshotEntry], policy: &PrunePolicy, shown: Option<&SnapshotId>) -> Result<PrunePlan, SnapshotError>;
 ```
 
-- `snapshots.delete` refuses while a job for that id is running, then moves the snapshot folder to the OS recycle bin (candidate crate `trash`, UNVERIFIED; falls back to `remove_dir_all` when the recycle bin is unavailable, e.g. a headless Linux session). If the snapshot is currently shown, the renderer keeps the map on screen and re-resolves on `snapshots.changed`.
+- `snapshots.delete` refuses while a job for that id is running, then moves the snapshot folder to the OS recycle bin (crate `trash`, in use since 03-M3). When the recycle bin fails (e.g. a headless Linux session) nothing is removed and the request answers `RECYCLE_FAILED`; the renderer may then ask the user and send the request again with `permanently: true` (owner decision: deletions go to the recycle bin — the core never falls back to deleting for good on its own). If the snapshot is currently shown, the renderer keeps the map on screen and re-resolves on `snapshots.changed`.
 - Imported snapshots are never part of a prune plan; they can only be deleted one by one.
 - Default policy `{ keep_newest_commit_snapshots: 50, keep_newest_working_tree_snapshots: 3, keep_branch_tips_and_tags: true }`. Kept: snapshots whose commit is a current branch tip or tag (`git for-each-ref --format=%(objectname)%00%(*objectname) refs/heads refs/remotes refs/tags`), the newest N commit snapshots by `commit_date`, the newest K working-tree snapshots, and the snapshot currently shown. The rest is listed in the plan. Nothing is deleted without the user confirming the list in `cc-cleanup-dialog`. There is no automatic pruning.
+
+As built (05-M6): `snapshots::retention::{Retention { projects, snapshots, git, queue }, Protected, select_for_pruning}` (the plan's two free functions with 5 parameters became a struct like `FolderResolver` plus a pure selection): `usage(project_id) -> StoreUsage` (per folder of the project, in its order: `snapshotCount` and the bytes of `map.cc.json.gz` + `run.log`), `delete(snapshot, permanently)`, `plan_prune(folder, policy, cancel) -> PrunePlan` (shown snapshot read from the project's `view`, branch tips and tags from plan 04's `GitService::refs`, none for a plain or missing folder; snapshots a running job writes are protected too; `freedBytes` measured like `usage`; `keep` counts every snapshot not listed, imports included), `prune(folder, snapshot_ids, permanently) -> PruneResult { deleted, freedBytes }` (checks every id first: unknown `NOT_FOUND`, imported `BAD_REQUEST`, being written `SNAPSHOT_BEING_WRITTEN`; then removes them in order and stops at the first failure — those removed before stay removed). Working-tree snapshots are told apart by `target` (or a `worktree-` id) and are never kept as branch tips. "Being written" = a running job whose commit target and profile give that snapshot id (`AnalysisQueue::snapshots_being_written`); a working-tree snapshot is invisible until written. `delete` and `prune` emit `snapshots.changed` (`AnalysisQueue::announce_snapshots_changed`). New error codes `SNAPSHOT_BEING_WRITTEN`, `RECYCLE_FAILED` (the system recycler answers it instead of `IO`, for project deletion and discarded files too).
 
 ### Headless CLI (`codecharta-cored/src/cli/`)
 
@@ -622,7 +626,7 @@ No production code; record the answers in Notes and adjust later tasks if an ass
 
 1. `analysis/batch.rs` + `analysis.enqueueBatch` / `analysis.cancelBatch`. Tests: should expand the last N first-parent commits; should peel annotated tags; should skip analysed commits; should cap at 200; should only estimate on a dry run; should cancel all jobs of a batch. Commit: `feat(core): queue analyses for several commits`
 2. `cc-batch-analysis-dialog` (last N of the current branch, every tag) with the dry-run confirmation. Tests: should show counts and estimate; should enqueue on confirm. Commit: `feat(visualization): analyse the last commits or all tags`
-3. `snapshots/retention.rs` + `usage`, `delete`, `planPrune`, `prune` handlers. Tests: should sum sizes per folder; should refuse to delete a snapshot being written; should keep branch tips, tags, the newest N and the shown snapshot; should list the rest; should never list an imported snapshot; should fall back to removal when the recycle bin fails. Commit: `feat(core): measure and prune the snapshot store`
+3. `snapshots/retention.rs` + `usage`, `delete`, `planPrune`, `prune` handlers. Tests: should sum sizes per folder; should refuse to delete a snapshot being written; should keep branch tips, tags, the newest N and the shown snapshot; should list the rest; should never list an imported snapshot; should report a failing recycle bin and delete permanently only when asked (was "should fall back to removal when the recycle bin fails", replaced by the owner decision that deletions go to the recycle bin). Commit: `feat(core): measure and prune the snapshot store`
 4. Delete action, store size footer and `cc-cleanup-dialog`. Tests: should ask before deleting; should list what a clean-up removes and the space it frees. Commit: `feat(visualization): delete snapshots and clean up the store`
 5. Changelog → Added: `- **Analysis batches and clean-up**: analyse the last commits of a branch or every tag in one go, see how much space analyses take, and remove old ones.` Commit: `docs(visualization): announce analysis batches and clean-up`
 - Acceptance: manual checklist items 9–11.

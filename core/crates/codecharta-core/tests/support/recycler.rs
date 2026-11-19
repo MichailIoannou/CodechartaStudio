@@ -43,9 +43,9 @@ impl RecordingRecycler {
 impl Recycler for RecordingRecycler {
     fn recycle(&self, path: &Path) -> CoreResult<()> {
         if self.fails {
-            return Err(CoreError::Io {
-                context: "The recycle bin is not available".to_string(),
-                source: std::io::Error::other("no bin"),
+            return Err(CoreError::RecycleFailed {
+                path: path.display().to_string(),
+                reason: "the recycle bin is not available".to_string(),
             });
         }
         let mut recycled = self.recycled.lock().expect("not poisoned");

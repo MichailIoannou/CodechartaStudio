@@ -589,7 +589,7 @@ fn distance_to<'snapshots>(
 }
 
 /// Seconds since the epoch of an ISO 8601 date with offset, the form commit dates take in the records.
-fn commit_seconds(date: &str) -> Option<i64> {
+pub(crate) fn commit_seconds(date: &str) -> Option<i64> {
     let (date_time, offset) = date.split_at_checked(DATE_TIME_LENGTH)?;
     let utc = humantime::parse_rfc3339(&format!("{date_time}{UTC_SUFFIX}")).ok()?;
     let seconds = i64::try_from(utc.duration_since(UNIX_EPOCH).ok()?.as_secs()).ok()?;

@@ -69,6 +69,7 @@ import type { PathsInfo } from "./PathsInfo"
 import type { PickedFolder } from "./PickedFolder"
 import type { PickedImportFile } from "./PickedImportFile"
 import type { PingResult } from "./PingResult"
+import type { PlanPruneParams } from "./PlanPruneParams"
 import type { PreflightParams } from "./PreflightParams"
 import type { PreflightResult } from "./PreflightResult"
 import type { ProgressParams } from "./ProgressParams"
@@ -79,6 +80,9 @@ import type { PromptAnswerParams } from "./PromptAnswerParams"
 import type { PromptCancelParams } from "./PromptCancelParams"
 import type { PromptClosed } from "./PromptClosed"
 import type { PromptRequested } from "./PromptRequested"
+import type { PruneParams } from "./PruneParams"
+import type { PrunePlan } from "./PrunePlan"
+import type { PruneResult } from "./PruneResult"
 import type { RecordMapFactsParams } from "./RecordMapFactsParams"
 import type { RefsAt } from "./RefsAt"
 import type { RelinkFolderParams } from "./RelinkFolderParams"
@@ -101,6 +105,7 @@ import type { SnapshotSummary } from "./SnapshotSummary"
 import type { SourceFileLookup } from "./SourceFileLookup"
 import type { SourceFileParams } from "./SourceFileParams"
 import type { StoreStatus } from "./StoreStatus"
+import type { StoreUsage } from "./StoreUsage"
 import type { ToolsReport } from "./ToolsReport"
 import type { UpdateFolderParams } from "./UpdateFolderParams"
 import type { UpdateProjectParams } from "./UpdateProjectParams"
@@ -155,7 +160,9 @@ export const CORE_ERROR_CODES = [
     "NOT_FAST_FORWARD",
     "PUSH_REJECTED",
     "NO_UPSTREAM",
-    "STALE_PUSH_LEASE"
+    "STALE_PUSH_LEASE",
+    "SNAPSHOT_BEING_WRITTEN",
+    "RECYCLE_FAILED"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {
@@ -197,6 +204,9 @@ export type CoreMethods = {
     "snapshots.delete": { params: DeleteSnapshotParams; result: null }
     "snapshots.readLog": { params: SnapshotRef; result: SnapshotLog }
     "snapshots.resolveForCommit": { params: ResolveForCommitParams; result: SnapshotResolution }
+    "snapshots.usage": { params: ProjectIdParams; result: StoreUsage }
+    "snapshots.planPrune": { params: PlanPruneParams; result: PrunePlan }
+    "snapshots.prune": { params: PruneParams; result: PruneResult }
     "analysis.preflight": { params: PreflightParams; result: PreflightResult }
     "analysis.enqueue": { params: EnqueueParams; result: EnqueueResult }
     "analysis.cancel": { params: JobRefParams; result: null }
@@ -283,6 +293,9 @@ export const RENDERER_METHODS = [
     "snapshots.delete",
     "snapshots.readLog",
     "snapshots.resolveForCommit",
+    "snapshots.usage",
+    "snapshots.planPrune",
+    "snapshots.prune",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",

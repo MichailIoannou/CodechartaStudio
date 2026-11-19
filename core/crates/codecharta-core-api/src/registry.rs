@@ -33,8 +33,8 @@ use crate::methods::prompt::{
 use crate::methods::shell::ShellResolvePath;
 use crate::methods::snapshots::{
     SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
-    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsReadLog,
-    SnapshotsRecordMapFacts, SnapshotsResolveForCommit,
+    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsPlanPrune, SnapshotsPrune,
+    SnapshotsReadLog, SnapshotsRecordMapFacts, SnapshotsResolveForCommit, SnapshotsUsage,
 };
 use crate::methods::store::StoreGetStatus;
 use crate::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
@@ -171,6 +171,9 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<SnapshotsDelete>(),
     MethodSpec::of::<SnapshotsReadLog>(),
     MethodSpec::of::<SnapshotsResolveForCommit>(),
+    MethodSpec::of::<SnapshotsUsage>(),
+    MethodSpec::of::<SnapshotsPlanPrune>(),
+    MethodSpec::of::<SnapshotsPrune>(),
     MethodSpec::of::<AnalysisPreflight>(),
     MethodSpec::of::<AnalysisEnqueue>(),
     MethodSpec::of::<AnalysisCancel>(),

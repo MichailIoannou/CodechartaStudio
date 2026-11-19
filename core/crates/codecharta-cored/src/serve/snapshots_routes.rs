@@ -1,7 +1,11 @@
 use std::path::Path;
 
+use codecharta_core::analysis::queue::AnalysisQueue;
+use codecharta_core::git::GitService;
+use codecharta_core::projects::ProjectRepository;
+use codecharta_core::snapshots::retention::Retention;
 use codecharta_core::snapshots::{
-    FolderResolver, ImportRequest, MapFacts, OpenFileRequest, SnapshotMove,
+    FolderResolver, ImportRequest, MapFacts, OpenFileRequest, SnapshotMove, SnapshotRepository,
 };
 use codecharta_core::{Core, CoreResult, path_to_wire};
 use codecharta_core_api::methods::projects::FolderRef;
@@ -9,8 +13,8 @@ use codecharta_core_api::methods::snapshots::{
     ImportSnapshotParams, MapLocation, OpenFileParams, OpenedFile, ResolveForCommitParams,
     SnapshotList, SnapshotLog, SnapshotRef, SnapshotResolution, SnapshotSummary, SnapshotsDelete,
     SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList, SnapshotsMapLocation,
-    SnapshotsMove, SnapshotsOpenFile, SnapshotsReadLog, SnapshotsRecordMapFacts,
-    SnapshotsResolveForCommit,
+    SnapshotsMove, SnapshotsOpenFile, SnapshotsPlanPrune, SnapshotsPrune, SnapshotsReadLog,
+    SnapshotsRecordMapFacts, SnapshotsResolveForCommit, SnapshotsUsage,
 };
 use codecharta_core_api::registry::Method;
 use serde_json::Value;
@@ -189,9 +193,77 @@ pub fn delete(core: &Core, _context: RequestContext, params: Value) -> HandlerFu
             snapshot_id: params.snapshot_id,
         };
         let deleted = async {
-            let snapshots = core.snapshots()?;
-            snapshots.delete(&snapshot, params.permanently).await
+            let parts = RetentionParts::of(core)?;
+            parts
+                .retention()
+                .delete(&snapshot, params.permanently)
+                .await
         };
         answer::<SnapshotsDelete>(deleted.await)
     })
+}
+
+pub fn usage(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<SnapshotsUsage>(params)?;
+        let measured =
+            RetentionParts::of(core).and_then(|parts| parts.retention().usage(&params.project_id));
+        answer::<SnapshotsUsage>(measured)
+    })
+}
+
+pub fn plan_prune(core: &Core, context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<SnapshotsPlanPrune>(params)?;
+        let planned = async {
+            let parts = RetentionParts::of(core)?;
+            parts
+                .retention()
+                .plan_prune(&params.folder(), &params.policy, &context.cancel)
+                .await
+        };
+        answer::<SnapshotsPlanPrune>(planned.await)
+    })
+}
+
+pub fn prune(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<SnapshotsPrune>(params)?;
+        let pruned = async {
+            let parts = RetentionParts::of(core)?;
+            parts
+                .retention()
+                .prune(&params.folder(), &params.snapshot_ids, params.permanently)
+                .await
+        };
+        answer::<SnapshotsPrune>(pruned.await)
+    })
+}
+
+/// What a `Retention` of the serving core borrows.
+struct RetentionParts<'core> {
+    projects: ProjectRepository<'core>,
+    snapshots: SnapshotRepository<'core>,
+    git: GitService<'core>,
+    queue: &'core AnalysisQueue,
+}
+
+impl<'core> RetentionParts<'core> {
+    fn of(core: &'core Core) -> CoreResult<Self> {
+        Ok(Self {
+            projects: core.projects()?,
+            snapshots: core.snapshots()?,
+            git: core.git()?,
+            queue: core.analysis_queue(),
+        })
+    }
+
+    fn retention(&self) -> Retention<'_, 'core> {
+        Retention {
+            projects: &self.projects,
+            snapshots: &self.snapshots,
+            git: &self.git,
+            queue: self.queue,
+        }
+    }
 }

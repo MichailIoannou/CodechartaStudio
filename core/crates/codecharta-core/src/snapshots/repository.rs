@@ -130,6 +130,19 @@ impl<'deps> SnapshotRepository<'deps> {
         Ok(map_file)
     }
 
+    /// The bytes of the snapshot's map and analysis log; an import has no log.
+    pub fn bytes_on_disk(&self, snapshot: &SnapshotRef) -> CoreResult<u64> {
+        let snapshot_dir = self.store.paths().snapshot_dir(
+            &snapshot.project_id,
+            &snapshot.folder_id,
+            &snapshot.snapshot_id,
+        )?;
+        [MAP_FILE_NAME, RUN_LOG_FILE_NAME]
+            .iter()
+            .map(|name| file_bytes(&snapshot_dir.join(name)))
+            .sum()
+    }
+
     /// Sends the snapshot's directory to the recycle bin, or deletes it when `permanently`; a folder that
     /// showed it forgets it.
     pub async fn delete(&self, snapshot: &SnapshotRef, permanently: bool) -> CoreResult<()> {
@@ -425,6 +438,14 @@ fn snapshot_ids_in(folder_dir: &Path) -> CoreResult<Vec<SnapshotId>> {
             SnapshotId::try_from(entry.file_name().to_string_lossy().into_owned()).ok()
         })
         .collect())
+}
+
+fn file_bytes(file: &Path) -> CoreResult<u64> {
+    match fs::metadata(file) {
+        Ok(metadata) => Ok(metadata.len()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(0),
+        Err(source) => Err(io_error("measure", file, source)),
+    }
 }
 
 fn is_newer_schema(content: &Value) -> bool {

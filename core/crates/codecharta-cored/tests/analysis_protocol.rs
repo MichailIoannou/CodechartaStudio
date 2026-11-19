@@ -296,6 +296,41 @@ fn should_queue_a_batch_and_cancel_it_over_json_rpc() {
     assert_eq!(error_data_code(&refused), "BAD_REQUEST");
 }
 
+#[test]
+fn should_measure_plan_and_prune_the_store_over_json_rpc() {
+    // Arrange
+    let mut core = AnalysisCore::start(&json!({ "write_map": true }));
+    core.enqueue_head_until("snapshots.changed");
+    let project = json!({ "projectId": core.folder["projectId"] });
+    let mut plan_params = core.folder.clone();
+    plan_params["policy"] = json!({
+        "keepNewestCommitSnapshots": 0,
+        "keepNewestWorkingTreeSnapshots": 0,
+        "keepBranchTipsAndTags": false
+    });
+
+    // Act
+    let usage = core.request("snapshots.usage", project.clone());
+    let plan = core.request("snapshots.planPrune", plan_params);
+    let mut prune_params = core.folder.clone();
+    prune_params["snapshotIds"] = json!([plan["result"]["delete"][0]["ref"]["snapshotId"]]);
+    prune_params["permanently"] = json!(true);
+    let pruned = core.request("snapshots.prune", prune_params);
+    let usage_after = core.request("snapshots.usage", project);
+
+    // Assert
+    let total = usage["result"]["totalBytes"].clone();
+    assert!(total.as_u64().is_some_and(|bytes| bytes > 0), "{usage}");
+    assert_eq!(usage["result"]["folders"][0]["snapshotCount"], 1);
+    assert_eq!(plan["result"]["keep"], 0, "{plan}");
+    assert_eq!(plan["result"]["freedBytes"], total);
+    assert_eq!(
+        pruned["result"],
+        json!({ "deleted": 1, "freedBytes": total })
+    );
+    assert_eq!(usage_after["result"]["totalBytes"], 0);
+}
+
 const PLAIN_MAP: &str = r#"{"projectName":"demo","apiVersion":"1.5","nodes":[]}"#;
 
 fn resolve_params(folder: &Value, target: Value) -> Value {
