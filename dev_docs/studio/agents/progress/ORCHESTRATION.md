@@ -62,8 +62,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M2 Snapshot records | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m2 | 3eff64af5 (verified, not merged) |
 | 05-M3 Queue, preflight, RPC, CLI | core (+ fake bridge) | tasks 1–4 verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (fake bridge): core stack merge | feature/studio-05-m3 | b3b7a6164 (verified, not merged) |
 | 05-M4 Analyse from the UI, browse snapshots | UI | todo | 05-M3; 04 UI | — | — |
-| 05-M5 Nearest snapshot and stale notice | core + UI | in progress (core: task 1, task 2 without fake bridge; from feature/studio-05-m3) | UI tasks: core stack merge, 05-M4 | feature/studio-05-m5 | — |
-| 05-M6 Batches, retention, cleanup | core + UI | todo | 05-M5 | — | — |
+| 05-M5 Nearest snapshot and stale notice | core + UI | core half verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge, 05-M4 | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
+| 05-M6 Batches, retention, cleanup | core + UI | in progress (core tasks 1, 3; from feature/studio-05-m5) | UI tasks: core stack merge | feature/studio-05-m6 | — |
 | 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
 | 06-M0 Spikes | spike | todo | plan 05 core (item 3 needs Windows) | — | — |
 | 06-M1 Compare core: commit vs commit | core + UI | todo | plan 05 core | — | — |
@@ -242,6 +242,11 @@ the milestone is started.
   `analysis.progress` event (a job outlives its request); `snapshots.changed` after `analysis.finished`;
   failed-job log has no RPC yet (add `analysis.readLog` api-first when the UI needs it). Real ccsh 2.4.0
   produced working-tree and commit snapshots via the CLI with no worktree left behind.
+- 05-M5 core (see `05-m5-nearest-snapshot.md` on `feature/studio-05-m5`): `rev_list_with_parents` without
+  `--date-order` (which forced a full walk: 368 ms vs 1.6 ms); resolutions carry reason codes; cache keyed by a
+  fingerprint of the snapshot set (imports/moves/deletes emit no event). 100k commits: 8–704 ms first call,
+  µs cached. `SnapshotResolution` kinds: `exact`, `nearest` (`ancestor`/`descendant`/`diverged`, `behind`,
+  `ahead`), `latest` (reason), `none` (reason). Resolving never enqueues.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -273,6 +278,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 05-M5 core verified on a scratch merge (clippy and cargo test with and without features: 747/751, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 05-M6 core started.
 - 2026-11-19: 05-M3 core verified on a scratch merge (clippy and cargo test with and without features: 724/728, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). After the reset (5%), 05-M5 core started.
 - 2026-11-19: 05-M2 verified on a scratch merge (clippy and cargo test with and without features: 682/686, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 05-M3 tasks 1–4 started.
 - 2026-11-19: 02-M6 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 663/663, build, test:electron 45/45, e2e:desktop 10/10, web e2e:ci 165/165). Plan 02 complete. The visualization lane now has no allowed work until the core stack (03-M2…05-M1) is merged into integration.
