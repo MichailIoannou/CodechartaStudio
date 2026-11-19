@@ -26,7 +26,7 @@ export class AxisCardComponent {
     readonly dimmed = input(false)
     readonly testId = input<string | null>(null)
     readonly cogTestId = input<string | null>(null)
-    readonly minWidthClass = input("xl:min-w-[120px]")
+    readonly minWidthClass = input("")
 
     readonly cardClasses = "flex flex-col items-stretch gap-1 max-w-[180px] min-w-0"
 

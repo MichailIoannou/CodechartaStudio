@@ -1,4 +1,4 @@
-<cc-domain-segment #shape label="Shape" [value]="shapeLabel()" idPrefix="domain-bar-shape" minWidthClass="xl:min-w-[100px]">
+<cc-domain-segment #shape label="Shape" [value]="shapeLabel()" idPrefix="domain-bar-shape">
     <cc-shape-settings-popover [popoverId]="shape.popoverId()" [anchorName]="shape.anchorName()"></cc-shape-settings-popover>
 </cc-domain-segment>
 
@@ -10,7 +10,7 @@
     ></cc-word-sizing-settings-popover>
 </cc-domain-segment>
 
-<cc-domain-segment #rotation label="Rotation" [value]="rotationRangeLabel()" idPrefix="domain-bar-rotation" minWidthClass="xl:min-w-[110px]">
+<cc-domain-segment #rotation label="Rotation" [value]="rotationRangeLabel()" idPrefix="domain-bar-rotation">
     <cc-rotation-settings-popover [popoverId]="rotation.popoverId()" [anchorName]="rotation.anchorName()"></cc-rotation-settings-popover>
 </cc-domain-segment>
 
