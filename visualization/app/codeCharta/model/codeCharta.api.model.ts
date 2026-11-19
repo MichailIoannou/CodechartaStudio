@@ -1,10 +1,12 @@
 import { CcJson2 } from "./ccjson2.model"
 import { AttributeDescriptors, AttributeTypes, AttributeTypeValue, CodeMapNode, Edge, MarkedPackage } from "./codeCharta.model"
+import { ProjectSnapshotOrigin } from "./projectSnapshot.model"
 
 export interface NameDataPair {
     fileName: string
     fileSize: number
     content: ExportCCFile | CcJson2
+    projectSnapshot?: ProjectSnapshotOrigin
 }
 
 export interface ExportCCFile {
