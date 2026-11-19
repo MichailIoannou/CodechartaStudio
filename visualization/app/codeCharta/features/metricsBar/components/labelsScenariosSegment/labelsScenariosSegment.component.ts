@@ -21,7 +21,7 @@ import {
     selector: "cc-labels-scenarios-segment",
     templateUrl: "./labelsScenariosSegment.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: `group relative flex flex-col items-stretch ${BAR_CELL_CLASSES}`, "[class]": "openClasses()" },
+    host: { class: `group relative flex min-w-0 flex-col items-stretch ${BAR_CELL_CLASSES}`, "[class]": "openClasses()" },
     imports: [
         LabelSettingsPanelComponent,
         ScenarioListDialogComponent,
