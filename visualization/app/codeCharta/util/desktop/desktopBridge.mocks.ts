@@ -966,7 +966,8 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         }
         const [baseRevision, headRevision] = revisions as string[]
         const mergeBase = usesMergeBase(intent, baseRevision) ? mergeBaseOf(folder.folderId, baseRevision, headRevision) : null
-        const base = comparedSide(folder, mergeBase ?? baseRevision)
+        const isTipTheMergeBase = mergeBase === commitAtRevision(folder.folderId, baseRevision)
+        const base = comparedSide(folder, mergeBase && !isTipTheMergeBase ? mergeBase : baseRevision)
         const head = comparedSide(folder, headRevision)
         const shown = [base, head].map(side =>
             side.status.status === "exact" ? (side.status.snapshot as SnapshotSummary) : (side.status.nearest?.snapshot ?? null)

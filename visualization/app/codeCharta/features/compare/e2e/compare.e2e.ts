@@ -5,6 +5,8 @@ import { expect, test } from "@playwright/test"
 import { goto, standInForTheDesktopBridge } from "../../../../playwright.helper"
 import type { GitCommitSummary } from "../../../model/coreApi/GitCommitSummary"
 import type { GitRefs } from "../../../model/coreApi/GitRefs"
+import { GitHistoryPageObject } from "../../gitHistory/e2e/gitHistory.po"
+import { aRepositoryInfo, aStatusOn } from "../../gitHistory/services/gitApi.mocks"
 import { MetricsBarPageObject } from "../../metricsBar/components/metricsBar/metricsBar.po"
 import { aFolder, aProject, aSnapshot } from "../../projects/projects.mocks"
 import { ExplorerTreeLevelPageObject } from "../../sidebarExplorer/components/explorerTreeLevel/explorerTreeLevel.po"
@@ -15,6 +17,8 @@ const gzippedSample = (fileName: string) => [...gzipSync(readFileSync(join(ASSET
 
 const BASE_SHA = "9f8e7d6".padEnd(40, "0")
 const HEAD_SHA = "a1b2c3d".padEnd(40, "0")
+const NEXT_SHA = "b2c3d4e".padEnd(40, "0")
+const LATEST_SHA = "c3d4e5f".padEnd(40, "0")
 const BILLING = aProject("p-billing", [aFolder("f-api", { label: "billing-api" })], {
     name: "billing",
     view: { workingFolderId: "f-api", shownSnapshotIdByFolder: { "f-api": "s-head" } }
@@ -42,7 +46,7 @@ const branch = (name: string, sha: string, isCurrent: boolean) => ({
 const REFS = {
     fingerprint: "refs-1",
     head: { kind: "branch", name: "feature/x", commit: HEAD_SHA },
-    localBranches: [branch("main", BASE_SHA, false), branch("feature/x", HEAD_SHA, true)],
+    localBranches: [branch("main", BASE_SHA, false), branch("feature/x", HEAD_SHA, true), branch("feature/later", LATEST_SHA, false)],
     remoteBranches: [],
     tags: [],
     remotes: []
@@ -55,7 +59,19 @@ test.describe("Compare", () => {
             activeProjectId: "p-billing",
             snapshots: [commitSnapshot("s-base", BASE_SHA, "Release 2.4.0"), commitSnapshot("s-head", HEAD_SHA, "Fix invoice rounding")],
             snapshotMaps: { "s-base": gzippedSample("sample1.cc.json"), "s-head": gzippedSample("sample2.cc.json") },
-            git: { "f-api": { refs: REFS, commits: [commit(HEAD_SHA, [BASE_SHA]), commit(BASE_SHA, [])] } }
+            git: {
+                "f-api": {
+                    info: aRepositoryInfo(),
+                    status: aStatusOn("feature/x", { head: { kind: "branch", name: "feature/x", commit: HEAD_SHA } }),
+                    refs: REFS,
+                    commits: [
+                        commit(LATEST_SHA, [NEXT_SHA]),
+                        commit(NEXT_SHA, [HEAD_SHA]),
+                        commit(HEAD_SHA, [BASE_SHA]),
+                        commit(BASE_SHA, [])
+                    ]
+                }
+            }
         })
         await goto(page)
     })
@@ -101,6 +117,53 @@ test.describe("Compare", () => {
         await expect(page.locator("cc-sidebar-explorer")).not.toContainText("sample1OnlyLeaf.scss")
     })
 
+    test("should pick both sides from the lists and compare a branch from where it left the base", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        await compare.openTheDialogFromTheCompareTab()
+
+        // Act
+        await compare.pick("base", "mai", "main")
+        await compare.pick("head", "feature/x", "feature/x")
+        await compare.submit()
+
+        // Assert
+        await expect(compare.chip()).toContainText("9f8e7d6")
+        await expect(compare.chip()).toContainText("feature/x")
+        await expect(compare.baseModeBadge()).toHaveText("since merge base")
+    })
+
+    test("should compare again from a recent comparison", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        await compare.openTheDialogFromTheCompareTab()
+        await compare.compare("main", "feature/x")
+        await compare.leave()
+        await compare.openTheDialogFromTheCompareTab()
+
+        // Act
+        await compare.useRecent()
+        await compare.submit()
+
+        // Assert
+        await expect(compare.chip()).toContainText("main")
+        await expect(compare.chip()).toContainText("feature/x")
+    })
+
+    test("should compare a commit with its parent from the History", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        const history = new GitHistoryPageObject(page)
+        await history.open()
+
+        // Act
+        await compare.chooseFromTheCommitMenu(history.commitRows().filter({ hasText: "a1b2c3d" }), "Compare with Parent")
+
+        // Assert
+        await expect(compare.chip()).toContainText("9f8e7d6")
+        await expect(compare.chip()).toContainText("a1b2c3d")
+    })
+
     test("should name a ref the folder does not have", async ({ page }) => {
         // Arrange
         const compare = new ComparePageObject(page)
@@ -111,5 +174,21 @@ test.describe("Compare", () => {
 
         // Assert
         await expect(page.getByTestId("compare-error")).toHaveText("'nope' is not a branch, tag or commit of 'billing-api'.")
+    })
+
+    test("should compare with the nearest analysis of a head that is not analysed and say how stale it is", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        await compare.openTheDialogFromTheCompareTab()
+        await compare.compare("main", "feature/later")
+        await expect(compare.preparation()).toContainText("not analysed · nearest: a1b2c3d, 2 commits older")
+
+        // Act
+        await compare.useNearest()
+
+        // Assert
+        await expect(compare.dialog()).toHaveCount(0)
+        await expect(compare.staleBadge()).toHaveText("stale by 2")
+        await expect(compare.staleBadge()).toHaveAttribute("title", "No analysis for c3d4e5f. Showing a1b2c3d, 2 commits older.")
     })
 })
