@@ -3,7 +3,7 @@ import { CopyToClipboardService } from "../../../../util/copyToClipboard.service
 import { ToastService } from "../../../shared/facade"
 import type { LoadedSide, ResolvedComparison } from "../../model/compare.model"
 import { CompareService } from "../../services/compare.service"
-import { rangeText, refName, sideCaption, staleTitle } from "../../services/comparisonText"
+import { rangeText, refName, sideCaption, staleBadge, staleTitle } from "../../services/comparisonText"
 import { CompareStore } from "../../stores/compare.store"
 
 interface BaseModeBadge {
@@ -15,7 +15,7 @@ interface ChipSide {
     caption: string
     shortCommit: string
     label: string | null
-    staleBy: number
+    staleBadge: string | null
     staleTitle: string
 }
 
@@ -101,8 +101,8 @@ function chipSideOf(caption: string, side: LoadedSide | null): ChipSide | null {
               caption,
               shortCommit: side.requested.shortCommit,
               label: sideCaption(side.requested),
-              staleBy: side.staleBy,
-              staleTitle: side.staleBy > 0 ? staleTitle(side) : ""
+              staleBadge: staleBadge(side),
+              staleTitle: side.relation ? staleTitle(side) : ""
           }
         : null
 }

@@ -18,6 +18,7 @@ export type {
     FolderRef,
     ResolvedComparison,
     ResolvedSide,
+    SnapshotRelation,
     SnapshotSummary
 }
 
@@ -39,6 +40,9 @@ export interface LoadedSide {
     /** How the shown snapshot relates to the requested commit when it is the nearest one, else null. */
     relation: SnapshotRelation | null
     staleBy: number
+    /** Commits the asked commit has that the shown snapshot lacks, and the other way round; 0 for its own snapshot. */
+    behind: number
+    ahead: number
     checksum: string
 }
 

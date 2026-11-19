@@ -304,10 +304,10 @@ function needsDecision({ base, head, preflight }: ResolvedComparison): boolean {
 
 function shownSideOf({ requested, status }: ResolvedSide): ShownSide | null {
     if (status.status === "exact") {
-        return { requested, snapshot: status.snapshot, relation: null, staleBy: 0 }
+        return { requested, snapshot: status.snapshot, relation: null, staleBy: 0, behind: 0, ahead: 0 }
     }
     const { nearest } = status
-    return nearest ? { requested, snapshot: nearest.snapshot, relation: nearest.relation, staleBy: nearest.staleBy } : null
+    return nearest ? { requested, ...nearest } : null
 }
 
 function unreadable(side: ShownSide): CompareError {

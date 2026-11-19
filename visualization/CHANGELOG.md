@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **Store folder**: the desktop settings can move where analyses are kept to another folder.
 - **Analyses in the app**: the desktop app analyses the current checkout, the HEAD commit or any commit picked in the History of a project folder, shows the progress in the nav bar and which commits are analysed in the History, opens the new map when it is done and lists every analysis of a project to reopen later.
 - **Nearest analysis**: when the current checkout of a desktop project has no analysis, the map shows the closest analysed commit, a notice and the nav bar say how many commits it is off, and the notice offers to analyse the checkout.
-- **Compare commits**: in the desktop app, compare two commits, branches or tags of a project folder, picked in the Compare dialog, from a recent comparison or from the History's menus, either from where a branch left its target or tip with tip.
+- **Compare commits**: in the desktop app, compare two commits, branches or tags of a project folder, picked in the Compare dialog, from a recent comparison or from the History's menus, either from where a branch left its target or tip with tip; a side without an analysis can be analysed first or shown by its nearest analysis, and the nav bar says how far off each side then is.
 
 ### Changed
 

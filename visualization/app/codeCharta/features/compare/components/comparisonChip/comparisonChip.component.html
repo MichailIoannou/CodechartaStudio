@@ -34,8 +34,10 @@
                         <span class="truncate">{{ side.label }}</span>
                     }
                 </button>
-                @if (side.staleBy > 0) {
-                    <span class="badge badge-warning badge-sm shrink-0 whitespace-nowrap" [title]="side.staleTitle">stale by {{ side.staleBy }}</span>
+                @if (side.staleBadge) {
+                    <span class="badge badge-warning badge-sm shrink-0 whitespace-nowrap" data-testid="comparison-stale" [title]="side.staleTitle">{{
+                        side.staleBadge
+                    }}</span>
                 }
             }
         }

@@ -125,7 +125,46 @@ describe("ComparePreparationComponent", () => {
         expect(service.cancelAnalyses).toHaveBeenCalled()
     })
 
-    it("should offer to compare anyway when only the size warns", async () => {
+    it("should block a comparison above the size limit", async () => {
+        // Act
+        await decide(
+            aResolvedComparison({
+                head: HEAD_WITH_NEAREST,
+                preflight: { identicalChecksums: false, profilesDiffer: false, combinedBytes: 1, sizeVerdict: "block" }
+            })
+        )
+
+        // Assert
+        expect(screen.getByTestId("compare-size-block").textContent?.trim()).toBe(
+            "Too large to compare in memory. Analyse with a lighter profile or compare a sub-folder."
+        )
+        expect(screen.queryByTestId("compare-use-nearest")).toBeNull()
+        expect(screen.queryByTestId("compare-analyse-missing")).toBeNull()
+    })
+
+    it("should word a nearest analysis that is newer or on another line", async () => {
+        // Act
+        await decide(
+            aResolvedComparison({
+                base: {
+                    ...HEAD_WITH_NEAREST,
+                    status: { status: "missing", nearest: { ...NEAREST, relation: "descendant", behind: 0, ahead: 4 } }
+                },
+                head: {
+                    ...HEAD_WITH_NEAREST,
+                    status: { status: "missing", nearest: { ...NEAREST, relation: "diverged", behind: 3, ahead: 2 } }
+                }
+            })
+        )
+
+        // Assert
+        expect(textOf("compare-preparation-side")).toEqual([
+            "BASEa1b2c3d (feature/x) not analysed · nearest: 3c4d5e6, which is ahead by 4 commits",
+            "HEADa1b2c3d (feature/x) not analysed · nearest: 3c4d5e6 from a diverged line: 3 behind / 2 ahead"
+        ])
+    })
+
+    it("should ask before comparing two large analyses", async () => {
         // Arrange
         const { goingOn } = await decide(
             aResolvedComparison({ preflight: { identicalChecksums: false, profilesDiffer: false, combinedBytes: 1, sizeVerdict: "warn" } })

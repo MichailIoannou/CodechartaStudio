@@ -17,6 +17,8 @@ const BASE: LoadedSide = {
     snapshot: aCommitSnapshot("3c4d5e6".padEnd(40, "0")),
     relation: "ancestor",
     staleBy: 2,
+    behind: 2,
+    ahead: 0,
     checksum: TEST_FILE_DATA.fileMeta.fileChecksum
 }
 const HEAD: LoadedSide = {
@@ -24,6 +26,8 @@ const HEAD: LoadedSide = {
     snapshot: aCommitSnapshot(HEAD_SHA),
     relation: null,
     staleBy: 0,
+    behind: 0,
+    ahead: 0,
     checksum: TEST_FILE_DATA_JAVA.fileMeta.fileChecksum
 }
 
@@ -64,13 +68,25 @@ describe("ComparisonChipComponent", () => {
         expect(screen.getByTestId("comparison-head").textContent).toMatch(/head\s*a1b2c3d\s*$/)
     })
 
-    it("should show how stale a side is", async () => {
-        // Act
+    it("should show how stale each side is", async () => {
+        // Arrange
         await renderChip()
+        const older = screen.getByTestId("comparison-stale")
+        const olderText = [older.textContent?.trim(), older.getAttribute("title")]
+
+        // Act
+        TestBed.inject(CompareStore).update({
+            base: { ...BASE, relation: "descendant", staleBy: 3, behind: 0, ahead: 3 },
+            head: { ...HEAD, relation: "diverged", staleBy: 5, behind: 3, ahead: 2 }
+        })
+        TestBed.tick()
 
         // Assert
-        const badge = screen.getByText("stale by 2")
-        expect(badge.getAttribute("title")).toBe("No analysis for 9f8e7d6. Showing 3c4d5e6, 2 commits older.")
+        expect(olderText).toEqual(["stale by 2", "No analysis for 9f8e7d6. Showing 3c4d5e6, 2 commits older."])
+        expect(screen.getAllByTestId("comparison-stale").map(badge => [badge.textContent?.trim(), badge.getAttribute("title")])).toEqual([
+            ["ahead by 3", "No analysis for 9f8e7d6. Showing 3c4d5e6, which is ahead by 3 commits."],
+            ["diverged 3↓ 2↑", "No analysis for a1b2c3d. Showing a1b2c3d from a diverged line: 3 behind / 2 ahead."]
+        ])
     })
 
     it("should say that there are no metric differences", async () => {

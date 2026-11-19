@@ -7,7 +7,8 @@ import type {
     LoadedSide,
     ResolvedComparison,
     ResolvedSide,
-    SideAnalysis
+    SideAnalysis,
+    SnapshotRelation
 } from "../model/compare.model"
 
 const MERGE_BASE_SEPARATOR = "..."
@@ -17,6 +18,12 @@ export interface ParsedRange {
     base: string
     head: string
     baseMode: BaseMode
+}
+
+interface Distance {
+    relation: SnapshotRelation
+    behind: number
+    ahead: number
 }
 
 export interface ResolveOutcome {
@@ -94,8 +101,7 @@ export function sideStatusText({ status }: ResolvedSide): string {
     if (!nearest) {
         return "not analysed"
     }
-    const older = nearest.relation === "ancestor" ? `, ${counted(nearest.staleBy, "commit")} older` : ""
-    return `not analysed · nearest: ${nearest.snapshot.shortCommit ?? ""}${older}`
+    return `not analysed · nearest: ${nearest.snapshot.shortCommit ?? ""}${distanceText(nearest)}`
 }
 
 export function analysisFailureText({ shortCommit, failure }: SideAnalysis): string {
@@ -103,8 +109,34 @@ export function analysisFailureText({ shortCommit, failure }: SideAnalysis): str
 }
 
 export function staleTitle(side: LoadedSide): string {
-    const older = side.relation === "ancestor" ? `, ${counted(side.staleBy, "commit")} older` : ""
-    return `No analysis for ${side.requested.shortCommit}. Showing ${side.snapshot.shortCommit ?? ""}${older}.`
+    const distance = side.relation ? distanceText({ ...side, relation: side.relation }) : ""
+    return `No analysis for ${side.requested.shortCommit}. Showing ${side.snapshot.shortCommit ?? ""}${distance}.`
+}
+
+/** The chip's badge for a side shown by its nearest analysis, as the workspace status words it; null for its own analysis. */
+export function staleBadge({ relation, behind, ahead }: Pick<LoadedSide, "relation" | "behind" | "ahead">): string | null {
+    switch (relation) {
+        case "ancestor":
+            return `stale by ${behind}`
+        case "descendant":
+            return `ahead by ${ahead}`
+        case "diverged":
+            return `diverged ${behind}↓ ${ahead}↑`
+        default:
+            return null
+    }
+}
+
+/** How far the nearest analysis is from the asked commit, in the words of the stale notice. */
+function distanceText({ relation, behind, ahead }: Distance): string {
+    switch (relation) {
+        case "ancestor":
+            return `, ${counted(behind, "commit")} older`
+        case "descendant":
+            return `, which is ahead by ${counted(ahead, "commit")}`
+        case "diverged":
+            return ` from a diverged line: ${behind} behind / ${ahead} ahead`
+    }
 }
 
 /** Why "Use nearest" cannot go on, or null when every missing side has a nearest analysis and the two differ. */
