@@ -83,6 +83,23 @@ fn unknown_revision() -> CoreError {
     GitError::new(code, message_for(code)).into()
 }
 
+/// `--quiet` turns "not found" and "ambiguous" into the same silent exit 1.
+pub async fn resolve_abbreviated(at: FolderGit<'_>, prefix: &str) -> CoreResult<Option<CommitSha>> {
+    let peeled = format!("{prefix}{AS_COMMIT}");
+    let args = [&RESOLVE_ARGS[..], &[peeled.as_str()]].concat();
+    let output = at.run_raw(&args, QUERY_LIMITS).await?;
+    match output.exit_code {
+        0 => {
+            let sha = commit_sha(output.stdout.trim())?;
+            CommitSha::try_from(sha)
+                .map(Some)
+                .map_err(|_| parse_failed(WHAT))
+        }
+        NO_ANSWER_EXIT_CODE => Ok(None),
+        _ => Err(command_failed(&output)),
+    }
+}
+
 /// The tree a commit records; two commits with the same tree have the same files.
 pub async fn tree_of(at: FolderGit<'_>, sha: &CommitSha) -> CoreResult<String> {
     let peeled = format!("{sha}{AS_TREE}");

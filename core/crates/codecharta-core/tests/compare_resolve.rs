@@ -10,15 +10,15 @@ use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
 use codecharta_core_api::methods::analysis::{AnalysisTarget, TargetKind};
 use codecharta_core_api::methods::compare::{
-    BaseMode, CompareIntent, ComparedCommit, ComparisonOrigin, RefLabel, RefLabelKind,
-    ResolveComparisonParams, ResolveStatus, ResolvedComparison, SideStatus,
+    BaseMode, CompareIntent, ComparedCommit, ComparisonOrigin, RefInput, RefLabel, RefLabelKind,
+    ResolveComparisonParams, ResolveStatus, ResolvedComparison, SideInput, SideStatus,
 };
 use codecharta_core_api::methods::hosting::HostingProvider;
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::methods::snapshots::{
     SnapshotRef, SnapshotRelation, SnapshotSource, SnapshotSummary,
 };
-use codecharta_core_api::values::{BranchName, CommitSha, FullCommit, Revision};
+use codecharta_core_api::values::{BranchName, CommitSha, FullCommit, Revision, TypedRevision};
 use tokio_util::sync::CancellationToken;
 
 use support::TempRepo;
@@ -487,6 +487,107 @@ async fn should_report_a_branch_that_is_already_merged() {
         ResolveStatus::AlreadyMerged {
             target: "main".to_string()
         }
+    );
+}
+
+fn explicit(base: &str, head: &str, base_mode: BaseMode) -> ResolveComparisonParams {
+    let side = |name: &str| SideInput {
+        folder: folder_ref(),
+        rev: RefInput::Rev {
+            name: TypedRevision::try_from(name).expect("a typed revision"),
+        },
+    };
+    ResolveComparisonParams {
+        intent: CompareIntent::Explicit {
+            base: side(base),
+            head: side(head),
+            base_mode,
+        },
+        shown_commit: None,
+    }
+}
+
+#[tokio::test]
+async fn should_resolve_a_tag_and_a_unique_prefix() {
+    // Arrange
+    let repo = TempRepo::new();
+    let tagged = repo.commit_file("a.txt", "1", "Release");
+    repo.tag("v1.0", true);
+    let newer = repo.commit_file("a.txt", "2", "Later");
+    let prefix = &newer.trim()[..SHORT_COMMIT_LENGTH];
+
+    // Act
+    let comparison = resolve(&repo, &explicit("v1.0", prefix, BaseMode::MergeBase)).await;
+    let reversed = resolve(&repo, &explicit(prefix, "v1.0", BaseMode::MergeBase)).await;
+
+    // Assert
+    assert_eq!(comparison.status, ResolveStatus::Ready);
+    assert_eq!(comparison.origin, ComparisonOrigin::Branches);
+    assert_eq!(comparison.base_mode, BaseMode::MergeBase);
+    assert_eq!(base_and_head(&comparison), pair(&tagged, &newer));
+    assert_eq!(
+        comparison.base_tip.expect("the tag tip").label,
+        RefLabel {
+            kind: RefLabelKind::Tag,
+            name: "v1.0".to_string(),
+        }
+    );
+    assert_eq!(reversed.origin, ComparisonOrigin::Commits);
+    assert_eq!(reversed.base_mode, BaseMode::Tip);
+    assert_eq!(base_and_head(&reversed), pair(&newer, &tagged));
+}
+
+#[tokio::test]
+async fn should_reject_an_unknown_ref() {
+    // Arrange
+    let repo = TempRepo::new();
+    repo.commit_file("a.txt", "1", "Only");
+
+    // Act
+    let unknown = resolve_with(
+        &repo,
+        &explicit("main", "nowhere", BaseMode::Tip),
+        Vec::new(),
+    )
+    .await;
+    let unknown_prefix =
+        resolve_with(&repo, &explicit("main", "ffff", BaseMode::Tip), Vec::new()).await;
+
+    // Assert
+    assert_eq!(
+        unknown.expect_err("no such branch").code(),
+        ErrorCode::UnknownRevision
+    );
+    assert_eq!(
+        unknown_prefix.expect_err("no such commit").code(),
+        ErrorCode::UnknownRevision
+    );
+}
+
+#[tokio::test]
+async fn should_reject_an_ambiguous_prefix() {
+    // Arrange
+    let repo = TempRepo::new();
+    repo.linear_history(1_000);
+    let mut commits: Vec<String> = repo
+        .git(&["rev-list", "HEAD"])
+        .lines()
+        .map(|line| line[..4].to_string())
+        .collect();
+    commits.sort();
+    let shared = commits
+        .windows(2)
+        .find(|neighbours| neighbours[0] == neighbours[1])
+        .map(|neighbours| neighbours[0].clone())
+        .expect("two of a thousand commits share four leading digits");
+
+    // Act
+    let result = resolve_with(&repo, &explicit("main", &shared, BaseMode::Tip), Vec::new()).await;
+
+    // Assert
+    assert_eq!(
+        result.expect_err("an ambiguous prefix").code(),
+        ErrorCode::UnknownRevision
     );
 }
 

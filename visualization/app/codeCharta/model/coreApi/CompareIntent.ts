@@ -5,12 +5,14 @@ import type { CommitSha } from "./CommitSha"
 import type { FolderRef } from "./FolderRef"
 import type { HostingProvider } from "./HostingProvider"
 import type { Revision } from "./Revision"
+import type { SideInput } from "./SideInput"
 
 /**
  * What the user pointed at in one project folder. `Commits` takes the ancestor as the base, else the
  * older commit; `WithParent` compares with the first parent; `WithCurrent` compares with `shownCommit`,
  * else with `HEAD`. `Branch` compares the branch with `target`, else with the current branch, else (when
- * the branch is the current one) with the folder's default branch. `ChangeRequest` compares a pull or merge request from its merge base, with what
+ * the branch is the current one) with the folder's default branch. `Explicit` keeps the base the user
+ * chose; its `mergeBase` mode applies only when the base names a branch or tag. `ChangeRequest` compares a pull or merge request from its merge base, with what
  * the renderer knows of it: its head is `headCommit`, else the fetched `refs/codecharta/<pr|mr>/<n>`;
  * the base branch tip is `baseCommit`, else the first parent of `mergeCommit`, else
  * `<remote>/<baseRefName>`, the first of them this clone has.
@@ -20,6 +22,7 @@ export type CompareIntent =
     | { kind: "withParent"; folder: FolderRef; commit: Revision }
     | { kind: "withCurrent"; folder: FolderRef; commit: Revision }
     | { kind: "branch"; folder: FolderRef; branch: Revision; target: Revision | null; baseMode: BaseMode }
+    | { kind: "explicit"; base: SideInput; head: SideInput; baseMode: BaseMode }
     | {
           kind: "changeRequest"
           folder: FolderRef

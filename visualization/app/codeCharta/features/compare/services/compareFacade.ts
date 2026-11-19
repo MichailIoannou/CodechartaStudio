@@ -48,7 +48,7 @@ export class CompareFacade {
     }
 
     /** A comparison started from a menu shows a decision or a stop in the dialog and an error as a toast. */
-    private async startOutsideTheDialog(intent: CompareIntent): Promise<void> {
+    private async startOutsideTheDialog(intent: Extract<CompareIntent, { folder: FolderRef }>): Promise<void> {
         await this.service.start(intent)
         if (this.store.dialogPrefill() !== null) {
             return

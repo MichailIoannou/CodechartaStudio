@@ -863,10 +863,14 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return { requested, status }
     }
 
+    function comparedFolder(intent: CompareIntent): FolderRef {
+        return intent.kind === "explicit" ? intent.base.folder : intent.folder
+    }
+
     function comparedRevisions(intent: CompareIntent, shownCommit: string | null) {
-        const commits = Object.hasOwn(store.git, intent.folder.folderId) ? (store.git[intent.folder.folderId].commits ?? []) : []
-        const positionOf = (revision: string) =>
-            commits.findIndex(commit => commit.sha === commitAtRevision(intent.folder.folderId, revision))
+        const folder = comparedFolder(intent)
+        const commits = Object.hasOwn(store.git, folder.folderId) ? (store.git[folder.folderId].commits ?? []) : []
+        const positionOf = (revision: string) => commits.findIndex(commit => commit.sha === commitAtRevision(folder.folderId, revision))
         switch (intent.kind) {
             case "commits":
                 return positionOf(intent.b) > positionOf(intent.a) ? [intent.b, intent.a] : [intent.a, intent.b]
@@ -887,7 +891,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         if (!revisions) {
             return refuse("UNKNOWN_REVISION", "The commit has no parent to compare with.")
         }
-        const [base, head] = revisions.map(revision => comparedSide(intent.folder, revision))
+        const [base, head] = revisions.map(revision => comparedSide(comparedFolder(intent), revision))
         const shown = [base, head].map(side => (side.status.status === "exact" ? (side.status.snapshot as SnapshotSummary) : null))
         const checksums = shown.map(snapshot => snapshot?.checksum ?? null)
         const isSameCommit = base.requested.commit === head.requested.commit

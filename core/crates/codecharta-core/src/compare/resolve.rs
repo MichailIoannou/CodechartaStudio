@@ -9,6 +9,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::branch::branch_pair;
 use super::change_request::change_request_pair;
+use super::explicit::explicit_pair;
 use super::preflight::{SizeLimits, preflight};
 use super::sides::SideLookup;
 use crate::error::{CoreError, CoreResult};
@@ -45,7 +46,7 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
         };
         let pair = pick_pair(&history, params).await?;
         let status = status_of(&history, &pair).await?;
-        let origin = origin_of(&params.intent);
+        let origin = origin_of(&params.intent, &pair);
         let compared_folder = params.intent.folder();
         let base_mode = pair
             .origin
@@ -185,18 +186,35 @@ async fn pick_pair(
             origin: None,
         }),
         CompareIntent::Branch { .. } => branch_pair(history, &params.intent).await,
+        CompareIntent::Explicit { .. } => explicit_pair(history, &params.intent).await,
         CompareIntent::ChangeRequest { .. } => change_request_pair(history, &params.intent).await,
     }
 }
 
-fn origin_of(intent: &CompareIntent) -> ComparisonOrigin {
+/// An explicit comparison is between branches when its base names a branch or tag.
+fn origin_of(intent: &CompareIntent, pair: &Pair) -> ComparisonOrigin {
     match intent {
         CompareIntent::Commits { .. }
         | CompareIntent::WithParent { .. }
         | CompareIntent::WithCurrent { .. } => ComparisonOrigin::Commits,
         CompareIntent::Branch { .. } => ComparisonOrigin::Branches,
         CompareIntent::ChangeRequest { .. } => ComparisonOrigin::PullRequest,
+        CompareIntent::Explicit { .. } => {
+            let base = pair
+                .origin
+                .as_ref()
+                .map_or(&pair.base, |origin| &origin.tip);
+            if is_named_ref(&base.label) {
+                ComparisonOrigin::Branches
+            } else {
+                ComparisonOrigin::Commits
+            }
+        }
     }
+}
+
+pub(super) fn is_named_ref(label: &RefLabel) -> bool {
+    matches!(label.kind, RefLabelKind::Branch | RefLabelKind::Tag)
 }
 
 /// The ancestor is the base; without one, the older commit by commit date.
