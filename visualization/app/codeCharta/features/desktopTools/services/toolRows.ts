@@ -108,6 +108,9 @@ function badgeOf(status: ToolStatus): ToolRow["badge"] {
 function problemOf(status: ToolStatus): string | null {
     switch (status.state) {
         case "missing":
+            if (status.source === "custom" && status.path) {
+                return `Custom path not found: ${status.path}`
+            }
             return "not found on PATH or in the usual folders. Install it, or choose the executable."
         case "tooOld":
             return `version ${status.version} is older than ${status.minimumVersion}.`

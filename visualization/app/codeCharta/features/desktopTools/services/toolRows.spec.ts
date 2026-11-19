@@ -57,6 +57,19 @@ describe("toolRows", () => {
             expect(gh.problem).toBeNull()
         })
 
+        it("should name the custom path when its file is missing", () => {
+            // Arrange
+            const report = aToolsReport({
+                git: { state: "missing", path: "/opt/tools/git", source: "custom", version: null }
+            })
+
+            // Act
+            const [git] = toToolRows(report)
+
+            // Assert
+            expect(git.problem).toBe("Custom path not found: /opt/tools/git")
+        })
+
         it("should write a dash for an unknown version and mark a custom path", () => {
             // Arrange
             const report = aToolsReport()
