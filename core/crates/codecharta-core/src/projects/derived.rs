@@ -4,7 +4,7 @@ use std::path::Path;
 
 use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
 use codecharta_core_api::methods::projects::{
-    FolderRelationship, FolderStatus, Project, ProjectFolder, ProjectSummary,
+    FolderRelationship, FolderStatus, Project, ProjectFolder, ProjectSummary, ProjectSummaryFolder,
 };
 
 use crate::folders::relationships::{GitFolder, derive_relationships};
@@ -48,6 +48,8 @@ pub fn to_summary(paths: &StorePaths, record: &ProjectRecord) -> ProjectSummary 
     ProjectSummary {
         id: record.id.clone(),
         name: record.name.to_string(),
+        updated_at: Some(record.updated_at.clone()),
+        folders: record.folders.iter().map(to_summary_folder).collect(),
         folder_count: count(&|_| true),
         missing_folder_count: count(&|folder| status_of(folder) == FolderStatus::Missing),
         snapshot_count: record
@@ -56,6 +58,16 @@ pub fn to_summary(paths: &StorePaths, record: &ProjectRecord) -> ProjectSummary 
             .map(|folder| snapshot_count(paths, &record.id, &folder.id))
             .sum(),
         problem: None,
+    }
+}
+
+fn to_summary_folder(folder: &FolderRecord) -> ProjectSummaryFolder {
+    ProjectSummaryFolder {
+        id: folder.id.clone(),
+        label: folder.label.clone(),
+        role: folder.role,
+        kind: folder.kind,
+        status: status_of(folder),
     }
 }
 

@@ -411,6 +411,60 @@ async fn should_refuse_to_leave_a_project_without_a_primary_folder() {
 }
 
 #[tokio::test]
+async fn should_list_the_folders_and_the_last_update_of_each_project() {
+    // Arrange
+    let workspace = Workspace::new();
+    let vanishing = tempfile::tempdir().unwrap();
+    let vanishing_path = vanishing.path().to_path_buf();
+    let project = workspace
+        .create(vec![
+            folder(workspace.repo.path(), "app", FolderRole::Primary),
+            folder(&vanishing_path, "gone", FolderRole::Helper),
+        ])
+        .await;
+    drop(vanishing);
+
+    // Act
+    let summary = workspace.projects().list().unwrap().remove(0);
+
+    // Assert
+    assert_eq!(
+        summary.updated_at.as_deref(),
+        Some(project.updated_at.as_str())
+    );
+    let folders: Vec<_> = summary
+        .folders
+        .iter()
+        .map(|listed| {
+            (
+                listed.label.as_str(),
+                listed.role,
+                listed.kind,
+                listed.status,
+            )
+        })
+        .collect();
+    assert_eq!(
+        folders,
+        vec![
+            (
+                "app",
+                FolderRole::Primary,
+                FolderKind::Git,
+                FolderStatus::Ok
+            ),
+            (
+                "gone",
+                FolderRole::Helper,
+                FolderKind::Plain,
+                FolderStatus::Missing
+            ),
+        ]
+    );
+    assert_eq!(summary.folders[0].id, project.folders[0].id);
+}
+
+#[tokio::test]
 async fn should_flag_a_vanished_folder_as_missing() {
     // Arrange
     let workspace = Workspace::new();
