@@ -305,6 +305,48 @@ test.describe("History changes", () => {
         await expect(history.groupHeaders()).toHaveText([/Staged\s*\(2\)/])
         await expect(history.changesTab()).toContainText("2")
     })
+
+    test("should commit the staged files with Ctrl+Enter and show the new commit in the log", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, changes } }))
+        await goto(page)
+        await history.open()
+        await history.changesTab().click()
+
+        // Act
+        await history.commitSummary().fill("Add the currency table")
+        await history.commitSummary().press("Control+Enter")
+        await history.confirm("yes")
+
+        // Assert
+        await expect(history.toasts().filter({ hasText: /Committed [0-9a-c]{7}/ })).toBeVisible()
+        await expect(history.commitSummary()).toHaveValue("")
+        await expect(history.changeRow("staged:src/billing/currency.ts")).toHaveCount(0)
+        await page.getByTestId("history-tab-log").click()
+        await expect(history.commitRows().first()).toContainText("Add the currency table")
+    })
+
+    test("should keep the message and show the hook's output when a hook stops the commit", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const failures = { "git.commit": anErrorPayload("HOOK_FAILED", "The hook failed.", { detail: "lint: 3 problems in src/app.ts" }) }
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, changes, failures } }))
+        await goto(page)
+        await history.open()
+        await history.changesTab().click()
+
+        // Act
+        await history.commitSummary().fill("Add the currency table")
+        await history.commitButton().click()
+        await history.confirm("yes")
+
+        // Assert
+        const toast = history.toasts().filter({ hasText: "A git hook stopped the commit." })
+        await toast.getByRole("button", { name: "Details" }).click()
+        await expect(toast).toContainText("lint: 3 problems in src/app.ts")
+        await expect(history.commitSummary()).toHaveValue("Add the currency table")
+    })
 })
 
 test.describe("Show in map", () => {

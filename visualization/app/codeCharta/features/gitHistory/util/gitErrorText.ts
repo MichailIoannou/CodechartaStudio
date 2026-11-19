@@ -39,12 +39,16 @@ export function problemNoticeOf(error: GitError, folder: ProblemFolder): GitProb
 
 /** What the failed action was about; a sentence that needs a part it lacks falls back to "Git failed: …". */
 export interface GitErrorContext {
+    /** Names the operation where design H12 words its failure apart from the general sentence. */
+    operation?: "commit"
     branch?: string
     worktreePath?: string | null
     remote?: string | null
 }
 
 const MAX_LISTED_FILES = 10
+/** Design H6: the user runs these; CodeCharta never changes the git config. */
+const IDENTITY_COMMANDS = ['git config --global user.name "Your Name"', 'git config --global user.email "you@example.com"']
 const LISTED_FILE = /^\s+(\S.*)$/
 
 export function gitErrorSentence(error: GitError, context: GitErrorContext = {}): string {
@@ -63,13 +67,21 @@ function plainSentenceOf(error: GitError): string {
             return localChangesSentence(error.detail)
         case "CHANGED_SINCE_LISTED":
             return "The files changed since they were listed. The list is refreshed — check it and try again."
+        case "IDENTITY_UNKNOWN":
+            return ["Git does not know who you are. Run these in a terminal, then commit again:", ...IDENTITY_COMMANDS].join("\n")
+        case "NOTHING_TO_COMMIT":
+            return "Nothing to commit. Stage files first."
+        case "HOOK_FAILED":
+            return "A git hook stopped the operation."
         default:
             return `Git failed: ${error.message}`
     }
 }
 
-function contextSentenceOf(error: GitError, { branch, worktreePath, remote }: GitErrorContext): string | null {
+function contextSentenceOf(error: GitError, { operation, branch, worktreePath, remote }: GitErrorContext): string | null {
     switch (error.code) {
+        case "HOOK_FAILED":
+            return operation === "commit" ? "A git hook stopped the commit." : null
         case "BRANCH_CHECKED_OUT_ELSEWHERE":
             return branch && worktreePath ? `'${branch}' is checked out in another worktree (${worktreePath}).` : null
         case "BRANCH_EXISTS":

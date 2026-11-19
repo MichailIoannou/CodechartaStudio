@@ -1,6 +1,6 @@
 ---
 name: 04-M9/M10 renderer — changes, diff and commit
-state: progress
+state: complete
 version: 1
 ---
 
@@ -37,7 +37,7 @@ completed here if the design words them.
 ## Steps
 
 - [x] 1. Changes and diff
-- [ ] 2. Commit box
+- [x] 2. Commit box
 
 ## Notes
 
@@ -109,4 +109,85 @@ Changes tab (only H11–H13 text in `design/04-history.md`), so the text is the 
   retry. `historyTab.service.spec.ts` — **tab remembered per project**. Toolbar, details, panel, layout, effect text,
   error text, changed-file text, api and fake-bridge specs extended. E2E "History changes": diff colours, stage after
   the hooks notice, discard after the confirmation.
+
+### 2. Commit box (M10 task 2)
+- **`CommitMessageService`** (root) + `repos/commitDraft.repo.ts` (key `codeChartaCommitDraft.<repositoryId>`,
+  `{ subject, body }`, unreadable values read as empty): the draft follows the repository id (switching the working
+  folder shows that repository's draft), every edit is saved. Amend: switched on with an empty box it reads
+  `git.commitDetails` of HEAD and shows that message instead of the draft (edits then change only that message);
+  switched off, the draft returns unchanged; a written message is kept and amended with. Commit: `git.commit { repo,
+  subject (trimmed), body, amend }` through `GitOperationService.run` (kind `commit`); success → toast "Committed
+  a1b2c3d" (HEAD of the answered status), draft cleared and saved empty, amend off; failure → `GitFailureReport` with
+  `operation: "commit"`.
+- **Disabled reasons** (H12, shown as the button's `title` on a wrapping span, since a disabled button gets no
+  hover): "Waiting for the previous git operation…" (reuses `WAITING_FOR_OPERATION` of `util/branchMenu.ts`, also for
+  the changes panel now), "Resolve conflicts first", "Stage files to commit" (not when amending or during a merge),
+  "Write a summary". Order: running, conflicts, staged, summary (H12 lists them without an order).
+- **Amend of a pushed commit (H15):** before an amend, when the branch has a live upstream whose remote branch is in
+  the refs, `git.isAncestor { ancestor: HEAD, descendant: <upstream commit> }`; true → "Amend Pushed Commit" / "The
+  last commit abc1234 'Subject' is already on origin/main. Amending it rewrites it; pushing afterwards needs a force
+  push." / Cancel / **Amend anyway**. Design wording over plan 4.7 ("'abc1234 Subject'", "Amend anyway?"). A failed
+  ancestry check does not ask (git's reflog keeps the old commit).
+- **Box (H12):** "Summary" `input input-bordered input-sm` with the counter `n/72` (`text-warning` above 72, title
+  "Long summaries are cut off in many git tools", no hard limit in the box — the core caps the subject at 200
+  characters and answers `BAD_REQUEST`, shown as "Git failed: …"), "Description" `textarea textarea-bordered` rows 3,
+  "Amend last commit" checkbox, **Commit** `btn btn-primary btn-sm` reading "Commit (Ctrl+Enter)" as the H12 sketch
+  (the hint in `font-normal opacity-70`); Ctrl+Enter (or ⌘+Enter) inside the box commits and stops propagation;
+  "This commit concludes the merge." during a merge. Mounted at the bottom of `cc-changes-panel`.
+- **Sentences** (`gitErrorText.ts`, H6/H12): `IDENTITY_UNKNOWN` "Git does not know who you are. Run these in a
+  terminal, then commit again:" + both `git config --global …` commands as lines; `NOTHING_TO_COMMIT` "Nothing to
+  commit. Stage files first."; `HOOK_FAILED` "A git hook stopped the commit." (context `operation: "commit"`, else
+  H6's "…the operation."). Git's text / the hook output is the toast's "Details". **Gap:** H6 shows the two commands
+  as copy blocks with a copy button; a toast has one text and at most one action, so they are plain lines of the
+  toast text (selectable, not monospace). Not improvised further — needs a design answer if copy buttons are wanted.
+  `CONFLICTS` ("becomes the merge/rebase notice" in H6, which arrives with M11) and `OPERATION_IN_PROGRESS` fall back
+  to "Git failed: <message>"; the box already disables Commit with conflicts.
+- **Fake bridge:** `git.commit` (refuses `CONFLICTS`, `NOTHING_TO_COMMIT` unless amending or merging; adds a commit on
+  top of HEAD or replaces it when amending, moves the current branch, drops the staged rows) and `git.isAncestor`; a
+  seeded `changes` list now also sets the status counts at start.
+- Tests (plan names where they apply): `commitMessage.service.spec.ts` — **Commit disabled without staged files or
+  subject** (and conflicts, running operation, merge); commit and clear; nothing sent while disabled; **draft per
+  repository, cleared after commit**; **amend fills the last message into an empty box** and restores the draft;
+  written message kept; **asks before amending a pushed commit** (declined amends nothing) and does not ask otherwise;
+  **identity instructions with both commands**; **hook output after a failed hook**. `commitBox.component.spec.ts` —
+  disabled titles, **Ctrl+Enter commits**, click, plain Enter left alone, counter warning, amend fill, merge line.
+  `commitDraft.repo.spec.ts`, error-text, effect-text, api and fake-bridge specs. E2E: commit with Ctrl+Enter after the
+  hooks notice → "Committed …", box cleared, new commit first in the Log; failed hook keeps the message and shows the
+  hook's output under Details.
+
+### Screenshots (Playwright, seeded stand-in; scratch spec, not committed)
+1600×900, cc-dark and cc-light: Changes tab with conflicted / staged (incl. a rename and a binary) / unstaged /
+untracked rows and an unstaged diff (gutter, `@@` in info, removals and additions tinted, header lines /60,
+"\ No newline" note); hover buttons; conflicted combined diff with the `conflicted` warning badge and disabled
+Discard; binary file; a 3 000-line truncated diff with the "Diff cut at 2 MB." footer; multi-selection ("Stage 2
+selected"); amend checked with a 73-character summary (counter in warning); Amend Pushed Commit (Cancel / Amend anyway
+in `btn-error`); Discard Changes; failed hook toast with Details open; unknown identity toast. Compared with H11–H13,
+H15 and the principles: groups, worded badges, button icons and titles, states and dialog wording match. **Seen, not
+changed:** the error toast still covers the nav bar's right end (as noted by 04-M7/M8, OD8 / 02-M7); `badge-soft
+badge-warning` "conflict" is pale in cc-light (same badge style as the existing details pane); the mock-up has no
+Changes tab to compare the layout with, so only the text design was checked.
+
+### Gates (final, Linux)
+Root `npm run format:check` clean; `visualization/`: `npm test` 757 suites, 6071 passed + 2 todo, coverage 97.21 /
+90.36 / 96.14 / 97.16; `npm run lint` (depcruise, styles, knip) clean; `npx tsc --noEmit -p tsconfig.json` clean;
+`npm run test:electron` 79/79; `npm run build` ok; `npm run e2e:ci` 188/188 (full suite after the last fix);
+`npm run e2e:desktop` 16/16 with the core built into `core/target/studio-04-m9m10-ui`. Temporary `E2E_PORT` 9041 and
+the chromium channel reverted before committing.
+
+### Shared files touched
+`util/desktop/desktopBridge.mocks.ts` (+spec: working tree, commit, ancestry; writes announce `workingTree`),
+`features/gitHistory/*` only otherwise, `CHANGELOG.md` (the Git history entry extended twice), plan 04 (M9 / M10 task
+2 as built). No change to `views/`, `electron/` or other features.
+
+### For 04-M11 (pull, push, abort)
+- Run pull / push through `GitOperationService.run`; add `pull`, `push` to `GitOperationKind` and `NETWORK_OPERATIONS`
+  (Cancel), report with `GitFailureReport.report(error, context)` (extend `GitErrorContext` like `operation:
+  "commit"` where a sentence differs).
+- `CONFLICTS` after a pull should become H6's merge / rebase notice; the commit box already concludes a merge
+  (`isMerging`, "This commit concludes the merge.") and disables Commit while `counts.conflicted > 0`; conflicted rows
+  stage with [+] (git counts that as resolved). "Abort merge…" belongs in that notice (the conflicted rows' Discard
+  title "Use Abort to undo a merge" points there).
+- Changes tab state: `HistoryTabService.select("changes")` opens it (e.g. from a notice); `GitChangesService.reload()`
+  re-reads the list, but any status re-read does that already while the tab is shown.
+- Amend of a pushed commit warns that pushing needs a force push; Force Push itself is M11's.
 

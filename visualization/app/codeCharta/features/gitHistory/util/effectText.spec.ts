@@ -1,4 +1,6 @@
 import {
+    amendPushedConfirmation,
+    commitResult,
     deleteLocalConfirmation,
     deleteRemoteConfirmation,
     deleteUnmergedConfirmation,
@@ -79,6 +81,19 @@ describe("effectText", () => {
             "Fetched 3 updated refs"
         ])
         expect(HOOKS_NOTICE).toEqual(expect.objectContaining({ title: "Git Hooks", verb: null }))
+    })
+
+    it("should name the pushed commit and its upstream before amending it, and word the commit result", () => {
+        // Arrange & Act
+        const confirmation = amendPushedConfirmation({ shortSha: "abc1234", subject: "Fix invoice rounding", upstream: "origin/main" })
+
+        // Assert
+        expect(confirmation).toEqual({
+            title: "Amend Pushed Commit",
+            text: "The last commit abc1234 'Fix invoice rounding' is already on origin/main. Amending it rewrites it; pushing afterwards needs a force push.",
+            verb: "Amend anyway"
+        })
+        expect(commitResult("a1b2c3d")).toBe("Committed a1b2c3d")
     })
 
     it("should name up to ten files to discard and count the rest", () => {

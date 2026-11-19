@@ -3,9 +3,11 @@ import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { GitBranchCreateParams } from "../../../model/coreApi/GitBranchCreateParams"
 import type { GitBranchDeleteParams } from "../../../model/coreApi/GitBranchDeleteParams"
 import type { GitBranchRenameParams } from "../../../model/coreApi/GitBranchRenameParams"
+import type { GitCreateCommitParams } from "../../../model/coreApi/GitCreateCommitParams"
 import type { GitDiffFileParams } from "../../../model/coreApi/GitDiffFileParams"
 import type { GitDiscardParams } from "../../../model/coreApi/GitDiscardParams"
 import type { GitFetchParams } from "../../../model/coreApi/GitFetchParams"
+import type { GitIsAncestorParams } from "../../../model/coreApi/GitIsAncestorParams"
 import type { GitLogParams } from "../../../model/coreApi/GitLogParams"
 import type { GitSetUpstreamParams } from "../../../model/coreApi/GitSetUpstreamParams"
 import type { GitStageParams } from "../../../model/coreApi/GitStageParams"
@@ -102,6 +104,14 @@ export class GitApiService {
 
     discard(params: GitDiscardParams, operationId: string) {
         return this.call("git.discard", params, operationId)
+    }
+
+    commit(params: GitCreateCommitParams, operationId: string) {
+        return this.call("git.commit", params, operationId)
+    }
+
+    isAncestor(params: GitIsAncestorParams) {
+        return this.call("git.isAncestor", params)
     }
 
     answerPrompt(promptId: string, answer: string) {

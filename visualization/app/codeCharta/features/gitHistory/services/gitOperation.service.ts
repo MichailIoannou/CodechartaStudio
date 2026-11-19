@@ -19,6 +19,7 @@ export type GitOperationKind =
     | "stage"
     | "unstage"
     | "discard"
+    | "commit"
 
 interface GitOperationProgress {
     message: string

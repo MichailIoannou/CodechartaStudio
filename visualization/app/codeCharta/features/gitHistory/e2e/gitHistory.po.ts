@@ -107,6 +107,14 @@ export class GitHistoryPageObject {
         return this.page.getByTestId("diff-line")
     }
 
+    commitSummary() {
+        return this.page.getByTestId("commit-summary")
+    }
+
+    commitButton() {
+        return this.page.getByTestId("commit-button")
+    }
+
     async open() {
         await this.tab().click()
         await this.repository().waitFor({ state: "visible" })

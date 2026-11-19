@@ -74,6 +74,25 @@ export function fetchResult(updatedRefs: number): string {
     return updatedRefs === 0 ? "Already up to date" : `Fetched ${counted(updatedRefs, "updated ref")}`
 }
 
+export interface AmendedCommit {
+    shortSha: string
+    subject: string
+    upstream: string
+}
+
+/** Design H15: amending a commit the upstream already has rewrites shared history. */
+export function amendPushedConfirmation({ shortSha, subject, upstream }: AmendedCommit): GitConfirmation {
+    return {
+        title: "Amend Pushed Commit",
+        text: `The last commit ${shortSha} '${subject}' is already on ${upstream}. Amending it rewrites it; pushing afterwards needs a force push.`,
+        verb: "Amend anyway"
+    }
+}
+
+export function commitResult(shortSha: string): string {
+    return `Committed ${shortSha}`
+}
+
 const MAX_NAMED_FILES = 10
 
 /** Design H15: names at most ten files, the rest as "and n more". */

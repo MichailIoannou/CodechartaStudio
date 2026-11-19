@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from "@angular/core"
 import { ChangeRow, isDiscardable, isStageable } from "../../model/changeRows"
+import { WAITING_FOR_OPERATION } from "../../util/branchMenu"
 import { displayNameOf, entryBadgeOf, fileNameOf, folderOf } from "../../util/changedFileText"
 
 const ROW_CLASS =
     "group/row flex h-7 cursor-pointer select-none items-center gap-1.5 whitespace-nowrap rounded-md px-1 text-sm hover:bg-base-200"
 const SELECTED_ROW_CLASS = "bg-primary/20 font-semibold"
 const ACTIVE_ROW_CLASS = "group-focus-visible:outline"
-export const BUSY_TITLE = "Waiting for the previous git operation…"
 const CONFLICT_DISCARD_TITLE = "Use Abort to undo a merge"
 
 /** The element id `aria-activedescendant` names for a row. */
@@ -53,7 +53,7 @@ export class ChangeRowComponent {
     readonly conflictDiscardTitle = CONFLICT_DISCARD_TITLE
 
     titleOf(action: string): string {
-        return this.isBusy() ? BUSY_TITLE : `${action} ${this.fileName()}`
+        return this.isBusy() ? WAITING_FOR_OPERATION : `${action} ${this.fileName()}`
     }
 
     run(event: Event, action: "stage" | "unstage" | "discard") {

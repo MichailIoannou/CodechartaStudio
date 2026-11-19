@@ -197,6 +197,24 @@ describe("GitApiService", () => {
         ])
     })
 
+    it("should send a commit under its operation id and ask whether one commit is an ancestor of another", async () => {
+        // Arrange
+        const bridge: FakeDesktopBridge = createFakeDesktopBridge()
+        const api = apiWith(bridge)
+        const commit = { repo, subject: "Fix rounding", body: "", amend: false }
+        const ancestry = { repo, ancestor: "a".repeat(40), descendant: "b".repeat(40) }
+
+        // Act
+        await api.commit(commit, "op-1")
+        await api.isAncestor(ancestry)
+
+        // Assert
+        expect(bridge.calls.filter(call => call.name === "request").map(call => call.args)).toEqual([
+            ["git.commit", commit, { operationId: "op-1" }],
+            ["git.isAncestor", ancestry, undefined]
+        ])
+    })
+
     it("should answer and cancel prompts and cancel operations through the bridge", async () => {
         // Arrange
         const bridge: FakeDesktopBridge = createFakeDesktopBridge({ responses: { "prompt.answer": null, "prompt.cancel": null } })

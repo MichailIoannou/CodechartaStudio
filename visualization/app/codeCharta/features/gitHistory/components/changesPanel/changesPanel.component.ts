@@ -3,8 +3,10 @@ import type { GitEntryKind } from "../../../../model/coreApi/GitEntryKind"
 import { ChangeGroup, ChangeRow, isStageable } from "../../model/changeRows"
 import { failureOf, readyValueOf } from "../../model/loadState"
 import { GitChangesService, RowSelectionMode } from "../../services/gitChanges.service"
+import { WAITING_FOR_OPERATION } from "../../util/branchMenu"
 import { gitErrorSentence } from "../../util/gitErrorText"
-import { BUSY_TITLE, ChangeRowComponent, changeRowIdOf } from "../changeRow/changeRow.component"
+import { ChangeRowComponent, changeRowIdOf } from "../changeRow/changeRow.component"
+import { CommitBoxComponent } from "../commitBox/commitBox.component"
 
 interface GroupAction {
     label: string
@@ -18,7 +20,7 @@ const MULTI_SELECTION_SIZE = 2
 @Component({
     selector: "cc-changes-panel",
     templateUrl: "./changesPanel.component.html",
-    imports: [ChangeRowComponent],
+    imports: [ChangeRowComponent, CommitBoxComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "flex min-h-0 flex-1 flex-col", "data-testid": "changes-panel" }
 })
@@ -27,7 +29,7 @@ export class ChangesPanelComponent {
     private readonly collapsedKinds = signal<ReadonlySet<GitEntryKind>>(new Set())
     private readonly activeKey = signal<string | null>(null)
 
-    readonly busyTitle = BUSY_TITLE
+    readonly busyTitle = WAITING_FOR_OPERATION
     readonly skeletonRows = Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => index)
     readonly isLoading = computed(() => this.changes.workingTree().kind === "loading")
     readonly failure = computed(() => {

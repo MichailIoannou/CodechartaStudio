@@ -849,6 +849,9 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
    - Tests: Commit disabled without staged files or subject; Ctrl+Enter commits; amend fills the last message into an empty box; asks before amending a pushed commit; draft per repository, cleared after commit; identity instructions with both commands; hook output after a failed hook.
    - Commit: `feat(visualization): commit staged changes from the changes panel`
    - Changelog: extend with `, stage and commit changes`.
+   - As built: the draft repository is `repos/commitDraft.repo.ts` (key `codeChartaCommitDraft.<repositoryId>`); the
+     amend-of-pushed text follows design H15 ("abc1234 'Subject'", no trailing question); details in
+     `progress/04-M9-M10-ui-changes-commit.md`.
 
 ### M11 — Pull, push, abort (L)
 

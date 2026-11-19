@@ -61,6 +61,8 @@ type FakeGitMethod =
     | "git.stage"
     | "git.unstage"
     | "git.discard"
+    | "git.commit"
+    | "git.isAncestor"
 
 /**
  * A write that does not answer at once: it reports its progress and asks its prompts under the caller's operation id,
@@ -87,7 +89,7 @@ interface FakeGitRepository {
     /** What `git.fetch` reports as updated. */
     fetchedRefs?: number
     slow?: Partial<Record<FakeGitMethod, FakeSlowOperation>>
-    /** The working-tree listing; once seeded, writes keep the status counts in step with it. */
+    /** The working-tree listing; once seeded, the status counts follow it. */
     changes?: GitWorkingTreeEntry[]
     areChangesTruncated?: boolean
     /** By `<kind>:<path>`; a listed row without one answers an empty diff. */
@@ -175,6 +177,11 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     kind?: GitEntryKind
     paths?: string[]
     entries?: { path: string; kind: GitEntryKind; change: GitFileChange }[]
+    subject?: string
+    body?: string
+    amend?: boolean
+    ancestor?: string
+    descendant?: string
 }
 
 type FakeGitTarget =
@@ -230,6 +237,9 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
     }
     for (const [folderId, commits] of Object.entries(seed.gitLogs ?? {})) {
         store.git[folderId] = { ...store.git[folderId], commits }
+    }
+    for (const repository of Object.values(store.git).filter(candidate => candidate.changes)) {
+        countChanges(repository)
     }
 
     const succeed = (value: unknown): FakeAnswer => ({ ok: true, value })
@@ -993,6 +1003,41 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return repository.diffs?.[`${kind}:${path}`] ?? { path, text: "", isBinary: false, isTruncated: false }
     }
 
+    function commitChanges(repository: FakeGitRepository, params: FakeRequestParams) {
+        const changes = repository.changes ?? []
+        const status = repository.status
+        const refs = repository.refs
+        const isMerging = status?.operationInProgress === "merge"
+        if (changes.some(entry => entry.kind === "conflicted")) {
+            return refuse("CONFLICTS", "Committing is not possible because you have unmerged files.")
+        }
+        if (!params.amend && !isMerging && !changes.some(entry => entry.kind === "staged")) {
+            return refuse("NOTHING_TO_COMMIT", "nothing added to commit")
+        }
+        const head = status?.head.commit ?? null
+        const replaced = params.amend ? repository.commits?.find(commit => commit.sha === head) : undefined
+        const sha = nextId("commit").replace(/\D/g, "").padStart(40, "c")
+        const parents = replaced ? replaced.parents : head ? [head] : []
+        const authored = { authorName: "Mia Chen", authorEmail: "mia@example.com", authoredAt: 0, committedAt: 0 }
+        const commit = { sha, parents, subject: params.subject ?? "", ...authored }
+        repository.commits = [commit, ...(repository.commits ?? []).filter(candidate => candidate !== replaced)]
+        repository.changes = changes.filter(entry => entry.kind !== "staged")
+        countChanges(repository)
+        if (status && refs) {
+            status.head = { ...status.head, commit: sha }
+            refs.head = status.head
+            for (const branch of refs.localBranches.filter(candidate => candidate.isCurrent)) {
+                branch.commit = sha
+            }
+        }
+        return null
+    }
+
+    function isAncestor(repository: FakeGitRepository, params: FakeRequestParams) {
+        const reached = reachableCommits(repository.commits ?? [], [params.descendant ?? ""])
+        return reached.some(commit => commit.sha === params.ancestor)
+    }
+
     function slowOperationOf(method: BridgeMethod, params: unknown) {
         const folderId = (params as FakeRequestParams | undefined)?.repo?.folderId ?? ""
         return Object.hasOwn(store.git, folderId) ? store.git[folderId].slow?.[method as FakeGitMethod] : undefined
@@ -1383,6 +1428,8 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "git.stage": workingTreeWrite("git.stage", stageChanges),
         "git.unstage": workingTreeWrite("git.unstage", unstageChanges),
         "git.discard": workingTreeWrite("git.discard", discardChanges),
+        "git.commit": gitWrite("git.commit", commitChanges),
+        "git.isAncestor": gitAnswer("git.isAncestor", isAncestor),
         "prompt.answer": answerPrompt,
         "prompt.cancel": cancelPrompt
     }
