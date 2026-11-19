@@ -16,6 +16,7 @@ import type { AnalysisJob } from "../../../../model/coreApi/AnalysisJob"
 import type { FolderRef } from "../../../../model/coreApi/FolderRef"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import { DesktopEnvironment } from "../../../../util/desktop/desktopEnvironment.service"
+import { shortSha } from "../../../../util/wording"
 import { DesktopToolsService } from "../../../desktopTools/facade"
 import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
 import { changesSentence, ProjectsFacade, shortDate } from "../../../projects/facade"
@@ -28,7 +29,7 @@ import {
     SnapshotViewService,
     targetName
 } from "../../../snapshots/facade"
-import { RecentOutcome, uncommittedTitle, workspaceTrigger } from "../../util/workspaceTrigger"
+import { RecentOutcome, stalenessOf, uncommittedTitle, workspaceTrigger } from "../../util/workspaceTrigger"
 import { AnalysisActivityComponent } from "../analysisActivity/analysisActivity.component"
 
 const FINISHED_TINT_MS = 1500
@@ -91,9 +92,10 @@ export class WorkspaceStatusComponent {
         return status !== undefined && !isGitStatus(status) ? status.problem : null
     })
     readonly hasStatusProblems = computed(() => this.view.rejectedRun()?.surface === "status")
-    readonly isAnalysingCheckout = computed(() =>
-        this.projectJobs().some(job => isPendingJob(job) && job.folderId === this.folder()?.id && job.target.kind === "workingTree")
-    )
+    readonly target = this.view.target
+    readonly staleness = computed(() => stalenessOf(this.view.resolution(), this.view.noticeText().badge, this.wantedPhrase()))
+    readonly askedFor = computed(() => this.askedForOfTarget())
+    readonly analyseLabel = computed(() => this.analyseLabelOfTarget())
 
     constructor() {
         effect(() => {
@@ -122,11 +124,13 @@ export class WorkspaceStatusComponent {
         setTimeout(() => this.menuItems()[0]?.focus())
     }
 
-    analyseCurrentCheckout() {
-        const ref = this.workingRef()
-        if (ref) {
-            void this.view.analyse({ folder: ref, target: { kind: "workingTree" }, surface: "status" })
-        }
+    analyseTarget() {
+        void this.view.analyseTarget("status")
+    }
+
+    showCurrentCheckout() {
+        this.close()
+        this.view.showCurrentCheckout()
     }
 
     openSnapshots() {
@@ -205,8 +209,40 @@ export class WorkspaceStatusComponent {
             hasSnapshots: this.hasSnapshots(),
             activeJob: this.activeJob(),
             outcome: this.outcome(),
-            isCoreOffline: this.isCoreOffline()
+            isCoreOffline: this.isCoreOffline(),
+            staleness: this.staleness()
         })
+    }
+
+    /** What the user asked for while the map shows something else: a commit, or the current checkout at HEAD. */
+    private askedForOfTarget(): { sha: string | null; isCurrentCheckout: boolean } | null {
+        const target = this.target()
+        const resolution = this.view.resolution()
+        if (!target || target.kind === "snapshot" || !resolution || resolution.kind === "exact") {
+            return null
+        }
+        const head = this.view.headCommit()
+        return target.kind === "commit"
+            ? { sha: shortSha(target.sha), isCurrentCheckout: false }
+            : { sha: head ? shortSha(head) : null, isCurrentCheckout: true }
+    }
+
+    private analyseLabelOfTarget(): string | null {
+        const target = this.target()
+        const resolution = this.view.resolution()
+        const job = this.view.targetJob()
+        if (!target || target.kind === "snapshot" || !resolution || resolution.kind === "exact" || (job && isPendingJob(job))) {
+            return null
+        }
+        if (target.kind === "commit") {
+            return `Analyse ${shortSha(target.sha)}`
+        }
+        return resolution.kind === "latest" ? "Analyse now" : "Analyse current checkout"
+    }
+
+    private wantedPhrase(): string {
+        const target = this.target()
+        return target?.kind === "commit" ? shortSha(target.sha) : "the current checkout"
     }
 
     private workingRef(): FolderRef | null {

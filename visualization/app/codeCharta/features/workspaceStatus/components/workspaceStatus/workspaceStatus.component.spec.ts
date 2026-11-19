@@ -186,6 +186,40 @@ describe("WorkspaceStatusComponent", () => {
         expect(within(menu).getByTestId("activity-queued").textContent).toContain("Queued: working tree")
     })
 
+    it("should keep the staleness of the map visible and offer to analyse what was asked for", async () => {
+        // Arrange
+        const nearest = {
+            kind: "nearest" as const,
+            snapshot: SHOWN,
+            isCurrentProfile: true,
+            relation: "ancestor" as const,
+            behind: 4,
+            ahead: 0
+        }
+        await renderStatus({ resolutions: { "f-api/workingTree": nearest } })
+        const before = within(await openMenu()).queryByTestId("workspace-status-analyse")
+
+        // Act
+        await userEvent.click(screen.getByTestId("workspace-status-current-checkout"))
+        await settle()
+        const badge = screen.getByTestId("workspace-status-badge").textContent
+        const menu = await openMenu()
+        const askedFor = within(menu).getByTestId("workspace-status-asked-for").textContent?.replaceAll(/\s+/g, " ").trim()
+        await userEvent.click(within(menu).getByTestId("workspace-status-analyse"))
+        await settle()
+
+        // Assert
+        expect(before).toBeNull()
+        expect(badge).toBe("stale by 4")
+        expect(trigger().title).toContain("Map shows 9f8e7d6 Release 2.4.0, 4 commits behind the current checkout")
+        expect(askedFor).toMatch(/^Asked for ?aaaaaaa ?\(current checkout\)$/)
+        expect(within(menu).queryByTestId("workspace-status-current-checkout")).toBeNull()
+        expect(testBed.requestsOf("analysis.enqueue")).toEqual([
+            { projectId: "p-billing", folderId: "f-api", target: { kind: "workingTree" }, force: false }
+        ])
+        expect(within(menu).queryByTestId("workspace-status-analyse")).toBeNull()
+    })
+
     it("should show the preflight problems of an analysis it started", async () => {
         // Arrange
         await renderStatus({
@@ -274,7 +308,7 @@ describe("WorkspaceStatusComponent", () => {
         await userEvent.click(document.body)
 
         // Assert
-        expect(focused).toBe("workspace-status-snapshots")
+        expect(focused).toBe("workspace-status-current-checkout")
         expect(afterEscape).toBeNull()
         expect(focusedAfterEscape).toBe(trigger())
         expect(screen.queryByTestId("workspace-status-menu")).toBeNull()
