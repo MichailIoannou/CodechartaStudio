@@ -448,6 +448,47 @@ describe("ProjectsService", () => {
         expect(usage?.totalBytes).toBe(3 * API_NEW.mapBytes)
     })
 
+    it("should reload the shown snapshot with the default metrics after a reset", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+
+        // Act
+        await service.reloadAfterReset()
+
+        // Assert
+        expect(loadedSnapshotIds()).toEqual([["s-new"]])
+        expect(loadFilesUseCase.loadProjectSnapshots.mock.calls[0][1]).toEqual({ discardMetricSelection: true })
+    })
+
+    it("should unload the map after a reset when the working folder has nothing to show", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-dots" })
+        await service.initialise()
+
+        // Act
+        await service.reloadAfterReset()
+
+        // Assert
+        expect(loadFilesUseCase.loadProjectSnapshots).not.toHaveBeenCalled()
+        expect(loadFilesUseCase.unloadAllFiles).toHaveBeenCalled()
+    })
+
+    it("should go on with the next snapshot when the reset reload cannot read the shown one", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        loadFilesUseCase.loadProjectSnapshots.mockImplementationOnce((toLoad: ProjectSnapshotToLoad[]) =>
+            Promise.resolve({ loaded: [], identicalContent: [], unreadable: toLoad.map(entry => entry.origin) })
+        )
+
+        // Act
+        await service.reloadAfterReset()
+
+        // Assert
+        expect(loadedSnapshotIds()).toEqual([["s-new"], ["s-old"]])
+    })
+
     it("should show the sample maps on the metric view", () => {
         // Arrange
         const service = createService()
