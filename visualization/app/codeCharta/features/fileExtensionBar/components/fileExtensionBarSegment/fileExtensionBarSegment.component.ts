@@ -19,6 +19,7 @@ import { HighlightBuildingsByFileExtensionService } from "../../services/highlig
 
 const MENU_WIDTH_PX = 192
 const VIEWPORT_MARGIN_PX = 4
+const BLEND_WIDTH = "min(12px, 100% / 3)"
 
 @Component({
     selector: "cc-file-extension-bar-segment",
@@ -29,6 +30,8 @@ const VIEWPORT_MARGIN_PX = 4
 export class FileExtensionBarSegmentComponent implements OnInit, OnDestroy {
     item = input.required<MetricDistribution>()
     showAbsoluteValues = input.required<boolean>()
+    previousColor = input<string | null>(null)
+    nextColor = input<string | null>(null)
     toggleShowAbsoluteValues = output<void>()
 
     readonly isFlattened = signal<boolean>(false)
@@ -38,6 +41,7 @@ export class FileExtensionBarSegmentComponent implements OnInit, OnDestroy {
 
     readonly fileExtension = computed<string>(() => this.item().fileExtension)
     readonly hasFileExtension = computed(() => this.fileExtension() !== "None")
+    readonly blendedBackground = computed(() => blendWithNeighbours(this.item().color, this.previousColor(), this.nextColor()))
     readonly formattedTitle = computed(() => {
         return this.formatTitle(this.showAbsoluteValues(), this.item(), this.fileExtension())
     })
@@ -134,6 +138,11 @@ export class FileExtensionBarSegmentComponent implements OnInit, OnDestroy {
         return this.item().color
     }
 
+    @HostBinding("style.background-image")
+    get backgroundImage() {
+        return this.blendedBackground()
+    }
+
     @HostBinding("style.flex-grow")
     get flexGrow() {
         return this.item().relativeMetricValue
@@ -143,4 +152,15 @@ export class FileExtensionBarSegmentComponent implements OnInit, OnDestroy {
     get flexBasis() {
         return "0"
     }
+}
+
+/** Each side of a boundary ends on the same half-and-half mix, so the blend is seamless and centred on the exact share. */
+function blendWithNeighbours(ownColor: string, previousColor: string | null, nextColor: string | null) {
+    const start = previousColor ? `${halfMix(previousColor, ownColor)} 0, ${ownColor} ${BLEND_WIDTH}` : `${ownColor} 0`
+    const end = nextColor ? `${ownColor} calc(100% - ${BLEND_WIDTH}), ${halfMix(ownColor, nextColor)} 100%` : `${ownColor} 100%`
+    return `linear-gradient(in oklab to right, ${start}, ${end})`
+}
+
+function halfMix(leftColor: string, rightColor: string) {
+    return `color-mix(in oklab, ${leftColor} 50%, ${rightColor})`
 }

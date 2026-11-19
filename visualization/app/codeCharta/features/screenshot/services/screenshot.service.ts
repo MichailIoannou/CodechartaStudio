@@ -89,8 +89,6 @@ export class ScreenshotService implements ScreenshotCapture {
             "cc-sidebar-explorer"
         ])
 
-        const idsToIgnore = new Set(["legend-panel-button"])
-
         const bodyHeight = document.querySelector("body")?.offsetHeight ?? 0
         const navBarHeight = (document.querySelector("cc-nav-bar") as HTMLElement | null)?.offsetHeight ?? 0
         const fileExtensionBarHeight = (document.querySelector("cc-file-extension-bar") as HTMLElement | null)?.offsetHeight ?? 0
@@ -104,11 +102,7 @@ export class ScreenshotService implements ScreenshotCapture {
             scrollY: -navBarHeight,
             height: Math.max(0, bodyHeight - navBarHeight - bottomBarsHeight),
             ignoreElements(element) {
-                return (
-                    tagsNamesToIgnore.has(element.tagName.toLowerCase()) ||
-                    idsToIgnore.has(element.id) ||
-                    (element as HTMLElement).style.zIndex === "10000"
-                )
+                return tagsNamesToIgnore.has(element.tagName.toLowerCase()) || (element as HTMLElement).style.zIndex === "10000"
             }
         })
 

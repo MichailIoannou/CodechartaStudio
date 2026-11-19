@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core"
-import { InspectorResizeHandleComponent } from "../../../shared/facade"
+import { InspectorResizeHandleComponent, PANEL_ISLAND_MARGIN_PX, publishBarInset } from "../../../shared/facade"
 import { InspectorVisibilityService } from "../../services/inspectorVisibility.service"
 import { InspectorClustersComponent } from "../inspectorClusters/inspectorClusters.component"
 import { InspectorHeaderComponent } from "../inspectorHeader/inspectorHeader.component"
@@ -31,4 +31,8 @@ export class SidebarInspectorComponent {
     private readonly visibilityService = inject(InspectorVisibilityService)
 
     readonly isVisible = this.visibilityService.isVisible
+
+    constructor() {
+        publishBarInset("right", () => (this.isVisible() ? `calc(var(--cc-inspector-width) + ${PANEL_ISLAND_MARGIN_PX}px)` : "0px"))
+    }
 }

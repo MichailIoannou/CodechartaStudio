@@ -118,4 +118,14 @@ describe("ToastComponent", () => {
         expect(screen.queryByTestId("toast-details")).toBe(null)
         expect(details.getAttribute("aria-expanded")).toBe("false")
     })
+
+    it("should stack the messages at the top right just below the nav bar", async () => {
+        // Act
+        await renderComponent({ messages: (() => []) as ToastService["messages"] })
+
+        // Assert
+        const stack = screen.getByRole("status")
+        expect(stack.classList).toContain("toast-end")
+        expect(stack.classList).toContain("top-[var(--cc-bars-height,49px)]")
+    })
 })

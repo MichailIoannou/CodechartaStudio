@@ -7,7 +7,7 @@ import { MetricsBarWriteStore } from "../../stores/metricsBar.write.store"
     selector: "cc-link-color-height-button",
     templateUrl: "./linkColorHeightButton.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: "self-center px-1" }
+    host: { class: "self-center" }
 })
 export class LinkColorHeightButtonComponent {
     private readonly preferencesReadWindow = inject(PreferencesReadWindow)
@@ -19,8 +19,8 @@ export class LinkColorHeightButtonComponent {
     readonly title = computed(() => (this.isLinked() ? "Unlink Height and Color Metric" : "Link Height and Color Metric"))
     readonly buttonClass = computed(() =>
         this.isLinked()
-            ? "btn btn-circle btn-sm ring-2 ring-primary text-primary bg-primary/10 border-0"
-            : "btn btn-circle btn-sm ring-1 ring-base-300 text-base-content/60 border-0 cc-link-button-dashed"
+            ? "btn btn-sm btn-square rounded-lg btn-soft btn-primary"
+            : "btn btn-sm btn-square rounded-lg btn-ghost border border-dashed border-base-300 text-base-content/60"
     )
 
     toggle() {

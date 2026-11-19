@@ -6,6 +6,8 @@ import { InspectorVisibilityService } from "../../../../features/sidebarInspecto
 import { isDeltaStateSelector } from "../../../../stores/fileStore/store/isDeltaState.selector"
 import { edgeMetricSelector, isRadialLayoutSelector } from "../../../../stores/mapState/mapState.read.facade"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
+import { LegendDrawerStore } from "../../stores/legendDrawer.store"
+import { LegendToolComponent } from "../legendTool/legendTool.component"
 import { LegendPanelComponent } from "./legendPanel.component"
 
 describe("LegendPanelComponent", () => {
@@ -17,8 +19,10 @@ describe("LegendPanelComponent", () => {
     })
 
     async function setup({ isInspectorVisible = false } = {}) {
-        const renderResult = await render(LegendPanelComponent, {
+        const renderResult = await render("<cc-legend-tool></cc-legend-tool><cc-legend-panel></cc-legend-panel>", {
+            imports: [LegendPanelComponent, LegendToolComponent],
             providers: [
+                LegendDrawerStore,
                 provideMockStore({ initialState: defaultState }),
                 { provide: State, useValue: { getValue: () => defaultState } },
                 ...(isInspectorVisible ? [{ provide: InspectorVisibilityService, useValue: { isVisible: () => true } }] : [])
@@ -28,21 +32,20 @@ describe("LegendPanelComponent", () => {
         return { renderResult, store }
     }
 
-    it("should only render the toggle button initially", async () => {
+    it("should keep the panel closed until the Legend tool is clicked", async () => {
         // Arrange & Act
         await setup()
 
         // Assert
-        expect(screen.getByText("LEGEND")).not.toBeNull()
         expect(screen.queryByTestId("legend-panel")).toBeNull()
     })
 
-    it("should open the panel when the toggle button is clicked", async () => {
+    it("should open the panel when the Legend tool is clicked", async () => {
         // Arrange
         await setup()
 
         // Act
-        fireEvent.click(screen.getByText("LEGEND"))
+        fireEvent.click(screen.getByRole("button", { name: "Legend" }))
 
         // Assert
         expect(screen.getByTestId("legend-panel")).not.toBeNull()
@@ -52,7 +55,7 @@ describe("LegendPanelComponent", () => {
     it("should close the panel when clicking outside of it", async () => {
         // Arrange
         await setup()
-        fireEvent.click(screen.getByText("LEGEND"))
+        fireEvent.click(screen.getByRole("button", { name: "Legend" }))
 
         // Act
         fireEvent.mouseDown(document.body)
@@ -64,7 +67,7 @@ describe("LegendPanelComponent", () => {
     it("should keep the panel open when clicking inside of it", async () => {
         // Arrange
         await setup()
-        fireEvent.click(screen.getByText("LEGEND"))
+        fireEvent.click(screen.getByRole("button", { name: "Legend" }))
 
         // Act
         fireEvent.mouseDown(screen.getByText("Color scale"))
@@ -81,7 +84,7 @@ describe("LegendPanelComponent", () => {
         renderResult.detectChanges()
 
         // Act
-        fireEvent.click(screen.getByText("LEGEND"))
+        fireEvent.click(screen.getByRole("button", { name: "Legend" }))
 
         // Assert
         expect(screen.getByText("Delta colors")).not.toBeNull()
@@ -98,7 +101,7 @@ describe("LegendPanelComponent", () => {
         renderResult.detectChanges()
 
         // Act
-        fireEvent.click(screen.getByText("LEGEND"))
+        fireEvent.click(screen.getByRole("button", { name: "Legend" }))
 
         // Assert
         expect(screen.getByTestId("legend-folders-row").textContent).toContain("folders: their highest file, tinted")
@@ -109,22 +112,21 @@ describe("LegendPanelComponent", () => {
         await setup()
 
         // Act
-        fireEvent.click(screen.getByText("LEGEND"))
+        fireEvent.click(screen.getByRole("button", { name: "Legend" }))
 
         // Assert
         expect(screen.queryByTestId("legend-folders-row")).toBeNull()
     })
 
-    it("should shift the panel and the button left when the inspector sidebar is visible", async () => {
+    it("should shift the panel left when the inspector sidebar is visible", async () => {
         // Arrange
         await setup({ isInspectorVisible: true })
 
         // Act
-        fireEvent.click(screen.getByText("LEGEND"))
+        fireEvent.click(screen.getByRole("button", { name: "Legend" }))
 
         // Assert
         expect(screen.getByTestId("legend-panel").style.right).toBe("calc(var(--cc-inspector-width) + 40px)")
-        expect(screen.getByTestId("legend-panel-button").style.right).toBe("calc(var(--cc-inspector-width) - 28px)")
     })
 
     it("should show edge color rows when an edge metric is selected", async () => {
@@ -135,7 +137,7 @@ describe("LegendPanelComponent", () => {
         renderResult.detectChanges()
 
         // Act
-        fireEvent.click(screen.getByText("LEGEND"))
+        fireEvent.click(screen.getByRole("button", { name: "Legend" }))
 
         // Assert
         expect(screen.getByText("Edge")).not.toBeNull()

@@ -3,7 +3,7 @@ import { BottomBarComponent } from "../../features/bottomBar/facade"
 import { ClusterExplorerComponent, provideClustersExplorerMode } from "../../features/clusterExplorer/facade"
 import { CodeMapComponent } from "../../features/codeMap/facade"
 import { FileExtensionBarComponent } from "../../features/fileExtensionBar/facade"
-import { LegendPanelComponent } from "../../features/legend/facade"
+import { LegendDrawerStore, LegendPanelComponent, LegendToolComponent } from "../../features/legend/facade"
 import {
     HANDED_OVER_MAP_NODE_ARRIVAL,
     LeavesFocusForNodeOutsideIt,
@@ -66,6 +66,7 @@ import { RevealsSelectedNodeAfterLoadDirective } from "./explorer/revealsSelecte
         SidebarInspectorComponent,
         CodeMapComponent,
         LegendPanelComponent,
+        LegendToolComponent,
         BottomBarComponent,
         LoadingFileProgressSpinnerComponent,
         MapToolsComponent,
@@ -73,6 +74,7 @@ import { RevealsSelectedNodeAfterLoadDirective } from "./explorer/revealsSelecte
         RadialMapToolsComponent
     ],
     providers: [
+        LegendDrawerStore,
         MetricsExplorerRow,
         { provide: EXPLORER_ROW, useExisting: MetricsExplorerRow },
         MetricsExplorerSelection,

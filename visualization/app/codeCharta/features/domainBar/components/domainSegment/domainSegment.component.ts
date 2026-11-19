@@ -12,7 +12,6 @@ export class DomainSegmentComponent {
     readonly label = input.required<string>()
     readonly value = input.required<string>()
     readonly idPrefix = input.required<string>()
-    readonly minWidthClass = input("min-w-[120px]")
 
     readonly popoverId = computed(() => `${this.idPrefix()}-popover`)
     readonly anchorName = computed(() => `${this.idPrefix()}-cog`)
