@@ -1,4 +1,5 @@
 pub mod analysis;
+pub mod compare;
 pub mod core;
 pub mod git;
 pub mod paths;
