@@ -22,6 +22,7 @@ use super::query::check_candidate_count;
 use super::query::{self, RevListRequest, ShaSink};
 use super::read::{read_refs, remotes, status_summary};
 use super::runner::{FolderGit, GitCli, GitProcess};
+use super::worktrees::{self, WorktreeEntry};
 use crate::error::CoreResult;
 
 const REMOTE_BRANCHES_PREFIX: &str = "refs/remotes/";
@@ -306,6 +307,32 @@ impl<'core> GitService<'core> {
         cancel: &CancellationToken,
     ) -> CoreResult<Vec<GitRemote>> {
         remotes(&self.git, &folder.path, cancel).await
+    }
+
+    pub async fn worktrees(
+        &self,
+        folder: &GitFolder,
+        cancel: &CancellationToken,
+    ) -> CoreResult<Vec<WorktreeEntry>> {
+        worktrees::list_worktrees(&self.git, &folder.path, cancel).await
+    }
+
+    /// Removes the worktree and its folder, even when it is locked.
+    pub async fn remove_worktree(
+        &self,
+        folder: &GitFolder,
+        worktree: &Path,
+        cancel: &CancellationToken,
+    ) -> CoreResult<()> {
+        worktrees::remove_worktree(&self.git, &folder.path, worktree, cancel).await
+    }
+
+    pub async fn prune_worktrees(
+        &self,
+        folder: &GitFolder,
+        cancel: &CancellationToken,
+    ) -> CoreResult<()> {
+        worktrees::prune_worktrees(&self.git, &folder.path, cancel).await
     }
 
     /// Not remembered: refs move.

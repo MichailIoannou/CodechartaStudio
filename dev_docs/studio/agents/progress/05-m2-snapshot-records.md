@@ -36,7 +36,7 @@ here: hosting is tested with a fake runner only. Gates with and without `--all-f
 - [x] 2. Git state
 - [x] 3. Hosting
 - [x] 4. Repository
-- [ ] 5. Janitor
+- [x] 5. Janitor
 - [ ] 6. Service
 
 ## Notes
@@ -114,3 +114,18 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
   `TargetKind.ts`. Only generated files reference `SnapshotSummary` in `visualization/`.
 - Tests: the plan's eight names in `tests/snapshots.rs`; api `should_accept_a_working_tree_snapshot_id_and_nothing_like_it`;
   store `should_restore_or_drop_a_replaced_snapshot_and_drop_failed_runs_on_open`.
+
+### 5. Janitor
+- Git reads/writes on plan 04's runner, not spawned elsewhere: `git/worktrees.rs` (`parse_worktree_list` over
+  `worktree list --porcelain` — no `-z`, which needs git 2.36 while the minimum is 2.31; `list_worktrees`;
+  `remove_worktree` = `worktree remove -f -f <path>` as a mutating command, `REMOVE_ATTEMPTS` 3 ×
+  `REMOVE_RETRY_PAUSE` 500 ms; `prune_worktrees`) and `GitService::{worktrees, remove_worktree, prune_worktrees}`.
+  The janitor's commands do not go through plan 04's operation queue: they only touch ccsh's own worktrees, never the
+  user's checkout or refs.
+- `analysis/janitor.rs`: `WORKTREE_NAME_PREFIX`, `list_codecharta_worktrees(&GitService, &GitFolder)`,
+  `remove_orphans(&GitService, &GitFolder, before: &[WorktreeEntry], &CommitSha) -> CoreResult<usize>`. Orphan =
+  base name `codecharta-worktree-*`, `HEAD` = the job's sha, path not in `before`. Every orphan is tried, then
+  `worktree prune`; the first failure is reported. Both functions use a fresh cancellation token, because clean-up
+  runs after the job's token was cancelled.
+- Tests (`tests/janitor.rs`): the plan's three; the first one locks the worktree (`--reason initializing`, as a
+  kill during `worktree add` leaves it) to prove `-f -f`. Unit `should_parse_paths_and_heads_of_the_worktree_list`.

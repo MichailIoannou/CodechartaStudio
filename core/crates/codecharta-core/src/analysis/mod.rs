@@ -1,4 +1,5 @@
 pub mod argv;
+pub mod janitor;
 pub mod launcher;
 pub mod output;
 pub mod profile;
