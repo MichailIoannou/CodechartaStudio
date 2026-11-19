@@ -58,7 +58,8 @@
                                 </button>
                             </div>
                         } @else {
-                            <div class="grid grid-cols-[minmax(0,1fr)_7rem_9rem_5rem_5rem_auto] gap-x-3 px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-base-content/60">
+                            <div class="grid grid-cols-[minmax(0,1fr)_7rem_9rem_5rem_5rem_auto] gap-x-3">
+                            <div class="col-span-full grid grid-cols-subgrid px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-base-content/60">
                                 <span>Commit</span>
                                 <span>Commit date</span>
                                 <span title="Imported snapshots are sorted by the time they were imported.">Analysed at</span>
@@ -68,7 +69,7 @@
                             </div>
                             @for (row of section.rows; track row.snapshot.ref.snapshotId) {
                                 <div
-                                    class="group grid grid-cols-[minmax(0,1fr)_7rem_9rem_5rem_5rem_auto] items-center gap-x-3 rounded-md px-3 py-1 hover:bg-base-200 focus-within:bg-base-200 focus:outline-none"
+                                    class="group col-span-full grid grid-cols-subgrid items-center rounded-md px-3 py-1 hover:bg-base-200 focus-within:bg-base-200 focus:outline-none"
                                     tabindex="0"
                                     data-testid="snapshots-row"
                                 >
@@ -86,7 +87,7 @@
                                     @if (row.snapshot.finishedAt; as finishedAt) {
                                         <span class="truncate" [title]="absolute(finishedAt)">{{ relative(finishedAt) }}</span>
                                     } @else {
-                                        <span class="truncate italic text-base-content/60" data-testid="snapshots-analysed-unknown">unknown (imported {{ importedOn(row.snapshot) }})</span>
+                                        <span class="truncate italic text-base-content/60" data-testid="snapshots-analysed-unknown" [title]="'Imported ' + importedOn(row.snapshot)">unknown (imported {{ importedShort(row.snapshot) }})</span>
                                     }
                                     <span class="truncate font-mono text-xs" [title]="row.snapshot.profileHash ?? ''">{{ shortProfile(row.snapshot.profileHash) }}</span>
                                     <span class="text-right tabular-nums">{{ byteSize(row.snapshot.mapBytes) }}</span>
@@ -107,6 +108,7 @@
                                     <ng-container *ngTemplateOutlet="rowActions; context: { $implicit: row }" />
                                 </div>
                             }
+                            </div>
                         }
                     </div>
                 </details>
@@ -118,10 +120,10 @@
                         Imported — analysis time unknown
                         <span class="badge badge-sm ml-1">{{ unboundImports().length }}</span>
                     </summary>
-                    <div class="collapse-content px-0 pb-1 text-sm">
+                    <div class="collapse-content grid grid-cols-[minmax(0,1fr)_11rem_5rem_auto] gap-x-3 px-0 pb-1 text-sm">
                         @for (row of unboundImports(); track row.snapshot.ref.snapshotId) {
                             <div
-                                class="group grid grid-cols-[minmax(0,1fr)_11rem_5rem_auto] items-center gap-x-3 rounded-md px-3 py-1 hover:bg-base-200 focus-within:bg-base-200 focus:outline-none"
+                                class="group col-span-full grid grid-cols-subgrid items-center rounded-md px-3 py-1 hover:bg-base-200 focus-within:bg-base-200 focus:outline-none"
                                 tabindex="0"
                                 data-testid="snapshots-unbound-row"
                             >

@@ -110,7 +110,7 @@ describe("SnapshotsDialogComponent", () => {
         expect(rowCells(api)).toEqual([
             ["working tree (on a1b2c3d)", "—", relative, "2f9c…", "1.0 kB", "uncommitted partial"],
             ["a1b2c3d Fix invoice rounding", relative, relative, "2f9c…", "1.0 kB", "shown"],
-            ["9f8e7d6 Release 2.4.0", "—", "unknown (imported 1 Nov 2026)", "unknown", "1.0 kB", "imported"]
+            ["9f8e7d6 Release 2.4.0", "—", "unknown (imported 1 Nov)", "unknown", "1.0 kB", "imported"]
         ])
         expect(screen.getByTestId("snapshots-folder-out").textContent).toContain("No analyses yet.")
     })
@@ -121,7 +121,7 @@ describe("SnapshotsDialogComponent", () => {
 
         // Assert
         const importedRow = screen.getAllByTestId("snapshots-row")[2]
-        expect(within(importedRow).getByTestId("snapshots-analysed-unknown").textContent).toBe("unknown (imported 1 Nov 2026)")
+        expect(within(importedRow).getByTestId("snapshots-analysed-unknown").textContent).toBe("unknown (imported 1 Nov)")
         expect(within(importedRow).queryByTestId("snapshots-reanalyse")).toBeNull()
         expect(within(importedRow).getByTestId("snapshots-move")).toBeTruthy()
         expect(within(screen.getAllByTestId("snapshots-row")[1]).getByTestId("snapshots-reanalyse")).toBeTruthy()

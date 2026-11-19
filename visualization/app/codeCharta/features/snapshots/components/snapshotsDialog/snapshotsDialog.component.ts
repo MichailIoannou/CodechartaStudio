@@ -11,7 +11,8 @@ import {
     longDate,
     MoveSnapshotDialogComponent,
     ProjectsFacade,
-    relativeTime
+    relativeTime,
+    shortDate
 } from "../../../projects/facade"
 import { SnapshotCatalogService } from "../../services/snapshotCatalog.service"
 import { SnapshotsDialogService } from "../../services/snapshotsDialog.service"
@@ -140,6 +141,10 @@ export class SnapshotsDialogComponent implements AfterViewInit {
 
     importedOn(snapshot: SnapshotSummary): string {
         return longDate(snapshot.createdAt)
+    }
+
+    importedShort(snapshot: SnapshotSummary): string {
+        return shortDate(snapshot.createdAt)
     }
 
     notInMapTitle(snapshot: SnapshotSummary): string {
