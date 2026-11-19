@@ -112,3 +112,8 @@ answer that differs means the named file is changed, nothing else.
      removed for good, not recycled. Acceptable as a replace, or should it go to the recycle bin too?
   3. `snapshots.planPrune` / `prune` work per folder; the design's project-wide clean-up dialog would call
      them once per folder. Fine?
+
+- **O5 (2026-11-19). Native picker titles for projects (03-M5).** `03-projects.md` names no titles for the
+  native folder pickers. 03-M5 used "Add folder" (P4/P5 add) and "Re-link '<label>'" (P6 re-link). Please
+  confirm or replace. Also: at 1024–1279 px the project trigger truncates to e.g. "bill…" with the full name
+  in the tooltip, as the width budget implies — acceptable?
