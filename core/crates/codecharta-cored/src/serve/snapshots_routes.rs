@@ -1,16 +1,20 @@
 use std::path::Path;
 
-use codecharta_core::snapshots::{ImportRequest, MapFacts, OpenFileRequest, SnapshotMove};
+use codecharta_core::snapshots::{
+    FolderResolver, ImportRequest, MapFacts, OpenFileRequest, SnapshotMove,
+};
 use codecharta_core::{Core, CoreResult, path_to_wire};
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::methods::snapshots::{
-    ImportSnapshotParams, MapLocation, OpenFileParams, OpenedFile, SnapshotList, SnapshotLog,
-    SnapshotRef, SnapshotSummary, SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile,
-    SnapshotsList, SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsReadLog,
-    SnapshotsRecordMapFacts,
+    ImportSnapshotParams, MapLocation, OpenFileParams, OpenedFile, ResolveForCommitParams,
+    SnapshotList, SnapshotLog, SnapshotRef, SnapshotResolution, SnapshotSummary, SnapshotsDelete,
+    SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList, SnapshotsMapLocation,
+    SnapshotsMove, SnapshotsOpenFile, SnapshotsReadLog, SnapshotsRecordMapFacts,
+    SnapshotsResolveForCommit,
 };
 use codecharta_core_api::registry::Method;
 use serde_json::Value;
+use tokio_util::sync::CancellationToken;
 
 use super::dispatch::{
     DispatchResult, HandlerFuture, RequestContext, domain_error, read_params, write_result,
@@ -18,6 +22,33 @@ use super::dispatch::{
 
 fn answer<M: Method>(result: CoreResult<M::Result>) -> DispatchResult {
     write_result::<M>(result.map_err(domain_error)?)
+}
+
+pub fn resolve_for_commit(
+    core: &Core,
+    context: RequestContext,
+    params: Value,
+) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<SnapshotsResolveForCommit>(params)?;
+        answer::<SnapshotsResolveForCommit>(resolve(core, &params, &context.cancel).await)
+    })
+}
+
+async fn resolve(
+    core: &Core,
+    params: &ResolveForCommitParams,
+    cancel: &CancellationToken,
+) -> CoreResult<SnapshotResolution> {
+    let resolver = FolderResolver {
+        projects: &core.projects()?,
+        snapshots: &core.snapshots()?,
+        git: &core.git()?,
+        cache: core.resolution_cache(),
+    };
+    resolver
+        .resolve(&params.folder(), &params.target, cancel)
+        .await
 }
 
 pub fn list(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {

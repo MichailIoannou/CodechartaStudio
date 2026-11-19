@@ -205,6 +205,85 @@ fn should_report_a_failed_analysis_and_forget_it_on_clear() {
     assert_eq!(jobs["result"]["jobs"], json!([]));
 }
 
+const PLAIN_MAP: &str = r#"{"projectName":"demo","apiVersion":"1.5","nodes":[]}"#;
+
+fn resolve_params(folder: &Value, target: Value) -> Value {
+    let mut params = folder.clone();
+    params["target"] = target;
+    params
+}
+
+/// A project of one folder without git whose only snapshot is an imported map.
+fn plain_project_with_import(core: &mut AnalysisCore, plain: &Path) -> Value {
+    fs::write(plain.join("map.cc.json"), PLAIN_MAP).expect("the map is written");
+    let picked = core.request("projects.inspectFolder", json!({ "path": plain }));
+    let folders = json!([{ "pickToken": picked["result"]["pickToken"], "label": "plain", "role": "primary" }]);
+    let project = core.request(
+        "projects.create",
+        json!({ "name": "Plain", "folders": folders }),
+    );
+    let folder = json!({
+        "projectId": project["result"]["id"],
+        "folderId": project["result"]["folders"][0]["id"],
+    });
+    let file = core.request(
+        "snapshots.inspectImportFile",
+        json!({ "path": plain.join("map.cc.json") }),
+    );
+    let mut import = folder.clone();
+    import["importToken"] = file["result"]["importToken"].clone();
+    import["bindToCommit"] = Value::Null;
+    let imported = core.request("snapshots.import", import);
+    assert!(imported.get("result").is_some(), "{imported}");
+    folder
+}
+
+#[test]
+fn should_return_each_resolution_kind_over_json_rpc() {
+    // Arrange
+    let mut core = AnalysisCore::start(&json!({ "write_map": true }));
+    let head_target = json!({ "kind": "commit", "sha": core.repository.head });
+    let plain = tempfile::tempdir().expect("a plain folder");
+    let plain_folder = plain_project_with_import(&mut core, plain.path());
+
+    // Act
+    let none = core.request(
+        "snapshots.resolveForCommit",
+        resolve_params(&core.folder, head_target.clone()),
+    );
+    core.enqueue_head_until("snapshots.changed");
+    let exact = core.request(
+        "snapshots.resolveForCommit",
+        resolve_params(&core.folder, head_target),
+    );
+    let next = core.repository.add_commit("b.txt");
+    let nearest = core.request(
+        "snapshots.resolveForCommit",
+        resolve_params(&core.folder, json!({ "kind": "commit", "sha": next })),
+    );
+    let latest = core.request(
+        "snapshots.resolveForCommit",
+        resolve_params(&plain_folder, json!({ "kind": "workingTree" })),
+    );
+
+    // Assert
+    assert_eq!(
+        none["result"],
+        json!({ "kind": "none", "reason": "NO_SNAPSHOTS" })
+    );
+    assert_eq!(exact["result"]["kind"], "exact", "{exact}");
+    assert_eq!(exact["result"]["isCurrentProfile"], true);
+    let analysed = exact["result"]["snapshot"]["ref"]["snapshotId"].clone();
+    assert_eq!(nearest["result"]["kind"], "nearest", "{nearest}");
+    assert_eq!(nearest["result"]["snapshot"]["ref"]["snapshotId"], analysed);
+    assert_eq!(nearest["result"]["relation"], "ancestor");
+    assert_eq!(nearest["result"]["behind"], 1);
+    assert_eq!(nearest["result"]["ahead"], 0);
+    assert_eq!(latest["result"]["kind"], "latest", "{latest}");
+    assert_eq!(latest["result"]["reason"], "PLAIN_FOLDER");
+    assert_eq!(latest["result"]["snapshot"]["source"], "imported");
+}
+
 fn leftover(snapshots_dir: &Path, name: &str) -> PathBuf {
     let folder = snapshots_dir.join(name);
     fs::create_dir_all(&folder).expect("the leftover folder is created");

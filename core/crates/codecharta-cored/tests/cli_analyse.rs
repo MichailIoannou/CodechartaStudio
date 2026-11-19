@@ -204,9 +204,11 @@ fn should_exit_1_with_the_preflight_error_code_for_an_unknown_commit() {
 }
 
 #[test]
-fn should_resolve_no_snapshot_until_the_nearest_search_exists() {
+fn should_print_the_resolution_as_json() {
     // Arrange
     let command_line = CommandLine::with_project();
+    command_line.play(&json!({ "write_map": true }));
+    let head = command_line.repository.head.clone();
     let folder_args = [
         "snapshots",
         "resolve",
@@ -215,14 +217,27 @@ fn should_resolve_no_snapshot_until_the_nearest_search_exists() {
         "--folder",
         command_line.folder_id.as_str(),
     ];
+    let commit_args = [&folder_args[..], &["--commit", head.as_str()]].concat();
 
     // Act
-    let text_output = command_line.run(&folder_args);
-    let json_output = command_line.run(&[&folder_args[..], &["--json"]].concat());
+    let before_text = command_line.run(&folder_args);
+    let before_json = command_line.run(&[&folder_args[..], &["--json"]].concat());
+    let analysed = command_line.analyse(&["--commit", &head]);
+    let after_text = command_line.run(&commit_args);
+    let after_json = command_line.run(&[&commit_args[..], &["--json"]].concat());
+    let working_tree_json = command_line.run(&[&folder_args[..], &["--json"]].concat());
 
     // Assert
-    assert!(text_output.status.success(), "{}", stderr_of(&text_output));
-    assert_eq!(stdout_of(&text_output), "none");
-    let resolution: Value = serde_json::from_slice(&json_output.stdout).expect("JSON");
-    assert_eq!(resolution, json!({ "kind": "none" }));
+    assert!(before_text.status.success(), "{}", stderr_of(&before_text));
+    assert_eq!(stdout_of(&before_text), "none  NO_SNAPSHOTS");
+    let before: Value = serde_json::from_slice(&before_json.stdout).expect("JSON");
+    assert_eq!(before, json!({ "kind": "none", "reason": "NO_SNAPSHOTS" }));
+    let snapshot_id = stdout_of(&analysed);
+    assert_eq!(stdout_of(&after_text), format!("exact  {snapshot_id}"));
+    let after: Value = serde_json::from_slice(&after_json.stdout).expect("JSON");
+    assert_eq!(after["kind"], "exact");
+    assert_eq!(after["isCurrentProfile"], true);
+    assert_eq!(after["snapshot"]["ref"]["snapshotId"], snapshot_id.as_str());
+    let through_head: Value = serde_json::from_slice(&working_tree_json.stdout).expect("JSON");
+    assert_eq!(through_head, after);
 }

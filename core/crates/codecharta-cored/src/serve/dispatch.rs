@@ -33,7 +33,7 @@ use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
 use codecharta_core_api::methods::snapshots::{
     SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
     SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsReadLog,
-    SnapshotsRecordMapFacts,
+    SnapshotsRecordMapFacts, SnapshotsResolveForCommit,
 };
 use codecharta_core_api::methods::store::StoreGetStatus;
 use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
@@ -208,6 +208,10 @@ const ROUTES: &[Route] = &[
     Route {
         name: SnapshotsReadLog::NAME,
         handler: snapshots_routes::read_log,
+    },
+    Route {
+        name: SnapshotsResolveForCommit::NAME,
+        handler: snapshots_routes::resolve_for_commit,
     },
     Route {
         name: AnalysisPreflight::NAME,

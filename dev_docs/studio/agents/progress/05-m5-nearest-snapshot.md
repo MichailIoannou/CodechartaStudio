@@ -33,7 +33,8 @@ repository (build with `git fast-import`). Gates with and without `--all-feature
 ## Steps
 
 - [x] 1. Nearest resolution
-- [ ] 2. RPC and CLI (fake bridge later)
+- [x] 2. RPC and CLI
+- [ ] 2. Fake bridge (later)
 - [ ] 3–7. Renderer (later)
 
 ## Notes
@@ -78,4 +79,41 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
   `should_order_commit_dates_across_offsets`); extra `should_return_none_for_a_commit_the_repository_does_not_have`;
   `git_queries.rs` `should_tell_merge_commits_apart_in_a_walk_with_parents`; api
   `should_write_a_resolution_with_its_kind_and_camel_case_fields`.
+
+### 2. RPC and CLI (core half)
+- Api first: `ResolveForCommitParams { projectId, folderId, target }` (`folder()`), method marker
+  `SnapshotsResolveForCommit` = `snapshots.resolveForCommit`, **renderer**, result `SnapshotResolution`. Contract
+  regenerated: new `LatestReason.ts`, `NoSnapshotReason.ts`, `ResolveForCommitParams.ts`, `SnapshotRelation.ts`,
+  `SnapshotResolution.ts`; `coreApi.ts` and `coreMethods.generated.json` list the method.
+- Core: `snapshots::FolderResolver { projects, snapshots, git, cache }::resolve(folder, target, cancel)`
+  (`snapshots/folder_resolution.rs`, new file beside `nearest.rs`): resolves the folder (`NOT_FOUND` for an unknown
+  project or folder), lists its snapshots, takes the current profile hash from the project's profile (`None` while it
+  is invalid, so nothing matches it) and maps the folder to `Plain` / `Git` / `MissingGit` (a git folder that is
+  missing on disk). `Core::resolution_cache()` is the one cache of the serving core; a CLI call has its own core.
+- Serve: `snapshots_routes::resolve_for_commit` (request cancellation passed through). CLI: `snapshots resolve`
+  builds the same resolver over a read-only store (see the "As built (05-M5)" line under "Headless CLI" in plan 05).
+- Tests: protocol `analysis_protocol.rs` `should_return_each_resolution_kind_over_json_rpc` (none before the
+  analysis, exact after it, nearest ancestor after one more commit, latest for a plain folder whose only snapshot is
+  an import); CLI `cli_analyse.rs` `should_print_the_resolution_as_json` (replaces
+  `should_resolve_no_snapshot_until_the_nearest_search_exists`: none, then exact for the commit and through HEAD for
+  the working tree, text and JSON). `TestRepository::add_commit` added to the cored test support.
+- Docs: `core/README.md` command line. No changelog entry: nothing a user sees ships before the UI tasks.
+
+### For the UI tasks (3–7) and plan 06
+- Call `snapshots.resolveForCommit { projectId, folderId, target }` with `target` `{ kind: "commit", sha }` or
+  `{ kind: "workingTree" }`; it never starts an analysis (owner decision). Answer `SnapshotResolution`:
+  `exact { snapshot, isCurrentProfile }`; `nearest { snapshot, isCurrentProfile, relation, behind, ahead }` with
+  `relation` `ancestor` (behind = N, ahead = 0), `descendant` (0, N) or `diverged` (both) — "stale by N" is `behind`
+  (+ `ahead` for diverged); `latest { snapshot, reason: PLAIN_FOLDER | GIT_UNAVAILABLE | REPOSITORY_UNAVAILABLE }`;
+  `none { reason: NO_SNAPSHOTS | NO_COMMITS | UNKNOWN_COMMIT | UNRELATED }`. `snapshot` is a `SnapshotSummary`
+  (`source` tells an import, `target` a working-tree snapshot, which answers a working-tree selection exactly).
+  `isCurrentProfile` false = flag "other profile" (an import has no profile and is also false; word it by `source`).
+- The banner's "Imported maps without a commit are listed under Snapshots" needs `snapshots.list` (unbound imports
+  are never resolved for a git folder).
+- Resolutions are cached in the core per repository + commit + snapshot set; after `snapshots.changed`, an import,
+  move or delete the next call recomputes by itself. A working-tree target re-reads HEAD every call, so the
+  repository-changed signal only has to trigger a new call. First calls cost up to ~0.6 s on 100 000 commits when no
+  analysed ancestor is near; repeated calls are microseconds.
+- Plan 06: `GitService::rev_list_with_parents` streams without `--date-order` (fast first line, no topological
+  order); `rev_list` keeps `--date-order`. "Use nearest" for a missing comparison side can call the same method.
 

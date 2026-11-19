@@ -83,6 +83,7 @@ import type { RemoveFolderParams } from "./RemoveFolderParams"
 import type { RepositoryChanged } from "./RepositoryChanged"
 import type { ResolveCommitParams } from "./ResolveCommitParams"
 import type { ResolveCommitResult } from "./ResolveCommitResult"
+import type { ResolveForCommitParams } from "./ResolveForCommitParams"
 import type { ResolvePathParams } from "./ResolvePathParams"
 import type { ResolvePathResult } from "./ResolvePathResult"
 import type { SetActiveProjectParams } from "./SetActiveProjectParams"
@@ -92,6 +93,7 @@ import type { SetViewParams } from "./SetViewParams"
 import type { SnapshotList } from "./SnapshotList"
 import type { SnapshotLog } from "./SnapshotLog"
 import type { SnapshotRef } from "./SnapshotRef"
+import type { SnapshotResolution } from "./SnapshotResolution"
 import type { SnapshotSummary } from "./SnapshotSummary"
 import type { SourceFileLookup } from "./SourceFileLookup"
 import type { SourceFileParams } from "./SourceFileParams"
@@ -191,6 +193,7 @@ export type CoreMethods = {
     "snapshots.move": { params: MoveSnapshotParams; result: SnapshotSummary }
     "snapshots.delete": { params: DeleteSnapshotParams; result: null }
     "snapshots.readLog": { params: SnapshotRef; result: SnapshotLog }
+    "snapshots.resolveForCommit": { params: ResolveForCommitParams; result: SnapshotResolution }
     "analysis.preflight": { params: PreflightParams; result: PreflightResult }
     "analysis.enqueue": { params: EnqueueParams; result: EnqueueResult }
     "analysis.cancel": { params: JobRefParams; result: null }
@@ -274,6 +277,7 @@ export const RENDERER_METHODS = [
     "snapshots.move",
     "snapshots.delete",
     "snapshots.readLog",
+    "snapshots.resolveForCommit",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",

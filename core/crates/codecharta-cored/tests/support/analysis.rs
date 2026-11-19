@@ -90,6 +90,14 @@ impl TestRepository {
         self.folder.path()
     }
 
+    /// Commits a new file named `name` and answers the commit's sha; `head` stays the first commit.
+    pub fn add_commit(&self, name: &str) -> String {
+        fs::write(self.path().join(name), name).expect("a file is written");
+        self.git(&["add", name]);
+        self.git(&["commit", "--quiet", "-m", name]);
+        self.git(&["rev-parse", "HEAD"]).trim().to_string()
+    }
+
     /// The environment a process that runs git for this repository needs.
     pub fn isolate(&self, command: &mut Command) {
         command

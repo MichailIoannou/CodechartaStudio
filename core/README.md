@@ -32,7 +32,7 @@ cargo run -p codecharta-cored -- projects create --name demo --folder .[=<label>
 cargo run -p codecharta-cored -- projects add-folder --project <id> --path <dir> [--label <l>] [--role fork]
 cargo run -p codecharta-cored -- snapshots list --project <id> --folder <id> [--json]   # newest first; reads only
 cargo run -p codecharta-cored -- snapshots import --project <id> --folder <id> --file map.cc.json [--bind-to-commit <sha>]
-cargo run -p codecharta-cored -- snapshots resolve --project <id> --folder <id> [--commit <sha>]   # "none" until 05-M5
+cargo run -p codecharta-cored -- snapshots resolve --project <id> --folder <id> [--commit <sha>]   # exact / nearest / latest / none; never analyses
 cargo run -p codecharta-cored -- analyse --project <id> --folder <id> [--commit <sha>] [--force] [--json]   # runs ccsh
 cargo run -p codecharta-cored -- git status --path <dir> [--json]   # or --project <id> --folder <id>; also git branches
 ```

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::ids::{FolderId, ProjectId, SnapshotId};
-use crate::methods::analysis::TargetKind;
+use crate::methods::analysis::{AnalysisTarget, TargetKind};
 use crate::methods::projects::{FolderGitFacts, FolderKind, FolderRef, Project, ResolvedCommit};
 use crate::registry::method;
 use crate::values::{CommitHash, FullCommit, MapChecksum, PickToken, ProjectName, RootName};
@@ -233,6 +233,24 @@ pub struct DeleteSnapshotParams {
     pub permanently: bool,
 }
 
+/// Resolving never starts an analysis.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ResolveForCommitParams {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub target: AnalysisTarget,
+}
+
+impl ResolveForCommitParams {
+    pub fn folder(&self) -> FolderRef {
+        FolderRef {
+            project_id: self.project_id.clone(),
+            folder_id: self.folder_id.clone(),
+        }
+    }
+}
+
 method!(
     SnapshotsList,
     "snapshots.list",
@@ -253,6 +271,13 @@ method!(
     Renderer,
     RecordMapFactsParams,
     ()
+);
+method!(
+    SnapshotsResolveForCommit,
+    "snapshots.resolveForCommit",
+    Renderer,
+    ResolveForCommitParams,
+    SnapshotResolution
 );
 method!(
     SnapshotsInspectImportFile,

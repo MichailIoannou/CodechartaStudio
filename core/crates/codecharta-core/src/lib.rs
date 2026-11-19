@@ -44,6 +44,7 @@ use projects::tokens::PickTokens;
 use prompt::PromptBroker;
 use recycle::SystemRecycler;
 use snapshots::SnapshotRepository;
+use snapshots::nearest::ResolutionCache;
 use store::Store;
 use store::state::StoreState;
 use tools::{SearchLocations, Tools, ToolsSetup};
@@ -63,6 +64,7 @@ pub struct Core {
     operation_queue: OperationQueue,
     prompts: Arc<PromptBroker>,
     analysis_queue: AnalysisQueue,
+    resolutions: ResolutionCache,
 }
 
 impl Core {
@@ -94,6 +96,7 @@ impl Core {
             operation_queue: OperationQueue::default(),
             prompts: Arc::default(),
             analysis_queue: AnalysisQueue::new(),
+            resolutions: ResolutionCache::default(),
         })
     }
 
@@ -167,6 +170,11 @@ impl Core {
 
     pub fn analyses(&self) -> Analyses<'_> {
         Analyses::new(self)
+    }
+
+    /// The snapshot resolutions of this core, shared by every request.
+    pub fn resolution_cache(&self) -> &ResolutionCache {
+        &self.resolutions
     }
 
     /// Every child process of the core runs through this runner, so `shutdown` can stop them all.

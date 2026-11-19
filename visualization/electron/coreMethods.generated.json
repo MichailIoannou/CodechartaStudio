@@ -41,6 +41,7 @@
     "snapshots.move",
     "snapshots.delete",
     "snapshots.readLog",
+    "snapshots.resolveForCommit",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",
