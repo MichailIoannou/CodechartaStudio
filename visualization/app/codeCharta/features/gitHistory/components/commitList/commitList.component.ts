@@ -7,23 +7,26 @@ import {
     ElementRef,
     effect,
     inject,
+    output,
     signal,
     untracked,
     viewChild
 } from "@angular/core"
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
-import { SelectionItem, WORKING_TREE_KEY } from "../../model/commitSelection"
+import { SelectionItem, selectionKeyOf, WORKING_TREE_KEY } from "../../model/commitSelection"
 import { failureOf, readyValueOf } from "../../model/loadState"
 import { ANALYSED_COMMITS, AnalysedCommitMarker } from "../../ports/analysedCommits.port"
+import { CommitClipboardService } from "../../services/commitClipboard.service"
 import { CommitSelectionService } from "../../services/commitSelection.service"
 import { GitLogService } from "../../services/gitLog.service"
 import { GitRepositoryService } from "../../services/gitRepository.service"
+import { CommitListCommand, commitListCommandOf, MoveTarget, rowIndexAfter } from "../../util/commitListKeys"
 import { gitErrorSentence } from "../../util/gitErrorText"
 import { GraphRow } from "../../util/graphLayout"
 import { GRAPH_ROW_HEIGHT, graphWidthFor, MAX_DRAWN_LANES } from "../../util/graphRowGeometry"
-import { windowOf } from "../../util/virtualWindow"
+import { scrollTopShowing, windowOf } from "../../util/virtualWindow"
 import { CommitGraphCellComponent } from "../commitGraphCell/commitGraphCell.component"
-import { CommitRowComponent, CommitRowView, selectionClassOf } from "../commitRow/commitRow.component"
+import { CommitRowComponent, CommitRowView, rowIdOf, selectionClassOf } from "../commitRow/commitRow.component"
 
 const NEXT_PAGE_THRESHOLD_ROWS = 100
 const OVERSCAN_ROWS = 10
@@ -56,6 +59,7 @@ export class CommitListComponent {
     private readonly log = inject(GitLogService)
     private readonly repository = inject(GitRepositoryService)
     private readonly selection = inject(CommitSelectionService)
+    private readonly clipboard = inject(CommitClipboardService)
     private readonly analysedCommits = inject(ANALYSED_COMMITS, { optional: true })
     private readonly viewport = viewChild.required<ElementRef<HTMLElement>>("viewport")
     private readonly destroyRef = inject(DestroyRef)
@@ -64,6 +68,8 @@ export class CommitListComponent {
     private isScrollFramePending = false
     private readonly viewportSize = signal({ width: Number.POSITIVE_INFINITY, height: 0 })
     readonly nowMs = signal(Date.now())
+    readonly searchRequested = output<void>()
+    readonly workingTreeRowId = rowIdOf(WORKING_TREE_KEY)
 
     readonly skeletonRows = Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => index)
     readonly rowHeight = GRAPH_ROW_HEIGHT
@@ -89,6 +95,23 @@ export class CommitListComponent {
         return page.kind === "failed" ? { kind: "loadMoreFailed", key: "load-more-failed", sentence: gitErrorSentence(page.error) } : null
     })
     private readonly leadingRowCount = computed(() => (this.uncommittedChangeCount() === null ? 0 : 1))
+    private readonly selectableRowCount = computed(() => this.leadingRowCount() + this.log.commits().length)
+    readonly activeDescendant = computed(() => {
+        const index = this.focusedRowIndex()
+        const item = index === null ? null : this.selectableItemAt(index)
+        return item ? rowIdOf(selectionKeyOf(item)) : null
+    })
+    private readonly focusedRowIndex = computed(() => {
+        const key = this.selection.focusedKey()
+        if (key === null) {
+            return null
+        }
+        if (key === WORKING_TREE_KEY) {
+            return this.leadingRowCount() === 1 ? 0 : null
+        }
+        const commitIndex = this.log.commits().findIndex(commit => commit.sha === key)
+        return commitIndex < 0 ? null : this.leadingRowCount() + commitIndex
+    })
     readonly rowCount = computed(() => this.leadingRowCount() + this.log.commits().length + (this.trailingItem() ? 1 : 0))
     readonly window = computed(() =>
         windowOf({
@@ -179,6 +202,14 @@ export class CommitListComponent {
         }
     }
 
+    onKeydown(event: KeyboardEvent) {
+        const command = commitListCommandOf(event)
+        if (command && this.run(command)) {
+            event.preventDefault()
+            event.stopPropagation()
+        }
+    }
+
     retryPage() {
         void this.log.loadNextPage()
     }
@@ -196,6 +227,77 @@ export class CommitListComponent {
             this.selection.extend(item)
         } else {
             this.selection.select(item)
+        }
+    }
+
+    /** False for a command the list does not take, so the key goes on to the panel. */
+    private run(command: CommitListCommand): boolean {
+        switch (command.kind) {
+            case "move":
+                this.move(command.target, command.isExtending)
+                return true
+            case "copySha":
+                return this.copyFocusedSha()
+            case "focusSearch":
+                this.searchRequested.emit()
+                return true
+            case "dropSecond":
+                this.selection.dropSecond()
+                return true
+            default:
+                return false
+        }
+    }
+
+    private move(target: MoveTarget, isExtending: boolean) {
+        const rowCount = this.selectableRowCount()
+        if (rowCount === 0) {
+            return
+        }
+        const pageSize = Math.max(1, Math.floor(this.viewportSize().height / GRAPH_ROW_HEIGHT))
+        const index = rowIndexAfter(target, this.focusedRowIndex(), rowCount, pageSize)
+        const item = this.selectableItemAt(index)
+        if (!item) {
+            return
+        }
+        if (isExtending) {
+            this.selection.setSecond(item)
+        } else {
+            this.selection.select(item)
+        }
+        this.scrollRowIntoView(index)
+    }
+
+    private copyFocusedSha(): boolean {
+        const index = this.focusedRowIndex()
+        const item = index === null ? null : this.selectableItemAt(index)
+        if (item?.kind !== "commit") {
+            return false
+        }
+        void this.clipboard.copySha(item.commit)
+        return true
+    }
+
+    private selectableItemAt(index: number): SelectionItem | null {
+        if (this.leadingRowCount() === 1 && index === 0) {
+            const status = readyValueOf(this.repository.status())
+            return status ? { kind: "workingTree", status } : null
+        }
+        const commit = this.log.commits()[index - this.leadingRowCount()]
+        return commit ? { kind: "commit", commit } : null
+    }
+
+    private scrollRowIntoView(index: number) {
+        const scrollTop = this.scrollTop()
+        const nextScrollTop = scrollTopShowing({
+            index,
+            rowHeight: GRAPH_ROW_HEIGHT,
+            scrollTop,
+            viewportHeight: this.viewportSize().height
+        })
+        if (nextScrollTop !== scrollTop) {
+            this.viewport().nativeElement.scrollTop = nextScrollTop
+            this.scrollTop.set(nextScrollTop)
         }
     }
 

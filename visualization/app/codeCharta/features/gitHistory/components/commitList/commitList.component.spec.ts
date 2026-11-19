@@ -5,6 +5,7 @@ import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummar
 import type { GitStatus } from "../../../../model/coreApi/GitStatus"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aProject } from "../../../projects/projects.mocks"
+import { ToastService } from "../../../shared/facade"
 import { ANALYSED_COMMITS, AnalysedCommitMarker } from "../../ports/analysedCommits.port"
 import { CommitSelectionService } from "../../services/commitSelection.service"
 import {
@@ -348,6 +349,175 @@ describe("CommitListComponent", () => {
         // Assert
         expect(TestBed.inject(CommitSelectionService).selection()?.items[0]).toEqual({ kind: "workingTree", status: dirty })
         expect(screen.getByTestId("commit-row-working-tree").className).toContain("border-l-2 border-primary")
+    })
+
+    describe("keyboard", () => {
+        const DIRTY = aStatusOn("main", {
+            head: { kind: "branch", name: "main", commit: `${"0".repeat(39)}a` },
+            counts: { staged: 0, unstaged: 1, untracked: 0, conflicted: 0 }
+        })
+
+        function press(key: string, modifiers: Partial<KeyboardEventInit> = {}) {
+            const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...modifiers })
+            const stopPropagation = jest.spyOn(event, "stopPropagation")
+            screen.getByTestId("commit-list").dispatchEvent(event)
+            return { event, stopPropagation }
+        }
+
+        function selectedKeys() {
+            return TestBed.inject(CommitSelectionService)
+                .selection()
+                ?.items.map(item => (item.kind === "commit" ? item.commit.subject : "working tree"))
+        }
+
+        it("should select the next and previous row with the arrow keys and keep the key from the map", async () => {
+            // Arrange
+            await renderList(seedOf(history(10)))
+
+            // Act
+            press("ArrowDown")
+            press("ArrowDown")
+            const afterTwoDowns = selectedKeys()
+            const { event, stopPropagation } = press("ArrowUp")
+
+            // Assert
+            expect(afterTwoDowns).toEqual(["Commit 9"])
+            expect(selectedKeys()).toEqual(["Commit 10"])
+            expect(event.defaultPrevented).toBe(true)
+            expect(stopPropagation).toHaveBeenCalled()
+        })
+
+        it("should start at the uncommitted changes row when it is shown", async () => {
+            // Arrange
+            await renderList(seedOf(history(10), DIRTY))
+
+            // Act
+            press("ArrowDown")
+            const first = selectedKeys()
+            press("ArrowDown")
+
+            // Assert
+            expect(first).toEqual(["working tree"])
+            expect(selectedKeys()).toEqual(["Commit 10"])
+        })
+
+        it("should set the second selection with Shift and the arrows and drop it on Escape", async () => {
+            // Arrange
+            await renderList(seedOf(history(10)))
+            press("ArrowDown")
+
+            // Act
+            press("ArrowDown", { shiftKey: true })
+            press("ArrowDown", { shiftKey: true })
+            const extended = selectedKeys()
+            press("Escape")
+
+            // Assert
+            expect(extended).toEqual(["Commit 10", "Commit 8"])
+            expect(selectedKeys()).toEqual(["Commit 10"])
+        })
+
+        it("should jump with Home and End and page with PageUp and PageDown", async () => {
+            // Arrange
+            await renderList(seedOf(history(30)))
+
+            // Act
+            press("End")
+            const atEnd = selectedKeys()
+            press("PageUp")
+            const pagedUp = selectedKeys()
+            press("Home")
+            const atHome = selectedKeys()
+            press("PageDown")
+
+            // Assert
+            expect(atEnd).toEqual(["Commit 1"])
+            expect(pagedUp).toEqual(["Commit 11"])
+            expect(atHome).toEqual(["Commit 30"])
+            expect(selectedKeys()).toEqual(["Commit 20"])
+        })
+
+        it("should scroll the focused row into the window", async () => {
+            // Arrange
+            const { detectChanges } = await renderList(seedOf(history(100)))
+            const viewport = screen.getByTestId("commit-list")
+
+            // Act
+            press("End")
+            detectChanges()
+            const scrolledDown = viewport.scrollTop
+            press("Home")
+            detectChanges()
+
+            // Assert
+            expect(scrolledDown).toBe(100 * 28 - 280)
+            expect(viewport.scrollTop).toBe(0)
+            expect(screen.getAllByTestId("commit-row")[0].textContent).toContain("Commit 100")
+        })
+
+        it("should name the focused row as the active descendant", async () => {
+            // Arrange
+            const commits = history(10)
+            const { detectChanges } = await renderList(seedOf(commits, DIRTY))
+
+            // Act
+            press("ArrowDown")
+            detectChanges()
+            const onWorkingTree = screen.getByTestId("commit-list").getAttribute("aria-activedescendant")
+            press("ArrowDown")
+            detectChanges()
+
+            // Assert
+            const activeId = screen.getByTestId("commit-list").getAttribute("aria-activedescendant")
+            expect(onWorkingTree).toBe(screen.getByTestId("commit-row-working-tree").id)
+            expect(activeId).toBe(`commit-option-${commits[0].sha}`)
+            expect(document.getElementById(activeId ?? "")?.textContent).toContain("Commit 10")
+        })
+
+        it("should copy the full sha of the focused commit on Ctrl+C and say so", async () => {
+            // Arrange
+            const writeText = jest.fn().mockResolvedValue(undefined)
+            Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } })
+            const commits = history(3)
+            await renderList(seedOf(commits))
+            press("ArrowDown")
+
+            // Act
+            const { stopPropagation } = press("c", { ctrlKey: true })
+            await settleGit()
+
+            // Assert
+            expect(writeText).toHaveBeenCalledWith(commits[0].sha)
+            expect(
+                TestBed.inject(ToastService)
+                    .messages()
+                    .map(message => message.text)
+            ).toEqual([`Copied ${commits[0].sha.slice(0, 7)}`])
+            expect(stopPropagation).toHaveBeenCalled()
+        })
+
+        it("should let Ctrl+C through while no commit is focused", async () => {
+            // Arrange
+            await renderList(seedOf(history(3)))
+
+            // Act
+            const { event } = press("c", { ctrlKey: true })
+
+            // Assert
+            expect(event.defaultPrevented).toBe(false)
+        })
+
+        it("should leave F5 to the history panel", async () => {
+            // Arrange
+            await renderList(seedOf(history(3)))
+
+            // Act
+            const { event, stopPropagation } = press("F5")
+
+            // Assert
+            expect(event.defaultPrevented).toBe(false)
+            expect(stopPropagation).not.toHaveBeenCalled()
+        })
     })
 
     it("should have no Analysis column without a provider", async () => {

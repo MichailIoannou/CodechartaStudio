@@ -38,6 +38,11 @@ const ROW_CLASS = "grid h-7 cursor-pointer select-none items-center gap-2 whites
 const SELECTED_ROW_CLASS = "bg-primary/20 font-semibold"
 const SECOND_ROW_CLASS = `${SELECTED_ROW_CLASS} border-l-2 border-primary`
 
+/** The element id `aria-activedescendant` names for the row of a selection key. */
+export function rowIdOf(key: string): string {
+    return `commit-option-${key}`
+}
+
 /** Design H8: selected rows are tinted; the second selection also gets a left border. */
 export function selectionClassOf({ isSelected, isSecond }: { isSelected: boolean; isSecond: boolean }): string {
     if (!isSelected) {
@@ -56,7 +61,8 @@ export function selectionClassOf({ isSelected, isSecond }: { isSelected: boolean
         "data-testid": "commit-row",
         "[class]": "rowClass()",
         "[style.grid-template-columns]": "gridTemplate()",
-        "[attr.aria-selected]": "view().isSelected"
+        "[attr.aria-selected]": "view().isSelected",
+        "[id]": "rowId()"
     }
 })
 export class CommitRowComponent {
@@ -67,6 +73,7 @@ export class CommitRowComponent {
     readonly nowMs = input.required<number>()
 
     readonly rowClass = computed(() => `${ROW_CLASS} ${selectionClassOf(this.view())}`.trim())
+    readonly rowId = computed(() => rowIdOf(this.view().commit.sha))
     readonly shownLabels = computed(() => this.view().labels.slice(0, this.labelLimit()))
     readonly hiddenLabelCount = computed(() => Math.max(0, this.view().labels.length - this.labelLimit()))
     readonly allLabelsTitle = computed(() =>

@@ -36,7 +36,7 @@ analysis enqueue; owner decision: selecting a commit never starts an analysis by
 ## Steps
 
 - [x] 1. Selection
-- [ ] 2. Keyboard
+- [x] 2. Keyboard
 - [ ] 3. Ports and context menu
 - [ ] 4. History badges and analyse action
 
@@ -60,4 +60,21 @@ Environment (2026-11-19): Arch Linux, node 26, npm 12.2. Branch `feature/studio-
   follows the status while the uncommitted row shows and goes when it disappears. Cleared on a repository change.
 - Rows: selected `bg-primary/20 font-semibold`, the second item also `border-l-2 border-primary` (H8);
   `CommitListComponent.rowViews` depends on `selectedKeys` and `secondKey`.
+
+### 2. Keyboard
+- `util/commitListKeys.ts`: `commitListCommandOf(event)` maps H8's keys to commands (move, copySha, focusSearch,
+  dropSecond, runPrimary, openMenu) and `rowIndexAfter(target, current, rowCount, pageSize)`; `util/virtualWindow.ts
+  scrollTopShowing` gives the nearest scroll position that shows a row. ↑/↓ select; Shift+↑/↓ set the second item
+  (Shift with Home/End/Page keys moves without extending — H8 names only Shift+arrows); Home/End; PageUp/PageDown by
+  the rows that fit the viewport; Ctrl/Cmd+C copies the focused commit's full SHA (toast "Copied a1b2c3d", new
+  `CommitClipboardService`); Ctrl/Cmd+F or `/` focus the commit search (the list emits `searchRequested`, the panel calls
+  `CommitFiltersComponent.focusSearch()`); Escape drops the second item. Handled keys `preventDefault` +
+  `stopPropagation` (principles §9); F5 and keys the list does not take bubble to the panel (its F5 refresh, M3).
+  Ctrl+C with the working tree focused is let through (nothing to copy).
+- Moves start at the focused row (`CommitSelectionService.focusedKey`), or at the first row while nothing is focused;
+  the uncommitted-changes row is row 0 while shown; the trailing loading/retry row is not reachable. The focused row is
+  scrolled into the window by setting the viewport's `scrollTop` and the list's scroll signal at once.
+- Rows have ids (`commit-option-<sha>`, `commit-option-working-tree`, `CommitRowComponent rowIdOf`); the listbox names the
+  focused one in `aria-activedescendant`. No separate focus style: the selection follows the focus, so the selected
+  row is the focused one (design H8 defines none).
 

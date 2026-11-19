@@ -30,3 +30,19 @@ export function windowOf({ scrollTop, viewportHeight, rowHeight, rowCount, overs
     const lastIndex = Math.min(rowCount - 1, lastVisible + overscan)
     return { firstIndex, lastIndex, offsetTop: firstIndex * rowHeight, totalHeight }
 }
+
+export interface RowInView {
+    index: number
+    rowHeight: number
+    scrollTop: number
+    viewportHeight: number
+}
+
+/** The nearest scroll position that shows the whole row: unchanged when it is in view already. */
+export function scrollTopShowing({ index, rowHeight, scrollTop, viewportHeight }: RowInView): number {
+    const rowTop = index * rowHeight
+    if (rowTop < scrollTop) {
+        return rowTop
+    }
+    return Math.max(scrollTop, rowTop + rowHeight - viewportHeight)
+}

@@ -39,7 +39,9 @@
     aria-label="Commits"
     class="min-h-0 flex-1 overflow-auto outline-none"
     data-testid="commit-list"
+    [attr.aria-activedescendant]="activeDescendant()"
     (scroll)="onScroll()"
+    (keydown)="onKeydown($event)"
 >
     <div class="relative" [style.height.px]="window().totalHeight">
         <div class="absolute inset-x-0" [style.top.px]="window().offsetTop">
@@ -48,6 +50,7 @@
                     @case ("workingTree") {
                         <div
                             role="option"
+                            [id]="workingTreeRowId"
                             class="grid h-7 cursor-pointer select-none items-center gap-2 whitespace-nowrap px-2 text-sm hover:bg-base-200"
                             [class]="workingTreeRowClass(item)"
                             [style.grid-template-columns]="gridTemplate()"
