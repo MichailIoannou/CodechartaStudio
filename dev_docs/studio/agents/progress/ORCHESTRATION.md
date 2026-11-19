@@ -55,9 +55,9 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M8 Fetch and branches | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
 | 04-M9 Changes and diff | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
 | 04-M10 Commit | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
-| 04-M11 Pull, push, abort | core + UI | in progress (core, task 1, from feature/studio-04-m10) | task 2 (UI): 04 History UI | feature/studio-04-m11 | — |
+| 04-M11 Pull, push, abort | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
-| 05-M0 Spikes on a real Windows machine | spike | blocked | owner: needs a Windows machine | — | — |
+| 05-M0 Spikes on a real Windows machine | spike | in progress (Linux parts; Windows items open for owner) | owner hardware for items 1 (npm layout), 2 | feature/studio-05-m0 | — |
 | 05-M1 Run one analysis from the core | core | todo | plan 04 core | — | — |
 | 05-M2 Snapshot records | core | todo | 05-M1 | — | — |
 | 05-M3 Queue, preflight, RPC, CLI | core | todo | 05-M2 | — | — |
@@ -202,6 +202,12 @@ the milestone is started.
 - 02-M4 (see `02-m4-dependency-graph.md`): `DependencyGraphComponent` reads `activeTheme()` in its render
   effect (ECharts `renderItem` reads colours lazily); `ChartScreenshotService.exportBackground()` inlined;
   `badgeContrastColor()` added; "level N" captions on level bands are faint in both themes (unchanged).
+- 04-M11 core (see `04-M11-pull-push.md` on `feature/studio-04-m11`): force-with-lease names the destination
+  ref (`refs/heads/<upstream branch or b>:<sha>`); pull refuses before git runs without upstream
+  (`NO_UPSTREAM`), on a detached head or with an operation in progress; network output classified on
+  stderr and stdout; ssh-agent hint added; checked: push never uses plain `--force`. Known gap: rebase
+  pull with uncommitted changes fails as `COMMAND_FAILED` (no autostash). New codes `NOT_FAST_FORWARD`,
+  `PUSH_REJECTED`, `NO_UPSTREAM`, `STALE_PUSH_LEASE`. Plan 04's core work is complete (M1, M2, M7–M11 cores).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -233,6 +239,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 04-M11 core verified on a scratch merge (clippy and cargo test with and without features: 578/582, cargo-deny, contract drift, format, lint, tsc, npm test 661/661). Plan 04 core complete. 05-M0 Linux spikes started.
 - 2026-11-19: 02-M4 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 661/661, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 157/157). 02-M5 started without the quick toggle (OD10).
 - 2026-11-19: 04-M10 core verified on a scratch merge (clippy and cargo test with and without features: 557/561, cargo-deny, contract drift, format, lint, tsc, npm test 661/661). 02-M4 merged; web e2e running. 04-M11 core started.
 - 2026-11-19: 04-M9 core verified on a scratch merge (clippy and cargo test with and without features: 538/542, cargo-deny, contract drift, format, lint, tsc, npm test 659/659). 04-M10 core started.
