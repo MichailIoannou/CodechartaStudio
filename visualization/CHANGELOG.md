@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 - **One desktop window**: starting the desktop app a second time brings the running window to the front instead of opening another one.
 
+### Fixed 🐞
+
+- **Delta screenshot names**: a screenshot taken while comparing two maps names the reference map before the comparison map.
+
 ## [2.11.0] - 2026-11-10
 
 ### Added 🚀

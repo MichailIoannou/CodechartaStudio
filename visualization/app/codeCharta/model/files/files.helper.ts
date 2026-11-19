@@ -41,11 +41,15 @@ export function isEqual(file1: CCFile, file2: CCFile) {
 
 export function createPNGFileName(files: FileState[], screenshotFileNameSuffix: FileNameSuffixScreenshot) {
     const state = isDeltaState(files) ? "delta" : ""
-    const fileNames = getVisibleFileStates(files)
+    const fileNames = [...getVisibleFileStates(files)].sort(byReferenceFirst)
     const fileNamesStripped = fileNames.map(fileStates => createStrippedFileName(fileStates))
     const fileNameCombined = createCombinedFileName(fileNamesStripped)
     const fileNameCapped = createCappedFileName(fileNameCombined, state, screenshotFileNameSuffix)
     return fileNameCapped
+}
+
+function byReferenceFirst(first: FileState, second: FileState) {
+    return Number(second.selectedAs === FileSelectionState.Reference) - Number(first.selectedAs === FileSelectionState.Reference)
 }
 
 function createStrippedFileName(fileState: FileState) {
