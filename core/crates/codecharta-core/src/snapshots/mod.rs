@@ -1,5 +1,6 @@
 pub mod content;
 pub mod import;
+pub mod map_head;
 pub mod move_snapshot;
 pub mod open_file;
 pub mod record;
