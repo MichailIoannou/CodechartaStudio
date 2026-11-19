@@ -1,5 +1,36 @@
-use codecharta_core_api::methods::compare::{NearestSnapshot, SideStatus};
+use std::future::Future;
+
+use codecharta_core_api::methods::analysis::AnalysisTarget;
+use codecharta_core_api::methods::compare::{ComparedCommit, NearestSnapshot, SideStatus};
 use codecharta_core_api::methods::snapshots::SnapshotResolution;
+use tokio_util::sync::CancellationToken;
+
+use crate::error::CoreResult;
+use crate::snapshots::FolderResolver;
+
+/// Which snapshot a side of a comparison has; the store answers through 05-M5's resolution.
+pub trait SideLookup {
+    fn status_of(
+        &self,
+        side: &ComparedCommit,
+        cancel: &CancellationToken,
+    ) -> impl Future<Output = CoreResult<SideStatus>> + Send;
+}
+
+impl SideLookup for FolderResolver<'_, '_> {
+    async fn status_of(
+        &self,
+        side: &ComparedCommit,
+        cancel: &CancellationToken,
+    ) -> CoreResult<SideStatus> {
+        let target = AnalysisTarget::Commit {
+            sha: side.commit.clone(),
+        };
+        self.resolve(&side.folder, &target, cancel)
+            .await
+            .map(side_status)
+    }
+}
 
 /// A side has a snapshot only when its own commit was analysed; any other snapshot is what "Use nearest"
 /// would show. Without usable git the newest snapshot is no stand-in for a commit, so it is left out.

@@ -30,7 +30,7 @@ diverged)) — do not duplicate git queries or nearest-snapshot logic. Gates wit
 ## Steps
 
 - [x] 1. Contract and preflight
-- [ ] 2. Resolve
+- [x] 2. Resolve
 - [ ] 3. RPC and CLI
 - [ ] 4–11. Renderer (later)
 
@@ -79,3 +79,21 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
   `should_default_to_the_provisional_limits`, `should_count_the_commits_on_both_sides_of_a_diverged_nearest_snapshot`,
   `should_keep_the_exact_snapshot_of_another_profile`; api `should_read_an_intent_by_kind_with_its_folder`,
   `should_refuse_an_expression_as_a_revision`, `should_write_statuses_with_their_tags`.
+
+### 2. Resolve
+- Core: `compare/resolve.rs::CommitComparison { git: &GitService, sides: &impl SideLookup, limits: SizeLimits }`
+  `::resolve(&GitFolder, &ResolveComparisonParams, cancel)`. `compare/sides.rs::SideLookup::status_of(&ComparedCommit,
+  cancel)` (the plan's `SnapshotLookup` port), implemented for 05-M5's `FolderResolver` (one `resolve` per side,
+  `side_status` on the answer). Base mode is always `tip` in M1.
+- Picking: every revision goes through `GitService::resolve_commit` (peels tags, `UNKNOWN_REVISION` when missing).
+  `commits`: the same commit or `is_ancestor(a, b)` → a is the base; `is_ancestor(b, a)` → b; else the older
+  `committed_at` (a tie keeps a). `withParent`: the commit's first parent, `UNKNOWN_REVISION` "The commit has no
+  parent to compare with." for a root commit. `withCurrent`: base the commit, head `shownCommit`, else `HEAD`.
+  Status: `sameCommit` when base = head, else `merge_base` → `noCommonAncestor` for `None`, else `ready`. Labels:
+  `refs/tags/x` → tag `x`, `refs/heads/x` / `refs/remotes/x` → branch, else the first 7 hex digits.
+- **Deviations:** no `git/compare.rs::merge_base` (plan 04's exists, exit 1 → `None`), no `compare/ports.rs`
+  (the names are known now; one trait where a test needs a seam). Same-commit still looks up both sides, so
+  `preflight` is always filled.
+- Tests (`tests/compare_resolve.rs`, `TempRepo`, in-memory `SideLookup` over `resolve_snapshot`): the plan's six
+  names with `should_`; extra `should_compare_a_commit_with_its_first_parent`,
+  `should_compare_with_the_shown_commit_else_head`, `should_refuse_a_revision_the_repository_does_not_have`.
