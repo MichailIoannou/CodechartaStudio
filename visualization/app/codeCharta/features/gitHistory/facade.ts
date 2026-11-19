@@ -7,3 +7,4 @@ export { LOADED_MAP_LOCATOR, LoadedMapLocator } from "./ports/loadedMapLocator.p
 export { WORKING_FOLDER_SOURCE } from "./ports/workingFolderSource.port"
 export { GitHistoryAvailability } from "./services/gitHistoryAvailability.service"
 export { GitRepositoryService } from "./services/gitRepository.service"
+export { parseRefRange } from "./util/refRange"

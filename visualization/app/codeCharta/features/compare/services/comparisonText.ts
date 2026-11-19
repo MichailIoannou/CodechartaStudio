@@ -1,4 +1,5 @@
 import { counted } from "../../../util/wording"
+import { parseRefRange } from "../../gitHistory/facade"
 import type { BaseMode, ComparedCommit, CompareError, LoadedSide, ResolvedComparison, ResolvedSide } from "../model/compare.model"
 
 const MERGE_BASE_SEPARATOR = "..."
@@ -32,13 +33,8 @@ export function rangeText(base: ComparedCommit, head: ComparedCommit, baseMode: 
 }
 
 export function parseRange(text: string): ParsedRange | null {
-    const trimmed = text.trim()
-    const separator = trimmed.includes(MERGE_BASE_SEPARATOR) ? MERGE_BASE_SEPARATOR : TIP_SEPARATOR
-    const [base, head, ...rest] = trimmed.split(separator)
-    if (rest.length > 0 || !base || !head) {
-        return null
-    }
-    return { base, head, baseMode: separator === MERGE_BASE_SEPARATOR ? "mergeBase" : "tip" }
+    const range = parseRefRange(text)
+    return range && { base: range.base, head: range.head, baseMode: range.isMergeBase ? "mergeBase" : "tip" }
 }
 
 export function resolveOutcome(resolved: ResolvedComparison): ResolveOutcome | null {
