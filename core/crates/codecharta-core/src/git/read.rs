@@ -64,7 +64,7 @@ async fn ref_records(
     parse_refs(&git.run(&command, cancel).await?)
 }
 
-async fn remotes(
+pub(super) async fn remotes(
     git: &GitCli<'_>,
     folder: &Path,
     cancel: &CancellationToken,

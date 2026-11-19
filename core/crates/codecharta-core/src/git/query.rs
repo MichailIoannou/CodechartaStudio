@@ -19,6 +19,7 @@ const RESOLVE_ARGS: [&str; 4] = ["rev-parse", "--verify", "--quiet", "--end-of-o
 const SUMMARY_ARGS: [&str; 3] = ["show", "-s", "-z"];
 const END_OF_OPTIONS: &str = "--end-of-options";
 const AS_COMMIT: &str = "^{commit}";
+const AS_TREE: &str = "^{tree}";
 const COUNT_ARGS: [&str; 2] = ["rev-list", "--count"];
 const DISTANCE_ARGS: [&str; 3] = ["rev-list", "--left-right", "--count"];
 const POINTS_AT_FORMAT: &str = "--format=%(refname)";
@@ -68,6 +69,18 @@ async fn summary_of_commit(at: FolderGit<'_>, sha: &str) -> CoreResult<GitCommit
 fn unknown_revision() -> CoreError {
     let code = ErrorCode::UnknownRevision;
     GitError::new(code, message_for(code)).into()
+}
+
+/// The tree a commit records; two commits with the same tree have the same files.
+pub async fn tree_of(at: FolderGit<'_>, sha: &CommitSha) -> CoreResult<String> {
+    let peeled = format!("{sha}{AS_TREE}");
+    let args = [&RESOLVE_ARGS[..], &[peeled.as_str()]].concat();
+    let output = at.run_raw(&args, QUERY_LIMITS).await?;
+    match output.exit_code {
+        0 => Ok(output.stdout.trim().to_string()),
+        NO_ANSWER_EXIT_CODE => Err(unknown_revision()),
+        _ => Err(command_failed(&output)),
+    }
 }
 
 /// The commits reachable from `to` but not from `from`.

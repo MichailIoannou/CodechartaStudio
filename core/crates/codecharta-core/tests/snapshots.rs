@@ -313,6 +313,7 @@ fn git_record(commit: &FullCommit) -> GitRecord {
         head_at_run: None,
         dirty: false,
         remotes: Vec::new(),
+        tree: None,
     }
 }
 

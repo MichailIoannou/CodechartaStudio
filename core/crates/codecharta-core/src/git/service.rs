@@ -6,7 +6,7 @@ use codecharta_core_api::methods::git::{
     GitChangedFiles, GitCommitDetails, GitCommitDistance, GitCommitSummary, GitHead, GitLogPage,
     GitRefs, GitRepositoryInfo, GitStatus, GitUpstream, OperationInProgress, RefsAt,
 };
-use codecharta_core_api::methods::projects::FolderRef;
+use codecharta_core_api::methods::projects::{FolderRef, GitRemote};
 use codecharta_core_api::values::{CommitSha, Revision};
 use tokio_util::sync::CancellationToken;
 
@@ -20,7 +20,7 @@ use super::operation::Operations;
 use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
 use super::query::check_candidate_count;
 use super::query::{self, RevListRequest, ShaSink};
-use super::read::{read_refs, status_summary};
+use super::read::{read_refs, remotes, status_summary};
 use super::runner::{FolderGit, GitCli, GitProcess};
 use crate::error::CoreResult;
 
@@ -287,6 +287,25 @@ impl<'core> GitService<'core> {
             .iter()
             .filter_map(|candidate| known.get(candidate.as_str()).cloned())
             .collect())
+    }
+
+    /// The tree a commit records.
+    pub async fn tree_of(
+        &self,
+        folder: &GitFolder,
+        sha: &CommitSha,
+        cancel: &CancellationToken,
+    ) -> CoreResult<String> {
+        query::tree_of(self.at(folder, cancel), sha).await
+    }
+
+    /// The remotes, with credentials stripped from their urls.
+    pub async fn remotes(
+        &self,
+        folder: &GitFolder,
+        cancel: &CancellationToken,
+    ) -> CoreResult<Vec<GitRemote>> {
+        remotes(&self.git, &folder.path, cancel).await
     }
 
     /// Not remembered: refs move.

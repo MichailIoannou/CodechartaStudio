@@ -1,6 +1,32 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::values::CommitSha;
+
+/// What one analysis maps: a commit, checked out by ccsh in a temporary worktree, or the folder as it is.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum AnalysisTarget {
+    Commit { sha: CommitSha },
+    WorkingTree,
+}
+
+impl AnalysisTarget {
+    pub fn kind(&self) -> TargetKind {
+        match self {
+            AnalysisTarget::Commit { .. } => TargetKind::Commit,
+            AnalysisTarget::WorkingTree => TargetKind::WorkingTree,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum TargetKind {
+    Commit,
+    WorkingTree,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "mode", rename_all = "camelCase")]
 pub enum JobProgress {
@@ -89,6 +115,27 @@ mod tests {
                 json!("OUTPUT_TOO_LARGE")
             ]
         );
+    }
+
+    #[test]
+    fn should_tag_targets_by_kind() {
+        // Arrange
+        let sha = CommitSha::try_from("0123456789abcdef0123456789abcdef01234567").unwrap();
+        let targets = [AnalysisTarget::Commit { sha }, AnalysisTarget::WorkingTree];
+
+        // Act
+        let written = serde_json::to_value(&targets).unwrap();
+        let kinds = serde_json::to_value(targets.map(|target| target.kind())).unwrap();
+
+        // Assert
+        assert_eq!(
+            written,
+            json!([
+                { "kind": "commit", "sha": "0123456789abcdef0123456789abcdef01234567" },
+                { "kind": "workingTree" }
+            ])
+        );
+        assert_eq!(kinds, json!(["commit", "workingTree"]));
     }
 
     #[test]

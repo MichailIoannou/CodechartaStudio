@@ -40,6 +40,9 @@ pub struct GitRecord {
     pub head_at_run: Option<HeadAtRun>,
     pub dirty: bool,
     pub remotes: Vec<GitRemote>,
+    /// The commit's tree, so an analysis that does not read the history can reuse a map of the same files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tree: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

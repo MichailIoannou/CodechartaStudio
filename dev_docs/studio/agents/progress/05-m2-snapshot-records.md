@@ -33,7 +33,7 @@ here: hosting is tested with a fake runner only. Gates with and without `--all-f
 ## Steps
 
 - [x] 1. Map head
-- [ ] 2. Git state
+- [x] 2. Git state
 - [ ] 3. Hosting
 - [ ] 4. Repository
 - [ ] 5. Janitor
@@ -52,3 +52,23 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
   the JSON string after `"files":[{"id":"…","name":"`, decoded by `serde_json` (escapes kept correct). A gzip
   that ends early answers what its readable start holds (a decode error ends the read; only opening the file
   is an error). Extra test: `should_return_none_when_meta_is_not_first_or_holds_an_object`.
+
+### 2. Git state
+- Api first: `methods::analysis::{AnalysisTarget (tag "kind": commit { sha: CommitSha } | workingTree), TargetKind}`
+  (plan's `Sha` is the built `CommitSha`). Not reachable from a method yet, so the contract is unchanged.
+- `snapshots/git_state.rs`: `GitReads { service: &GitService, runner: &dyn GitRunner }`, `collect_git_state(&GitReads,
+  &GitFolder, &AnalysisTarget, &cancel) -> CoreResult<GitRecord>`, `head_commit(&GitHead)` (also used for the
+  head-moved check). **Reconciliation, no parallel git reads:** HEAD (branch or detached), upstream name, ahead and
+  behind, and dirty all come from one `GitService::status` (porcelain v2 `--untracked-files=normal`, so an untracked
+  file counts) instead of the plan's `symbolic-ref` / `rev-parse` / `rev-list --left-right` sequence; the commit
+  description (`%H %h %s %an %aI %cI %P`) is plan 03's `folders::inspector::commit_details`, the reader bound imports
+  already use, so analysed and imported records write dates the same way (ISO with offset); branches and tags are
+  plan 04's `GitService::refs_at`. Two small `GitService` reads were added (plan 05 asked for that instead of
+  spawning git elsewhere): `tree_of` (`rev-parse --verify --quiet --end-of-options <sha>^{tree}`, in `git/query.rs`)
+  and `remotes` (the existing `read::remotes`, credential-free, made `pub(super)`).
+- `GitRecord.tree: Option<String>` added (skipped when `None`, so imported records are unchanged on disk).
+- **Deviation:** `branchesAtRun` lists local branches only (plan: `refs/heads` and `refs/remotes`), because
+  `refs_at` is shared with `git.refsAt` and changing it would change that method's answer. The upstream of the
+  checked-out branch is in `headAtRun.upstream`.
+- A working-tree target on a branch without commits, or a 64-hex sha (the record's `FullCommit` holds 40), fails
+  with `NOT_A_COMMIT`.
