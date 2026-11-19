@@ -12,6 +12,10 @@ import { loadFilesValidationToErrorDialog } from "./loadFilesValidationToErrorDi
 export const NO_FILES_LOADED_ERROR_MESSAGE = "File(s) could not be loaded"
 export const FILES_ALREADY_LOADED_ERROR_MESSAGE = "File(s) are already loaded"
 
+interface LoadFilesOptions {
+    replaceLoadedFiles?: boolean
+}
+
 @Injectable({ providedIn: "root" })
 export class LoadFileService {
     constructor(
@@ -19,8 +23,8 @@ export class LoadFileService {
         private readonly errorDialogService: ErrorDialogService
     ) {}
 
-    loadFiles(nameDataPairs: NameDataPair[]) {
-        const fileStates: FileState[] = clone(this.filesRepo.getFiles())
+    loadFiles(nameDataPairs: NameDataPair[], options: LoadFilesOptions = {}) {
+        const fileStates: FileState[] = options.replaceLoadedFiles ? [] : clone(this.filesRepo.getFiles())
         const recentFiles: string[] = []
         const fileValidationResults: CCFileValidationResult[] = []
 
