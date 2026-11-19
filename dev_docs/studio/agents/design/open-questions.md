@@ -131,3 +131,12 @@ answer that differs means the named file is changed, nothing else.
      the bar. Acceptable?
   Also noted: the blend width in the file extension bar is `min(12px, 100%/3)` per side because the design's
   "narrower than 48 px" rule contradicts its own numbers at exactly 48 px.
+
+- **O7 (2026-11-19). The refreshed metrics bar sits partly under the open explorer (02-M7).** With the Layout
+  and tools cells inside the bar it is wider; at 1920 px the open explorer covers its Layout cell (Area was
+  already covered before). T4 keeps the bar's position and width unchanged, and upstream PR #4557 centred the
+  bars on the whole window on purpose (with an e2e test). Options: A — centre the bar between explorer and
+  inspector (offset returns, amends T4 and #4557's test); B — keep window centring but cap the bar's width at
+  the free area so it shrinks and truncates beside open panels (amends T4's "unchanged width"); C — no change,
+  the covered cells stay a known limitation (tests collapse the explorer first, as scenarios.e2e does).
+  Asked of the owner the same day.
