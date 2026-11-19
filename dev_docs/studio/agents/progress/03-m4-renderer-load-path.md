@@ -33,7 +33,7 @@ on project switches is plan 06's.
 
 ## Steps
 
-- [ ] 1. Structural split
+- [x] 1. Structural split
 - [ ] 2. Project snapshot origin
 - [ ] 3. Root names
 - [ ] 4. Replace in one step
@@ -42,4 +42,14 @@ on project switches is plan 06's.
 - [ ] 7. Boot from project
 
 ## Notes
+
+- Verified before changing code: `load/loadFiles.useCase.ts` (`LoadFilesUseCase`, private `commit`,
+  `provenance`, `applySettingsAndFilesFromSavedState`), `LoadFileService.loadFiles`
+  (`stores/fileStore/loaders/ccJson/services/loadFile.service.ts`), `fileStore.facade.ts`,
+  `stores/rootStore/indexedDB/indexedDBWriter.ts` (`DB_VERSION = 37`), `mapCcJson2ToCCFile`
+  (`.../util/ccJson2/ccJson2ToCCFile.ts`, called only from `getCCFile`), `FilesLoadedSource`
+  (`.../store/filesLoaded/filesLoaded.actions.ts`), `describeFileBeingRead` (`util/busy/loadPhase.ts`). All as
+  the plan names them.
+- Task 1: `applySavedSettingsUpFront(savedCcState)` returns `{ restoredSettings, missingProperties }`;
+  `provenance()` takes `forceDefaultMetrics` (default `source === "reset"`).
 

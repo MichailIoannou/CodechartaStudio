@@ -191,17 +191,26 @@ export class LoadFilesUseCase {
         source: FilesLoadedSource,
         urlMetrics: UrlMetricSelection
     ): void {
-        const missingProperties = []
+        const { restoredSettings, missingProperties } = this.applySavedSettingsUpFront(savedCcState)
 
         // The very first map is fitted once even when the user turned the camera reset off.
         const forceAutoFit = !savedCcState.preferences.resetCameraIfNewFileIsLoaded
 
+        this.commitRestoredFiles(
+            savedFileStates,
+            this.provenance(source, { areSampleFiles: false, urlMetrics, forceAutoFit, restoredSettings })
+        )
+
+        this.showMissingPropertiesDialog(missingProperties)
+    }
+
+    private applySavedSettingsUpFront(savedCcState: CcState): { restoredSettings: RestoredSettings; missingProperties: string[] } {
         // Applied up front: the persisted metric selection has to be in the store before the reconciliation resolves it.
-        missingProperties.push(
+        const missingProperties = [
             ...this.loadInitialFileStore.applyPreferences(savedCcState.preferences),
             ...this.loadInitialFileStore.applyMapState(savedCcState.mapState),
             ...this.loadInitialFileStore.applyDomainState(savedCcState.domainState)
-        )
+        ]
 
         // The reconciliation applies the view slices after its file-derived merge, which would otherwise erase them.
         const restoredSettings: RestoredSettings = {
@@ -217,12 +226,7 @@ export class LoadFilesUseCase {
             ...this.loadInitialFileStore.missingKeysOfDomainLensSource(savedCcState.domainLensSource)
         )
 
-        this.commitRestoredFiles(
-            savedFileStates,
-            this.provenance(source, { areSampleFiles: false, urlMetrics, forceAutoFit, restoredSettings })
-        )
-
-        this.showMissingPropertiesDialog(missingProperties)
+        return { restoredSettings, missingProperties }
     }
 
     /**
@@ -290,6 +294,7 @@ export class LoadFilesUseCase {
             areSampleFiles: boolean
             urlMetrics?: UrlMetricSelection
             forceAutoFit?: boolean
+            forceDefaultMetrics?: boolean
             restoredSettings?: RestoredSettings
         }
     ): FilesLoadedPayload {
@@ -300,7 +305,7 @@ export class LoadFilesUseCase {
             forceAutoFit: options.forceAutoFit ?? false,
             // A reset deliberately discards the previous selection, so the metrics must fall back to the
             // computed default even when the old selection is still available in the reloaded files.
-            forceDefaultMetrics: source === "reset",
+            forceDefaultMetrics: options.forceDefaultMetrics ?? source === "reset",
             restoredSettings: options.restoredSettings ?? null
         }
     }
