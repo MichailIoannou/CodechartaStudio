@@ -32,6 +32,7 @@ import { asNothingLoaded, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad, rea
 
 const URL_LOAD_ERROR_TITLE = "File(s) could not be loaded from the given file URL parameter. Loaded sample files instead."
 const INDEXED_DB_LOAD_ERROR_TITLE = "Previously loaded files and settings could not be restored. Loaded sample files instead."
+const SAVED_SETTINGS_ERROR_TITLE = "Saved settings could not be restored."
 const MISSING_PROPERTIES_ERROR_TITLE =
     "The previous state could not be fully restored after loading the page. The following properties were not restored."
 
@@ -101,6 +102,33 @@ export class LoadFilesUseCase {
         }
     }
 
+    async bootFromProject(resolveSnapshots: () => Promise<ProjectSnapshotToLoad[]>): Promise<ProjectSnapshotsLoadResult> {
+        this.store.dispatch(setIsLoadingFile({ value: true }))
+        setLoadPhase(RESTORING_SESSION_PHASE)
+
+        const savedCcState = await this.readSavedSettings()
+        const restored = savedCcState ? this.applySavedSettingsUpFront(savedCcState) : null
+        const result = await this.readAndCommitProjectSnapshots(await resolveSnapshots(), {
+            areSampleFiles: false,
+            forceAutoFit: savedCcState ? !savedCcState.preferences.resetCameraIfNewFileIsLoaded : false,
+            restoredSettings: restored?.restoredSettings
+        })
+
+        if (savedCcState) {
+            this.finishRestoringSettings(savedCcState, restored.missingProperties, result)
+        }
+        return result
+    }
+
+    showSampleFiles(): void {
+        this.loadSampleFiles(null, "sample")
+    }
+
+    unloadAllFiles(): void {
+        this.loadInitialFileStore.setFiles([])
+        this.stopLoadingIndicator()
+    }
+
     async loadProjectSnapshots(
         snapshots: ProjectSnapshotToLoad[],
         options: { discardMetricSelection?: boolean } = {}
@@ -132,6 +160,23 @@ export class LoadFilesUseCase {
             this.stopLoadingIndicator()
             return asNothingLoaded(result)
         }
+    }
+
+    private async readSavedSettings(): Promise<CcState | null> {
+        const persisted = await this.ccStatePersistence.read()
+        if (persisted.error) {
+            this.errorDialogService.open({ title: SAVED_SETTINGS_ERROR_TITLE, message: persisted.error.message })
+            return null
+        }
+        return persisted.state
+    }
+
+    private finishRestoringSettings(savedCcState: CcState, missingProperties: string[], result: ProjectSnapshotsLoadResult): void {
+        if (result.loaded.length === 0) {
+            this.applyAllSettings(savedCcState)
+            return
+        }
+        this.showMissingPropertiesDialog(missingProperties)
     }
 
     private stopLoadingIndicator(): void {

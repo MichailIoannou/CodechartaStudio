@@ -1,6 +1,6 @@
 ---
 name: 03-M4 renderer load path
-state: progress
+state: complete
 version: 1
 ---
 
@@ -39,7 +39,7 @@ on project switches is plan 06's.
 - [x] 4. Replace in one step
 - [x] 5. IndexedDB filter
 - [x] 6. Load project snapshots
-- [ ] 7. Boot from project
+- [x] 7. Boot from project
 
 ## Notes
 
@@ -66,4 +66,27 @@ on project switches is plan 06's.
   `LoadFileService` rejects every map (validation errors, its own dialog shows) the result reports them as
   unreadable and the indicator is cleared; a partial validation failure still lists the rejected map under
   `loaded` (not distinguished in M4).
+- Task 7: `bootFromProject` reads the saved session once; on a read error it opens "Saved settings could not
+  be restored." and continues with defaults (`restoredSettings: null`). Persisted `files` are never set. When
+  nothing loads (no snapshots or all unreadable) the remaining slices go through `applyAllSettings` (its own
+  missing-properties dialog); otherwise the up-front missing properties are shown after the commit, as the
+  IndexedDB boot does. `showSampleFiles()` = `loadSampleFiles(null, "sample")`; `unloadAllFiles()` =
+  `setFiles([])` + indicator and phase cleared. `resolveSnapshots` must not reject (M5 handles its errors).
+- Not done here: `readSnapshotMap` (01-M3 whole-file read) is kept; 03-M5 retires it once `snapshotBytes.ts`
+  reads through `snapshots.readMapChunk`. Nothing visible changed, so no changelog entry.
+
+### For 03-M5 (projects UI)
+- Inject `LoadFilesUseCase` from `load/load.facade.ts`. Load or switch snapshots with
+  `loadProjectSnapshots(snapshots: ProjectSnapshotToLoad[], { discardMetricSelection? })` — it replaces every
+  loaded map in one step (never `removeFiles` first). Boot with `bootFromProject(() => resolveSnapshots())`.
+  `showSampleFiles()` for the home's sample button, `unloadAllFiles()` when the active project goes away.
+- `ProjectSnapshotToLoad = { origin: ProjectSnapshotOrigin (model/projectSnapshot.model.ts), displayName,
+  readBytes: () => Promise<Uint8Array> }`; `readBytes` assembles the `snapshots.readMapChunk` chunks (gzip is
+  inflated by the loader). Result `{ loaded: { origin, checksum, rootName }[], identicalContent: { kept,
+  dropped }[], unreadable: origin[] }`: call `snapshots.recordMapFacts` per `loaded` entry, toast each
+  `identicalContent` entry, report `unreadable`. A caller that wants delta dispatches `setDelta` afterwards.
+- Loaded maps carry `fileMeta.projectSnapshot`; their root is renamed to `PROJECT_ROOT_NAME` ("root").
+- Final gates (Linux): format, `npm test` (664 suites, 5163 passed, coverage gate met), lint, tsc green;
+  `npm run build` ok; `e2e:ci` 164/165 with `clusterExplorer` "same height" failing once while the desktop
+  smoke ran in parallel, 16/16 on a rerun of that file alone; `test:electron` 70/70; `e2e:desktop` 14/14.
 

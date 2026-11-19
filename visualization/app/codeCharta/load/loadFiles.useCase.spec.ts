@@ -61,6 +61,7 @@ const TRANSIENT_SHARED_VIEW: Partial<SharedView> = {
     hoveredFileExtensions: defaultSharedView.hoveredFileExtensions,
     keptHighlightPaths: defaultSharedView.keptHighlightPaths
 }
+const SAVED_SETTINGS_ERROR_TITLE = "Saved settings could not be restored."
 const MISSING_PROPERTIES_ERROR_TITLE =
     "The previous state could not be fully restored after loading the page. The following properties were not restored."
 
@@ -819,6 +820,118 @@ describe("LoadFilesUseCase", () => {
             expect(dispatchSpy).toHaveBeenCalledWith(
                 expect.objectContaining({ type: filesLoaded.type, source: "project", forceDefaultMetrics: true })
             )
+        })
+    })
+
+    describe("boot from a project", () => {
+        const origin: ProjectSnapshotOrigin = { projectId: "p-1", folderId: "f-1", snapshotId: "abc1234", folderLabel: "billing" }
+        const snapshot: ProjectSnapshotToLoad = {
+            origin,
+            displayName: "billing@abc1234",
+            readBytes: async () => new TextEncoder().encode(JSON.stringify(TEST_FILE_CONTENT))
+        }
+
+        it("should restore saved settings and load the resolved snapshots", async () => {
+            // Arrange
+            const AMOUNT_OF_TOP_LABELS = 600
+            const mockedState = JSON.parse(stringify(defaultState)) as CcState
+            mockedState.mapState.amountOfTopLabels = AMOUNT_OF_TOP_LABELS
+            mockPersistedState(mockedState)
+            const dispatchSpy = jest.spyOn(store, "dispatch")
+
+            // Act
+            const result = await loadFilesUseCase.bootFromProject(async () => [snapshot])
+
+            // Assert
+            expect(dispatchSpy).toHaveBeenCalledWith({ type: "SET_AMOUNT_OF_TOP_LABELS", value: AMOUNT_OF_TOP_LABELS })
+            expect(loadFileService.loadFiles).toHaveBeenCalledWith([expect.objectContaining({ projectSnapshot: origin })], {
+                replaceLoadedFiles: true
+            })
+            expect(dispatchSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: filesLoaded.type,
+                    source: "project",
+                    restoredSettings: expect.objectContaining({ sharedView: mockedState.sharedView })
+                })
+            )
+            expect(result.loaded.map(facts => facts.origin)).toEqual([origin])
+        })
+
+        it("should ignore files of an older saved session", async () => {
+            // Arrange
+            const mockedState = JSON.parse(stringify(defaultState)) as CcState
+            mockedState.files = FILE_STATES
+            mockPersistedState(mockedState)
+            const dispatchSpy = jest.spyOn(store, "dispatch")
+
+            // Act
+            await loadFilesUseCase.bootFromProject(async () => [snapshot])
+
+            // Assert
+            expect(dispatchedTypes(dispatchSpy)).not.toContain(setFiles.type)
+            expect(loadFileService.loadFiles).toHaveBeenCalledWith([expect.objectContaining({ fileName: "billing@abc1234" })], {
+                replaceLoadedFiles: true
+            })
+        })
+
+        it("should finish without files when nothing resolves", async () => {
+            // Arrange
+            const mockedState = JSON.parse(stringify(defaultState)) as CcState
+            mockedState.files = FILE_STATES
+            mockPersistedState(mockedState)
+            const dispatchSpy = jest.spyOn(store, "dispatch")
+
+            // Act
+            const result = await loadFilesUseCase.bootFromProject(async () => [])
+
+            // Assert
+            expect(loadFileService.loadFiles).not.toHaveBeenCalled()
+            expect(dispatchSpy).toHaveBeenLastCalledWith(setIsLoadingFile({ value: false }))
+            expect(result).toEqual({ loaded: [], identicalContent: [], unreadable: [] })
+        })
+
+        it("should continue with defaults when the saved settings are unreadable", async () => {
+            // Arrange
+            mockPersistedReadError(new Error("Could not read cc-state"))
+            const dispatchSpy = jest.spyOn(store, "dispatch")
+
+            // Act
+            await loadFilesUseCase.bootFromProject(async () => [snapshot])
+
+            // Assert
+            expect(mockedErrorDialogService.open).toHaveBeenCalledWith({
+                title: SAVED_SETTINGS_ERROR_TITLE,
+                message: "Could not read cc-state"
+            })
+            expect(dispatchSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ type: filesLoaded.type, source: "project", restoredSettings: null })
+            )
+        })
+
+        it("should show the sample files", () => {
+            // Arrange
+            const dispatchSpy = jest.spyOn(store, "dispatch")
+
+            // Act
+            loadFilesUseCase.showSampleFiles()
+
+            // Assert
+            expect(loadFileService.loadFiles).toHaveBeenCalledWith([sampleFile1, sampleFile2])
+            expect(dispatchSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ type: filesLoaded.type, source: "sample", areSampleFiles: true })
+            )
+        })
+
+        it("should unload all files and clear the loading indicator", () => {
+            // Arrange
+            const dispatchSpy = jest.spyOn(store, "dispatch")
+
+            // Act
+            loadFilesUseCase.unloadAllFiles()
+
+            // Assert
+            expect(dispatchSpy).toHaveBeenCalledWith(setFiles({ value: [] }))
+            expect(dispatchSpy).toHaveBeenLastCalledWith(setIsLoadingFile({ value: false }))
         })
     })
 
