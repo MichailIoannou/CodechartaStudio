@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process"
 import { once } from "node:events"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { _electron, ElectronApplication, expect, Page, test } from "@playwright/test"
@@ -206,4 +206,70 @@ test("should list five tools from the real core", async () => {
     await expect(page.getByTestId("desktop-tools").getByTestId("desktop-tool-name")).toHaveCount(TOOL_COUNT, {
         timeout: DOCTOR_TIMEOUT_MS
     })
+})
+
+async function pickWithTheNativeDialog(pickedPath: string) {
+    await desktopApp.evaluate(({ dialog }, filePath) => {
+        dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] })
+    }, pickedPath)
+}
+
+test("should create and list a project from a picked folder", async () => {
+    // Arrange
+    const page = await bootedWindow()
+    const projectFolder = join(userDataDir, "work", "demo")
+    await mkdir(join(projectFolder, "src"), { recursive: true })
+    await writeFile(join(projectFolder, "src", "app.ts"), "export {}")
+    await pickWithTheNativeDialog(projectFolder)
+    await desktopApp.evaluate(({ shell }) => {
+        const opened: string[] = []
+        ;(globalThis as any).openedFolders = opened
+        shell.openPath = async folder => {
+            opened.push(folder)
+            return ""
+        }
+    })
+
+    // Act
+    const observed = await page.evaluate(async () => {
+        const bridge = (window as any).codeChartaDesktop
+        const picked = await bridge.request("projects.pickFolder", { title: "Add Folder" })
+        const folder = { pickToken: picked.value.pickToken, label: picked.value.suggestedLabel, role: "primary" }
+        const created = await bridge.request("projects.create", { name: "Demo", folders: [folder] })
+        const listed = await bridge.request("projects.list", {})
+        const folderRef = { projectId: created.value.id, folderId: created.value.folders[0].id }
+        const sourceFile = await bridge.request("projects.readSourceFile", { ...folderRef, relativePath: "src/app.ts" })
+        await bridge.request("projects.revealFolder", folderRef)
+        return {
+            picked: picked.value,
+            projectNames: listed.value.projects.map((project: any) => project.name),
+            sourceText: new TextDecoder().decode(sourceFile.value.bytes)
+        }
+    })
+
+    // Assert
+    expect(observed.picked).toMatchObject({ suggestedLabel: "demo", kind: "plain" })
+    expect(observed.picked.pickToken).toMatch(/^[0-9a-f]{32}$/)
+    expect(observed.projectNames).toEqual(["Demo"])
+    expect(observed.sourceText).toBe("export {}")
+    expect(await desktopApp.evaluate(() => (globalThis as any).openedFolders)).toEqual([projectFolder])
+})
+
+test("should refuse the shell-only project methods from the page", async () => {
+    // Arrange
+    const page = await bootedWindow()
+
+    // Act
+    const answers = await page.evaluate(async () => {
+        const bridge = (window as any).codeChartaDesktop
+        const folderRef = { projectId: "p-1", folderId: "f-1" }
+        return [
+            await bridge.request("projects.inspectFolder", { path: "/" }),
+            await bridge.request("projects.folderPath", folderRef),
+            await bridge.request("projects.sourceFileLocation", { ...folderRef, relativePath: "a" })
+        ]
+    })
+
+    // Assert
+    expect(answers.map(answer => answer.error.code)).toEqual(["NOT_ALLOWED", "NOT_ALLOWED", "NOT_ALLOWED"])
 })

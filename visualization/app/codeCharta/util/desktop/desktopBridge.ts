@@ -1,7 +1,10 @@
 import type { CoreEvents, CoreMethods, RendererEvent, RendererMethod } from "../../model/coreApi/coreApi"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
+import type { FolderRef } from "../../model/coreApi/FolderRef"
 import type { PathsInfo } from "../../model/coreApi/PathsInfo"
+import type { PickedFolder } from "../../model/coreApi/PickedFolder"
 import type { ShellPathTarget } from "../../model/coreApi/ShellPathTarget"
+import type { SourceFileParams } from "../../model/coreApi/SourceFileParams"
 import type { ToolId } from "../../model/coreApi/ToolId"
 import type { ToolsReport } from "../../model/coreApi/ToolsReport"
 
@@ -40,6 +43,20 @@ interface FilePickerOptions {
     filters?: PickerFilter[]
 }
 
+interface SourceFileBytes {
+    bytes: Uint8Array
+}
+
+type ShellMethods = {
+    "projects.pickFolder": { params: FolderPickerOptions; result: PickedFolder | null }
+    "projects.readSourceFile": { params: SourceFileParams; result: SourceFileBytes | null }
+    "projects.revealFolder": { params: FolderRef; result: null }
+}
+
+type BridgeMethods = Pick<CoreMethods, RendererMethod> & ShellMethods
+
+export type BridgeMethod = keyof BridgeMethods
+
 interface SnapshotMapTarget {
     projectId: string
     folderId: string
@@ -48,11 +65,11 @@ interface SnapshotMapTarget {
 
 export interface DesktopBridge {
     readonly protocolVersion: number
-    request<Method extends RendererMethod>(
+    request<Method extends BridgeMethod>(
         method: Method,
-        params: CoreMethods[Method]["params"],
+        params: BridgeMethods[Method]["params"],
         options?: { operationId: string }
-    ): Promise<CoreResult<CoreMethods[Method]["result"]>>
+    ): Promise<CoreResult<BridgeMethods[Method]["result"]>>
     cancel(operationId: string): Promise<void>
     subscribe<Event extends DesktopEventName>(event: Event, handler: (payload: DesktopEventPayload<Event>) => void): () => void
     pickFolder(options: FolderPickerOptions): Promise<string | null>

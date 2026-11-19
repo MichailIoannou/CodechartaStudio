@@ -91,6 +91,10 @@ function isRendererMethod(method, contract) {
     return typeof method === "string" && contract.rendererMethods.includes(method)
 }
 
+function isComposedMethod(method, composedMethods) {
+    return typeof method === "string" && Object.hasOwn(composedMethods, method)
+}
+
 function isRendererEvent(event, contract) {
     return typeof event === "string" && contract.rendererEvents.includes(event)
 }
@@ -148,6 +152,7 @@ module.exports = {
     isRendererEvent,
     isRendererMethod,
     isColorScheme,
+    isComposedMethod,
     isInsideFolder,
     isTrustedSender,
     isValidOperationId,

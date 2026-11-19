@@ -4,6 +4,7 @@ const path = require("node:path")
 const {
     describeTrustedPage,
     isRendererEvent,
+    isComposedMethod,
     isRendererMethod,
     isTrustedSender,
     isReadableMapPath,
@@ -250,6 +251,19 @@ describe("allow-list", () => {
 
         // Assert
         assert.deepEqual(verdicts, [true, true, false, false, false, false])
+    })
+
+    test("should compose only the methods the shell itself offers", () => {
+        // Arrange
+        const composedMethods = { "projects.pickFolder": () => null }
+
+        // Act
+        const verdicts = ["projects.pickFolder", "projects.inspectFolder", "toString", "constructor", undefined].map(method =>
+            isComposedMethod(method, composedMethods)
+        )
+
+        // Assert
+        assert.deepEqual(verdicts, [true, false, false, false, false])
     })
 
     test("should forward only renderer events", () => {

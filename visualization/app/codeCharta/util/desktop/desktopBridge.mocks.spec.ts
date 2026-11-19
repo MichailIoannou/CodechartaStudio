@@ -97,6 +97,24 @@ describe("createFakeDesktopBridge", () => {
         expect(map.ok).toBe(false)
     })
 
+    it("should answer the project methods of the shell as if nothing was picked or found", async () => {
+        // Arrange
+        const bridge = createFakeDesktopBridge()
+        const folderRef = { projectId: "p-1", folderId: "f-1" }
+
+        // Act
+        const picked = await bridge.request("projects.pickFolder", { title: "Add Folder" })
+        const sourceFile = await bridge.request("projects.readSourceFile", { ...folderRef, relativePath: "src/app.ts" })
+        const revealed = await bridge.request("projects.revealFolder", folderRef)
+
+        // Assert
+        expect([picked, sourceFile, revealed]).toEqual([
+            { ok: true, value: null },
+            { ok: true, value: null },
+            { ok: true, value: null }
+        ])
+    })
+
     it("should deliver emitted events", () => {
         // Arrange
         const bridge = createFakeDesktopBridge()

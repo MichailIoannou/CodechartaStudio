@@ -69,12 +69,12 @@ Core
 - A tool runner in `codecharta-core/src/tools/` that runs the system `git` with an argument vector (no shell), stdin closed, timeout, hardened environment (`GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never`, `GIT_OPTIONAL_LOCKS=0`, `GIT_PAGER=cat`, `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` removed), `TOOL_NOT_FOUND` when git is missing. This plan writes against a `trait GitRunner` seam (`fn run(&self, cwd: &Path, args: &[&str]) -> Result<GitOutput, CoreError>`) and adapts to plan 01's real type.
 - Settings and paths in the core: a settings file with `store_root: Option<PathBuf>`, `AppPaths::default_store_root()` (Windows `%APPDATA%\codecharta-visualization\store`; crate candidate `directories`), a `--store-root` flag / `CODECHARTA_STORE_ROOT` environment variable for CLI and tests, and the JSON-RPC methods `paths.get`, `paths.resetStoreRoot`. This plan implements `store.changeRoot` beside them. As built (03-M0 item 0): `Paths::store_root()` (setting, else `<dataDir>/store`), `store_root: Option<String>`, no `directories` crate, and no `--store-root` / `CODECHARTA_STORE_ROOT` — CLI and tests isolate the store with `--data-dir` / `CODECHARTA_DATA_DIR`.
 - The method gate: methods flagged **shell-only** in the method table are refused when they come from the renderer (the shell relays renderer requests by name; it never relays shell-only names). This plan adds `projects.inspectFolder`, `projects.folderPath`, `projects.sourceFileLocation`, `snapshots.inspectImportFile`, `snapshots.mapLocation`, `store.changeRoot`.
-- Shell-composed bridge methods: the `DesktopBridge` offers a few methods that exist only in the shell because they combine a native dialog or a file read with core calls. Plan 01 defines how they appear in the generated contract (this plan assumes request/result types for them live in `codecharta-core-api/src/shell.rs`, marked "never served by the core"). This plan's shell-composed methods: `projects.pickFolder`, `projects.readSourceFile`, `snapshots.pickImportFile`, `snapshots.readMapChunk`, `store.chooseRoot`.
+- Shell-composed bridge methods: the `DesktopBridge` offers a few methods that exist only in the shell because they combine a native dialog or a file read with core calls. As built (03-M2 part B): they are not core methods and not in the generated contract; the renderer calls them through `bridge.request(method, params)` like a core method, the shell's relay runs them in the main process instead of forwarding them, and `DesktopBridge` declares their params and results by hand (`ShellMethods` in `util/desktop/desktopBridge.ts`). This plan's shell-composed methods: `projects.pickFolder`, `projects.readSourceFile`, `snapshots.pickImportFile`, `snapshots.readMapChunk`, `store.chooseRoot`, plus `projects.revealFolder` (reveal-in-explorer over `projects.folderPath`).
 - Test support: `cargo test` workspace setup, `tempfile` as dev-dependency, a way for integration tests to start the binary (`env!("CARGO_BIN_EXE_codecharta-core")` from `codecharta-cored/tests/`). This plan creates the temporary-git-repository fixture (M2.2).
 
 Renderer and shell (`visualization/`)
 - Generated contract in `visualization/app/codeCharta/model/coreApi/` and the regeneration command; this plan adds types by adding them to `codecharta-core-api` and regenerating, never by hand. Drift check in CI is plan 01's.
-- `DESKTOP_BRIDGE: InjectionToken<DesktopBridge | null>` (`null` in the web build), `DesktopEnvironment` (`isDesktop`, `requireBridge()`), `valueOrThrow` / `DesktopBridgeError` and the result envelope `{ ok: true; value } | { ok: false; error: { code, message } }` in `visualization/app/codeCharta/util/desktop/`. The bridge is grouped by the namespace of the dotted method name: `bridge.projects.list()` calls `projects.list` (UNVERIFIED: confirm plan 01's exact shape).
+- `DESKTOP_BRIDGE: InjectionToken<DesktopBridge | null>` (`null` in the web build), `DesktopEnvironment` (`isDesktop`, `requireBridge()`), `valueOrThrow` / `DesktopBridgeError` and the result envelope `{ ok: true; value } | { ok: false; error: { code, message } }` in `visualization/app/codeCharta/util/desktop/`. As built (plan 01, overview section 10): one generic `bridge.request("projects.list", params)`, no namespace groups.
 - Fake: `createFakeDesktopBridge(seed?)` in `visualization/app/codeCharta/util/desktop/desktopBridge.mocks.ts` and `standInForTheDesktopBridge(page, seed)` in `visualization/app/playwright.helper.ts`, which injects `createFakeDesktopBridge.toString()` with `page.addInitScript`. The function must stay **self-contained** (no imports, no outside constants or helpers), so this plan's in-memory projects/snapshots backend (M2.7) is written inside its body, seeded through new optional `FakeDesktopSeed` fields (`projects`, `snapshots`, `activeProjectId`, `pickedImportFile`). Plan 01's spec "should work when rebuilt from its own source text" must stay green.
 - Shell (`visualization/electron/`, file layout per plan 01; this plan names `projectsShell.js` and `snapshotsShell.js` for the composed methods): the core client (`request(method, params)`), injectable dialog ports (open-folder, open-file, message box) and file reading, `app.relaunch()`, a reveal-in-explorer that resolves a `(projectId, folderId)` through the shell-only `projects.folderPath`, single-instance lock, `vscode:` in the allowed external protocols. Shell code is verified by plan 01's Playwright `_electron` smoke suite, not by Jest.
 
@@ -220,9 +220,9 @@ pub struct OpenedFile { project: Project, snapshot: SnapshotSummary, created_pro
 pub struct StoreStatus { problem: Option<StoreProblemCode> }
 pub struct StoreRootChange { store_root: String, adopted: bool }
 
-// shell.rs — request/result types of shell-composed methods; never served by the core
+// shell-composed results: declared by hand in visualization/app/codeCharta/util/desktop/desktopBridge.ts, not in codecharta-core-api (03-M2 part B)
 pub struct MapChunk { #[ts(type = "Uint8Array")] bytes: Vec<u8>, offset: u64, total_bytes: u64 }   // UNVERIFIED ts-rs override
-pub struct SourceFileBytes { #[ts(type = "Uint8Array")] bytes: Vec<u8> }
+interface SourceFileBytes { bytes: Uint8Array }
 pub struct MapLocation { path: String }                                   // shell-only result of snapshots.mapLocation
 pub struct SourceFileLocation { path: String, folder_root: String, size_bytes: u64 }
 ```
@@ -234,7 +234,7 @@ JSON-RPC methods (params → result; `ok` types are the success payload; failure
 | `projects.list` | — | `ProjectList { projects: ProjectSummary[] }` | named wrapper: the contract export only names struct types (03-M2) |
 | `projects.get` | `{ projectId }` | `Project` | refreshes git facts and derived fields |
 | `projects.inspectFolder` | `{ path }` | `PickedFolder` | shell-only; issues the pick token |
-| `projects.pickFolder` | — | `PickedFolder \| null` | shell: native folder dialog → `projects.inspectFolder`; `null` = cancelled |
+| `projects.pickFolder` | `{ title }` | `PickedFolder \| null` | shell: native folder dialog (title from the caller) → `projects.inspectFolder`; `null` = cancelled |
 | `projects.create` | `{ name, description?, folders: NewFolder[] }` | `Project` | |
 | `projects.update` | `{ projectId, name?, description?, analysisProfile? }` | `Project` | |
 | `projects.delete` | `{ projectId, permanently }` | void | recycle bin unless `permanently` |
@@ -248,7 +248,8 @@ JSON-RPC methods (params → result; `ok` types are the success payload; failure
 | `projects.resolveCommit` | `FolderRef & { hash }` | `ResolveCommitResult { commit: ResolvedCommit \| null }` | `FOLDER_UNAVAILABLE` outside an `ok` git folder |
 | `projects.folderPath` | `FolderRef` | `{ path }` | shell-only; for reveal-in-explorer |
 | `projects.sourceFileLocation` | `FolderRef & { relativePath }` | `SourceFileLookup { location: SourceFileLocation \| null }` | shell-only; folder `ok`, `confine_to_folder`, ≤ 16 MiB else `TOO_LARGE`; `null` when absent; reads the **working tree**, not the snapshot's commit (plan 04) |
-| `projects.readSourceFile` | `FolderRef & { relativePath }` | `SourceFileBytes \| null` | shell: asks `sourceFileLocation`, checks the path is inside `folder_root`, reads |
+| `projects.readSourceFile` | `FolderRef & { relativePath }` | `SourceFileBytes \| null` | shell: asks `sourceFileLocation`, checks the realpath is inside the realpath of `folder_root`, reads at most `sizeBytes` |
+| `projects.revealFolder` | `FolderRef` | `null` | shell: `projects.folderPath` → open the folder in the file manager |
 | `snapshots.list` | `FolderRef` | `SnapshotList { snapshots: SnapshotSummary[] }` | newest first by `createdAt`; named wrapper (03-M3, like `ProjectList`) |
 | `snapshots.mapLocation` | `SnapshotRef` | `MapLocation` | shell-only; `shell.resolvePath` with a `snapshotMap` target answers the same path (03-M3) |
 | `snapshots.readMapChunk` | `SnapshotRef & { offset, length }` | `MapChunk` | shell: `mapLocation`, path inside store root, `read(length at offset)` per call (`length` ≤ 32 MiB); the renderer allocates one `Uint8Array(totalBytes)` after the first chunk and fills it with 16 MiB chunks |
@@ -480,7 +481,7 @@ Acceptance: `cargo test` green; starting the app creates `store.json` and `.lock
 8. Shell: `projectsShell.js` (`projects.pickFolder`, `projects.readSourceFile`, shell-only gate, `projects.folderPath` for reveal-in-explorer); preload exposure; add the same methods to `createFakeDesktopBridge` as minimal stubs (the compiler forces it). Covered by plan 01's relay specs plus an `_electron` smoke addition (stubbed dialog: pick → create → list). Commit: `feat(visualization): expose projects through the desktop shell`
 9. Replace the stubs with an in-memory projects/snapshots/store backend inside `createFakeDesktopBridge` (seedable through `FakeDesktopSeed`). Tests: should create and list a project; should report a seeded missing folder; should work when rebuilt from its own source text. Commit: `test(visualization): add projects to the fake desktop bridge`
 
-Acceptance: `codecharta-core projects create --name demo --folder .` then `projects list` shows it; from DevTools in the running app `await window.codeChartaDesktop.projects.pickFolder()` opens a native dialog and `create` writes `projects/<id>/project.json`.
+Acceptance: `codecharta-core projects create --name demo --folder .` then `projects list` shows it; from DevTools in the running app `await window.codeChartaDesktop.request("projects.pickFolder", { title: "Add Folder" })` opens a native dialog and `create` writes `projects/<id>/project.json`.
 
 ### M3 — Snapshots: core, RPC, CLI, shell (M)
 

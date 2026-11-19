@@ -46,7 +46,7 @@ store API of `03-m1-store-core.md` apply. Git fixtures go in `tests/support/git_
 - [x] 5. Folder operations
 - [x] 6. JSON-RPC
 - [x] 7. CLI
-- [ ] 8. Shell (part B)
+- [x] 8. Shell (part B)
 - [ ] 9. Fake bridge backend (part B)
 
 ## Notes
@@ -270,3 +270,47 @@ forbids paths from the renderer. The core side is built for tokens; the shell mu
   `snapshots/<folderId>/`; snapshot counts are directories named like a snapshot id.
 - `ShellPathTarget::SnapshotMap` still answers `NOT_FOUND` in `Paths::resolve` (03-M0 item 0, 03-M3 fills it).
 - Result wrappers: a method answering a list or `T | null` needs a named wrapper struct (see task 6).
+
+### 8. Shell (part B)
+- Branch `feature/studio-03-shell` from `feature/studio-stack` (integration + the verified core of plans
+  03-06). Verified before starting: `electron/{main,preload,shellActions,shellPolicy}.js` as 01-M3 and
+  02-M6 left them; `coreMethods.generated.json` lists none of the shell-only names; the core answers
+  `projects.inspectFolder`, `projects.folderPath`, `projects.sourceFileLocation` as described above.
+- **Call shape (settles the 01/03 question):** the composed methods are reached through the existing
+  `bridge.request(method, params)`, not new bridge keys or namespace groups (`bridge.projects.pickFolder()`
+  in the plan's examples; overview section 10, plan 01 wins). The relay in `main.js` runs a name found in
+  the shell's composed-method table in the main process (`shellPolicy.isComposedMethod`, own properties
+  only) before the allow-list check; everything else is forwarded only when it is in `rendererMethods`.
+  So **the preload is unchanged** and the bridge keys stay the 01-M3/02-M6 set. Each composed module has a
+  test that none of its names is a renderer method of the contract (a composed name can never shadow a
+  core method).
+- Structural commit first: `pickPath`, `showInFileManager`, `failure`, `NOTHING_CHOSEN` and the picker
+  property lists are module exports of `shellActions.js`; `shellPolicy.isInsideFolder` (taken out of
+  `isReadableMapPath`).
+- `electron/projectsShell.js` (`createProjectsShell({ dialog, shell, fs, getWindow, requestCore, platform })`
+  → a table keyed by method name) and `electron/shellFiles.js` (`readRange`, `realPathOrNull`); both in
+  `script/copyElectron.js`.
+  - `projects.pickFolder({ title })` → `{ ok, value: PickedFolder | null }`: malformed options
+    `BAD_REQUEST` without a dialog (the generic pickers answer `null` there); cancelled `null` without a
+    core call; else `projects.inspectFolder { path }`, answered as it is. **No shell wording:** the design
+    specifies no dialog titles, so the title comes from the caller.
+  - `projects.readSourceFile({ projectId, folderId, relativePath })` → `{ ok, value: { bytes } | null }`:
+    only these three fields are passed to `projects.sourceFileLocation`; `location: null` → `null`; the
+    realpath of `path` must lie inside the realpath of `folderRoot` (`NOT_ALLOWED`, so a symlink swapped
+    in after the core's check is refused too; a path that vanished is `IO`); reads at most `sizeBytes`.
+  - **Addition: `projects.revealFolder({ projectId, folderId })`** → `{ ok, value: null }`: the plan's
+    "reveal-in-explorer over `projects.folderPath`" needed a renderer-callable name; `shell.resolvePath`
+    has no folder target (03-M2 task 6 kept `projects.folderPath`), so `reveal(target)` could not do it.
+- Renderer: `DesktopBridge.request` is typed over `BridgeMethods = Pick<CoreMethods, RendererMethod> &
+  ShellMethods`; `ShellMethods` and `SourceFileBytes` are declared by hand in `desktopBridge.ts` (the
+  plan's `codecharta-core-api/src/shell.rs` does not exist, 03-M0 item 0; no core or contract change).
+  Fake: `FakeAnswerKey` covers the composed names; unseeded, the three answer `{ ok: true, value: null }`
+  (nothing picked or found) instead of `NOT_FOUND` (task 9 replaces this with the backend).
+- Tests: `projectsShell.test.js` (12), `shellPolicy` "should compose only the methods the shell itself
+  offers"; Jest "should answer the project methods of the shell as if nothing was picked or found";
+  smoke (stubbed `dialog.showOpenDialog` and `shell.openPath` in main) "should create and list a project
+  from a picked folder" (pick → create → list → read a source file → reveal) and "should refuse the
+  shell-only project methods from the page".
+- Plan text corrected: "Required from plan 01" (call shape, composed methods), the shell types block,
+  the method table rows (`projects.pickFolder { title }`, `projects.revealFolder`) and the M2 acceptance
+  call.

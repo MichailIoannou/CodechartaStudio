@@ -1,9 +1,8 @@
-import type { RendererMethod } from "../../model/coreApi/coreApi"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
-import type { CoreState, DesktopBridge } from "./desktopBridge"
+import type { BridgeMethod, CoreState, DesktopBridge } from "./desktopBridge"
 
 type FakeAnswerKey =
-    | RendererMethod
+    | BridgeMethod
     | "pickFolder"
     | "pickFile"
     | "chooseToolExecutable"
@@ -41,6 +40,11 @@ export interface FakeDesktopBridge extends DesktopBridge {
 export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktopBridge {
     const FALLBACK_PROTOCOL_VERSION = 1
     const CORE_STATE_EVENT = "shell.coreState"
+    const NOTHING_PICKED_OR_FOUND: Partial<Record<FakeAnswerKey, null>> = {
+        "projects.pickFolder": null,
+        "projects.readSourceFile": null,
+        "projects.revealFolder": null
+    }
     const responses = { ...seed.responses }
     const failures = { ...seed.failures }
     const handlersByEvent = new Map<string, Set<(payload: unknown) => void>>()
@@ -110,8 +114,15 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
             failures[key] = error
         },
         protocolVersion: seed.protocolVersion ?? FALLBACK_PROTOCOL_VERSION,
-        request: ((method: RendererMethod, params: unknown, options?: unknown) =>
-            recordAndAnswer("request", method, missing(method), method, params, options)) as DesktopBridge["request"],
+        request: ((method: BridgeMethod, params: unknown, options?: unknown) =>
+            recordAndAnswer(
+                "request",
+                method,
+                method in NOTHING_PICKED_OR_FOUND ? succeed(null) : missing(method),
+                method,
+                params,
+                options
+            )) as DesktopBridge["request"],
         cancel: operationId => {
             record("cancel", operationId)
             return Promise.resolve()

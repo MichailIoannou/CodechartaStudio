@@ -11,6 +11,8 @@ const shellFiles = [
     "electron/coreClient.js",
     "electron/shellPolicy.js",
     "electron/shellActions.js",
+    "electron/shellFiles.js",
+    "electron/projectsShell.js",
     "electron/coreMethods.generated.json",
     "package.json"
 ]
