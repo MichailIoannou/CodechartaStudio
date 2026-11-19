@@ -48,7 +48,7 @@ Retire `readSnapshotMap` if nothing uses it.
 - [x] 5. Folder selector — removed by OD1
 - [x] 6. Manage project
 - [x] 7. Reset seam
-- [ ] 8. E2E
+- [x] 8. E2E
 - [ ] 9. Changelog
 
 ## Notes
