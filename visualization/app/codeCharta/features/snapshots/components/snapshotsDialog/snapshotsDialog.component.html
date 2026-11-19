@@ -1,0 +1,169 @@
+<dialog #dialog class="modal" aria-labelledby="snapshots-dialog-title" data-testid="snapshots-dialog">
+    <div class="modal-box flex max-w-3xl flex-col gap-3">
+        <h2 id="snapshots-dialog-title" class="truncate text-xl font-bold" [title]="title()">{{ title() }}</h2>
+
+        <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="btn btn-sm" autofocus data-testid="snapshots-analyse-checkout" (click)="analyseCurrentCheckout()">
+                <i class="fa-solid fa-play fa-fw"></i>
+                Analyse current checkout
+            </button>
+            <button
+                type="button"
+                class="btn btn-sm"
+                data-testid="snapshots-analyse-head"
+                [disabled]="actionFolder()?.kind !== 'git' || !headCommit()"
+                [title]="actionFolder()?.kind === 'git' ? '' : 'Not a git repository'"
+                (click)="analyseHeadCommit()"
+            >
+                <i class="fa-solid fa-play fa-fw"></i>
+                Analyse HEAD commit
+            </button>
+            <label class="ml-auto flex items-center gap-2 text-sm text-base-content/60" for="snapshots-folder">Folder</label>
+            <select id="snapshots-folder" class="select select-sm w-40" data-testid="snapshots-folder" (change)="chooseFolder($any($event.target).value)">
+                <option [value]="allFolders" [selected]="folderFilter() === allFolders">All</option>
+                @for (folder of folders(); track folder.id) {
+                    <option [value]="folder.id" [selected]="folder.id === folderFilter()">{{ folder.label }}</option>
+                }
+            </select>
+        </div>
+
+        @if (problems(); as problems) {
+            <cc-preflight-problems [problems]="problems" />
+        }
+
+        <div class="flex max-h-[70vh] flex-col gap-2 overflow-y-auto">
+            @for (section of sections(); track section.folder.id) {
+                <details class="collapse collapse-arrow shrink-0 rounded-box border border-base-300" [open]="isWorkingFolder(section.folder) || sections().length === 1" [attr.data-testid]="'snapshots-folder-' + section.folder.label">
+                    <summary class="collapse-title min-h-0 bg-base-200 px-3 py-2 text-sm font-medium">
+                        {{ section.folder.label }}
+                        <span class="badge badge-sm ml-1">{{ section.rows.length }}</span>
+                    </summary>
+                    <div class="collapse-content px-0 pb-1 text-sm">
+                        @if (section.failure; as failure) {
+                            <div role="alert" class="alert alert-error m-2 text-xs" data-testid="snapshots-folder-failure">
+                                <span class="min-w-0 break-words">{{ failure }}</span>
+                                <button type="button" class="btn btn-xs" (click)="retry(section.folder)">Retry</button>
+                            </div>
+                        } @else if (section.rows.length === 0 && isRefreshing()) {
+                            <div class="flex flex-col gap-2 p-3">
+                                <div class="skeleton h-3 w-2/3"></div>
+                                <div class="skeleton h-3 w-1/2"></div>
+                            </div>
+                        } @else if (section.rows.length === 0) {
+                            <div class="flex items-center gap-3 px-3 py-2">
+                                <span class="text-base-content/60">No analyses yet.</span>
+                                <button type="button" class="btn btn-primary btn-xs" (click)="analyseCurrentCheckout(section.folder)">
+                                    <i class="fa-solid fa-play fa-fw"></i>
+                                    Analyse current checkout
+                                </button>
+                            </div>
+                        } @else {
+                            <div class="grid grid-cols-[minmax(0,1fr)_7rem_9rem_5rem_5rem_auto] gap-x-3 px-3 pt-2 pb-1 text-xs uppercase tracking-wide text-base-content/60">
+                                <span>Commit</span>
+                                <span>Commit date</span>
+                                <span title="Imported snapshots are sorted by the time they were imported.">Analysed at</span>
+                                <span>Profile</span>
+                                <span class="text-right">Size</span>
+                                <span>Flags</span>
+                            </div>
+                            @for (row of section.rows; track row.snapshot.ref.snapshotId) {
+                                <div
+                                    class="group grid grid-cols-[minmax(0,1fr)_7rem_9rem_5rem_5rem_auto] items-center gap-x-3 rounded-md px-3 py-1 hover:bg-base-200 focus-within:bg-base-200 focus:outline-none"
+                                    tabindex="0"
+                                    data-testid="snapshots-row"
+                                >
+                                    <span class="flex min-w-0 gap-2">
+                                        <span class="shrink-0" [class.font-mono]="row.snapshot.target !== 'workingTree'">{{ row.commitLabel }}</span>
+                                        @if (row.snapshot.subject) {
+                                            <span class="truncate" [title]="row.snapshot.subject">{{ row.snapshot.subject }}</span>
+                                        }
+                                    </span>
+                                    @if (row.snapshot.commitDate; as commitDate) {
+                                        <span class="truncate" [title]="absolute(commitDate)">{{ relative(commitDate) }}</span>
+                                    } @else {
+                                        <span class="text-base-content/60">—</span>
+                                    }
+                                    @if (row.snapshot.finishedAt; as finishedAt) {
+                                        <span class="truncate" [title]="absolute(finishedAt)">{{ relative(finishedAt) }}</span>
+                                    } @else {
+                                        <span class="truncate italic text-base-content/60" data-testid="snapshots-analysed-unknown">unknown (imported {{ importedOn(row.snapshot) }})</span>
+                                    }
+                                    <span class="truncate font-mono text-xs" [title]="row.snapshot.profileHash ?? ''">{{ shortProfile(row.snapshot.profileHash) }}</span>
+                                    <span class="text-right tabular-nums">{{ byteSize(row.snapshot.mapBytes) }}</span>
+                                    <span class="flex flex-wrap gap-1">
+                                        @if (row.isShown) {
+                                            <span class="badge badge-primary badge-xs">shown</span>
+                                        }
+                                        @if (row.snapshot.dirty) {
+                                            <span class="badge badge-warning badge-xs">uncommitted</span>
+                                        }
+                                        @if (row.snapshot.source === "imported") {
+                                            <span class="badge badge-ghost badge-xs">imported</span>
+                                        }
+                                        @if (row.snapshot.notInMap.length > 0) {
+                                            <span class="badge badge-ghost badge-xs" [title]="notInMapTitle(row.snapshot)">partial</span>
+                                        }
+                                    </span>
+                                    <ng-container *ngTemplateOutlet="rowActions; context: { $implicit: row }" />
+                                </div>
+                            }
+                        }
+                    </div>
+                </details>
+            }
+
+            @if (unboundImports().length > 0) {
+                <details class="collapse collapse-arrow shrink-0 rounded-box border border-base-300" open data-testid="snapshots-unbound-imports">
+                    <summary class="collapse-title min-h-0 bg-base-200 px-3 py-2 text-sm font-medium">
+                        Imported — analysis time unknown
+                        <span class="badge badge-sm ml-1">{{ unboundImports().length }}</span>
+                    </summary>
+                    <div class="collapse-content px-0 pb-1 text-sm">
+                        @for (row of unboundImports(); track row.snapshot.ref.snapshotId) {
+                            <div
+                                class="group grid grid-cols-[minmax(0,1fr)_11rem_5rem_auto] items-center gap-x-3 rounded-md px-3 py-1 hover:bg-base-200 focus-within:bg-base-200 focus:outline-none"
+                                tabindex="0"
+                                data-testid="snapshots-unbound-row"
+                            >
+                                <span class="truncate" [title]="row.commitLabel">{{ row.commitLabel }}</span>
+                                <span class="truncate text-base-content/60">imported {{ importedOn(row.snapshot) }}</span>
+                                <span class="text-right tabular-nums">{{ byteSize(row.snapshot.mapBytes) }}</span>
+                                <span>
+                                    @if (row.isShown) {
+                                        <span class="badge badge-primary badge-xs">shown</span>
+                                    }
+                                </span>
+                                <ng-container *ngTemplateOutlet="rowActions; context: { $implicit: row }" />
+                            </div>
+                        }
+                    </div>
+                </details>
+            }
+        </div>
+
+        <div class="modal-action mt-0">
+            <button type="button" class="btn" data-testid="snapshots-close" (click)="close()">Close</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<ng-template #rowActions let-row>
+    <div class="col-span-full hidden justify-end gap-1 pt-1 group-hover:flex group-focus-within:flex">
+        <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-open" (click)="openSnapshot(row)">Open</button>
+        @if (row.reanalyse) {
+            <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-reanalyse" (click)="reanalyse(row)">Re-analyse</button>
+            <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-show-log" (click)="logDialog.open({ kind: 'snapshot', snapshot: row.snapshot, folderLabel: row.folder.label })">
+                Show log
+            </button>
+        } @else {
+            <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-move" (click)="moveDialog.open(row.snapshot, 'move')">Move to folder…</button>
+            <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-bind" (click)="moveDialog.open(row.snapshot, 'bind')">Bind to commit…</button>
+        }
+    </div>
+</ng-template>
+
+<cc-analysis-log-dialog #logDialog />
+<cc-move-snapshot-dialog #moveDialog />

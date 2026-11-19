@@ -55,6 +55,23 @@ describe("SnapshotCatalogService", () => {
         expect(catalog.failureOf("f-web")).toBe("store unreadable")
     })
 
+    it("should read the log of a snapshot", async () => {
+        // Arrange
+        await setUpProjects({
+            projects: [BILLING],
+            snapshots: [API],
+            activeProjectId: "p-billing",
+            snapshotLogs: { "s-api": "Map: a.cc.json.gz" }
+        })
+        const catalog = TestBed.inject(SnapshotCatalogService)
+
+        // Act
+        const log = await catalog.readLog(API.ref)
+
+        // Assert
+        expect(log).toBe("Map: a.cc.json.gz")
+    })
+
     it("should stay empty without a bridge", () => {
         // Arrange
         TestBed.configureTestingModule({
