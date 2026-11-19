@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 - **Color themes**: CodeCharta now starts in a dark theme, and the settings offer CodeCharta Light, Nord, One Dark, VS Dark, VS Light, Darcula, Rider Day or Follow system; the whole app, from the 3D map and radial layouts to the word cloud, Dependencies view and screenshots, follows the chosen theme, and in the desktop app so do the window and its title bar.
 - **Projects**: the desktop app groups the folders of a codebase into projects, lets you switch project and working folder from the nav bar, shows a project overview with the folder's git state and analyses, and reopens the last shown analysis of a project on start.
+- **Git branches**: in the desktop app, a project with a git folder gets a History view that shows the working folder's current branch and its local branches, remote branches and tags as a tree, with how far each branch is ahead of or behind its upstream.
 - **Desktop tools check**: the settings of the desktop app show whether git, ccsh, Java and the GitHub and GitLab command lines were found and in which version, and let you pick another executable.
 
 ### Changed

@@ -1,6 +1,6 @@
 ---
 name: 04-M3 history view, branches pane
-state: progress
+state: complete
 version: 1
 ---
 
@@ -155,4 +155,38 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   click toggles. `role="tree"` with `aria-activedescendant`: ↑/↓, → opens or enters, ← closes or goes to the parent,
   Enter scopes; handled keys `stopPropagation`. Empty: "No commits yet."; no hit: "No branch matches 'xyz'.".
 - Not built here: double-click switch (H15, M8) and the branch context menu (H10, M5/M8).
+
+### E2E, changelog, screenshots
+- `features/gitHistory/e2e/gitHistory.e2e.ts|.po.ts` (web suite, stand-in bridge): open History from its tab and scope
+  to a clicked branch; the dubious-ownership notice with its command; no tab without a bridge and the desktop-only
+  sentence at `#/history`.
+- Changelog (Added): **Git branches** — the plan's sentence without "in the top bar" (no branch chip, H2 → W1).
+- Screenshots (Playwright, stand-in bridge with branches feature/invoice-rounding ↑2 ↓1, main ↓4, release/2.4 and
+  2.5, old-experiment gone, remotes origin (3) and fork (1), two tags; 1600×900 and 1100×900; cc-dark and cc-light;
+  scratch spec, not committed): toolbar "Repository  ⎇ billing-api  on ⎇ feature/invoice-rounding … ⟳" as the
+  mock-up; islands with 6 px backdrop; tree as H7 (LOCAL (5), release/ folded, gone badge, REMOTE with origin / fork,
+  TAGS (2) closed). 1100 px: both side panes start as strips, "Repository" and "on" hide, the branch truncates.
+  Problem notices (no git, too old, missing folder with "Re-link folder…", not a repository, dubious ownership with
+  the copy block, bare) centred with the warning icon, in both themes; refs failure: red alert with Retry in the
+  branches pane. Seen: the scoped row's `bg-primary/20` is faint on cc-dark (it is the design's class, as the
+  explorer's revealed row); the commits pane is empty until M4.
+
+### Gates (final)
+See the final commit: format:check clean; npm test green with the coverage gate; lint (depcruise, styles, knip)
+clean; tsc clean; build ok; e2e:ci on a temporary port 9032 with the chromium channel (both reverted, port 9009 held
+by another worktree): 171/172, the failure `navBarFolderButton.e2e.ts` "should load sample cc.json files" was Playwright
+failing to write its trace file (`browserContext.close: ENOENT … .trace`) and passed rerun alone (11/11); test:electron 69/69; e2e:desktop 14/14 with the core built into
+`core/target/studio-04-m3`.
+
+### For 04-M4 (commit list with graph)
+- `GitLogService` exists with `scope`, `scopedRefNames`, `scopeTo`, `showAllBranches` (reset per repository); add the
+  pages, filter, `graphRows` there. `GitApiService.log` exists. The commits pane in `gitHistoryPanel.component.html`
+  has its header (`COMMITS` + `cc-commit-scope-chip`); put the filters, column header and list below it. The details
+  pane holds the "nothing selected" sentence.
+- Refresh hooks: `GitRepositoryService.refs()` changes on every refs reload (fingerprint in `refs().value`); restart the
+  log at page one when it changes. `repository.changed` is already handled for status/refs.
+- Fake bridge: `git[folderId].commits` answers `git.log` with one page (`nextCursor: null`); extend the seed there for
+  paging. Builders in `services/gitApi.mocks.ts`; spec test bed `services/gitHistoryTestBed.mocks.ts`.
+- Projects depend on gitHistory (not the reverse): git reads the projects only through `WORKING_FOLDER_SOURCE`;
+  anything git needs from projects/globalSettings goes through the view (`historyView`) as an output.
 
