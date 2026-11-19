@@ -1,5 +1,6 @@
 import { TestBed } from "@angular/core/testing"
 import { Router } from "@angular/router"
+import { Subject } from "rxjs"
 import { LoadFilesUseCase, ProjectSnapshotToLoad } from "../../load/load.facade"
 import { createFakeDesktopBridge, FakeDesktopBridge, FakeDesktopSeed } from "../../util/desktop/desktopBridge.mocks"
 import { DESKTOP_BRIDGE } from "../../util/desktop/desktopBridge.token"
@@ -11,7 +12,7 @@ export interface ProjectsTestBed {
     projects: ProjectsService
     loadFilesUseCase: { loadProjectSnapshots: jest.Mock; unloadAllFiles: jest.Mock; showSampleFiles: jest.Mock }
     toastService: { show: jest.Mock }
-    router: { navigateByUrl: jest.Mock }
+    router: { navigateByUrl: jest.Mock; events: Subject<unknown>; url: string }
     requestsOf(method: string): unknown[]
 }
 
@@ -29,7 +30,7 @@ export async function setUpProjects(seed: FakeDesktopSeed, { initialise = true }
         showSampleFiles: jest.fn()
     }
     const toastService = { show: jest.fn() }
-    const router = { navigateByUrl: jest.fn().mockResolvedValue(true) }
+    const router = { navigateByUrl: jest.fn().mockResolvedValue(true), events: new Subject<unknown>(), url: "/" }
     TestBed.configureTestingModule({
         providers: [
             { provide: DESKTOP_BRIDGE, useValue: bridge },
