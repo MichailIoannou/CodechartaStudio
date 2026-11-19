@@ -34,6 +34,7 @@ cargo run -p codecharta-cored -- snapshots list --project <id> --folder <id> [--
 cargo run -p codecharta-cored -- snapshots import --project <id> --folder <id> --file map.cc.json [--bind-to-commit <sha>]
 cargo run -p codecharta-cored -- snapshots resolve --project <id> --folder <id> [--commit <sha>]   # exact / nearest / latest / none; never analyses
 cargo run -p codecharta-cored -- compare resolve --project <id> --folder <id> --base <rev> --head <rev> [--json]   # base, head and their snapshots; reads only
+cargo run -p codecharta-cored -- compare changed-files --project <id> --folder <id> [--head-folder <id>] --base <sha> --head <sha> [--json]   # files changed between two commits, relative to the folder; reads only
 cargo run -p codecharta-cored -- analyse --project <id> --folder <id> [--commit <sha>] [--force] [--json]   # runs ccsh
 cargo run -p codecharta-cored -- git status --path <dir> [--json]   # or --project <id> --folder <id>; also git branches
 ```

@@ -1,13 +1,16 @@
 use codecharta_core_api::error::ErrorCode;
-use codecharta_core_api::methods::compare::{ResolveComparisonParams, ResolvedComparison};
+use codecharta_core_api::methods::compare::{
+    ChangedFilesParams, ChangedFilesResult, ResolveComparisonParams, ResolvedComparison,
+};
 use codecharta_core_api::methods::projects::{FolderKind, FolderRef};
 use tokio_util::sync::CancellationToken;
 
+use super::changed_files::ChangedFilesSearch;
 use super::preflight::SizeLimits;
 use super::resolve::CommitComparison;
 use crate::error::CoreResult;
-use crate::git::GitFolder;
 use crate::git::error::{GitError, message_for};
+use crate::git::{GitFolder, GitService};
 use crate::projects::ProjectRepository;
 use crate::snapshots::FolderResolver;
 
@@ -25,6 +28,22 @@ pub async fn resolve_in_project(
         limits: SizeLimits::default(),
     };
     comparison.resolve(&folder, params, cancel).await
+}
+
+/// Lists the files between two commits in the base folder's clone, else the head folder's; every folder
+/// must exist, as in `resolve_in_project`.
+pub async fn changed_files_in_project(
+    projects: &ProjectRepository<'_>,
+    git: &GitService<'_>,
+    params: &ChangedFilesParams,
+    cancel: &CancellationToken,
+) -> CoreResult<ChangedFilesResult> {
+    let mut folders = vec![compared_folder(projects, &params.base_folder)?];
+    if params.head_folder != params.base_folder {
+        folders.push(compared_folder(projects, &params.head_folder)?);
+    }
+    let search = ChangedFilesSearch { git, cancel };
+    search.list(&folders, &params.base, &params.head).await
 }
 
 /// `NOT_FOUND` for an unknown project or folder, `NOT_A_REPOSITORY` for a folder without git and

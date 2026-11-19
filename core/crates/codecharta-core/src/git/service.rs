@@ -12,11 +12,12 @@ use tokio_util::sync::CancellationToken;
 
 use super::changes::RepositoryChanges;
 use super::command::{GitCommand, QUERY_LIMITS, UserEnvironment};
-use super::details::{ChangedFilesRequest, changed_files, commit_details};
+use super::details::{ChangedFilesRequest, changed_files, changed_paths, commit_details};
 use super::locator::{Repository, locate};
 use super::log::{LogContext, LogRequest, log_page};
 use super::memory::{GitMemory, QueryKey, Remembered};
 use super::operation::Operations;
+use super::parse::changed_files::NameStatus;
 use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
 use super::query::check_candidate_count;
 use super::query::{self, RevListRequest, ShaSink, WalkSink};
@@ -204,6 +205,17 @@ impl<'core> GitService<'core> {
         };
         let ask = changed_files(self.at(folder, cancel), request);
         self.remembered(folder, cancel, key, ask).await
+    }
+
+    /// The files between two commits with paths relative to `folder`, all of them; for comparisons.
+    pub async fn changed_paths(
+        &self,
+        folder: &GitFolder,
+        from: &CommitSha,
+        to: &CommitSha,
+        cancel: &CancellationToken,
+    ) -> CoreResult<Vec<NameStatus>> {
+        changed_paths(self.at(folder, cancel), from, to).await
     }
 
     /// Not remembered: `HEAD` and refs move.

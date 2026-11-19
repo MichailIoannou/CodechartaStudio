@@ -132,9 +132,8 @@ pub struct ResolvedComparison {
     pub preflight: Preflight,
 }
 
-pub struct ChangedFilesParams { pub base_folder: FolderAddress, pub head_folder: FolderAddress, pub base: CommitId, pub head: CommitId }
-pub enum ChangedFileStatus { Added, Modified, Deleted, Renamed, Copied, TypeChanged }
-pub struct ChangedFile { pub status: ChangedFileStatus, pub path: String, pub previous_path: Option<String>, pub similarity: Option<u8> }
+pub struct ChangedFilesParams { pub base_folder: FolderRef, pub head_folder: FolderRef, pub base: CommitSha, pub head: CommitSha }
+pub struct ChangedFile { pub change: GitFileChange, pub path: String, pub previous_path: Option<String> }   // GitFileChange is plan 04's; no similarity score
 pub enum ChangedFilesSource { Git, Unavailable }                       // Unavailable: no clone has both commits
 pub struct ChangedFilesResult { pub source: ChangedFilesSource, pub files: Vec<ChangedFile> }
 
@@ -185,11 +184,11 @@ core/crates/codecharta-core/src/
     resolve.rs          # pub fn resolve(ctx: &CoreContext, params: &ResolveParams) -> Result<ResolvedComparison, CoreError>
     sides.rs            # pub fn side_status(ctx: &CoreContext, side: &SnapshotRef) -> Result<SideStatus, CoreError>
     preflight.rs        # pub fn preflight(base: &SideStatus, head: &SideStatus, limits: &SizeLimits) -> Preflight
-    changed_files.rs    # pub fn changed_files(ctx: &CoreContext, params: &ChangedFilesParams) -> Result<ChangedFilesResult, CoreError>
-                        # pub fn parse_name_status(output: &[u8]) -> Result<Vec<ChangedFile>, ParseError>
+    changed_files.rs    # ChangedFilesSearch { git, cancel }::list(&[GitFolder], &CommitSha, &CommitSha) -> CoreResult<ChangedFilesResult>
+                        # (project_folder.rs: changed_files_in_project resolves the two folders); parse_name_status is plan 04's
   git/
     compare.rs          # pub fn merge_base(runner: &ToolRunner, repo: &Path, a: &CommitId, b: &CommitId) -> Result<Option<CommitId>, GitError>
-                        # pub fn diff_name_status(runner: &ToolRunner, repo: &Path, base: &CommitId, head: &CommitId) -> Result<Vec<ChangedFile>, GitError>
+                        # (as built: GitService::changed_paths, `git/details.rs`, reusing plan 04's `parse/changed_files.rs`)
   hosting/
     mod.rs
     remote_url.rs       # pub fn parse_remote_url(url: &str) -> Option<RemoteRef>   // RemoteRef { host, repository }; credentials stripped
@@ -362,7 +361,7 @@ Expected fields: `iid`, `title`, `state` (`opened|merged|closed`), `draft`, `aut
 
 ### 8. Changed files, the filter, the summary
 
-**Changed-files list.** `compare.changedFiles` runs `git -C <folder> diff --name-status -M -z --relative <base> <head>` in the clone that has both commits (base folder first, then head folder); neither → `source: Unavailable`. `-z` output is NUL-separated: a status token (`A`, `M`, `D`, `T`, `R<score>`, `C<score>`) followed by one path, or two paths (old, new) for `R` and `C`; `parse_name_status` is pure. `--relative` restricts to and strips the folder's prefix so paths match map paths when the project folder is a repository subfolder. Paths are forward-slashed, relative to the folder; non-UTF-8 paths are converted lossily (UNVERIFIED how git reports them with `-z` on Windows). The renderer maps `path` to a node path with `/${rootName}/${path}`.
+**Changed-files list.** `compare.changedFiles` runs `git diff-tree -r -z -M --relative --name-status <base>^{commit} <head>^{commit}` with the folder as working directory (plan 04's `diff-tree` arguments, no numstat, no 5000-file cut) in the clone that has both commits (base folder first, then head folder); neither → `source: Unavailable`. `-z` output is NUL-separated: a status token (`A`, `M`, `D`, `T`, `R<score>`, `C<score>`) followed by one path, or two paths (old, new) for `R` and `C`; `parse_name_status` is pure. `--relative` restricts to and strips the folder's prefix so paths match map paths when the project folder is a repository subfolder. Paths are forward-slashed, relative to the folder; non-UTF-8 paths are converted lossily (UNVERIFIED how git reports them with `-z` on Windows). The renderer maps `path` to a node path with `/${rootName}/${path}`.
 
 `ChangesExplorerComponent` is a new explorer mode "Changes" (`id: "changes"`, icon `fa-solid fa-code-compare`, `hidesListTools: true`) offered while a project comparison is active. Rows: status letter badge, file name, dimmed parent path, the height-metric delta when the node exists; renamed rows show `old → new`. Click dispatches `setSelectedNodePath({ value })`; a per-row button "Focus folder" dispatches `focusNode({ value: parentPath })`. Rows whose path has no node are greyed with the title "Not part of the analysis". The list is virtualised with `ListViewport`/`listWindow` from the sidebarExplorer facade, as the cluster explorer does.
 
@@ -522,7 +521,7 @@ Acceptance: no entry point ends in an error merely because an analysis is missin
 
 ### M4 — Changed files (M)
 
-1. (core) `parse_name_status` and `git/compare.rs::diff_name_status`, `compare/changed_files.rs`, method `compare.changedFiles`, CLI `compare changed-files`. Unit tests: `parses_added_modified_and_deleted`, `parses_a_rename_with_similarity_and_both_paths`, `keeps_paths_with_spaces_and_non_ascii_characters`; integration tests in `tests/changed_files.rs`: `reports_paths_relative_to_a_subfolder`, `returns_unavailable_when_no_clone_has_both_commits`, `uses_the_head_folder_clone_when_only_it_has_both`. Commit: `feat(core): list changed files between two commits`
+1. (core) `GitService::changed_paths` (reusing plan 04's `parse_name_status`; no `git/compare.rs`), `compare/changed_files.rs`, method `compare.changedFiles`, CLI `compare changed-files`. Unit tests: plan 04 already covers added / modified / deleted / renamed (`should_parse_added_modified_deleted_and_renamed`), and `should_keep_paths_with_spaces_and_non_ascii_characters` is added; integration tests in `tests/changed_files.rs` (each with `should_`): `report_paths_relative_to_a_subfolder`, `return_unavailable_when_no_clone_has_both_commits`, `use_the_head_folder_clone_when_only_it_has_both`, plus a rename and a 5001-file list. Commit: `feat(core): list changed files between two commits`
 2. (renderer) Tidy first: multi `EXPLORER_CONDITIONAL_MODES` and the active-mode guard in `ClusterExplorerComponent`. Files: `features/sidebarExplorer/explorerCapabilities.ts`, `services/explorerMode.service.ts`, `features/clusterExplorer/provideClustersExplorerMode.ts` (+ spec), `components/clusterExplorer/*`. Tests: "should offer the modes of every provider", "should render only while the clusters mode is active". Commit: `refactor(visualization): allow several conditional explorer modes`
 3. (renderer) `changedFileRows.ts`, `deltaChangeSummary.selector.ts`. Tests: "should map a git path to its node path", "should mark a path without a node", "should fall back to metric changes when the core reports Unavailable", "should sum added, removed and changed from the delta root". Commit: `feat(visualization): derive change rows and summary`
 4. (renderer) `ChangesExplorerComponent`, `provideChangesExplorerMode`, wiring in `views/metricsView/metricsView.component.ts|.html`. Tests: "should offer the Changes mode only during a project comparison", "should select the node when a row is clicked", "should focus the parent folder", "should show which source the list comes from". Commit: `feat(visualization): show changed files in the explorer`

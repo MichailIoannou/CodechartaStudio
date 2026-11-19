@@ -63,6 +63,12 @@ impl ComparedProject {
             .request(id, "compare.resolve", commits_params(folder, a, b))
     }
 
+    fn changed_files(&mut self, id: i64, folder: &Value, base: &str, head: &str) -> Value {
+        let params =
+            json!({ "baseFolder": folder, "headFolder": folder, "base": base, "head": head });
+        self.core.request(id, "compare.changedFiles", params)
+    }
+
     /// A second project, created over JSON-RPC while the core holds the store.
     fn project_of(&mut self, path: &Path) -> Value {
         let picked = self
@@ -132,6 +138,26 @@ impl CommandLine<'_> {
             &self.resolve_text(folder, &["--base", base, "--head", head, "--json"]),
         )
         .expect("the resolution is JSON")
+    }
+
+    fn changed_files_json(&self, folder: &Value, base: &str, head: &str) -> Value {
+        let args = [
+            &["compare", "changed-files"][..],
+            &folder_args(folder),
+            &["--base", base, "--head", head, "--json"],
+        ]
+        .concat();
+        serde_json::from_slice(&self.run(&args).stdout).expect("the files are JSON")
+    }
+
+    fn changed_files_text(&self, folder: &Value, base: &str, head: &str) -> String {
+        let args = [
+            &["compare", "changed-files"][..],
+            &folder_args(folder),
+            &["--base", base, "--head", head],
+        ]
+        .concat();
+        String::from_utf8_lossy(&self.run(&args).stdout).into_owned()
     }
 
     fn resolve_text(&self, folder: &Value, extra: &[&str]) -> String {
@@ -240,4 +266,68 @@ fn should_print_the_same_resolution_as_json_on_the_command_line() {
         "the head line is {}",
         lines[2]
     );
+}
+
+#[test]
+fn should_list_the_changed_files_over_json_rpc() {
+    // Arrange
+    let mut project = ComparedProject::serve();
+    let (folder, older, newer) = (
+        project.folder.clone(),
+        project.repository.head.clone(),
+        project.newer.clone(),
+    );
+
+    // Act
+    let answer = project.changed_files(1, &folder, &older, &newer);
+
+    // Assert
+    assert_eq!(
+        answer["result"],
+        json!({
+            "source": "git",
+            "files": [{ "change": "added", "path": "b.txt", "previousPath": null }]
+        }),
+        "{answer}"
+    );
+}
+
+#[test]
+fn should_answer_changed_files_of_an_unknown_folder_and_a_malformed_commit_with_typed_errors() {
+    // Arrange
+    let mut project = ComparedProject::serve();
+    let (folder, older) = (project.folder.clone(), project.repository.head.clone());
+    let unknown_folder = json!({ "projectId": folder["projectId"], "folderId": UNKNOWN_FOLDER });
+
+    // Act
+    let unknown = project.changed_files(1, &unknown_folder, &older, &older);
+    let malformed = project.changed_files(2, &folder, "HEAD", &older);
+
+    // Assert
+    assert_eq!(error_data_code(&unknown), "NOT_FOUND", "{unknown}");
+    assert_eq!(error_data_code(&malformed), "BAD_REQUEST", "{malformed}");
+}
+
+#[test]
+fn should_print_the_changed_files_as_json_and_as_lines_on_the_command_line() {
+    // Arrange
+    let mut project = ComparedProject::serve();
+    let (folder, older, newer) = (
+        project.folder.clone(),
+        project.repository.head.clone(),
+        project.newer.clone(),
+    );
+    let served = project.changed_files(1, &folder, &older, &newer);
+
+    // Act
+    let printed = project
+        .command_line()
+        .changed_files_json(&folder, &older, &newer);
+    let text = project
+        .command_line()
+        .changed_files_text(&folder, &older, &newer);
+
+    // Assert
+    assert_eq!(printed, served["result"]);
+    assert_eq!(text, "git\nA  b.txt\n");
 }

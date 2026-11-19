@@ -8,6 +8,8 @@ import type { AnalysisProgress } from "./AnalysisProgress"
 import type { BatchRefParams } from "./BatchRefParams"
 import type { BatchResult } from "./BatchResult"
 import type { CancelParams } from "./CancelParams"
+import type { ChangedFilesParams } from "./ChangedFilesParams"
+import type { ChangedFilesResult } from "./ChangedFilesResult"
 import type { ClearToolPathParams } from "./ClearToolPathParams"
 import type { CreateProjectParams } from "./CreateProjectParams"
 import type { DeleteProjectParams } from "./DeleteProjectParams"
@@ -210,6 +212,7 @@ export type CoreMethods = {
     "snapshots.planPrune": { params: PlanPruneParams; result: PrunePlan }
     "snapshots.prune": { params: PruneParams; result: PruneResult }
     "compare.resolve": { params: ResolveComparisonParams; result: ResolvedComparison }
+    "compare.changedFiles": { params: ChangedFilesParams; result: ChangedFilesResult }
     "analysis.preflight": { params: PreflightParams; result: PreflightResult }
     "analysis.enqueue": { params: EnqueueParams; result: EnqueueResult }
     "analysis.cancel": { params: JobRefParams; result: null }
@@ -300,6 +303,7 @@ export const RENDERER_METHODS = [
     "snapshots.planPrune",
     "snapshots.prune",
     "compare.resolve",
+    "compare.changedFiles",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",

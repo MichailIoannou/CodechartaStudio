@@ -46,6 +46,7 @@
     "snapshots.planPrune",
     "snapshots.prune",
     "compare.resolve",
+    "compare.changedFiles",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",

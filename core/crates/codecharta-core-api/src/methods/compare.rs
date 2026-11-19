@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::methods::git::GitFileChange;
 use crate::methods::projects::FolderRef;
 use crate::methods::snapshots::{SnapshotRelation, SnapshotSummary};
 use crate::registry::method;
@@ -165,6 +166,50 @@ method!(
     ResolvedComparison
 );
 
+/// The commits are looked for in `baseFolder` first, then in `headFolder`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ChangedFilesParams {
+    pub base_folder: FolderRef,
+    pub head_folder: FolderRef,
+    pub base: CommitSha,
+    pub head: CommitSha,
+}
+
+/// `git` when a clone holds both commits; `unavailable` when none does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum ChangedFilesSource {
+    Git,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangedFile {
+    pub change: GitFileChange,
+    /// Relative to the project folder, with `/` separators.
+    pub path: String,
+    /// The path before a rename or copy.
+    pub previous_path: Option<String>,
+}
+
+/// Every changed file below the project folder, never cut short.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangedFilesResult {
+    pub source: ChangedFilesSource,
+    pub files: Vec<ChangedFile>,
+}
+
+method!(
+    CompareChangedFiles,
+    "compare.changedFiles",
+    Renderer,
+    ChangedFilesParams,
+    ChangedFilesResult
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -228,5 +273,38 @@ mod tests {
             json!({ "status": "missing", "nearest": null })
         );
         assert_eq!(status_json, json!({ "kind": "noCommonAncestor" }));
+    }
+
+    #[test]
+    fn should_write_an_unavailable_source_without_files() {
+        // Arrange
+        let result = ChangedFilesResult {
+            source: ChangedFilesSource::Unavailable,
+            files: Vec::new(),
+        };
+
+        // Act
+        let json = serde_json::to_value(result).unwrap();
+
+        // Assert
+        assert_eq!(json, json!({ "source": "unavailable", "files": [] }));
+    }
+
+    #[test]
+    fn should_refuse_changed_files_params_with_an_unknown_field() {
+        // Arrange
+        let json = json!({
+            "baseFolder": { "projectId": "p-1", "folderId": "f-1" },
+            "headFolder": { "projectId": "p-1", "folderId": "f-1" },
+            "base": "a".repeat(40),
+            "head": "b".repeat(40),
+            "mode": "tip"
+        });
+
+        // Act
+        let params = serde_json::from_value::<ChangedFilesParams>(json);
+
+        // Assert
+        assert!(params.is_err());
     }
 }

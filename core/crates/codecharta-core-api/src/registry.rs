@@ -10,7 +10,7 @@ use crate::methods::analysis::{
     AnalysisList, AnalysisPreflight, AnalysisProgressEvent, AnalysisQueuedEvent,
     AnalysisStartedEvent, SnapshotsChangedEvent,
 };
-use crate::methods::compare::CompareResolve;
+use crate::methods::compare::{CompareChangedFiles, CompareResolve};
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
 use crate::methods::git::{
     GitAbortOperationMethod, GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod,
@@ -176,6 +176,7 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<SnapshotsPlanPrune>(),
     MethodSpec::of::<SnapshotsPrune>(),
     MethodSpec::of::<CompareResolve>(),
+    MethodSpec::of::<CompareChangedFiles>(),
     MethodSpec::of::<AnalysisPreflight>(),
     MethodSpec::of::<AnalysisEnqueue>(),
     MethodSpec::of::<AnalysisCancel>(),

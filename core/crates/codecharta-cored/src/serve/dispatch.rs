@@ -10,7 +10,7 @@ use codecharta_core_api::methods::analysis::{
     AnalysisCancel, AnalysisCancelBatch, AnalysisClearFinished, AnalysisEnqueue,
     AnalysisEnqueueBatch, AnalysisList, AnalysisPreflight,
 };
-use codecharta_core_api::methods::compare::CompareResolve;
+use codecharta_core_api::methods::compare::{CompareChangedFiles, CompareResolve};
 use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
@@ -230,6 +230,10 @@ const ROUTES: &[Route] = &[
     Route {
         name: CompareResolve::NAME,
         handler: compare_routes::resolve,
+    },
+    Route {
+        name: CompareChangedFiles::NAME,
+        handler: compare_routes::changed_files,
     },
     Route {
         name: AnalysisPreflight::NAME,
