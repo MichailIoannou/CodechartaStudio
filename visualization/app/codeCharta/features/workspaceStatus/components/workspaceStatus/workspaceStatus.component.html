@@ -1,0 +1,204 @@
+@if (triggerView(); as status) {
+    <div class="dropdown min-w-0" [class.dropdown-open]="isOpen()">
+        <button
+            #trigger
+            type="button"
+            class="btn btn-ghost btn-sm relative isolate grid w-40 grid-cols-[1rem_minmax(0,1fr)_auto_auto] items-center gap-2 overflow-hidden px-2 font-normal data-[tone=failed]:bg-error/15 data-[tone=finished]:bg-success/15 xl:w-[17.5rem] 2xl:w-[22rem]"
+            aria-haspopup="menu"
+            data-testid="workspace-status-trigger"
+            [attr.data-tone]="status.fill"
+            [attr.aria-expanded]="isOpen()"
+            [attr.aria-label]="status.ariaLabel"
+            [title]="status.title"
+            (click)="toggle()"
+            (keydown.arrowdown)="openWithKeyboard($event)"
+        >
+            @switch (status.fill) {
+                @case ("determinate") {
+                    <span
+                        class="pointer-events-none absolute inset-y-0 left-0 z-0 bg-primary/20 transition-[width] duration-300 ease-out"
+                        data-testid="workspace-status-fill"
+                        [style.width.%]="status.fillPercent"
+                    ></span>
+                }
+                @case ("indeterminate") {
+                    <span
+                        class="pointer-events-none absolute inset-y-0 left-0 z-0 w-1/3 bg-primary/20 motion-safe:animate-progress-sweep motion-reduce:w-full motion-reduce:bg-primary/10"
+                        data-testid="workspace-status-sweep"
+                    ></span>
+                }
+            }
+
+            <span class="relative z-10 grid size-4 place-items-center">
+                @if (status.isSpinning) {
+                    <span class="loading loading-spinner loading-xs" data-testid="workspace-status-spinner"></span>
+                } @else {
+                    <i [class]="status.icon + ' fa-fw text-[0.875rem]'" data-testid="workspace-status-icon"></i>
+                }
+            </span>
+
+            <span class="relative z-10 flex min-w-0 items-center gap-2 text-left">
+                @if (status.isBranchLoading) {
+                    <span class="skeleton hidden h-3 w-24 shrink-0 xl:block" data-testid="workspace-status-branch-loading"></span>
+                } @else {
+                    <span class="hidden min-w-[2ch] shrink truncate font-medium xl:inline" data-testid="workspace-status-branch">{{ status.branch }}</span>
+                }
+                @if (status.ahead > 0 || status.behind > 0) {
+                    <span class="hidden shrink-0 items-center gap-1 text-xs tabular-nums 2xl:inline-flex">
+                        @if (status.ahead > 0) {
+                            <i class="fa-solid fa-arrow-up"></i>{{ status.ahead }}
+                        }
+                        @if (status.behind > 0) {
+                            <i class="fa-solid fa-arrow-down"></i>{{ status.behind }}
+                        }
+                    </span>
+                }
+                @if (status.uncommitted > 0) {
+                    <span class="hidden size-2 shrink-0 rounded-full bg-warning xl:inline-block" [title]="uncommittedTitle(status.uncommitted)"></span>
+                }
+                @if (status.mapPart; as mapPart) {
+                    <span class="flex min-w-0 max-w-full shrink-0 items-center text-base-content/70 xl:max-w-[70%]" data-testid="workspace-status-map">
+                        @if (mapPart.sha) {
+                            <span class="truncate">&#64; <span class="font-mono">{{ mapPart.sha }}</span></span>
+                        } @else if (mapPart.isAnalysing && mapPart.percent !== null) {
+                            <span class="truncate">Analysing ·</span>
+                            <span class="inline-block w-[4.5ch] shrink-0 text-right tabular-nums">{{ mapPart.percent }} %</span>
+                        } @else if (mapPart.isAnalysing) {
+                            <span class="truncate">Analysing…</span>
+                        } @else {
+                            <span class="truncate">{{ mapPart.text }}</span>
+                        }
+                    </span>
+                }
+            </span>
+
+            <span class="relative z-10 flex">
+                @if (status.badge; as badge) {
+                    <span
+                        class="badge badge-sm inline-flex max-w-24"
+                        data-testid="workspace-status-badge"
+                        [class.badge-error]="badge.tone === 'error'"
+                        [class.badge-warning]="badge.tone === 'warning'"
+                        [class.badge-ghost]="badge.tone === 'ghost'"
+                        [title]="badge.text"
+                        ><span class="truncate">{{ badge.text }}</span></span
+                    >
+                }
+            </span>
+            <i class="fa fa-caret-down relative z-10"></i>
+
+            @if (activeJob(); as job) {
+                <span
+                    class="sr-only"
+                    role="progressbar"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    [attr.aria-valuenow]="status.fillPercent"
+                    [attr.aria-label]="progressLabel(job)"
+                ></span>
+            }
+        </button>
+
+        @if (isOpen()) {
+            <div
+                #menu
+                role="menu"
+                class="dropdown-content z-[70] mt-1 flex w-[28rem] max-w-[32rem] flex-col gap-0.5 rounded-box border border-base-300 bg-base-100 p-2 shadow-md"
+                data-testid="workspace-status-menu"
+                (keydown)="handleMenuKey($event)"
+            >
+                @if (isCoreOffline()) {
+                    <div class="flex items-center gap-2 px-2 py-1 text-sm" data-testid="workspace-status-offline">
+                        <i class="fa-solid fa-plug-circle-xmark fa-fw"></i>
+                        <span>Core offline</span>
+                        <button type="button" class="btn btn-ghost btn-xs ml-auto" data-menu-item data-testid="workspace-status-restart" (click)="restartCore()">Restart core</button>
+                    </div>
+                    <div class="my-1 border-t border-base-300"></div>
+                }
+
+                <span class="px-2 py-1 text-xs font-semibold uppercase tracking-wide">Map</span>
+                @if (shown(); as shown) {
+                    <div class="grid grid-cols-[5rem_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1 text-sm" data-testid="workspace-status-showing">
+                        <span class="text-base-content/60">Showing</span>
+                        <span class="min-w-0 truncate" [title]="status.title">
+                            @if (shown.shortCommit) {
+                                <span class="font-mono">{{ shown.shortCommit }}</span>
+                                @if (shown.subject) {
+                                    {{ " " + shown.subject }}
+                                }
+                            } @else if (shown.source === "imported") {
+                                {{ shown.originalFileName }} <span class="text-base-content/60">· imported · analysis time unknown</span>
+                            } @else {
+                                snapshot from {{ shortDate(shown.createdAt) }}
+                            }
+                        </span>
+                        @if (status.badge; as badge) {
+                            <span
+                                class="badge badge-sm"
+                                [class.badge-error]="badge.tone === 'error'"
+                                [class.badge-warning]="badge.tone === 'warning'"
+                                [class.badge-ghost]="badge.tone === 'ghost'"
+                                >{{ badge.text }}</span
+                            >
+                        }
+                    </div>
+                } @else if (!hasSnapshots()) {
+                    <p class="px-2 py-1 text-sm text-base-content/60" data-testid="workspace-status-no-analysis">No analysis yet.</p>
+                }
+                <div class="flex flex-wrap gap-1 px-2 py-1">
+                    @if (!hasSnapshots() && !isAnalysingCheckout()) {
+                        <button type="button" class="btn btn-primary btn-xs" data-menu-item data-testid="workspace-status-analyse" (click)="analyseCurrentCheckout()">
+                            <i class="fa-solid fa-play fa-fw"></i>
+                            Analyse current checkout
+                        </button>
+                    }
+                    <button type="button" class="btn btn-ghost btn-xs" data-menu-item data-testid="workspace-status-snapshots" (click)="openSnapshots()">
+                        <i class="fa-solid fa-cube fa-fw"></i>
+                        Snapshots…
+                    </button>
+                </div>
+
+                <div class="my-1 border-t border-base-300"></div>
+                <span class="truncate px-2 py-1 text-xs font-semibold uppercase tracking-wide">Git · {{ folder()?.label }}</span>
+                <div class="flex flex-col gap-0.5 px-2 pb-1 text-sm" data-testid="workspace-status-git">
+                    @if (folder()?.kind === "plain") {
+                        <span class="text-base-content/60">Plain folder — no git history.</span>
+                    } @else if (gitProblem(); as problem) {
+                        <span class="break-words text-warning">{{ problem }}</span>
+                    } @else if (gitDetails(); as git) {
+                        <span class="flex min-w-0 items-center gap-2 whitespace-nowrap">
+                            <i class="fa-solid fa-code-branch fa-fw"></i>
+                            <span class="min-w-0 truncate font-medium">{{ status.branch }}</span>
+                            @if (git.status.upstream; as upstream) {
+                                <span class="min-w-0 truncate text-base-content/60">→ {{ upstream.name }}</span>
+                            }
+                            @if (status.ahead > 0 || status.behind > 0) {
+                                <span class="ml-auto flex shrink-0 items-center gap-1 text-xs tabular-nums text-base-content/60">
+                                    <i class="fa-solid fa-arrow-up"></i>{{ status.ahead }}
+                                    <i class="fa-solid fa-arrow-down"></i>{{ status.behind }}
+                                </span>
+                            }
+                        </span>
+                        <span class="text-xs text-base-content/60">{{ git.changes }}</span>
+                    } @else {
+                        <span class="skeleton h-3 w-40"></span>
+                        <span class="skeleton h-3 w-24"></span>
+                    }
+                </div>
+
+                @if (projectJobs().length > 0 || hasStatusProblems()) {
+                    <div class="my-1 border-t border-base-300"></div>
+                    <cc-analysis-activity [jobs]="projectJobs()" (logRequested)="showLog($event)" />
+                }
+
+                <div class="my-1 border-t border-base-300"></div>
+                <button type="button" class="btn btn-ghost btn-sm self-start" data-menu-item data-testid="workspace-status-overview" (click)="showOverview()">
+                    <i class="fa-solid fa-circle-info fa-fw"></i>
+                    Project overview
+                </button>
+            </div>
+        }
+    </div>
+}
+
+<cc-analysis-log-dialog />
