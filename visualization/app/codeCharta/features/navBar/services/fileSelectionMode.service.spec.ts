@@ -4,7 +4,7 @@ import { TEST_FILE_DATA, TEST_FILE_DATA_JAVA } from "../../../mocks/dataMocks"
 import { CcState } from "../../../model/codeCharta.model"
 import { FileSelectionState } from "../../../model/files/files"
 import { FileStoreReadWindow, FilesRepo } from "../../../stores/fileStore/fileStore.facade"
-import { addFile, removeFiles, setDelta, setStandard } from "../../../stores/fileStore/store/files.actions"
+import { addFile, removeFiles, setDelta, setFiles, setStandard } from "../../../stores/fileStore/store/files.actions"
 import { referenceFileSelector } from "../../../stores/fileStore/store/referenceFile.selector"
 import { appReducers, setStateMiddleware } from "../../../stores/rootStore/store"
 import { NavBarWriteStore } from "../stores/navBar.write.store"
@@ -58,6 +58,36 @@ describe("FileSelectionModeService", () => {
         store.dispatch(removeFiles({ fileNames: [TEST_FILE_DATA_JAVA.fileMeta.fileName] }))
         fileSelectionModeService.toggle()
         expect(referenceFileSelector(state.getValue())).toBe(TEST_FILE_DATA)
+    })
+
+    it("should forget remembered files that were removed from the store", () => {
+        // Arrange
+        fileSelectionModeService.toggle()
+        store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA_JAVA, comparisonFile: TEST_FILE_DATA }))
+        fileSelectionModeService.toggle()
+
+        // Act
+        store.dispatch(removeFiles({ fileNames: [TEST_FILE_DATA_JAVA.fileMeta.fileName] }))
+
+        // Assert
+        const rememberedFiles = fileSelectionModeService.lastSetFilesOfPreviousMode.map(fileState => fileState.file)
+        expect(rememberedFiles).toEqual([TEST_FILE_DATA])
+    })
+
+    it("should not put removed files back when leaving delta", () => {
+        // Arrange
+        const removedFile = { ...TEST_FILE_DATA, fileMeta: { ...TEST_FILE_DATA.fileMeta, fileName: "removed", fileChecksum: "removed" } }
+        store.dispatch(addFile({ file: removedFile }))
+        store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA, comparisonFile: TEST_FILE_DATA_JAVA }))
+        const keptFiles = state.getValue().files.filter(fileState => fileState.file !== removedFile)
+        store.dispatch(setFiles({ value: keptFiles }))
+
+        // Act
+        fileSelectionModeService.toggle()
+
+        // Assert
+        const fileNames = state.getValue().files.map(fileState => fileState.file.fileMeta.fileName)
+        expect(fileNames).not.toContain("removed")
     })
 
     it("should switch back to standard mode after a reload while in delta mode", () => {

@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy } from "@angular/core"
-import { filter, pairwise, tap } from "rxjs"
+import { pairwise, tap } from "rxjs"
 import { FileSelectionState, FileState } from "../../../model/files/files"
 import { isDeltaState, isEqual } from "../../../model/files/files.helper"
 import { FileStoreReadWindow, FilesRepo } from "../../../stores/fileStore/fileStore.facade"
@@ -12,9 +12,8 @@ export class FileSelectionModeService implements OnDestroy {
     private readonly subscription = this.fileStoreReadWindow.files$
         .pipe(
             pairwise(),
-            filter(([oldFiles, newFiles]) => isDeltaState(oldFiles) !== isDeltaState(newFiles) || newFiles.length === 0),
             tap(([oldFiles, newFiles]) => {
-                this.lastSetFilesOfPreviousMode = newFiles.length === 0 ? newFiles : oldFiles
+                this.lastSetFilesOfPreviousMode = this.rememberedFilesAfter(oldFiles, newFiles)
             })
         )
         .subscribe()
@@ -59,6 +58,13 @@ export class FileSelectionModeService implements OnDestroy {
         if (referenceFile !== undefined) {
             this.navBarWriteStore.setStandard([referenceFile])
         }
+    }
+
+    /** Keeps only maps still in the store, so a remembered selection never holds a removed map in memory or puts it back. */
+    private rememberedFilesAfter(oldFiles: FileState[], newFiles: FileState[]): FileState[] {
+        const hasModeChanged = isDeltaState(oldFiles) !== isDeltaState(newFiles) || newFiles.length === 0
+        const remembered = hasModeChanged ? oldFiles : this.lastSetFilesOfPreviousMode
+        return this.filterNoneExisting(newFiles, remembered)
     }
 
     private filterNoneExisting(existingFileStates: FileState[], fileStates: FileState[]) {

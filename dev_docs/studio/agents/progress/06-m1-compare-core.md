@@ -32,7 +32,14 @@ diverged)) — do not duplicate git queries or nearest-snapshot logic. Gates wit
 - [x] 1. Contract and preflight
 - [x] 2. Resolve
 - [x] 3. RPC and CLI
-- [ ] 4–11. Renderer (later)
+- [x] 4. Prune remembered selection (tidy first)
+- [ ] 5. Compare state, text and gateway ports
+- [ ] 6. Orchestrate loading a comparison into delta
+- [ ] 7. Swap and leave
+- [ ] 8. Adapters to projects/snapshots and the bridge
+- [ ] 9. Facade, comparison chip, compare dialog, Compare tab delegation, legend caption
+- [ ] 10. Screenshot name base before head
+- [ ] 11. E2E and changelog
 
 ## Notes
 
@@ -154,3 +161,13 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
   `diff_name_status`.
 - M5: short names (`main`, PR numbers) need their own intent fields; `Revision` accepts only `HEAD`, full shas and
   full ref names. Size limits stay provisional until 06-M0 task 4.
+
+### Renderer half (tasks 4–11), design `06-compare.md` over the plan's UI
+Branch `feature/studio-06-m1-ui` from `feature/studio-stack` (`fb818dd0e`).
+
+**4. Prune remembered selection.** `FileSelectionModeService.rememberedFilesAfter` runs on every `files$`
+emission: on a mode change it remembers the previous selection, otherwise it keeps the remembered one, and
+both are filtered to maps still in the store (`filterNoneExisting`, now called with the new file list). A
+map removed by any route is no longer held in memory or put back when the mode toggles. Tests: the plan's
+two names (the second drops a map with `setFiles` while staying in delta: `removeFiles` always leaves delta,
+because the reducer marks the first remaining map `Partial`).
