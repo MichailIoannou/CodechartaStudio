@@ -3,11 +3,12 @@ import { toObservable } from "@angular/core/rxjs-interop"
 import { Actions, createEffect, ofType } from "@ngrx/effects"
 import { Store } from "@ngrx/store"
 import { combineLatest, distinctUntilChanged, first, map, Observable, of, startWith, switchMap, tap } from "rxjs"
-import { ThemeDefinition, ThemePreference } from "../../../../model/theme.model"
+import { SYSTEM_THEME, ThemeDefinition, ThemePreference } from "../../../../model/theme.model"
 import { filesLoaded } from "../../../../stores/fileStore/fileStore.facade"
 import { themePreferenceSelector } from "../../../../stores/preferences/preferences.read.facade"
 import { activeThemeChanged, setThemePreference } from "../../../../stores/preferences/preferences.write.facade"
 import { setState } from "../../../../stores/rootStore/state.actions"
+import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
 import { resolveTheme } from "../../../../util/theme/resolveTheme"
 import { ThemeBootMirrorRepo, themeBootMirrorFor } from "../../repos/themeBootMirror.repo"
 import { SystemColorSchemeService } from "../../services/systemColorScheme.service"
@@ -32,6 +33,7 @@ export class ApplyThemeEffect {
     private readonly store = inject(Store)
     private readonly bootMirror = inject(ThemeBootMirrorRepo)
     private readonly themeService = inject(ThemeService)
+    private readonly desktopBridge = inject(DESKTOP_BRIDGE)
     private readonly systemScheme$ = toObservable(inject(SystemColorSchemeService).scheme)
 
     private readonly bootHint = this.bootMirror.read()?.preference ?? null
@@ -55,6 +57,7 @@ export class ApplyThemeEffect {
             map(([source, systemScheme]): ResolvedTheme => ({ ...source, theme: resolveTheme(source.preference, systemScheme) })),
             distinctUntilChanged(isSameResolution),
             tap(resolved => this.rememberForNextStart(resolved)),
+            tap(resolved => this.tellDesktopShell(resolved)),
             map(({ theme }) => theme),
             distinctUntilChanged((previous, next) => previous.id === next.id),
             tap(theme => this.themeService.apply(theme)),
@@ -67,6 +70,16 @@ export class ApplyThemeEffect {
             this.bootMirror.write(themeBootMirrorFor(preference))
         }
     }
+
+    private tellDesktopShell({ preference, theme }: ResolvedTheme) {
+        const colorScheme = preference === SYSTEM_THEME ? SYSTEM_THEME : theme.colorScheme
+        this.desktopBridge?.setWindowBackground(theme.render.surface).catch(ignoreRefusal)
+        this.desktopBridge?.setColorScheme(colorScheme).catch(ignoreRefusal)
+    }
+}
+
+function ignoreRefusal() {
+    // The native window only mirrors the theme; the page already shows it.
 }
 
 function isSameResolution(previous: ResolvedTheme, next: ResolvedTheme): boolean {

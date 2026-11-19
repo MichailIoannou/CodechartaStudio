@@ -11,6 +11,7 @@ type FakeAnswerKey =
     | "reveal"
     | "readSnapshotMap"
     | "setWindowBackground"
+    | "setColorScheme"
     | "restartCore"
 
 export interface FakeDesktopSeed {
@@ -124,6 +125,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         reveal: target => recordAndAnswer("reveal", "reveal", succeed(null), target),
         readSnapshotMap: target => recordAndAnswer("readSnapshotMap", "readSnapshotMap", missing("readSnapshotMap"), target),
         setWindowBackground: color => recordAndAnswer("setWindowBackground", "setWindowBackground", succeed(null), color),
+        setColorScheme: scheme => recordAndAnswer("setColorScheme", "setColorScheme", succeed(null), scheme),
         restartCore: () => recordAndAnswer("restartCore", "restartCore", succeed(null))
     } as FakeDesktopBridge
 }

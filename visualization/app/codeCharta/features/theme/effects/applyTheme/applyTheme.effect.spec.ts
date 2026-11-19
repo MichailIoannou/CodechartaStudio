@@ -8,6 +8,8 @@ import { ColorScheme, ThemePreference } from "../../../../model/theme.model"
 import { filesLoaded } from "../../../../stores/fileStore/fileStore.facade"
 import { themePreferenceSelector } from "../../../../stores/preferences/preferences.read.facade"
 import { activeThemeChanged, setThemePreference } from "../../../../stores/preferences/preferences.write.facade"
+import { createFakeDesktopBridge, FakeDesktopBridge } from "../../../../util/desktop/desktopBridge.mocks"
+import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
 import { ThemeBootMirror, ThemeBootMirrorRepo, themeBootMirrorFor } from "../../repos/themeBootMirror.repo"
 import { SystemColorSchemeService } from "../../services/systemColorScheme.service"
 import { ThemeService } from "../../services/theme.service"
@@ -20,14 +22,18 @@ describe("ApplyThemeEffect", () => {
     let apply: jest.Mock
     let writeMirror: jest.Mock
     let dispatched: Action[]
+    let bridge: FakeDesktopBridge | null
 
     function setup({
         storedPreference = "cc-dark",
-        mirror = null
+        mirror = null,
+        desktop = null
     }: {
         storedPreference?: ThemePreference
         mirror?: ThemeBootMirror | null
+        desktop?: FakeDesktopBridge | null
     }) {
+        bridge = desktop
         actions$ = new Subject<Action>()
         systemScheme = signal<ColorScheme>("light")
         apply = jest.fn()
@@ -39,6 +45,7 @@ describe("ApplyThemeEffect", () => {
                 provideMockStore({ selectors: [{ selector: themePreferenceSelector, value: storedPreference }] }),
                 { provide: SystemColorSchemeService, useValue: { scheme: systemScheme.asReadonly() } },
                 { provide: ThemeService, useValue: { apply } },
+                { provide: DESKTOP_BRIDGE, useValue: desktop },
                 { provide: ThemeBootMirrorRepo, useValue: { read: () => mirror, write: writeMirror } }
             ]
         })
@@ -156,5 +163,58 @@ describe("ApplyThemeEffect", () => {
         // Assert
         expect(writeMirror).toHaveBeenCalledWith(themeBootMirrorFor("cc-dark"))
         expect(dispatched).toEqual([activeThemeChanged({ themeId: "cc-dark" })])
+    })
+
+    it("should tell the desktop shell about the theme", () => {
+        // Arrange
+        const desktop = createFakeDesktopBridge()
+        setup({ desktop })
+
+        // Act
+        store.overrideSelector(themePreferenceSelector, "cc-light")
+        store.refreshState()
+
+        // Assert
+        expect(desktop.calls.filter(call => call.name !== "subscribe")).toEqual([
+            { name: "setWindowBackground", args: ["#1e2329"] },
+            { name: "setColorScheme", args: ["dark"] },
+            { name: "setWindowBackground", args: [expect.stringMatching(/^#[0-9a-f]{6}$/i)] },
+            { name: "setColorScheme", args: ["light"] }
+        ])
+    })
+
+    it("should let the desktop shell follow the system while the preference is to follow the system", () => {
+        // Arrange
+        const desktop = createFakeDesktopBridge()
+        setup({ storedPreference: "system", desktop })
+
+        // Act
+        restoreSession("system")
+
+        // Assert
+        expect(desktop.calls.at(-1)).toEqual({ name: "setColorScheme", args: ["system"] })
+    })
+
+    it("should ignore a desktop shell that refuses the theme", () => {
+        // Arrange
+        const desktop = createFakeDesktopBridge()
+        desktop.failWith("setWindowBackground", { code: "BAD_REQUEST", message: "no", details: {} })
+        desktop.failWith("setColorScheme", { code: "BAD_REQUEST", message: "no", details: {} })
+
+        // Act
+        setup({ desktop })
+
+        // Assert
+        expect(appliedIds()).toEqual(["cc-dark"])
+        expect(dispatched).toEqual([activeThemeChanged({ themeId: "cc-dark" })])
+    })
+
+    it("should work without a desktop shell", () => {
+        // Arrange & Act
+        setup({ desktop: null })
+
+        // Assert
+        expect(bridge).toBeNull()
+        expect(appliedIds()).toEqual(["cc-dark"])
     })
 })
