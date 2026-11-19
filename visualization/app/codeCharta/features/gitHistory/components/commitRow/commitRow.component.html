@@ -1,8 +1,8 @@
 @if (view().graphRow; as graphRow) {
     <cc-commit-graph-cell [row]="graphRow" [isHead]="view().isHead" />
 }
-<span class="flex min-w-0 items-center gap-1.5">
-    <span class="min-w-40 truncate" data-testid="commit-subject">{{ view().commit.subject }}</span>
+<span class="flex min-w-0 items-center gap-1.5 overflow-hidden">
+    <span class="min-w-[min(10rem,max-content)] truncate" data-testid="commit-subject">{{ view().commit.subject }}</span>
     @for (label of shownLabels(); track label.refName) {
         <span class="badge badge-xs inline-flex max-w-40 shrink-0 gap-1 font-normal" [class]="labelClassOf(label)" [title]="label.refName" data-testid="ref-label">
             @if (labelIconOf(label); as icon) {

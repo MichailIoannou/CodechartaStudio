@@ -45,7 +45,7 @@ Parallel work note: 05-M4 (snapshots/analyse UI) and 02-M7 (metrics bar) run at 
 - [x] 3. Virtual window
 - [x] 4. Log service
 - [x] 5. Commit list
-- [ ] 6. Toolbar filters
+- [x] 6. Toolbar filters
 - [ ] 7. Commit details
 
 ## Notes
@@ -144,4 +144,22 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
 - Slow first page (H6 inline notice): `TIMEOUT` on page one shows under the toolbar in `cc-git-history-panel` as
   `alert alert-warning` "The history took too long to load. Running `git commit-graph write --reachable` in the
   repository makes it faster." with the copy button and "Retry".
+
+### 6. Commit filters (design H8 over plan task 6)
+- **Design over plan.** The plan puts search / author / path into `historyToolbar`; design deviation 10 moves them into
+  the COMMITS pane header, so they are a new `components/commitFilters` (`cc-commit-filters`) below the header row
+  "COMMITS [scope chip] (?)". The plan's other toolbar tests are already M3's: "folder picker hidden for one
+  repository" does not apply (OD1, no folder picker at all) and "refresh on button and F5" exists since M3.
+- Inputs per H8: Search `flex-1 min-w-40` with the leading `fa-magnifying-glass` (the explorer's `label.input`
+  pattern), Author `w-36`, Path `w-44 font-mono`, each `title` "Filters the commit list"; `maxlength` 200 / 200 / 1024
+  (the core's limits). Debounced 300 ms (`FILTER_DEBOUNCE_MS`); "Clear" `btn btn-ghost btn-xs` while any is set,
+  clearing at once; the line "Filtered — the graph is hidden while searching." while a filter applies. The inputs
+  follow a filter cleared elsewhere (the list's "Clear filters").
+- Narrow pane (< 640 px): a Tailwind container query (`@container`, `@max-[40rem]:hidden` / `@min-[40rem]:hidden`) swaps
+  Author and Path for `btn btn-ghost btn-sm` "Filters" (`fa-filter`, badge with the number set) that opens a
+  `cc-settings-popover-shell` with the two inputs.
+- `components/commitGraphLegend` (`cc-commit-graph-legend`): the (?) `btn btn-ghost btn-xs btn-square
+  fa-circle-question` "How to read the commit list" opens a `cc-settings-popover-shell` (`w-80 p-3 text-sm`) with H8's
+  legend table, drawn with `cc-commit-graph-cell` and the real badge classes. Wording: H8's table (it differs slightly
+  from the mock-up's legend; the design document wins). The analysis row shows only when the Analysis column does.
 

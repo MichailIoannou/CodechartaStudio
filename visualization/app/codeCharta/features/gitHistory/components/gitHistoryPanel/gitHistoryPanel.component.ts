@@ -7,6 +7,8 @@ import { GitRepositoryService } from "../../services/gitRepository.service"
 import { HistoryLayoutService } from "../../services/historyLayout.service"
 import { problemNoticeOf } from "../../util/gitErrorText"
 import { BranchesTreeComponent } from "../branchesTree/branchesTree.component"
+import { CommitFiltersComponent } from "../commitFilters/commitFilters.component"
+import { CommitGraphLegendComponent } from "../commitGraphLegend/commitGraphLegend.component"
 import { CommitListComponent } from "../commitList/commitList.component"
 import { CommitScopeChipComponent } from "../commitScopeChip/commitScopeChip.component"
 import { GitProblemNoticeComponent } from "../gitProblemNotice/gitProblemNotice.component"
@@ -28,6 +30,8 @@ export interface FolderToRelink {
         GitProblemNoticeComponent,
         CommitScopeChipComponent,
         CommitListComponent,
+        CommitFiltersComponent,
+        CommitGraphLegendComponent,
         ColumnResizeHandleDirective
     ],
     providers: [CopyToClipboardService],

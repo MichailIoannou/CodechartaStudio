@@ -21,7 +21,7 @@ export interface CommitFilter {
     path: string
 }
 
-const NO_FILTER: CommitFilter = { text: "", author: "", path: "" }
+export const NO_FILTER: CommitFilter = { text: "", author: "", path: "" }
 
 interface LogQuery {
     repo: FolderRef
