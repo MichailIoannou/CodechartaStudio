@@ -193,6 +193,18 @@ describe("ProjectOverviewComponent", () => {
         expect(testBed.projects.activeProject()?.name).toBe("billing")
     })
 
+    it("should open the new project dialog", async () => {
+        // Arrange
+        HTMLDialogElement.prototype.showModal = jest.fn()
+        await renderOverview({ projects: [] })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-new-project"))
+
+        // Assert
+        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled()
+    })
+
     it("should say that there are no projects yet and offer the sample maps", async () => {
         // Arrange
         await renderOverview({ projects: [] })

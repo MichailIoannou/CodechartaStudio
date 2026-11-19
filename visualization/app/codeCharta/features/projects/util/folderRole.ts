@@ -14,7 +14,7 @@ export function defaultRoleFor(git: FolderGitFacts | null, folders: FolderWithRo
     return sharesHistory(git, primary?.git ?? null) ? "fork" : "helper"
 }
 
-function sharesHistory(first: FolderGitFacts | null, second: FolderGitFacts | null): boolean {
+export function sharesHistory(first: FolderGitFacts | null, second: FolderGitFacts | null): boolean {
     const roots = new Set(first?.rootCommits ?? [])
     return (second?.rootCommits ?? []).some(commit => roots.has(commit))
 }

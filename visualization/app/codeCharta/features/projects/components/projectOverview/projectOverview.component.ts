@@ -9,6 +9,7 @@ import { FolderGitService, isGitStatus } from "../../services/folderGit.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted, relativeTime, shortSha } from "../../util/folderWording"
 import { AnalysesCardComponent } from "../analysesCard/analysesCard.component"
+import { CreateProjectDialogComponent } from "../createProjectDialog/createProjectDialog.component"
 import { WorkingFolderCardComponent } from "../workingFolderCard/workingFolderCard.component"
 
 const FOCUS_REFRESH_THROTTLE_MS = 10_000
@@ -39,7 +40,7 @@ interface FolderRow {
 @Component({
     selector: "cc-project-overview",
     templateUrl: "./projectOverview.component.html",
-    imports: [WorkingFolderCardComponent, AnalysesCardComponent],
+    imports: [WorkingFolderCardComponent, AnalysesCardComponent, CreateProjectDialogComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "block min-h-[calc(100vh-var(--cc-bars-height))] overflow-y-auto bg-base-200" }
 })

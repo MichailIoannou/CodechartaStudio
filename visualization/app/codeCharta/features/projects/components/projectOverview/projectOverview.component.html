@@ -114,6 +114,10 @@
             <h1 class="text-2xl font-bold">CodeCharta</h1>
             <p class="text-base-content/70">Open a project to see its code as a city.</p>
             <div class="flex flex-wrap justify-center gap-2">
+                <button type="button" class="btn btn-primary" data-testid="project-overview-new-project" (click)="createDialog.open()">
+                    <i class="fa-solid fa-plus fa-fw"></i>
+                    New project…
+                </button>
                 <button type="button" class="btn" data-testid="project-overview-samples" (click)="showSampleFiles()">Show sample maps</button>
             </div>
         </section>
@@ -149,3 +153,5 @@
         </section>
     }
 </div>
+
+<cc-create-project-dialog #createDialog />
