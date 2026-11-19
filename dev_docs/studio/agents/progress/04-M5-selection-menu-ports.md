@@ -1,6 +1,6 @@
 ---
 name: 04-M5 selection, keyboard, context menu, ports (+ 05-M4 task 5 history badges)
-state: progress
+state: complete
 version: 1
 ---
 
@@ -138,4 +138,54 @@ Environment (2026-11-19): Arch Linux, node 26, npm 12.2. Branch `feature/studio-
   `provideSnapshotsForGitHistory()` (H9 shows it first).
 - Changelog: "Git history" names keyboard navigation, the copy menu and the two-commit distance; "Analyses in the app"
   names analysing any commit picked in the History and the analysed marks there (rewritten, no new entries).
+
+### Screenshots (Playwright, stand-in bridge; scratch spec, not committed)
+- Seed: billing-api on feature/invoice-rounding with 3 uncommitted files, ten commits with a merge; snapshots: Release 2.4.0
+  analysed and shown in the map, "Start the invoice module" analysed, "Import the 2025 tax rates" a commit-bound import;
+  jobs: running 42 % ("Add currency table"), queued ("Round half-even…"), failed ("Tidy the tax tables"). 1600×900,
+  cc-dark and cc-light.
+- Seen against H8 / H9 / H10 / S5 / S10: the Analysis column reads "42 %", "in map", "queued", "analysed", "failed",
+  "analysed" (the import) as worded soft badges; selecting the failed commit fills the details with "▶ Analyse this
+  commit" between the parents line and CHANGED FILES; nothing analyses by itself. Click + Ctrl+click: both rows tinted,
+  the second with the left primary border; details "6666666 Release 2.4.0 / 2222222 Add the billing api skeleton / 6666666
+  is 4 commits ahead of and 0 behind 2222222". Right-click on an unanalysed commit: menu at the pointer "Analyse This
+  Commit · — · Copy SHA · Copy Subject". Keyboard (Home, ↓, ↓, Shift+↓, Shift+F10): two rows selected, the menu under the
+  focused row with "Copy SHA" focused. Right-click on "Uncommitted changes (3)": "Analyse Working Tree" only.
+- **Fixed after looking** (`fix(visualization): keep the second selection in line and focus the keyboard menu`): the
+  2 px border of the second row shifted its graph lane by 2 px (now `pl-1.5` keeps the `px-2` inset); the menu opened
+  from the keyboard did not show its focus — the first item was focused while the menu was still `visibility: hidden`
+  (it measures itself one frame later), so the focus was lost. `cc-floating-menu` gained a `positioned` output (emitted
+  once it has clamped itself; it no longer clamps after it is destroyed) and the commit menu focuses after the next
+  render; `cc-context-menu-item` gained `focus-visible:bg-base-200` so the focused item is visible in every menu.
+- Observations for the theme owner (not changed, classes are the design's): in cc-light the soft "analysed" / "42 %"
+  badges are pale on white; a hovered selected row shows the hover grey instead of the selection tint (hover wins, in
+  both themes, as in M4); the column header "GRAPH" runs into "COMMIT" when the graph is one lane wide (M4 layout).
+
+### Shared files touched
+- `app/app.config.ts` (one spread: `...provideSnapshotsForGitHistory()`), `features/gitHistory/facade.ts`,
+  `features/snapshots/facade.ts`, `util/desktop/desktopBridge.mocks.ts` (+ spec: `git.measureDistances`; body stays
+  self-contained), `features/shared/components/floatingMenu` (`positioned` output, no clamp after destroy),
+  `features/shared/components/contextMenuItem` (`focus-visible:bg-base-200`), `visualization/CHANGELOG.md` (two entries
+  rewritten). Plans: `04-git-branches-and-history.md` (port as built, M5 task 3 as built), `05-commit-analysis-and-
+  snapshots.md` (M4 as built), `progress/05-m4-analyse-ui.md` (task 5 done).
+
+### For 04-M6 and plan 06
+- 04-M6 e2e: test ids `commit-context-menu`, `commit-details-actions`, `commit-details-two`, `commit-details-two-item`,
+  `commit-details-distance`; row ids `commit-option-<sha>`; the fake answers `git.measureDistances`. The plan's M6
+  scenario "right-click offers Copy SHA" works with the stand-in bridge (Copy SHA is always in the commit menu).
+- Plan 06 (compare entry points, design C1): contribute `CommitAction`s through `COMMIT_ACTIONS` (multi, one per
+  provider, from the compare feature into gitHistory's facade tokens; provider order = menu order). Two-commit "Compare":
+  `isOfferedFor: s => s.items.length === 2`, `detailsLabel` "Compare" makes it a button in the two-item details;
+  "Compare with Parent" / "Compare with Current" / "Compare with…" are menu-only (no `detailsLabel`) or set it for H9's
+  "Compare with…" button; "Compare with HEAD" on the working tree item. **Gap:** C1 wants "Compare with Parent" shown
+  disabled with a reason for a root commit; `CommitAction` has no disabled state yet — add an optional
+  `disabledReasonFor?(selection): string | null` to the port and render it in `cc-commit-context-menu` (the menu item
+  component has no disabled input either).
+- 05-M5 (parallel): the primary "Show in map" action and the H9 resolution line are not here (see step 4).
+- Check Out / New Branch entries of H10: 04-M8 UI, after Copy Subject behind a second divider.
+
+### Gates (final)
+format:check clean; npm test 728 suites / 5755 tests green with the coverage gate; lint (depcruise, styles, knip)
+clean; tsc clean; build ok; e2e:ci 176/176 (temporary port 9037 and the chromium channel, both reverted);
+test:electron 76/76; e2e:desktop 16/16 with the core built into `core/target/studio-04-m5`.
 
