@@ -1,3 +1,5 @@
+import { activeRenderPalette } from "../../../util/theme/activeTheme"
+
 export interface DeclarationKindLook {
     label: string
     letter: string
@@ -8,35 +10,42 @@ export interface DeclarationKindLegendEntry extends DeclarationKindLook {
     kind: string
 }
 
+type DeclarationKindName = Omit<DeclarationKindLook, "tint">
+
 const OTHER_KIND = "other"
 
-/** Pale enough for a dark letter, and none of them the blue of a cycle or the red of an upward edge. */
-const LOOKS = new Map<string, DeclarationKindLook>(
+const NAMES = new Map<string, DeclarationKindName>(
     Object.entries({
-        class: { label: "Class", letter: "C", tint: "#dbe7f5" },
-        valueclass: { label: "Value class", letter: "D", tint: "#d8eef0" },
-        interface: { label: "Interface", letter: "I", tint: "#dff3e4" },
-        enum: { label: "Enum", letter: "E", tint: "#fdecc8" },
-        annotation: { label: "Annotation", letter: "@", tint: "#efe1f7" },
-        function: { label: "Function", letter: "ƒ", tint: "#fde2e0" },
-        variable: { label: "Variable", letter: "V", tint: "#e6e9ee" },
-        [OTHER_KIND]: { label: "Other", letter: "?", tint: "#f1f2f4" }
+        class: { label: "Class", letter: "C" },
+        valueclass: { label: "Value class", letter: "D" },
+        interface: { label: "Interface", letter: "I" },
+        enum: { label: "Enum", letter: "E" },
+        annotation: { label: "Annotation", letter: "@" },
+        function: { label: "Function", letter: "ƒ" },
+        variable: { label: "Variable", letter: "V" },
+        [OTHER_KIND]: { label: "Other", letter: "?" }
     })
 )
 
-export const KIND_ICON_COLORS = { stroke: "#7d8898", letter: "#374151" }
+export function kindIconColors(): { stroke: string; letter: string } {
+    const { kindIconStroke, kindIconLetter } = activeRenderPalette().dependencyGraph
+    return { stroke: kindIconStroke, letter: kindIconLetter }
+}
 
-export const DECLARATION_KIND_LEGEND: readonly DeclarationKindLegendEntry[] = [...LOOKS].map(([kind, look]) => ({
-    kind,
-    ...look
-}))
+export function declarationKindLegend(): readonly DeclarationKindLegendEntry[] {
+    return [...NAMES.keys()].map(kind => ({ kind, ...lookOfKnownKind(kind) }))
+}
 
 /** The kinds are an open vocabulary: one this table does not know yet is drawn as any other. */
 export function declarationKindLookOf(kind: string | undefined): DeclarationKindLook {
-    return LOOKS.get(kind ?? OTHER_KIND) ?? LOOKS.get(OTHER_KIND)
+    return lookOfKnownKind(NAMES.has(kind ?? OTHER_KIND) ? (kind ?? OTHER_KIND) : OTHER_KIND)
 }
 
 /** A kind this table does not know yet is still told by the name its language gave it. */
 export function declarationKindLabelOf(kind: string): string {
-    return LOOKS.get(kind)?.label ?? kind
+    return NAMES.get(kind)?.label ?? kind
+}
+
+function lookOfKnownKind(kind: string): DeclarationKindLook {
+    return { ...NAMES.get(kind), tint: activeRenderPalette().dependencyGraph.kindTints[kind] }
 }

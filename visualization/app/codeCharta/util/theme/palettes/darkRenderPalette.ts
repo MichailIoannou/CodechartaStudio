@@ -1,5 +1,4 @@
 import { RenderPalette } from "../../../model/theme.model"
-import { lightRenderPalette } from "./lightRenderPalette"
 
 export const darkRenderPalette: RenderPalette = {
     surface: "#1e2329",
@@ -16,6 +15,38 @@ export const darkRenderPalette: RenderPalette = {
     viewCube: { face: "#3a424d", outline: "#c9ced6", hoverEmissive: "#8b9cff" },
     radial: { pieceBorder: "#1e2329", neutralFolder: "#4a515c", tintTarget: "#1e2329", darkText: "#1f2937", lightText: "#ffffff" },
     wordCloud: { gradientStart: "#ff6ab8", gradientEnd: "#7da2ff", emphasisShadow: "#000000" },
-    dependencyGraph: lightRenderPalette.dependencyGraph,
+    dependencyGraph: {
+        text: "#e6e9ee",
+        selected: "#4db2ff",
+        hovered: "#e6e9ee",
+        folderFillsByDepth: ["#232930", "#293039", "#2f3742", "#353e4b"],
+        folderStroke: "#4a5564",
+        closedFolderFill: "#24344a",
+        closedFolderStroke: "#5d86b8",
+        packageFillsByDepth: ["#27243a", "#2d2a44", "#33304e", "#393658"],
+        packageStroke: "#5a5184",
+        closedPackageFill: "#322c52",
+        closedPackageStroke: "#8f7fc7",
+        fileFill: "#1a1f25",
+        declarationFill: "#20262d",
+        fileStroke: "#6b7686",
+        openFileFill: "#1c2127",
+        quietBadge: "#8a94a3",
+        levelSeparator: "#3d4652",
+        cycleMark: "#f87171",
+        badgeContrast: "#ffffff",
+        kindTints: {
+            class: "#2a3a52",
+            valueclass: "#23404a",
+            interface: "#24432f",
+            enum: "#4a3c17",
+            annotation: "#3d2b4d",
+            function: "#4d2a28",
+            variable: "#333a45",
+            other: "#2b3038"
+        },
+        kindIconStroke: "#7d8898",
+        kindIconLetter: "#d7dde4"
+    },
     chartTooltip: { background: "#262c34", border: "#3a424d", text: "#e6e9ee" }
 }

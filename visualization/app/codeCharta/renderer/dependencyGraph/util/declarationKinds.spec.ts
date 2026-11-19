@@ -1,17 +1,17 @@
-import { DECLARATION_KIND_LEGEND, declarationKindLabelOf, declarationKindLookOf } from "./declarationKinds"
+import { declarationKindLabelOf, declarationKindLegend, declarationKindLookOf } from "./declarationKinds"
 
 describe("declarationKinds", () => {
     it("should tell every kind apart by letter and by tint", () => {
         // Arrange
-        const legend = DECLARATION_KIND_LEGEND
+        const legend = declarationKindLegend()
 
         // Act
         const letters = new Set(legend.map(entry => entry.letter))
         const tints = new Set(legend.map(entry => entry.tint))
 
         // Assert
-        expect(letters.size).toBe(DECLARATION_KIND_LEGEND.length)
-        expect(tints.size).toBe(DECLARATION_KIND_LEGEND.length)
+        expect(letters.size).toBe(declarationKindLegend().length)
+        expect(tints.size).toBe(declarationKindLegend().length)
     })
 
     it("should draw a kind named like something every object has as any other kind it does not know", () => {

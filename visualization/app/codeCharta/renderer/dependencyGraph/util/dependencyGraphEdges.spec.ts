@@ -1,5 +1,5 @@
 import { drawEdge, EdgeLook } from "./dependencyGraphEdges"
-import { DIMMED_OPACITY, SELECTED_COLOR } from "./dependencyGraphStyle"
+import { DIMMED_OPACITY, selectedColor } from "./dependencyGraphStyle"
 import { EDGE_COLORS, identityPixels } from "./dependencyGraphTestData"
 import { EdgeRoute } from "./edgeRouting"
 import { PLAIN_LINE } from "./lineStyle"
@@ -135,7 +135,7 @@ describe("drawEdge", () => {
 
         // Assert
         expect(children).toHaveLength(3)
-        expect(children[0].style).toMatchObject({ stroke: SELECTED_COLOR, lineWidth: 8 })
+        expect(children[0].style).toMatchObject({ stroke: selectedColor(), lineWidth: 8 })
         expect(children[0].shape).toEqual(children[1].shape)
     })
 

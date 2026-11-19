@@ -1,4 +1,6 @@
 import { DEPENDENCY_EDGE_TYPES } from "../../../model/dependencyGraph.model"
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { themeById } from "../../../util/theme/themes"
 import { AxisWindow, fitWindowOf, windowHolding, windowResizedTo } from "./axisWindow"
 import { buildDependencyGraphOption } from "./dependencyGraphOption.builder"
 import { DependencyGraphScene } from "./dependencyGraphScene"
@@ -58,6 +60,17 @@ function drawnGraph(scene: DependencyGraphScene) {
 }
 
 describe("buildDependencyGraphOption", () => {
+    it("should style the tooltip with the colors of the active theme", () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+
+        // Act
+        const { tooltip } = buildDependencyGraphOption(sceneWith(), VIEWPORT, SHOWN_WINDOW)
+
+        // Assert
+        expect(tooltip).toMatchObject({ backgroundColor: "#262c34", borderColor: "#3a424d", textStyle: { color: "#e6e9ee" } })
+    })
+
     it("should give both axes the same scale and centre the graph", () => {
         // Arrange
         const viewport = { width: 1000, height: 400 }

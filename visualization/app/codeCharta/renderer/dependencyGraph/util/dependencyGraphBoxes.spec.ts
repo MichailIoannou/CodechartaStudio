@@ -1,6 +1,6 @@
 import { BadgeLook } from "./boxMarks"
 import { BoxEmphasis, BoxLook, drawBox, drawContainerTitle, drawLevelBand } from "./dependencyGraphBoxes"
-import { SELECTED_COLOR } from "./dependencyGraphStyle"
+import { selectedColor } from "./dependencyGraphStyle"
 import { aBand, aBox, identityPixels } from "./dependencyGraphTestData"
 import { LayoutBox } from "./layoutModel"
 
@@ -75,7 +75,7 @@ describe("dependencyGraphBoxes", () => {
                 shape: { x: 14, y: 24, width: 160, height: 40 },
                 style: { stroke: "#9aa5b4", fill: null }
             })
-            expect(front).toMatchObject({ cursor: "pointer", shape: { x: 10, y: 20 }, style: { stroke: SELECTED_COLOR } })
+            expect(front).toMatchObject({ cursor: "pointer", shape: { x: 10, y: 20 }, style: { stroke: selectedColor() } })
             expect([plain, opened].map(box => rectsOf(box).map(rect => rect.cursor))).toEqual([[undefined], [undefined]])
             expect(rectsOf(closedFolder).map(rect => rect.cursor)).toEqual(["pointer"])
         })
@@ -422,7 +422,7 @@ describe("dependencyGraphBoxes", () => {
             const [rect] = childrenOf(drawBox(box, look("selected"), identityPixels))
 
             // Assert
-            expect(rect.style).toMatchObject({ stroke: SELECTED_COLOR, lineWidth: 2.5 })
+            expect(rect.style).toMatchObject({ stroke: selectedColor(), lineWidth: 2.5 })
         })
 
         it("should thicken the outline of the hovered box", () => {

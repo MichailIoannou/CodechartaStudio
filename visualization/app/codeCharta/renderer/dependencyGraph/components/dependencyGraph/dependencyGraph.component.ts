@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     ElementRef,
     effect,
     inject,
@@ -11,11 +12,12 @@ import {
     untracked,
     viewChild
 } from "@angular/core"
+import { activeTheme } from "../../../../util/theme/activeTheme"
 import { BoxShots, DependencyGraphChartRegistry } from "../../services/dependencyGraphChart.registry"
 import { AxisWindow, fitWindowOf, Viewport, windowHolding, windowKeepingInPlace } from "../../util/axisWindow"
 import { buildDependencyGraphOption } from "../../util/dependencyGraphOption.builder"
 import { DependencyGraphScene, sceneWithEdgesWithin } from "../../util/dependencyGraphScene"
-import { CORNER_RADIUS_PX, HOVERED_COLOR, HOVERED_LINE_WIDTH_PX } from "../../util/dependencyGraphStyle"
+import { CORNER_RADIUS_PX, HOVERED_LINE_WIDTH_PX, hoveredColor } from "../../util/dependencyGraphStyle"
 import { clippedTo, Point, Rectangle } from "../../util/geometry"
 import { DependencyGraphLayout, LayoutBox } from "../../util/layoutModel"
 import { DependencyGraphBoxListComponent } from "../dependencyGraphBoxList/dependencyGraphBoxList.component"
@@ -96,8 +98,8 @@ export class DependencyGraphComponent implements OnDestroy {
     private toggledBox: ToggledBox | null = null
 
     protected readonly pointedAtRects = signal<Rectangle[]>([])
+    protected readonly pointedAtColor = computed(() => hoveredColor())
     protected readonly pointedAtOutline = {
-        color: HOVERED_COLOR,
         lineWidthPx: HOVERED_LINE_WIDTH_PX,
         cornerRadiusPx: CORNER_RADIUS_PX,
         dashes: `${POINTED_AT_DASH.dashPx} ${POINTED_AT_DASH.gapPx}`,
@@ -185,6 +187,7 @@ export class DependencyGraphComponent implements OnDestroy {
     }
 
     private renderOnceTheContainerIsMeasured(): void {
+        activeTheme()
         const viewport = { ...this.chartHost.containerSize(), coveredBottom: this.coveredBottom() }
         if (viewport.width === 0 || viewport.height === 0) {
             return

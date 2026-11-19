@@ -94,6 +94,28 @@ describe("THEMES", () => {
             expect(lowest).toBeGreaterThanOrEqual(READABLE_TEXT)
         })
 
+        it("should keep dependency graph text readable on every fill", () => {
+            // Arrange
+            const { text, kindIconLetter, folderFillsByDepth, packageFillsByDepth, kindTints, ...colors } = theme.render.dependencyGraph
+            const boxFills = [
+                ...folderFillsByDepth,
+                ...packageFillsByDepth,
+                colors.closedFolderFill,
+                colors.closedPackageFill,
+                colors.fileFill,
+                colors.declarationFill,
+                colors.openFileFill
+            ]
+
+            // Act
+            const failingBoxFills = boxFills.filter(fill => contrastRatio(text, fill) < READABLE_TEXT)
+            const failingKindTints = Object.values(kindTints).filter(tint => contrastRatio(kindIconLetter, tint) < READABLE_TEXT)
+
+            // Assert
+            expect(failingBoxFills).toEqual([])
+            expect(failingKindTints).toEqual([])
+        })
+
         it("should keep the primary color visible on the base surface", () => {
             // Arrange
             const required = theme.colorScheme === "dark" ? READABLE_TEXT : READABLE_LARGE_TEXT
