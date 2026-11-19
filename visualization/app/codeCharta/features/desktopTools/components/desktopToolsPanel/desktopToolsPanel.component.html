@@ -1,7 +1,7 @@
 <section class="rounded-box border border-base-300 p-3 flex flex-col gap-2" aria-labelledby="desktop-tools-heading" data-testid="desktop-tools">
     <div class="flex items-center justify-between">
         <h3 id="desktop-tools-heading" class="font-semibold">Desktop tools</h3>
-        <button class="btn btn-ghost btn-sm" [disabled]="isChecking() || coreNotice() !== null" (click)="recheck()">
+        <button class="btn btn-ghost btn-sm" [disabled]="isChecking() || isChangingStore() || coreNotice() !== null" (click)="recheck()">
             <i class="fa-solid fa-rotate fa-fw" [class.fa-spin]="isChecking()" aria-hidden="true"></i>
             Check again
         </button>
@@ -77,9 +77,9 @@
                             <span class="font-mono text-xs truncate" [attr.title]="row.path" data-testid="desktop-tool-path">{{ row.path }}</span>
                         </span>
                         <span class="flex justify-end gap-1">
-                            <button class="btn btn-ghost btn-xs" (click)="choose(row.tool)">Choose…</button>
+                            <button class="btn btn-ghost btn-xs" [disabled]="isChangingStore()" (click)="choose(row.tool)">Choose…</button>
                             @if (row.isCustom) {
-                                <button class="btn btn-ghost btn-xs" (click)="useDefault(row.tool)">Use default</button>
+                                <button class="btn btn-ghost btn-xs" [disabled]="isChangingStore()" (click)="useDefault(row.tool)">Use default</button>
                             }
                         </span>
                         <p
@@ -101,15 +101,49 @@
     }
 
     @if (paths(); as folders) {
-        <div class="grid grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-x-2 text-sm border-t border-base-300 pt-2">
+        <div class="grid grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 text-sm border-t border-base-300 pt-2">
             <span class="font-medium">Data folder</span>
             <span class="font-mono text-xs truncate" [attr.title]="folders.dataDir" data-testid="desktop-tools-data-folder">{{
                 folders.dataDir
             }}</span>
-            <button class="btn btn-ghost btn-xs" title="Show in file manager" (click)="showDataFolder()">
+            <button class="btn btn-ghost btn-xs justify-self-end" title="Show in file manager" [disabled]="isChangingStore()" (click)="showDataFolder()">
                 <i class="fa-regular fa-folder-open fa-fw" aria-hidden="true"></i>
                 Show
             </button>
+            <span class="font-medium">Store folder</span>
+            <span class="font-mono text-xs truncate" [attr.title]="folders.storeRoot" data-testid="desktop-tools-store-folder">{{
+                folders.storeRoot
+            }}</span>
+            <span class="flex items-center justify-end gap-1">
+                @if (isChangingStore()) {
+                    <span class="text-xs text-base-content/60" data-testid="desktop-tools-store-copying">Copying the store…</span>
+                }
+                <button class="btn btn-ghost btn-xs" title="Show in file manager" [disabled]="isChangingStore()" (click)="showStoreFolder()">
+                    <i class="fa-regular fa-folder-open fa-fw" aria-hidden="true"></i>
+                    Show
+                </button>
+                <button
+                    class="btn btn-ghost btn-xs"
+                    data-testid="desktop-tools-store-change"
+                    [disabled]="isChangingStore() || coreNotice() !== null"
+                    (click)="changeStoreFolder()"
+                >
+                    @if (isChangingStore()) {
+                        <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    Change…
+                </button>
+                @if (!folders.isDefaultStoreRoot) {
+                    <button
+                        class="btn btn-ghost btn-xs"
+                        data-testid="desktop-tools-store-default"
+                        [disabled]="isChangingStore() || coreNotice() !== null"
+                        (click)="useDefaultStoreFolder()"
+                    >
+                        Use default
+                    </button>
+                }
+            </span>
         </div>
     }
 </section>

@@ -1,4 +1,4 @@
-import { computed, Injectable, inject, signal } from "@angular/core"
+import { computed, effect, Injectable, inject, signal, untracked } from "@angular/core"
 import { Router } from "@angular/router"
 import { LoadFilesUseCase, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad } from "../../../load/load.facade"
 import type { ErrorCode } from "../../../model/coreApi/ErrorCode"
@@ -21,6 +21,7 @@ import { routeLinks } from "../../../routing/routePaths"
 import type { BridgeMethod, BridgeParams, BridgeResult, DesktopBridge } from "../../../util/desktop/desktopBridge"
 import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.service"
 import { DesktopBridgeError, valueOrThrow } from "../../../util/desktop/desktopResult"
+import { StoreFolderService } from "../../desktopTools/facade"
 import { ToastService } from "../../shared/facade"
 import { defaultRoleFor } from "../util/folderRole"
 import { snapshotDisplayName, uniqueDisplayNames } from "../util/snapshotDisplayName"
@@ -63,6 +64,15 @@ export class ProjectsService {
     readonly busyFolderId = this.busyFolder.asReadonly()
     readonly isBusy = computed(() => this.busyFolder() !== null)
     readonly workingFolder = computed(() => workingFolderOf(this.project()))
+
+    constructor() {
+        const storeChanges = inject(StoreFolderService).changes
+        effect(() => {
+            if (storeChanges() > 0) {
+                untracked(() => void this.reloadAfterStoreChange().catch(error => this.toastUnlessSilent(error, (error as Error).message)))
+            }
+        })
+    }
 
     async initialise(): Promise<void> {
         await Promise.all([this.readStoreStatus(), this.refreshProjects()])
@@ -143,6 +153,18 @@ export class ProjectsService {
         const result = await this.loadFilesUseCase.loadProjectSnapshots(toLoad, { discardMetricSelection: true })
         if (!(await this.acceptLoadResult(result))) {
             await this.showWorkingFolder()
+        }
+    }
+
+    async reloadAfterStoreChange(): Promise<void> {
+        this.unreadableSnapshotIds.clear()
+        this.project.set(null)
+        this.snapshots.set({})
+        await this.initialise()
+        if (this.project()) {
+            await this.showWorkingFolder()
+        } else {
+            this.showNothing()
         }
     }
 

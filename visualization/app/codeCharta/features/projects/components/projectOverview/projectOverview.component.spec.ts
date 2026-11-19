@@ -297,4 +297,16 @@ describe("ProjectOverviewComponent", () => {
             expect.objectContaining({ mode: "import", importTarget: { projectId: "p-billing", folderId: "f-out" } })
         )
     })
+
+    it("should choose another store folder when the store cannot be used", async () => {
+        // Arrange
+        await renderOverview({ ...SEED, responses: { "store.status": { problem: "STORE_NEWER_SCHEMA" } } })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-store-elsewhere"))
+        await settle()
+
+        // Assert
+        expect(testBed.bridge.calls.filter(call => call.name === "chooseStoreRoot")).toHaveLength(1)
+    })
 })

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process"
 import { once } from "node:events"
-import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { access, copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { _electron, ElectronApplication, expect, Page, test } from "@playwright/test"
@@ -334,4 +334,28 @@ test("should refuse the shell-only snapshot methods from the page", async () => 
 
     // Assert
     expect(answers.map(answer => answer.error.code)).toEqual(["NOT_ALLOWED", "NOT_ALLOWED"])
+})
+
+test("should copy the store into a picked folder and serve it without a restart", async () => {
+    // Arrange
+    const page = await bootedWindow()
+    const chosenFolder = join(userDataDir, "elsewhere")
+    await mkdir(chosenFolder)
+    await pickWithTheNativeDialog(chosenFolder)
+
+    // Act
+    const observed = await page.evaluate(async () => {
+        const bridge = (window as any).codeChartaDesktop
+        const changed = await bridge.chooseStoreRoot({ title: "Choose the store folder" })
+        const status = await bridge.request("store.status", {})
+        const refused = await bridge.request("store.changeRoot", { path: "/" })
+        return { changed: changed.value, problem: status.value.problem, refusedCode: refused.error.code }
+    })
+
+    // Assert
+    expect(observed.changed).toMatchObject({ storeRoot: chosenFolder, isDefaultStoreRoot: false })
+    expect(observed.problem).toBeNull()
+    expect(observed.refusedCode).toBe("NOT_ALLOWED")
+    await access(join(chosenFolder, "store.json"))
+    await access(join(userDataDir, "store", "store.json"))
 })

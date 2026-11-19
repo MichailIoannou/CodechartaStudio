@@ -3,6 +3,7 @@ import { Router } from "@angular/router"
 import { LoadFilesUseCase, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad } from "../../../load/load.facade"
 import { createFakeDesktopBridge, FakeDesktopBridge, FakeDesktopSeed } from "../../../util/desktop/desktopBridge.mocks"
 import { DESKTOP_BRIDGE } from "../../../util/desktop/desktopBridge.token"
+import { StoreFolderService } from "../../desktopTools/facade"
 import { ToastService } from "../../shared/facade"
 import { aFolder, aPickedFolder, aProject, aSnapshot } from "../projects.mocks"
 import { ProjectsService } from "./projects.service"
@@ -238,6 +239,40 @@ describe("ProjectsService", () => {
         // Assert
         expect(loadedSnapshotIds()).toEqual([["s-web"]])
         expect(service.shownSnapshot()?.ref).toEqual(WEB.ref)
+    })
+
+    it("should read the projects of the new store after the store folder changed", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        bridge.respondWith("chooseStoreRoot", { storeRoot: "/elsewhere", isDefaultStoreRoot: false, dataDir: "/data", logsDir: "/logs" })
+        bridge.respondWith("projects.getActive", { activeProjectId: null })
+
+        // Act
+        await TestBed.inject(StoreFolderService).chooseFolder()
+        TestBed.tick()
+        await new Promise(resolve => setTimeout(resolve))
+
+        // Assert
+        expect(service.activeProject()).toBeNull()
+        expect(loadFilesUseCase.unloadAllFiles).toHaveBeenCalled()
+        expect(router.navigateByUrl).toHaveBeenLastCalledWith("/project")
+    })
+
+    it("should show the working folder of the active project of the new store", async () => {
+        // Arrange
+        const service = createService()
+        bridge.respondWith("chooseStoreRoot", { storeRoot: "/elsewhere", isDefaultStoreRoot: false, dataDir: "/data", logsDir: "/logs" })
+        bridge.respondWith("projects.getActive", { activeProjectId: "p-billing" })
+
+        // Act
+        await TestBed.inject(StoreFolderService).chooseFolder()
+        TestBed.tick()
+        await new Promise(resolve => setTimeout(resolve))
+
+        // Assert
+        expect(service.activeProject()?.id).toBe("p-billing")
+        expect(loadedSnapshotIds()).toEqual([["s-new"]])
     })
 
     it("should do nothing when the current working folder is chosen", async () => {

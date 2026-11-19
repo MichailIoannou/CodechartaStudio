@@ -60,7 +60,7 @@ fn ensure_outside(current: &Path, target: &Path) -> CoreResult<()> {
     if !canonical(target)?.starts_with(canonical(current)?) {
         return Ok(());
     }
-    Err(CoreError::BadRequest(format!(
+    Err(CoreError::NotAllowed(format!(
         "{} lies inside the current store; choose a folder outside it.",
         target.display()
     )))
@@ -225,7 +225,7 @@ mod tests {
         let relative = prepare_store_root(Some(current.path()), Path::new("store"));
 
         // Assert
-        assert!(matches!(nested, Err(CoreError::BadRequest(_))));
+        assert!(matches!(nested, Err(CoreError::NotAllowed(_))));
         assert!(matches!(relative, Err(CoreError::BadRequest(_))));
     }
 

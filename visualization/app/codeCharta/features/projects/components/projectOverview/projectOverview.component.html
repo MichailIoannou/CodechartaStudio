@@ -11,6 +11,12 @@
                     <button type="button" class="btn btn-sm" (click)="tryStoreAgain()">Try again</button>
                 }
                 <button type="button" class="btn btn-sm" (click)="revealStoreFolder()">Open store folder</button>
+                <button type="button" class="btn btn-sm" data-testid="project-overview-store-elsewhere" [disabled]="isChangingStore()" (click)="chooseStoreFolder()">
+                    @if (isChangingStore()) {
+                        <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    Choose another location…
+                </button>
             </div>
         </div>
     } @else if (project(); as project) {
