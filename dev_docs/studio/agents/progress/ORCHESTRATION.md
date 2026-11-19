@@ -65,8 +65,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
-| 04-M3 History view, branches pane (chip replaced by W1) | UI | in progress (from feature/studio-stack, parallel) | — | feature/studio-04-m3 | — |
-| 04-M4 Commit list with graph, filters, details | UI | todo | 04-M3 | — | — |
+| 04-M3 History view, branches pane (chip replaced by W1) | UI | merged into `feature/studio-stack` (14881e68f + 5b2462566), web e2e running | — | feature/studio-04-m3 | 5877e3661 |
+| 04-M4 Commit list with graph, filters, details | UI | in progress (from feature/studio-stack, parallel) | — | feature/studio-04-m4 | — |
 | 04-M5 Selection, keyboard, context menu, ports | UI | todo | 04-M4 | — | — |
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
 | 04-M7 Operation queue, progress, prompts | core + UI | core half (tasks 1–4) verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (UI): 04 History UI | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
@@ -317,6 +317,16 @@ the milestone is started.
   natively before inspection (checked); move dialog (P9) built without a host until area 05's snapshots dialog.
   Commit 27dd9d99d does not build alone (fixed in aa02ef516; interactive rebase unavailable). Wording supplied
   → O5 addendum.
+- 04-M3 (see `04-M3-history-view.md` on the stack): History tab only when the active project has a git
+  folder; `GitRepositoryService` follows the working folder and replaces 03-M5's `FolderGitService`;
+  projects import git (not the reverse) — git reads projects through the `WORKING_FOLDER_SOURCE` port; no
+  branch chip (W1), no Log/Changes tabs or sync button yet (M8/M9); merge/rebase banners wait for M11.
+  Merge into the stack conflicted with 03-M6 in two projects components and the fake bridge — resolved by
+  keeping both sides (03-M6's `OpenFileService`/`StoreFolderService`, 04-M3's `GitRepositoryService`; fake
+  `git` store plus `commits` seed); an import-order slip in that resolution fixed in 5b2462566.
+  Open for the owner/designer (in the progress Notes): "folder select" in the not-a-repository notice vs. the
+  design's no-folder-select rule; "Open desktop tools" cannot jump to the section yet; `gitTooOld` version
+  read from message text.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -348,6 +358,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 04-M3 merged into the stack with conflicts resolved; gates on the merged stack: format (after an import-order fix), lint, tsc, npm test 698/698, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 04-M4 started in parallel.
 - 2026-11-19: 03-M6 verified on `feature/studio-stack` (cargo with and without features 843/847, cargo-deny, contract drift, format, lint, tsc, npm test 686/686, build, test:electron 76/76, e2e:desktop 16/16; web e2e running on port 9031). 05-M4 started in parallel; running agents told to use per-branch cargo folders and their own e2e port.
 - 2026-11-19: owner asked for UI agents in parallel. Started 04-M3 (History view) and the new 02-M7 (metrics bar, file extension bar, toasts) alongside 03-M6, three UI agents at once, each on its own branch from the stack.
 - 2026-11-19: 03-M5 verified on `feature/studio-stack` (cargo with and without features 834/838, contract drift, format, lint, tsc, npm test 681/681, build, test:electron 69/69, e2e:desktop 14/14, web e2e:ci 169/169). Screenshots sent to the owner. 03-M6 started.
