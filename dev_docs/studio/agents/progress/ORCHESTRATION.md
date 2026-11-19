@@ -84,9 +84,9 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M6 Batches, retention, cleanup | core + UI | core tasks 1, 3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge; design O4 | feature/studio-05-m6 | 9acf7a56b (verified, not merged) |
 | 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
 | 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
-| 06-M1 Compare core: commit vs commit | core + UI | core on the stack; renderer tasks 4–11 in progress (feature/studio-06-m1-ui, parallel) | — | feature/studio-06-m1 | 698643e98 (verified, not merged) |
-| 06-M2 Entry points | UI | todo | 06-M1 | — | — |
-| 06-M3 Missing snapshots and staleness | UI (no core tasks) | todo | 06-M1 UI; core stack merge | — | — |
+| 06-M1 Compare core: commit vs commit | core + UI | core and renderer merged into `feature/studio-stack` (renderer web e2e running) | — | feature/studio-06-m1 | 698643e98 (verified, not merged) |
+| 06-M2 Entry points (+ core tasks 1–2) | core + UI | in progress with 06-M3 (feature/studio-06-m2m3) | — | feature/studio-06-m2m3 | — |
+| 06-M3 Missing snapshots and staleness | UI (no core tasks) | in progress with 06-M2 (feature/studio-06-m2m3) | — | feature/studio-06-m2m3 | — |
 | 06-M4 Changed files | core + UI | core task 1 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: 06-M3 | feature/studio-06-m4 | 919fb2972 (verified, not merged) |
 | 06-M5 PRs and merge requests | core + UI | core tasks 1, 4 verified, **merge pending** (top of the unmerged stack); tasks 2, 3, 8 blocked; UI todo | merge: as 03-M2; tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner); UI: core stack merge | feature/studio-06-m5 | fc5e4f3a1 (verified, not merged) |
 | 06-M6 Polish and stretch | UI | todo | 06-M5 | — | — |
@@ -356,6 +356,12 @@ the milestone is started.
   analysis".
 - Weekly budget 79% at 2026-11-19 13:08 (resets 2026-11-20 13:00): one agent per related group of tasks from now
   on (e.g. 04-M7 task 5 + 04-M8 task 2 + the "Show in map" action in one agent).
+- 06-M1 renderer (see `06-m1-compare-core.md` on the stack): no `cc-compare-button` — the Compare tab opens the
+  dialog in a desktop project with a git folder; chip with clickable sides, swap and a caret menu; workspace status
+  shrinks to icon-only beside the chip; legend caption "Δ = head … − base …". The M1 dialog sends the `commits`
+  intent, so the core orders the sides (M2's ref picker + `explicit` intent fixes "Base stays base"). Gap against
+  the owner decision until M3: "Use nearest" offered but not "Analyse missing". Designer finding: at 1280 px the
+  base/head captions still show and branch names truncate first.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -387,6 +393,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 06-M1 renderer merged cleanly into the stack; gates: format, tsc, lint, npm test 739/739, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 06-M2+M3 started as one agent (weekly 80%).
 - 2026-11-19: 04-M5 merged into the stack (CHANGELOG conflict resolved); gates: format, tsc, lint, npm test 730/730, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. Renderer of 04-M7 task 5 + 04-M8 task 2 + Show in map started in parallel with the 06-M1 renderer.
 - 2026-11-19: 05-M5 UI merged cleanly into the stack; gates: format, tsc, lint, npm test 722/722, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 06-M1 renderer started in parallel (5-hour 72%, weekly 77%).
 - 2026-11-19: 04-M4 merged into the stack (fake-bridge conflict resolved); gates on the merged stack: format, lint, tsc, npm test 720/720, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 04-M5 (+ history badges) started in parallel with the 05-M5 UI.
