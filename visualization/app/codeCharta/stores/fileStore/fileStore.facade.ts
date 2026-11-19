@@ -4,6 +4,7 @@ export { LoadFileService, NO_FILES_LOADED_ERROR_MESSAGE } from "./loaders/ccJson
 export { buildHtmlMessage } from "./loaders/ccJson/services/loadFilesValidationToErrorDialog"
 export { getCCFile, getContentChecksum, parseCcFileBytes } from "./loaders/ccJson/util/ccFileHelper"
 export { getNameDataPair } from "./loaders/ccJson/util/fileParser"
+export { PROJECT_ROOT_NAME, withRootName } from "./loaders/ccJson/util/rootName"
 export { UrlExtractor } from "./loaders/ccJson/util/urlExtractor"
 export { FilesRepo } from "./repos/files.repo"
 export { areMultipleMapsVisibleSelector } from "./store/areMultipleMapsVisible.selector"

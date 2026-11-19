@@ -35,7 +35,7 @@ on project switches is plan 06's.
 
 - [x] 1. Structural split
 - [x] 2. Project snapshot origin
-- [ ] 3. Root names
+- [x] 3. Root names
 - [ ] 4. Replace in one step
 - [ ] 5. IndexedDB filter
 - [ ] 6. Load project snapshots
