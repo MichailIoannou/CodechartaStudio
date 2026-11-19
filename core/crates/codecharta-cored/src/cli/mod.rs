@@ -1,3 +1,4 @@
+mod analyse;
 mod arguments;
 mod doctor;
 mod git;
@@ -14,8 +15,13 @@ use clap::{Parser, Subcommand};
 use codecharta_core::{Core, CoreConfig};
 use tracing_subscriber::filter::LevelFilter;
 
+use codecharta_core_api::ids::{FolderId, ProjectId};
+use codecharta_core_api::values::CommitSha;
+
 use crate::askpass::run_askpass;
 use crate::serve::serve;
+use analyse::{AnalyseOptions, run_analyse};
+use arguments::{parse_commit_sha, parse_folder_id, parse_project_id};
 use doctor::{DoctorOptions, run_doctor};
 use git::{GitCommand, run_git};
 use projects::{ProjectsCommand, run_projects};
@@ -68,6 +74,24 @@ pub enum Command {
         #[command(subcommand)]
         command: SnapshotsCommand,
     },
+    /// Analyse a project folder with ccsh into a new snapshot, without the app: the working tree, or a
+    /// commit with --commit. Prints the snapshot id; exits 0 when done, 1 when refused or failed (the
+    /// error code on stderr), 2 for invalid arguments, 130 when cancelled with Ctrl-C
+    Analyse {
+        #[arg(long, value_parser = parse_project_id)]
+        project: ProjectId,
+        #[arg(long, value_parser = parse_folder_id)]
+        folder: FolderId,
+        /// The commit to analyse, all 40 (or 64) hexadecimal digits
+        #[arg(long, value_parser = parse_commit_sha)]
+        commit: Option<CommitSha>,
+        /// Analyse a commit again although it has a snapshot of the current profile
+        #[arg(long)]
+        force: bool,
+        /// Print the snapshot id and the finished job as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Read the git status, branches and history of a project folder or any folder, without the app
     Git {
         #[command(subcommand)]
@@ -96,6 +120,24 @@ pub fn run(cli: Cli) -> ExitCode {
         Command::Snapshots { command } => run_store_command(data_dir, |core, runtime| {
             run_snapshots(core, runtime, command)
         }),
+        Command::Analyse {
+            project,
+            folder,
+            commit,
+            force,
+            json,
+        } => {
+            let options = AnalyseOptions {
+                project,
+                folder,
+                commit,
+                force,
+                json,
+            };
+            run_store_command(data_dir, |core, runtime| {
+                run_analyse(core, runtime, options)
+            })
+        }
         Command::Git { command } => {
             run_store_command(data_dir, |core, runtime| run_git(core, runtime, command))
         }

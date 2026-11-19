@@ -9,13 +9,14 @@ use codecharta_core::{Core, CoreResult};
 use codecharta_core_api::ids::{FolderId, ProjectId};
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::methods::snapshots::{SnapshotSource, SnapshotSummary};
-use codecharta_core_api::values::FullCommit;
+use codecharta_core_api::values::{CommitSha, FullCommit};
 use serde::Serialize;
 
-use super::arguments::{parse_folder_id, parse_project_id};
+use super::arguments::{parse_commit_sha, parse_folder_id, parse_project_id};
 use super::output::{exit_code_of, print_json};
 
 const UNKNOWN: &str = "-";
+const UNRESOLVED: &str = "none";
 
 #[derive(Debug, Subcommand)]
 pub enum SnapshotsCommand {
@@ -26,6 +27,19 @@ pub enum SnapshotsCommand {
         #[arg(long, value_parser = parse_folder_id)]
         folder: FolderId,
         /// Print the summaries as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Which snapshot to show for a commit (default: the working tree) of a project folder; answers
+    /// `none` until the nearest-snapshot search exists
+    Resolve {
+        #[arg(long, value_parser = parse_project_id)]
+        project: ProjectId,
+        #[arg(long, value_parser = parse_folder_id)]
+        folder: FolderId,
+        #[arg(long, value_parser = parse_commit_sha)]
+        commit: Option<CommitSha>,
+        /// Print the resolution as JSON
         #[arg(long)]
         json: bool,
     },
@@ -66,6 +80,12 @@ pub fn run_snapshots(
             json,
         } => list(core, &folder_ref(project, folder))
             .and_then(|summaries| print_list(&summaries, json)),
+        SnapshotsCommand::Resolve {
+            project,
+            folder,
+            commit: _,
+            json,
+        } => list(core, &folder_ref(project, folder)).and_then(|_| print_resolution(json)),
         SnapshotsCommand::Import {
             project,
             folder,
@@ -128,6 +148,15 @@ fn list_line(summary: &SnapshotSummary) -> String {
         summary.short_commit.as_deref().unwrap_or(UNKNOWN),
         summary.original_file_name.as_deref().unwrap_or(UNKNOWN),
     )
+}
+
+/// Plan 05-M5 brings the search; until then no snapshot is ever chosen.
+fn print_resolution(json: bool) -> CoreResult<()> {
+    if json {
+        return print_json(&serde_json::json!({ "kind": UNRESOLVED }));
+    }
+    println!("{UNRESOLVED}");
+    Ok(())
 }
 
 /// Without `--json` only the snapshot id is printed; a note on stderr says when it existed already.

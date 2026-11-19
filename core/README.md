@@ -32,6 +32,8 @@ cargo run -p codecharta-cored -- projects create --name demo --folder .[=<label>
 cargo run -p codecharta-cored -- projects add-folder --project <id> --path <dir> [--label <l>] [--role fork]
 cargo run -p codecharta-cored -- snapshots list --project <id> --folder <id> [--json]   # newest first; reads only
 cargo run -p codecharta-cored -- snapshots import --project <id> --folder <id> --file map.cc.json [--bind-to-commit <sha>]
+cargo run -p codecharta-cored -- snapshots resolve --project <id> --folder <id> [--commit <sha>]   # "none" until 05-M5
+cargo run -p codecharta-cored -- analyse --project <id> --folder <id> [--commit <sha>] [--force] [--json]   # runs ccsh
 cargo run -p codecharta-cored -- git status --path <dir> [--json]   # or --project <id> --folder <id>; also git branches
 ```
 
@@ -39,6 +41,14 @@ The `projects` and `snapshots` commands exit 0 when done, 1 when the core refuse
 on stderr) and 2 for a usage error; `create` and `add-folder` print the id they made, `import` the snapshot
 id (also when the same content was imported before, which it says on stderr), or the whole result with
 `--json`. Writing commands take the store lock, so they fail with `STORE_LOCKED` while the app runs.
+
+`analyse` runs the analysis in its own process (preflight, queue, ccsh, snapshot record) after cleaning up
+what crashed analyses left behind, prints progress on stderr and the snapshot id on stdout (with `--json` the
+id, whether it existed already and the finished job). Without `--commit` it analyses the working tree; a
+commit that already has a snapshot of the current profile answers that snapshot unless `--force`. It exits 0
+when done, 1 when the preflight or the run failed (`<ERROR_CODE>: <message>` on stderr), 2 for a usage error
+such as a sha that is not 40 or 64 hexadecimal digits, and 130 after Ctrl-C, which cancels ccsh and removes
+its temporary worktree first.
 
 The data folder (settings file `core-settings.json`, default store `store/`, `logs/`) is `--data-dir`, else
 `CODECHARTA_DATA_DIR`, else `codecharta-visualization` in the user's configuration folder (`%APPDATA%`,

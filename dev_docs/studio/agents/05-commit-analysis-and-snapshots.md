@@ -528,6 +528,7 @@ pub async fn plan_prune(git: &GitService, repo_path: Option<&Path>, snapshots: &
 
 - `codecharta-core analyse --project <id> --folder <id> [--commit <sha>] [--force] [--json]`: runs `AnalysisService` in-process (no `serve`), prints progress lines on stderr and the snapshot id (or a JSON object with `--json`) on stdout. Without `--commit` it analyses the working tree. Exit codes: 0 done, 1 failed (the job error code on stderr), 2 invalid arguments, 130 cancelled by Ctrl-C (cancels the job and runs the janitor).
 - `codecharta-core snapshots list --project <id> --folder <id> [--json]` and `codecharta-core snapshots resolve --project <id> --folder <id> [--commit <sha>] [--json]` print `SnapshotEntry[]` / `SnapshotResolution`.
+- As built (05-M3): global `--data-dir` as for every command. `analyse` opens the store for writing (`STORE_LOCKED` while the app runs), runs `recover()`, then the same `Analyses::enqueue` as `analysis.enqueue` (a blocking preflight problem exits 1 with each problem as `<CODE>: <message>` on stderr), drives the queue in-process until its job ended and prints determinate progress as `<n>%` lines on stderr. A commit that already has a snapshot of the current profile prints that id and exits 0 (a note on stderr). `--json` prints `{ snapshotId, wasAlreadyAnalysed, job }`. `snapshots resolve` checks the folder (read-only store) and answers `none` / `{ "kind": "none" }` until M5.
 
 ### Error and edge cases
 

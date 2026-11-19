@@ -140,6 +140,7 @@ cargo run -p codecharta-cored -- --data-dir /tmp/cc serve # JSON-RPC on stdin/st
 cargo run -p codecharta-cored -- doctor                   # which git, ccsh, java, gh, glab were found
 cargo run -p codecharta-cored -- projects list            # projects of the store (also create, add-folder)
 cargo run -p codecharta-cored -- snapshots list --project <id> --folder <id>   # also import --file <cc.json>
+cargo run -p codecharta-cored -- analyse --project <id> --folder <id> [--commit <sha>]   # ccsh into a snapshot
 cargo run -p codecharta-cored -- git branches --path <dir>                     # also git status; or --project/--folder
 ```
 

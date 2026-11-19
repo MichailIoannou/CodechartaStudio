@@ -36,7 +36,7 @@ custom ccsh path pointing at fake-ccsh (plan 01's `tools.setPath`). Gates with a
 - [x] 1. Preflight
 - [x] 2. Queue
 - [x] 3. RPC
-- [ ] 4. CLI
+- [x] 4. CLI
 - [ ] 5. Fake bridge (later)
 
 ## Notes
@@ -127,3 +127,67 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
   `should_emit_analysis_queued_started_and_finished_over_serve` — also `alreadyAnalysed`, `snapshots.list`,
   `snapshots.readLog`, `analysis.list` — and `should_clean_a_leftover_temp_folder_of_a_dead_pid_on_start_and_leave_one_of_a_live_pid`)
   plus `should_report_a_failed_analysis_and_forget_it_on_clear`.
+
+### 4. CLI
+- `cli/analyse.rs`: `codecharta-core [--data-dir D] analyse --project <id> --folder <id> [--commit <sha>] [--force]
+  [--json]`; ids and the sha are parsed by clap over the api newtypes (usage error, exit 2; new
+  `arguments::parse_commit_sha`). Flow and output: see the "As built" line under "Headless CLI" in plan 05. Exit codes
+  0 done or already analysed, 1 refused / failed (`<CODE>: <message> <hint>` on stderr, the job error code or each
+  preflight problem), 2 usage, 130 after Ctrl-C (cancels the job, waits for the kill and the janitor). Ctrl-C needs
+  tokio's `signal` feature, enabled for `codecharta-cored` only (no new crate; the lockfile is unchanged).
+- `snapshots resolve --project --folder [--commit] [--json]` validates the folder like `list` and answers `none` /
+  `{ "kind": "none" }` until M5 brings `SnapshotResolution` (no api type yet, so the contract is unchanged).
+- Tests (`codecharta-cored/tests/cli_analyse.rs`, the built binary against a temporary data folder with fake-ccsh
+  as ccsh and java): the plan's three (`should_print_the_snapshot_id_and_exit_0` — a working-tree snapshot with
+  exactly `map.cc.json.gz`, `run.log`, `snapshot.json` —, `should_exit_1_with_the_error_code_on_failure`,
+  `should_exit_2_for_a_bad_sha`) plus `should_print_a_commit_snapshot_as_json_and_report_it_analysed_the_second_time`,
+  `should_exit_1_with_the_preflight_error_code_for_an_unknown_commit`,
+  `should_resolve_no_snapshot_until_the_nearest_search_exists`.
+- Docs: `core/README.md` (commands and exit codes), root `CLAUDE.md` core command list. No changelog entry: nothing a
+  user of the app sees ships before the UI (05-M4).
+- `Outcome::Finished` boxes its job (`clippy::large_enum_variant`).
+- Acceptance (core half), checked with a real ccsh: `cd analysis && ./gradlew installDist` (ccsh 2.4.0, OpenJDK
+  27.0.1, java-direct on unix), a temporary data folder whose `core-settings.json` names that ccsh, a two-file git
+  repository, `projects create`, then `analyse --project … --folder …` printed
+  `worktree-20261119T032926576Z-54594a7e` and `analyse … --commit <sha>` printed `<sha>-54594a7e`, about 1.3 s each;
+  both snapshot folders hold exactly `map.cc.json.gz`, `run.log`, `snapshot.json` (record: ccsh 2.4.0, java
+  27.0.1, map 2645 bytes with checksum and root name, `git.commit` = the sha); `git worktree list` afterwards shows
+  only the checkout. The same flow with fake-ccsh is `tests/cli_analyse.rs`. Nothing ran on Windows.
+
+### State at the end of tasks 1–4
+- Tasks 1–4 done; task 5 (fake bridge) waits for the core stack's merge into integration, so `state` stays
+  `progress`. The in-app half of the acceptance (DevTools `window.codeChartaDesktop` → `analysis.enqueue`) needs
+  the shell on the integration branch; the protocol test `should_emit_analysis_queued_started_and_finished_over_serve`
+  covers the same requests and notifications over `serve`.
+
+### For task 5 (fake bridge) and 05-M4 / 05-M5
+- Renderer methods: `analysis.preflight { projectId, folderId, target } -> PreflightResult { ok, problems }`,
+  `analysis.enqueue { projectId, folderId, target, force } -> EnqueueResult` (`status`: `queued` / `alreadyQueued`
+  `{ job }`, `alreadyAnalysed { snapshotId }`, `rejected { problems }`), `analysis.cancel { jobId } -> null`,
+  `analysis.list {} -> { jobs }`, `analysis.clearFinished {} -> null`, `snapshots.readLog SnapshotRef -> { log }`.
+  `target` is `{ kind: "commit", sha }` or `{ kind: "workingTree" }`.
+- Events: `analysis.queued` / `started` / `finished` (`snapshotId` set) / `failed` (`error { code, message, hint }`)
+  / `cancelled`, each `{ job: AnalysisJob }`; `analysis.progress { jobId, progress }` (`{ mode: "indeterminate" }`
+  or `{ mode: "determinate", percent }`, at most every 250 ms per job; `analysis.list` always has the latest);
+  `snapshots.changed { projectId, folderId }` right after `analysis.finished`. They are not tied to a request id,
+  so the shell relays them as they are (no `operationId` mapping).
+- `AnalysisJob`: `id`, `batchId` (null until M6), `projectId`, `folderId`, `target`, `profileHash`, `state`
+  (`queued` / `running` / `done` / `failed` / `cancelled`), `progress`, `queuedAt`, `startedAt`, `finishedAt`,
+  `snapshotId`, `error`. Jobs live in the core's memory: a renderer reload re-reads `analysis.list`; a core restart
+  forgets them. At most 100 finished jobs are kept.
+- Problem and error codes are SCREAMING_SNAKE_CASE: blocking problems use `AnalysisErrorCode`, warnings
+  `NOT_REPO_ROOT`, `SHALLOW_CLONE`, `LOW_DISK_SPACE`.
+- Not built for M4: "Show log" of a failed job has no RPC yet (`SnapshotRepository::read_failed_log(folder, jobId)`
+  exists; the `.failed-<jobId>` folder lives until `analysis.clearFinished` or the next start) — add e.g.
+  `analysis.readLog { jobId }` api-first when the UI needs it. `snapshots.resolveForCommit`, `enqueueBatch`,
+  `cancelBatch` are M5 / M6; `snapshots resolve` (CLI) answers `none` until M5.
+- Rust: `core.analyses()` (`Analyses::{preflight, enqueue, cancel, list, clear_finished, recover, drive}`),
+  `core.analysis_queue()` (`AnalysisQueue`, events via `subscribe()`), `NewJob.batch_id` makes a job a batch job
+  (direct jobs run first), `analysis::recovery`. Tests in other packages get fake-ccsh through
+  `codecharta-cored/tests/support/analysis.rs` (`use_fake_tools`, `write_scenario`, `TestRepository`).
+
+### Gates (final run, Linux)
+See the final report of this session for the tails; all green: `core/`: `cargo fmt --check`, `cargo clippy
+--all-targets -- -D warnings`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test`, `cargo test
+--all-features`; `npm run contract` leaves no diff; root `npm run format:check`; `visualization/`: `npm run lint`,
+`npx tsc --noEmit -p tsconfig.json`, `npm test`.
