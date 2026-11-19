@@ -37,7 +37,7 @@ Gates with and without `--all-features`.
 - [x] 2. Argv
 - [x] 3. Output and failures
 - [x] 4. Progress
-- [ ] 5. fake-ccsh
+- [x] 5. fake-ccsh
 - [ ] 6. Launcher
 - [ ] 7. Runner
 
@@ -129,3 +129,22 @@ reached through `TargetOs::Windows` in unit tests; nothing Windows-specific ran.
 - Test renamed: "aggregate two interleaved trackers" → `should_follow_the_most_advanced_of_two_interleaved_trackers`.
   Extra: `should_ignore_the_byte_unit`, `should_follow_a_parallel_run_mixed_with_log_lines`. Fixture bars are
   drawn by a test helper that reproduces `ProgressTracker.kt` exactly (05-M0 kept no raw stderr bytes).
+
+### 5. fake-ccsh
+- **Deviation — a binary of `codecharta-core`, not a workspace crate:** `core/crates/codecharta-core/src/bin/fake-ccsh.rs`
+  (beside `cc-fake-tool`), so integration tests get it through `env!("CARGO_BIN_EXE_fake-ccsh")`, which cargo
+  guarantees to build — no locator next to `deps/` and no nested `cargo build -p fake-ccsh` from inside a test
+  (the plan's UNVERIFIED fallback). Uses only `serde`/`serde_json`/`flate2`, which the crate already has.
+- Scenario (JSON file named by `FAKE_CCSH_SCENARIO`, set in the child's environment only — no process-wide env
+  races): `stdout[]`, `stderr_chunks[]`, `delay_ms` (pause after each stderr chunk), `exit_code`, `write_map`,
+  `hang`, plus `pid_file` (for the tree-kill check). Order: stdout, stderr, map + summary block (blank, `─`×72,
+  `Analysis done: …`, blank, `Map: <path>`), hang, exit. The map name follows ccsh: `-o` value, `<7 chars>.` prefix
+  when `--commit=` is present, `.gz`/`.json`/`.cc` stripped, `.cc.json.gz` appended; the map is a tiny gzipped 2.1
+  file (`meta` first, root `root`). `--version` alone answers like ccsh 2.4.0 (for a doctor run in M3).
+- Helpers in `tests/support/fake_ccsh.rs` (overview section 10 location; plan said `tests/common`): `fake_ccsh()`,
+  `FakeScenario` (+ `writing_map()`), `write_scenario(folder, &scenario)`, `SCENARIO_VARIABLE`.
+- Tests (`tests/fake_ccsh.rs`): the three plan names plus `should_name_a_working_tree_map_without_a_prefix`.
+  They start the fake with `std::process::Command` (test of the fake itself, not production code).
+- For M3: `codecharta-cored` tests cannot use `CARGO_BIN_EXE_fake-ccsh` (another package). Options: build it from
+  the test with `CARGO` once, or find it next to the cored test binary in `target/<profile>/` after a workspace
+  `cargo test` (cargo builds every member's bins for its integration tests).
