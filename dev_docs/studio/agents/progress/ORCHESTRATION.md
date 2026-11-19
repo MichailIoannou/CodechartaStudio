@@ -80,11 +80,11 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M2 Snapshot records | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m2 | 3eff64af5 (verified, not merged) |
 | 05-M3 Queue, preflight, RPC, CLI | core (+ fake bridge) | tasks 1–4 verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (fake bridge): core stack merge | feature/studio-05-m3 | b3b7a6164 (verified, not merged) |
 | 05-M4 Analyse from the UI, browse snapshots | UI | done on `feature/studio-stack` (8747e752b; web e2e 175/175); history badges (task 5) after 04-M4 | integration merge: as 03-M2 | — | — |
-| 05-M5 Nearest snapshot and stale notice | core + UI | core half on the stack; UI half in progress (feature/studio-05-m5-ui, parallel) | — | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
+| 05-M5 Nearest snapshot and stale notice | core + UI | UI half merged into `feature/studio-stack` (web e2e running) | — | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
 | 05-M6 Batches, retention, cleanup | core + UI | core tasks 1, 3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge; design O4 | feature/studio-05-m6 | 9acf7a56b (verified, not merged) |
 | 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
 | 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
-| 06-M1 Compare core: commit vs commit | core + UI | core tasks 1–3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI tasks 4–11: core stack merge | feature/studio-06-m1 | 698643e98 (verified, not merged) |
+| 06-M1 Compare core: commit vs commit | core + UI | core on the stack; renderer tasks 4–11 in progress (feature/studio-06-m1-ui, parallel) | — | feature/studio-06-m1 | 698643e98 (verified, not merged) |
 | 06-M2 Entry points | UI | todo | 06-M1 | — | — |
 | 06-M3 Missing snapshots and staleness | UI (no core tasks) | todo | 06-M1 UI; core stack merge | — | — |
 | 06-M4 Changed files | core + UI | core task 1 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: 06-M3 | feature/studio-06-m4 | 919fb2972 (verified, not merged) |
@@ -342,6 +342,12 @@ the milestone is started.
   Design gaps left open (no invented wording): committer line label, "Open changes" (no Changes tab yet), git's
   `unknown` change kind, analysing without percent. cc-light contrast notes (two blue lanes, faint selection)
   left to the designer. Merge conflict in the fake bridge with 05-M4: kept both sides' handlers.
+- 05-M5 UI (see `05-m5-nearest-snapshot.md` on the stack): the stale notice is a persistent toast projected into
+  `cc-toast` (OD9), over the map views only; the plan's snapshot chip became W1 changes (staleness badge,
+  "Asked for", "Show current checkout", "Analyse <short>"); the map follows the design's table and replaces
+  05-M4's "last asked analysis switches the map". Follow-up bug (not assigned): a folder without a remembered
+  snapshot can load twice (newest snapshot, then the resolved one). For 02-M7: keep `<ng-content />` first in
+  the toast `<output>` and the notice projected inside `<cc-toast>`.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -373,6 +379,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 05-M5 UI merged cleanly into the stack; gates: format, tsc, lint, npm test 722/722, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 06-M1 renderer started in parallel (5-hour 72%, weekly 77%).
 - 2026-11-19: 04-M4 merged into the stack (fake-bridge conflict resolved); gates on the merged stack: format, lint, tsc, npm test 720/720, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 04-M5 (+ history badges) started in parallel with the 05-M5 UI.
 - 2026-11-19: 05-M4 merged into the stack with conflicts resolved and ported; gates on the merged stack: cargo with and without features 844/848, contract drift, format, lint, tsc, npm test 708/708, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 05-M5 UI started in parallel (weekly usage 75%: two UI agents at a time).
 - 2026-11-19: 04-M3 stack merge passed web e2e 173/173 — done on the stack. 02-M7 held: its wider bar sits under the open explorer (Layout cell unreachable by mouse at 1920 px); the agent had switched the e2e page object to keyboard, which hides it. Fixing needs a design change (T4 and upstream PR #4557 keep the bar centred on the window) — asked as O7.
