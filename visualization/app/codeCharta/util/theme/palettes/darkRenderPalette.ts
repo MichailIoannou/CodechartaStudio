@@ -1,4 +1,4 @@
-import { RenderPalette } from "../../../model/theme.model"
+import { ChromeTokens, MapPaletteSeed, RenderPalette } from "../../../model/theme.model"
 
 export const darkRenderPalette: RenderPalette = {
     surface: "#1e2329",
@@ -49,4 +49,25 @@ export const darkRenderPalette: RenderPalette = {
         kindIconLetter: "#d7dde4"
     },
     chartTooltip: { background: "#262c34", border: "#3a424d", text: "#e6e9ee" }
+}
+
+export function buildDarkRenderPalette(chrome: ChromeTokens, seed: MapPaletteSeed): RenderPalette {
+    const [gradientStart, gradientEnd] = seed.wordCloud
+    return {
+        ...darkRenderPalette,
+        surface: chrome.base100,
+        text: chrome.baseContent,
+        exportBackground: chrome.base100,
+        map: {
+            ...darkRenderPalette.map,
+            background: seed.mapBackground,
+            floorGradient: { root: seed.floorRoot, deepest: seed.floorDeepest },
+            buildingLabel: { background: chrome.base100, text: chrome.baseContent, border: chrome.base300 },
+            connector: seed.floorDeepest
+        },
+        viewCube: { face: chrome.base300, outline: seed.floorDeepest, hoverEmissive: chrome.primary },
+        radial: { ...darkRenderPalette.radial, pieceBorder: chrome.base100, neutralFolder: seed.floorRoot, tintTarget: chrome.base100 },
+        wordCloud: { ...darkRenderPalette.wordCloud, gradientStart, gradientEnd },
+        chartTooltip: { background: chrome.base200, border: chrome.base300, text: chrome.baseContent }
+    }
 }

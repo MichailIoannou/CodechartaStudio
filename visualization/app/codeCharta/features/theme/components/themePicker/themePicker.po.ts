@@ -14,6 +14,16 @@ export class ThemePickerPageObject {
         return this.page.locator("html")
     }
 
+    navBarColors(): Promise<{ background: string; text: string }> {
+        return this.page
+            .locator(".navbar")
+            .first()
+            .evaluate(navBar => {
+                const { backgroundColor, color } = getComputedStyle(navBar)
+                return { background: backgroundColor, text: color }
+            })
+    }
+
     /** The map canvas keeps its drawing buffer, so its corner can be copied into a 2D canvas and read back. */
     mapCornerColor(): Promise<string> {
         return this.page.evaluate(() => {
