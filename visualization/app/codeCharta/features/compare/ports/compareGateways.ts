@@ -1,7 +1,7 @@
 import { InjectionToken, inject } from "@angular/core"
 import { CoreGatewayAdapter } from "../adapters/coreGateway.adapter"
 import { SnapshotGatewayAdapter } from "../adapters/snapshotGateway.adapter"
-import type { CompareIntent, FolderRef, PairLoad, ResolvedComparison, SnapshotSummary } from "../model/compare.model"
+import type { CompareIntent, PairLoad, ResolvedComparison, SnapshotSummary } from "../model/compare.model"
 
 export interface SnapshotGateway {
     /** Replaces the loaded maps with the two snapshots in one step. */
@@ -14,8 +14,6 @@ export interface SnapshotGateway {
 
 export interface CoreGateway {
     resolve(intent: CompareIntent, shownCommit: string | null): Promise<ResolvedComparison>
-    /** A branch, tag, `HEAD` or commit (prefix) as a revision the core accepts, or null when the folder has no such ref. */
-    toRevision(folder: FolderRef, input: string): Promise<string | null>
 }
 
 export const SNAPSHOT_GATEWAY = new InjectionToken<SnapshotGateway>("SNAPSHOT_GATEWAY", {

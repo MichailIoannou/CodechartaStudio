@@ -82,10 +82,17 @@ describe("CompareService", () => {
 
     it("should dispatch setDelta with the base as reference and the head as comparison", async () => {
         // Act
-        await service.compareInputs(COMPARED_FOLDER, "main", "feature/x")
+        await service.compareSides(COMPARED_FOLDER, { base: "main", head: " feature/x ", baseMode: "tip", unresolved: [] })
 
         // Assert
-        expect(core.intents).toEqual([{ kind: "commits", folder: FOLDER, a: "refs/heads/main", b: "refs/heads/feature/x" }])
+        expect(core.intents).toEqual([
+            {
+                kind: "explicit",
+                base: { folder: FOLDER, rev: { kind: "rev", name: "main" } },
+                head: { folder: FOLDER, rev: { kind: "rev", name: "feature/x" } },
+                baseMode: "tip"
+            }
+        ])
         expect(selectionByChecksum()).toEqual({
             [BASE_CHECKSUM]: FileSelectionState.Reference,
             [HEAD_CHECKSUM]: FileSelectionState.Comparison
@@ -236,12 +243,14 @@ describe("CompareService", () => {
     })
 
     it("should fail with refNotFound for an input the folder does not have", async () => {
+        // Arrange
+        core.resolution = new DesktopBridgeError({ code: "UNKNOWN_REVISION", message: "The revision is not in the repository." })
+
         // Act
-        await service.compareInputs(COMPARED_FOLDER, "nope", "feature/x")
+        await service.compareSides(COMPARED_FOLDER, { base: "main", head: "nope", baseMode: "mergeBase", unresolved: ["nope"] })
 
         // Assert
         expect(compareStore.state().error).toEqual({ kind: "refNotFound", message: "", input: "nope", folderLabel: "billing-api" })
-        expect(core.intents).toEqual([])
     })
 
     it("should tell a stopped core from other core errors", async () => {

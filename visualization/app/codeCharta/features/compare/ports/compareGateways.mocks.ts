@@ -71,14 +71,9 @@ export class FakeSnapshotGateway implements SnapshotGateway {
 export class FakeCoreGateway implements CoreGateway {
     readonly intents: CompareIntent[] = []
     resolution: ResolvedComparison | Error = aResolvedComparison()
-    revisions: Record<string, string> = { main: "refs/heads/main", "feature/x": "refs/heads/feature/x" }
 
     resolve(intent: CompareIntent): Promise<ResolvedComparison> {
         this.intents.push(intent)
         return this.resolution instanceof Error ? Promise.reject(this.resolution) : Promise.resolve(this.resolution)
-    }
-
-    toRevision(_folder: FolderRef, input: string): Promise<string | null> {
-        return Promise.resolve(this.revisions[input] ?? null)
     }
 }

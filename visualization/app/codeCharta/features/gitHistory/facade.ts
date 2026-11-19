@@ -1,4 +1,5 @@
 export { GitHistoryPanelComponent } from "./components/gitHistoryPanel/gitHistoryPanel.component"
+export { RefPickerComponent } from "./components/refPicker/refPicker.component"
 export type { CommitSelection } from "./model/commitSelection"
 export { isGitStatus } from "./model/folderGitStatus"
 export { ANALYSED_COMMITS, AnalysedCommitMarker, AnalysedCommitsProvider } from "./ports/analysedCommits.port"
@@ -7,4 +8,5 @@ export { LOADED_MAP_LOCATOR, LoadedMapLocator } from "./ports/loadedMapLocator.p
 export { WORKING_FOLDER_SOURCE } from "./ports/workingFolderSource.port"
 export { GitHistoryAvailability } from "./services/gitHistoryAvailability.service"
 export { GitRepositoryService } from "./services/gitRepository.service"
-export { parseRefRange } from "./util/refRange"
+export type { RefResolution } from "./util/refOptions"
+export { parseRefRange, RefRange } from "./util/refRange"

@@ -3,7 +3,7 @@ import { Router } from "@angular/router"
 import { routeLinks, viewIdForLink } from "../../../routing/routePaths"
 import { DesktopBridgeError } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
-import type { CompareError, CompareIntent, FolderRef, LoadedSide, ResolvedComparison, ResolvedSide } from "../model/compare.model"
+import type { BaseMode, CompareError, CompareIntent, FolderRef, LoadedSide, ResolvedComparison, ResolvedSide } from "../model/compare.model"
 import { CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
 import { CompareReadStore } from "../stores/compare.read.store"
 import { CompareStore } from "../stores/compare.store"
@@ -16,6 +16,14 @@ const SINGLE_MAP_VIEWS: ReadonlySet<string> = new Set(["domain", "dependencies"]
 export interface ComparedFolder {
     ref: FolderRef
     label: string
+}
+
+export interface TypedSides {
+    base: string
+    head: string
+    baseMode: BaseMode
+    /** The sides no picker could name, base first: an unknown revision is blamed on the first of them. */
+    unresolved: string[]
 }
 
 /** The snapshot a side would show (its own, else its nearest) and how many commits that is away from it. */
@@ -33,16 +41,13 @@ export class CompareService {
     private readonly toastService = inject(ToastService)
     private latestTicket = 0
 
-    /** Compares what the user typed as base and head; the history decides which is older. */
-    async compareInputs(folder: ComparedFolder, baseInput: string, headInput: string): Promise<void> {
+    /** Compares what the user typed or picked; the base stays the base. */
+    async compareSides(folder: ComparedFolder, sides: TypedSides): Promise<void> {
         const ticket = this.beginResolving()
         try {
-            const [base, head] = await Promise.all([this.revisionOf(folder, baseInput), this.revisionOf(folder, headInput)])
-            if (ticket === this.latestTicket) {
-                await this.resolveAndShow({ kind: "commits", folder: folder.ref, a: base, b: head }, ticket)
-            }
+            await this.resolveAndShow(explicitIntent(folder.ref, sides), ticket)
         } catch (error) {
-            this.fail(ticket, compareErrorOf(error))
+            this.fail(ticket, typedSidesErrorOf(error, folder, sides))
         }
     }
 
@@ -94,14 +99,6 @@ export class CompareService {
     private beginResolving(): number {
         this.store.set({ phase: "resolving", resolved: null, base: null, head: null, error: null })
         return ++this.latestTicket
-    }
-
-    private async revisionOf(folder: ComparedFolder, input: string): Promise<string> {
-        const revision = await this.core.toRevision(folder.ref, input.trim())
-        if (revision === null) {
-            throw new CompareFailure({ kind: "refNotFound", message: "", input: input.trim(), folderLabel: folder.label })
-        }
-        return revision
     }
 
     private async resolveAndShow(intent: CompareIntent, ticket: number): Promise<void> {
@@ -203,12 +200,6 @@ export class CompareService {
     }
 }
 
-class CompareFailure extends Error {
-    constructor(readonly error: CompareError) {
-        super(error.message)
-    }
-}
-
 function needsDecision({ base, head, preflight }: ResolvedComparison): boolean {
     return (
         base.status.status === "missing" || head.status.status === "missing" || preflight.sizeVerdict !== "ok" || preflight.profilesDiffer
@@ -232,10 +223,18 @@ function loadErrorOf(error: unknown): CompareError {
     return compareError.kind === "coreError" ? { kind: "loadFailed", message: compareError.message } : compareError
 }
 
+function explicitIntent(folder: FolderRef, { base, head, baseMode }: TypedSides): CompareIntent {
+    const side = (name: string) => ({ folder, rev: { kind: "rev" as const, name: name.trim() } })
+    return { kind: "explicit", base: side(base), head: side(head), baseMode }
+}
+
+function typedSidesErrorOf(error: unknown, folder: ComparedFolder, sides: TypedSides): CompareError {
+    const isUnknown = error instanceof DesktopBridgeError && (error.code === "UNKNOWN_REVISION" || error.code === "BAD_REQUEST")
+    const input = (sides.unresolved[0] ?? sides.base).trim()
+    return isUnknown ? { kind: "refNotFound", message: "", input, folderLabel: folder.label } : compareErrorOf(error)
+}
+
 function compareErrorOf(error: unknown): CompareError {
-    if (error instanceof CompareFailure) {
-        return error.error
-    }
     if (error instanceof DesktopBridgeError && error.code === "CORE_UNAVAILABLE") {
         return { kind: "coreUnavailable", message: error.message }
     }

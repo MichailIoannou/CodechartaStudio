@@ -127,6 +127,10 @@ export class RefPickerComponent {
         this.isOpen.set(true)
     }
 
+    focus(): void {
+        this.hostElement.nativeElement.querySelector("input")?.focus()
+    }
+
     onInput(text: string): void {
         const range = parseRefRange(text)
         if (range) {

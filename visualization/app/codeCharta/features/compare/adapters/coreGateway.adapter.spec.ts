@@ -45,37 +45,42 @@ describe("CoreGatewayAdapter", () => {
         return TestBed.inject(CORE_GATEWAY)
     }
 
-    it("should pass HEAD, full refs and full commits through", async () => {
+    it("should keep the typed base as base and name the sides by what was typed", async () => {
         // Arrange
         const gateway = createGateway()
+        const side = (name: string) => ({ folder: FOLDER, rev: { kind: "rev" as const, name } })
 
         // Act
-        const revisions = await Promise.all(["HEAD", "refs/heads/main", HEAD_SHA].map(input => gateway.toRevision(FOLDER, input)))
+        const resolved = await gateway.resolve({ kind: "explicit", base: side("a1b2"), head: side("v1.0"), baseMode: "mergeBase" }, null)
+        const unknown = gateway.resolve({ kind: "explicit", base: side("nowhere"), head: side("main"), baseMode: "tip" }, null)
 
         // Assert
-        expect(revisions).toEqual(["HEAD", "refs/heads/main", HEAD_SHA])
+        expect([resolved.base.requested.commit, resolved.head.requested.commit]).toEqual([HEAD_SHA, BASE_SHA])
+        expect([resolved.origin, resolved.baseMode]).toEqual(["commits", "tip"])
+        expect(resolved.head.requested.label).toEqual({ kind: "tag", name: "v1.0" })
+        await expect(unknown).rejects.toEqual(
+            new DesktopBridgeError({ code: "UNKNOWN_REVISION", message: "The revision is not in the repository." })
+        )
     })
 
-    it("should name branches and tags by their full ref", async () => {
+    it("should compare a branch from its merge base with the current branch and offer the nearest analysis", async () => {
         // Arrange
-        const gateway = createGateway()
+        const gateway = createGateway({ snapshots: [aCommitSnapshot(ROOT_SHA)] })
 
         // Act
-        const revisions = await Promise.all(["main", "v1.0"].map(input => gateway.toRevision(FOLDER, input)))
+        const resolved = await gateway.resolve(
+            { kind: "branch", folder: FOLDER, branch: "refs/heads/main", target: null, baseMode: "mergeBase" },
+            null
+        )
 
         // Assert
-        expect(revisions).toEqual(["refs/heads/main", "refs/tags/v1.0"])
-    })
-
-    it("should complete a commit prefix and refuse what the folder does not have", async () => {
-        // Arrange
-        const gateway = createGateway()
-
-        // Act
-        const revisions = await Promise.all(["a1b2", "beef", "no such branch"].map(input => gateway.toRevision(FOLDER, input)))
-
-        // Assert
-        expect(revisions).toEqual([HEAD_SHA, null, null])
+        expect([resolved.origin, resolved.baseMode]).toEqual(["branches", "mergeBase"])
+        expect([resolved.base.requested.commit, resolved.head.requested.commit]).toEqual([BASE_SHA, BASE_SHA])
+        expect(resolved.baseTip?.label).toEqual({ kind: "branch", name: "feature/x" })
+        expect(resolved.head.status).toEqual({
+            status: "missing",
+            nearest: expect.objectContaining({ relation: "ancestor", staleBy: 1, behind: 1, ahead: 0 })
+        })
     })
 
     it("should resolve two commits with the older one as base", async () => {

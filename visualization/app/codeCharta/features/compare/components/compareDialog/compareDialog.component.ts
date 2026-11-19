@@ -12,22 +12,17 @@ import {
     untracked,
     viewChild
 } from "@angular/core"
+import { RefPickerComponent, RefRange, RefResolution } from "../../../gitHistory/facade"
 import { ProjectsFacade } from "../../../projects/facade"
-import type { ComparePrefill, ResolvedComparison, ResolvedSide } from "../../model/compare.model"
+import type { BaseMode, ComparePrefill, FolderRef, ResolvedComparison, ResolvedSide } from "../../model/compare.model"
+import { BaseModeRepo } from "../../repos/baseMode.repo"
 import { CompareService } from "../../services/compare.service"
-import {
-    errorSentence,
-    parseRange,
-    refName,
-    resolveOutcome,
-    sideCaption,
-    sideStatusText,
-    useNearestRefusal
-} from "../../services/comparisonText"
+import { errorSentence, refName, resolveOutcome, sideCaption, sideStatusText, useNearestRefusal } from "../../services/comparisonText"
 import { CompareStore } from "../../stores/compare.store"
 
 const BUSY_PHASES: ReadonlySet<string> = new Set(["resolving", "loading"])
 const FINISHED_PHASES: ReadonlySet<string> = new Set(["active", "noDifferences"])
+const NAMED_REF_KINDS: ReadonlySet<string> = new Set(["branch", "remoteBranch", "tag"])
 
 interface PreparationRow {
     caption: string
@@ -48,23 +43,39 @@ interface Preparation {
 @Component({
     selector: "cc-compare-dialog",
     templateUrl: "./compareDialog.component.html",
+    imports: [RefPickerComponent],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CompareDialogComponent implements OnInit, AfterViewInit {
     private readonly store = inject(CompareStore)
     private readonly service = inject(CompareService)
     private readonly projects = inject(ProjectsFacade)
+    private readonly baseModeRepo = inject(BaseModeRepo)
     private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
-    private readonly baseInput = viewChild.required<ElementRef<HTMLInputElement>>("baseInput")
-    private readonly headInput = viewChild.required<ElementRef<HTMLInputElement>>("headInput")
+    private readonly basePicker = viewChild<RefPickerComponent>("basePicker")
+    private readonly headPicker = viewChild<RefPickerComponent>("headPicker")
     private readonly hasStartedHere = signal(false)
 
     readonly prefill = input.required<ComparePrefill>()
     readonly folderId = signal("")
     readonly base = signal("")
     readonly head = signal("")
+    readonly baseResolution = signal<RefResolution | null>(null)
+    readonly headResolution = signal<RefResolution | null>(null)
+    readonly baseMode = signal<BaseMode>("mergeBase")
 
     readonly gitFolders = computed(() => (this.projects.activeProject()?.folders ?? []).filter(folder => folder.kind === "git"))
+    readonly folder = computed(() => this.gitFolders().find(candidate => candidate.id === this.folderId()) ?? null)
+    readonly repo = computed<FolderRef | null>(
+        () => {
+            const projectId = this.projects.activeProject()?.id
+            const folderId = this.folder()?.id
+            return projectId && folderId ? { projectId, folderId } : null
+        },
+        { equal: (first, second) => first?.projectId === second?.projectId && first?.folderId === second?.folderId }
+    )
+    readonly defaultBranch = computed(() => this.folder()?.git?.defaultBranch ?? null)
+    readonly showsBaseMode = computed(() => NAMED_REF_KINDS.has(this.baseResolution()?.kind ?? ""))
     readonly phase = computed(() => this.store.state().phase)
     readonly isBusy = computed(() => BUSY_PHASES.has(this.phase()))
     readonly isLoading = computed(() => this.phase() === "loading")
@@ -100,30 +111,30 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         this.folderId.set(preferred ?? "")
         this.base.set(base ?? (resolved ? refName(resolved.base.requested) : ""))
         this.head.set(head ?? (resolved ? refName(resolved.head.requested) : ""))
+        this.baseMode.set(this.baseModeRepo.read(this.projects.activeProject()?.id ?? ""))
     }
 
     ngAfterViewInit(): void {
         const dialog = this.dialog().nativeElement
         dialog.addEventListener("close", () => this.handleClosed())
         dialog.showModal()
-        const focused = this.base() && !this.head() ? this.headInput() : this.baseInput()
-        focused.nativeElement.focus()
+        const focused = this.base() && !this.head() ? this.headPicker() : this.basePicker()
+        focused?.focus()
     }
 
     chooseFolder(folderId: string): void {
         this.folderId.set(folderId)
     }
 
-    setBase(text: string): void {
-        if (!this.fillBothFromRange(text)) {
-            this.base.set(text)
-        }
+    fillBoth(range: RefRange): void {
+        this.base.set(range.base)
+        this.head.set(range.head)
+        this.chooseBaseMode(range.isMergeBase ? "mergeBase" : "tip")
     }
 
-    setHead(text: string): void {
-        if (!this.fillBothFromRange(text)) {
-            this.head.set(text)
-        }
+    chooseBaseMode(baseMode: BaseMode): void {
+        this.baseMode.set(baseMode)
+        this.baseModeRepo.write(this.projects.activeProject()?.id ?? "", baseMode)
     }
 
     swapInputs(): void {
@@ -133,16 +144,16 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
     }
 
     async compare(): Promise<void> {
-        const folder = this.gitFolders().find(candidate => candidate.id === this.folderId())
-        const project = this.projects.activeProject()
-        if (!(this.canCompare() && folder && project)) {
+        const folder = this.folder()
+        const repo = this.repo()
+        if (!(this.canCompare() && folder && repo)) {
             return
         }
         this.hasStartedHere.set(true)
-        await this.service.compareInputs(
-            { ref: { projectId: project.id, folderId: folder.id }, label: folder.label },
-            this.base(),
-            this.head()
+        const unresolved = [this.base(), this.head()].filter((_, index) => [this.baseResolution(), this.headResolution()][index] === null)
+        await this.service.compareSides(
+            { ref: repo, label: folder.label },
+            { base: this.base(), head: this.head(), baseMode: this.showsBaseMode() ? this.baseMode() : "tip", unresolved }
         )
     }
 
@@ -153,15 +164,6 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
 
     close(): void {
         this.dialog().nativeElement.close()
-    }
-
-    private fillBothFromRange(text: string): boolean {
-        const range = parseRange(text)
-        if (range) {
-            this.base.set(range.base)
-            this.head.set(range.head)
-        }
-        return range !== null
     }
 
     private handleClosed(): void {
