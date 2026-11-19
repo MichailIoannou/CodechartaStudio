@@ -188,7 +188,7 @@ fn print_comparison(comparison: &ResolvedComparison, json: bool) -> CoreResult<(
     if json {
         return print_json(comparison);
     }
-    println!("{}", status_name(comparison.status));
+    println!("{}", status_name(&comparison.status));
     println!("base  {}", side_line(&comparison.base));
     println!("head  {}", side_line(&comparison.head));
     println!("size  {}", size_line(comparison));
@@ -234,11 +234,12 @@ fn size_line(comparison: &ResolvedComparison) -> String {
     )
 }
 
-fn status_name(status: ResolveStatus) -> &'static str {
+fn status_name(status: &ResolveStatus) -> String {
     match status {
-        ResolveStatus::Ready => "ready",
-        ResolveStatus::SameCommit => "sameCommit",
-        ResolveStatus::NoCommonAncestor => "noCommonAncestor",
+        ResolveStatus::Ready => "ready".to_string(),
+        ResolveStatus::SameCommit => "sameCommit".to_string(),
+        ResolveStatus::NoCommonAncestor => "noCommonAncestor".to_string(),
+        ResolveStatus::AlreadyMerged { target } => format!("alreadyMerged {target}"),
     }
 }
 

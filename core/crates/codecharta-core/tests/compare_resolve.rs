@@ -13,11 +13,12 @@ use codecharta_core_api::methods::compare::{
     BaseMode, CompareIntent, ComparedCommit, RefLabel, RefLabelKind, ResolveComparisonParams,
     ResolveStatus, ResolvedComparison, SideStatus,
 };
+use codecharta_core_api::methods::hosting::HostingProvider;
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::methods::snapshots::{
     SnapshotRef, SnapshotRelation, SnapshotSource, SnapshotSummary,
 };
-use codecharta_core_api::values::{CommitSha, FullCommit, Revision};
+use codecharta_core_api::values::{BranchName, CommitSha, FullCommit, Revision};
 use tokio_util::sync::CancellationToken;
 
 use support::TempRepo;
@@ -356,4 +357,224 @@ async fn should_refuse_a_revision_the_repository_does_not_have() {
     // Assert
     let error = result.expect_err("the branch does not exist");
     assert_eq!(error.code(), ErrorCode::UnknownRevision);
+}
+
+const UNKNOWN_SHA: &str = "ffffffffffffffffffffffffffffffffffffffff";
+
+/// What the renderer knows of pull request #7 on `origin` against `main`.
+#[derive(Default)]
+struct KnownPullRequest<'test> {
+    base_ref_name: Option<&'test str>,
+    base_commit: Option<&'test str>,
+    head_commit: Option<&'test str>,
+    merge_commit: Option<&'test str>,
+}
+
+fn change_request(known: KnownPullRequest<'_>) -> ResolveComparisonParams {
+    ResolveComparisonParams {
+        intent: CompareIntent::ChangeRequest {
+            folder: folder_ref(),
+            provider: HostingProvider::Github,
+            number: 7,
+            remote: "origin".to_string(),
+            base_ref_name: BranchName::try_from(known.base_ref_name.unwrap_or("main"))
+                .expect("a branch name"),
+            base_commit: known.base_commit.map(sha),
+            head_commit: known.head_commit.map(sha),
+            merge_commit: known.merge_commit.map(sha),
+        },
+        shown_commit: None,
+    }
+}
+
+/// Root, then `first` on main; `feature` branches off `first` with one commit; main moves on to
+/// `second`, which origin has as `main`.
+struct PullRequestHistory {
+    repo: TempRepo,
+    root: String,
+    first: String,
+    feature: String,
+    second: String,
+}
+
+fn pull_request_history() -> PullRequestHistory {
+    let repo = TempRepo::new();
+    let root = repo.commit_file("a.txt", "0", "Root");
+    let first = repo.commit_file("a.txt", "1", "First");
+    repo.branch("feature");
+    repo.checkout("feature");
+    let feature = repo.commit_file("f.txt", "1", "Feature");
+    repo.checkout("main");
+    let second = repo.commit_file("a.txt", "2", "Second");
+    let repo = repo.with_bare_origin();
+    PullRequestHistory {
+        repo,
+        root: root.trim().to_string(),
+        first: first.trim().to_string(),
+        feature: feature.trim().to_string(),
+        second: second.trim().to_string(),
+    }
+}
+
+#[tokio::test]
+async fn should_use_the_merge_base_of_the_recorded_base_and_the_head() {
+    // Arrange
+    let history = pull_request_history();
+    let known = KnownPullRequest {
+        base_commit: Some(&history.root),
+        head_commit: Some(&history.feature),
+        ..KnownPullRequest::default()
+    };
+
+    // Act
+    let comparison = resolve(&history.repo, &change_request(known)).await;
+
+    // Assert
+    assert_eq!(comparison.status, ResolveStatus::Ready);
+    assert_eq!(comparison.base_mode, BaseMode::MergeBase);
+    assert_eq!(
+        base_and_head(&comparison),
+        pair(&history.root, &history.feature)
+    );
+    assert_eq!(
+        comparison.head.requested.label,
+        RefLabel {
+            kind: RefLabelKind::PullRequest,
+            name: "#7".to_string(),
+        }
+    );
+    let tip = comparison
+        .base_tip
+        .expect("the tip the merge base came from");
+    assert_eq!(tip.commit.as_str(), history.root);
+    assert_eq!(tip.label.name, "main");
+}
+
+#[tokio::test]
+async fn should_fall_back_to_the_base_branch_tip() {
+    // Arrange
+    let history = pull_request_history();
+    let known = KnownPullRequest {
+        base_commit: Some(UNKNOWN_SHA),
+        head_commit: Some(&history.feature),
+        ..KnownPullRequest::default()
+    };
+    let unknown_branch = KnownPullRequest {
+        base_ref_name: Some("gone"),
+        head_commit: Some(&history.feature),
+        ..KnownPullRequest::default()
+    };
+
+    // Act
+    let comparison = resolve(&history.repo, &change_request(known)).await;
+    let not_local = resolve_with(&history.repo, &change_request(unknown_branch), Vec::new()).await;
+
+    // Assert
+    assert_eq!(comparison.status, ResolveStatus::Ready);
+    assert_eq!(
+        base_and_head(&comparison),
+        pair(&history.first, &history.feature)
+    );
+    let tip = comparison.base_tip.expect("the remote branch tip");
+    assert_eq!(tip.commit.as_str(), history.second);
+    assert_eq!(tip.label.name, "origin/main");
+    assert_eq!(
+        not_local.expect_err("origin has no gone").code(),
+        ErrorCode::UnknownRevision
+    );
+}
+
+#[tokio::test]
+async fn should_ask_to_fetch_a_head_that_is_not_local() {
+    // Arrange
+    let history = pull_request_history();
+    let unknown_head = KnownPullRequest {
+        head_commit: Some(UNKNOWN_SHA),
+        ..KnownPullRequest::default()
+    };
+
+    // Act
+    let listed = resolve_with(&history.repo, &change_request(unknown_head), Vec::new()).await;
+    let unfetched = resolve_with(
+        &history.repo,
+        &change_request(KnownPullRequest::default()),
+        Vec::new(),
+    )
+    .await;
+    history
+        .repo
+        .git(&["update-ref", "refs/codecharta/pr/7", &history.feature]);
+    let fetched = resolve(&history.repo, &change_request(KnownPullRequest::default())).await;
+
+    // Assert
+    assert_eq!(
+        listed.expect_err("the head is not local").code(),
+        ErrorCode::HeadNotLocal
+    );
+    assert_eq!(
+        unfetched.expect_err("nothing was fetched").code(),
+        ErrorCode::HeadNotLocal
+    );
+    assert_eq!(fetched.head.requested.commit.as_str(), history.feature);
+    assert_eq!(fetched.base.requested.commit.as_str(), history.first);
+}
+
+#[tokio::test]
+async fn should_report_a_merged_pull_request_whose_base_equals_its_head() {
+    // Arrange
+    let history = pull_request_history();
+    let merge = history.repo.merge(&["feature"], "Merge #7");
+    history.repo.git(&["push", "--quiet", "origin", "main"]);
+    let without_merge_commit = KnownPullRequest {
+        head_commit: Some(&history.feature),
+        ..KnownPullRequest::default()
+    };
+    let with_merge_commit = KnownPullRequest {
+        head_commit: Some(&history.feature),
+        merge_commit: Some(merge.trim()),
+        ..KnownPullRequest::default()
+    };
+
+    // Act
+    let merged = resolve(&history.repo, &change_request(without_merge_commit)).await;
+    let before_merge = resolve(&history.repo, &change_request(with_merge_commit)).await;
+
+    // Assert
+    assert_eq!(
+        merged.status,
+        ResolveStatus::AlreadyMerged {
+            target: "main".to_string()
+        }
+    );
+    assert_eq!(
+        base_and_head(&merged),
+        pair(&history.feature, &history.feature)
+    );
+    assert_eq!(before_merge.status, ResolveStatus::Ready);
+    assert_eq!(
+        base_and_head(&before_merge),
+        pair(&history.first, &history.feature)
+    );
+}
+
+#[tokio::test]
+async fn should_refuse_a_remote_that_is_not_configured() {
+    // Arrange
+    let history = pull_request_history();
+    let mut params = change_request(KnownPullRequest {
+        head_commit: Some(&history.feature),
+        ..KnownPullRequest::default()
+    });
+    if let CompareIntent::ChangeRequest { remote, .. } = &mut params.intent {
+        *remote = "elsewhere".to_string();
+    }
+
+    // Act
+    let result = resolve_with(&history.repo, &params, Vec::new()).await;
+
+    // Assert
+    assert_eq!(
+        result.expect_err("no such remote").code(),
+        ErrorCode::NotFound
+    );
 }

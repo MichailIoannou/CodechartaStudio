@@ -21,7 +21,7 @@ use crate::methods::git::{
     GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
     GitUnstageMethod, GitWorkingTreeMethod, RepositoryChangedEvent,
 };
-use crate::methods::hosting::HostingStatusMethod;
+use crate::methods::hosting::{HostingFetchChangeRequestHead, HostingStatusMethod};
 use crate::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use crate::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
@@ -179,6 +179,7 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<CompareResolve>(),
     MethodSpec::of::<CompareChangedFiles>(),
     MethodSpec::of::<HostingStatusMethod>(),
+    MethodSpec::of::<HostingFetchChangeRequestHead>(),
     MethodSpec::of::<AnalysisPreflight>(),
     MethodSpec::of::<AnalysisEnqueue>(),
     MethodSpec::of::<AnalysisCancel>(),

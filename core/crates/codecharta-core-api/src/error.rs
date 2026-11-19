@@ -56,10 +56,12 @@ pub enum ErrorCode {
     StalePushLease,
     SnapshotBeingWritten,
     RecycleFailed,
+    RefNotOnRemote,
+    HeadNotLocal,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 50] = [
+    pub const ALL: [ErrorCode; 52] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -110,6 +112,8 @@ impl ErrorCode {
         ErrorCode::StalePushLease,
         ErrorCode::SnapshotBeingWritten,
         ErrorCode::RecycleFailed,
+        ErrorCode::RefNotOnRemote,
+        ErrorCode::HeadNotLocal,
     ];
 }
 

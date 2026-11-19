@@ -51,3 +51,5 @@ export type ErrorCode =
     | "STALE_PUSH_LEASE"
     | "SNAPSHOT_BEING_WRITTEN"
     | "RECYCLE_FAILED"
+    | "REF_NOT_ON_REMOTE"
+    | "HEAD_NOT_LOCAL"

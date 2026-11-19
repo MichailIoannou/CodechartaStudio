@@ -20,6 +20,8 @@ import type { EnqueueBatchParams } from "./EnqueueBatchParams"
 import type { EnqueueParams } from "./EnqueueParams"
 import type { EnqueueResult } from "./EnqueueResult"
 import type { ErrorCode } from "./ErrorCode"
+import type { FetchChangeRequestHeadParams } from "./FetchChangeRequestHeadParams"
+import type { FetchedHead } from "./FetchedHead"
 import type { FolderPath } from "./FolderPath"
 import type { FolderRef } from "./FolderRef"
 import type { GitAbortOperationParams } from "./GitAbortOperationParams"
@@ -168,7 +170,9 @@ export const CORE_ERROR_CODES = [
     "NO_UPSTREAM",
     "STALE_PUSH_LEASE",
     "SNAPSHOT_BEING_WRITTEN",
-    "RECYCLE_FAILED"
+    "RECYCLE_FAILED",
+    "REF_NOT_ON_REMOTE",
+    "HEAD_NOT_LOCAL"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {
@@ -216,6 +220,7 @@ export type CoreMethods = {
     "compare.resolve": { params: ResolveComparisonParams; result: ResolvedComparison }
     "compare.changedFiles": { params: ChangedFilesParams; result: ChangedFilesResult }
     "hosting.status": { params: HostingStatusParams; result: HostingStatus }
+    "hosting.fetchChangeRequestHead": { params: FetchChangeRequestHeadParams; result: FetchedHead }
     "analysis.preflight": { params: PreflightParams; result: PreflightResult }
     "analysis.enqueue": { params: EnqueueParams; result: EnqueueResult }
     "analysis.cancel": { params: JobRefParams; result: null }
@@ -308,6 +313,7 @@ export const RENDERER_METHODS = [
     "compare.resolve",
     "compare.changedFiles",
     "hosting.status",
+    "hosting.fetchChangeRequestHead",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",

@@ -7,6 +7,7 @@ use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::values::{CommitSha, Revision, SHORTEST_COMMIT_HASH_LENGTH};
 use tokio_util::sync::CancellationToken;
 
+use super::change_request::change_request_pair;
 use super::preflight::{SizeLimits, preflight};
 use super::sides::SideLookup;
 use crate::error::{CoreError, CoreResult};
@@ -41,14 +42,22 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
         let pair = pick_pair(&history, params).await?;
         let status = status_of(&history, &pair).await?;
         let compared_folder = params.intent.folder();
+        let base_mode = pair
+            .origin
+            .as_ref()
+            .map_or(BaseMode::Tip, |_| BaseMode::MergeBase);
+        let base_tip = pair
+            .origin
+            .map(|origin| compared(compared_folder, origin.tip));
         let base = self.side(compared_folder, pair.base, cancel).await?;
         let head = self.side(compared_folder, pair.head, cancel).await?;
         let preflight = preflight(&base.status, &head.status, &self.limits);
         Ok(ResolvedComparison {
             status,
-            base_mode: BaseMode::Tip,
+            base_mode,
             base,
             head,
+            base_tip,
             preflight,
         })
     }
@@ -59,26 +68,30 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
         picked: Picked,
         cancel: &CancellationToken,
     ) -> CoreResult<ResolvedSide> {
-        let requested = ComparedCommit {
-            folder: folder.clone(),
-            short_commit: short_commit(&picked.commit),
-            commit: picked.commit,
-            label: picked.label,
-        };
+        let requested = compared(folder, picked);
         let status = self.sides.status_of(&requested, cancel).await?;
         Ok(ResolvedSide { requested, status })
     }
 }
 
+fn compared(folder: &FolderRef, picked: Picked) -> ComparedCommit {
+    ComparedCommit {
+        folder: folder.clone(),
+        short_commit: short_commit(&picked.commit),
+        commit: picked.commit,
+        label: picked.label,
+    }
+}
+
 /// The git queries of plan 04 a resolution asks, in one folder.
-struct History<'call, 'core> {
-    git: &'call GitService<'core>,
-    folder: &'call GitFolder,
-    cancel: &'call CancellationToken,
+pub(super) struct History<'call, 'core> {
+    pub(super) git: &'call GitService<'core>,
+    pub(super) folder: &'call GitFolder,
+    pub(super) cancel: &'call CancellationToken,
 }
 
 impl History<'_, '_> {
-    async fn pick(&self, revision: &Revision) -> CoreResult<Picked> {
+    pub(super) async fn pick(&self, revision: &Revision) -> CoreResult<Picked> {
         let summary = self
             .git
             .resolve_commit(self.folder, revision, self.cancel)
@@ -98,31 +111,55 @@ impl History<'_, '_> {
             .await
     }
 
+    async fn merge_base(&self, left: &CommitSha, right: &CommitSha) -> CoreResult<Option<String>> {
+        self.git
+            .merge_base(self.folder, left, right, self.cancel)
+            .await
+    }
+
     async fn share_history(&self, pair: &Pair) -> CoreResult<bool> {
         let merge_base = self
-            .git
-            .merge_base(
-                self.folder,
-                &pair.base.commit,
-                &pair.head.commit,
-                self.cancel,
-            )
+            .merge_base(&pair.base.commit, &pair.head.commit)
             .await?;
         Ok(merge_base.is_some())
+    }
+
+    /// `None` when this clone does not have the revision.
+    pub(super) async fn pick_if_local(&self, revision: &Revision) -> CoreResult<Option<Picked>> {
+        match self.pick(revision).await {
+            Ok(picked) => Ok(Some(picked)),
+            Err(error) if error.code() == ErrorCode::UnknownRevision => Ok(None),
+            Err(error) => Err(error),
+        }
     }
 }
 
 /// One side before its snapshot is looked up.
-struct Picked {
-    commit: CommitSha,
-    label: RefLabel,
+#[derive(Clone)]
+pub(super) struct Picked {
+    pub(super) commit: CommitSha,
+    pub(super) label: RefLabel,
     committed_at: i64,
-    first_parent: Option<String>,
+    pub(super) first_parent: Option<String>,
 }
 
-struct Pair {
-    base: Picked,
-    head: Picked,
+impl Picked {
+    pub(super) fn with_label(self, label: RefLabel) -> Self {
+        Self { label, ..self }
+    }
+}
+
+pub(super) struct Pair {
+    pub(super) base: Picked,
+    pub(super) head: Picked,
+    /// Set when the base is a merge base: the tip it came from.
+    pub(super) origin: Option<MergeBaseOrigin>,
+}
+
+pub(super) struct MergeBaseOrigin {
+    pub(super) tip: Picked,
+    pub(super) target: String,
+    pub(super) shares_history: bool,
 }
 
 async fn pick_pair(
@@ -138,26 +175,60 @@ async fn pick_pair(
         CompareIntent::WithCurrent { commit, .. } => Ok(Pair {
             base: history.pick(commit).await?,
             head: history.pick(&current_revision(params)?).await?,
+            origin: None,
         }),
+        CompareIntent::ChangeRequest { .. } => change_request_pair(history, &params.intent).await,
     }
 }
 
 /// The ancestor is the base; without one, the older commit by commit date.
 async fn order_by_history(history: &History<'_, '_>, a: Picked, b: Picked) -> CoreResult<Pair> {
     if a.commit == b.commit || history.is_ancestor(&a.commit, &b.commit).await? {
-        return Ok(Pair { base: a, head: b });
+        return Ok(tips(a, b));
     }
     if history.is_ancestor(&b.commit, &a.commit).await? || b.committed_at < a.committed_at {
-        return Ok(Pair { base: b, head: a });
+        return Ok(tips(b, a));
     }
-    Ok(Pair { base: a, head: b })
+    Ok(tips(a, b))
+}
+
+fn tips(base: Picked, head: Picked) -> Pair {
+    Pair {
+        base,
+        head,
+        origin: None,
+    }
+}
+
+/// The merge base of `tip` and `head`, else the tip itself when the two share no history.
+pub(super) async fn from_merge_base(
+    history: &History<'_, '_>,
+    origin_tip: Picked,
+    target: &str,
+    head: Picked,
+) -> CoreResult<Pair> {
+    let merge_base = history.merge_base(&origin_tip.commit, &head.commit).await?;
+    let base = match &merge_base {
+        Some(sha) => history.pick(&revision_of(sha)?).await?,
+        None => origin_tip.clone(),
+    };
+    let origin = MergeBaseOrigin {
+        tip: origin_tip,
+        target: target.to_string(),
+        shares_history: merge_base.is_some(),
+    };
+    Ok(Pair {
+        base,
+        head,
+        origin: Some(origin),
+    })
 }
 
 async fn with_first_parent(history: &History<'_, '_>, revision: &Revision) -> CoreResult<Pair> {
     let head = history.pick(revision).await?;
     let parent = head.first_parent.as_deref().ok_or_else(no_parent)?;
     let base = history.pick(&revision_of(parent)?).await?;
-    Ok(Pair { base, head })
+    Ok(tips(base, head))
 }
 
 fn current_revision(params: &ResolveComparisonParams) -> CoreResult<Revision> {
@@ -168,8 +239,12 @@ fn current_revision(params: &ResolveComparisonParams) -> CoreResult<Revision> {
     revision_of(shown)
 }
 
-/// Decided in the plan's order: the same commit first, then whether the two share any history.
+/// Decided in the plan's order: the same commit first, then whether the two share any history, then
+/// whether the merge base is the head.
 async fn status_of(history: &History<'_, '_>, pair: &Pair) -> CoreResult<ResolveStatus> {
+    if let Some(origin) = &pair.origin {
+        return Ok(merge_base_status(origin, pair));
+    }
     if pair.base.commit == pair.head.commit {
         return Ok(ResolveStatus::SameCommit);
     }
@@ -180,7 +255,21 @@ async fn status_of(history: &History<'_, '_>, pair: &Pair) -> CoreResult<Resolve
     }
 }
 
-fn label_of(revision: &Revision, commit: &CommitSha) -> RefLabel {
+fn merge_base_status(origin: &MergeBaseOrigin, pair: &Pair) -> ResolveStatus {
+    if origin.tip.commit == pair.head.commit {
+        ResolveStatus::SameCommit
+    } else if !origin.shares_history {
+        ResolveStatus::NoCommonAncestor
+    } else if pair.base.commit == pair.head.commit {
+        ResolveStatus::AlreadyMerged {
+            target: origin.target.clone(),
+        }
+    } else {
+        ResolveStatus::Ready
+    }
+}
+
+pub(super) fn label_of(revision: &Revision, commit: &CommitSha) -> RefLabel {
     let name = revision.as_str();
     if let Some(tag) = name.strip_prefix(TAG_PREFIX) {
         return label(RefLabelKind::Tag, tag);
@@ -194,7 +283,7 @@ fn label_of(revision: &Revision, commit: &CommitSha) -> RefLabel {
     }
 }
 
-fn label(kind: RefLabelKind, name: &str) -> RefLabel {
+pub(super) fn label(kind: RefLabelKind, name: &str) -> RefLabel {
     RefLabel {
         kind,
         name: name.to_string(),
@@ -214,7 +303,7 @@ fn commit_sha(text: &str) -> CoreResult<CommitSha> {
         .map_err(|error| CoreError::Internal(format!("git answered no commit: {error}")))
 }
 
-fn revision_of(text: &str) -> CoreResult<Revision> {
+pub(super) fn revision_of(text: &str) -> CoreResult<Revision> {
     Revision::try_from(text)
         .map_err(|error| CoreError::Internal(format!("not a revision: {error}")))
 }

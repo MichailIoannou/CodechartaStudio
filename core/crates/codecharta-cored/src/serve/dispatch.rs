@@ -23,7 +23,7 @@ use codecharta_core_api::methods::git::{
     GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
     GitUnstageMethod, GitWorkingTreeMethod,
 };
-use codecharta_core_api::methods::hosting::HostingStatusMethod;
+use codecharta_core_api::methods::hosting::{HostingFetchChangeRequestHead, HostingStatusMethod};
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use codecharta_core_api::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
@@ -239,6 +239,10 @@ const ROUTES: &[Route] = &[
     Route {
         name: HostingStatusMethod::NAME,
         handler: hosting_routes::status,
+    },
+    Route {
+        name: HostingFetchChangeRequestHead::NAME,
+        handler: hosting_routes::fetch_change_request_head,
     },
     Route {
         name: AnalysisPreflight::NAME,

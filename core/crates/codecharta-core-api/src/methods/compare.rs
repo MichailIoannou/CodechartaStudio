@@ -2,14 +2,18 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::methods::git::GitFileChange;
+use crate::methods::hosting::HostingProvider;
 use crate::methods::projects::FolderRef;
 use crate::methods::snapshots::{SnapshotRelation, SnapshotSummary};
 use crate::registry::method;
-use crate::values::{CommitSha, Revision};
+use crate::values::{BranchName, CommitSha, Revision};
 
 /// What the user pointed at in one project folder. `Commits` takes the ancestor as the base, else the
 /// older commit; `WithParent` compares with the first parent; `WithCurrent` compares with `shownCommit`,
-/// else with `HEAD`.
+/// else with `HEAD`. `ChangeRequest` compares a pull or merge request from its merge base, with what
+/// the renderer knows of it: its head is `headCommit`, else the fetched `refs/codecharta/<pr|mr>/<n>`;
+/// the base branch tip is `baseCommit`, else the first parent of `mergeCommit`, else
+/// `<remote>/<baseRefName>`, the first of them this clone has.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(
     tag = "kind",
@@ -30,6 +34,16 @@ pub enum CompareIntent {
         folder: FolderRef,
         commit: Revision,
     },
+    ChangeRequest {
+        folder: FolderRef,
+        provider: HostingProvider,
+        number: u64,
+        remote: String,
+        base_ref_name: BranchName,
+        base_commit: Option<CommitSha>,
+        head_commit: Option<CommitSha>,
+        merge_commit: Option<CommitSha>,
+    },
 }
 
 impl CompareIntent {
@@ -37,7 +51,8 @@ impl CompareIntent {
         match self {
             CompareIntent::Commits { folder, .. }
             | CompareIntent::WithParent { folder, .. }
-            | CompareIntent::WithCurrent { folder, .. } => folder,
+            | CompareIntent::WithCurrent { folder, .. }
+            | CompareIntent::ChangeRequest { folder, .. } => folder,
         }
     }
 }
@@ -64,6 +79,7 @@ pub enum RefLabelKind {
     Commit,
     Branch,
     Tag,
+    PullRequest,
 }
 
 /// How a side is named: a branch or tag name when the user picked one, else the short commit.
@@ -139,13 +155,19 @@ pub struct Preflight {
     pub size_verdict: SizeVerdict,
 }
 
-/// Outcomes the user must see; they are results, not errors.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+/// Outcomes the user must see; they are results, not errors. `alreadyMerged`: the merge base is the head,
+/// so `target` already contains everything the head changes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ResolveStatus {
     Ready,
     SameCommit,
     NoCommonAncestor,
+    AlreadyMerged { target: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -155,6 +177,8 @@ pub struct ResolvedComparison {
     pub base_mode: BaseMode,
     pub base: ResolvedSide,
     pub head: ResolvedSide,
+    /// For `mergeBase`: the base branch tip the merge base came from, for a "tip vs tip" comparison.
+    pub base_tip: Option<ComparedCommit>,
     pub preflight: Preflight,
 }
 
@@ -273,6 +297,43 @@ mod tests {
             json!({ "status": "missing", "nearest": null })
         );
         assert_eq!(status_json, json!({ "kind": "noCommonAncestor" }));
+    }
+
+    #[test]
+    fn should_read_a_change_request_intent_without_the_commits_it_does_not_know() {
+        // Arrange
+        let json = json!({
+            "intent": {
+                "kind": "changeRequest",
+                "folder": { "projectId": "p-1", "folderId": "f-1" },
+                "provider": "github",
+                "number": 7,
+                "remote": "origin",
+                "baseRefName": "main",
+                "baseCommit": null,
+                "headCommit": null,
+                "mergeCommit": null
+            },
+            "shownCommit": null
+        });
+        let merged = ResolveStatus::AlreadyMerged {
+            target: "main".to_string(),
+        };
+
+        // Act
+        let params: ResolveComparisonParams = serde_json::from_value(json).unwrap();
+        let merged_json = serde_json::to_value(merged).unwrap();
+
+        // Assert
+        assert!(matches!(
+            params.intent,
+            CompareIntent::ChangeRequest { number: 7, ref base_ref_name, .. }
+                if base_ref_name.as_str() == "main"
+        ));
+        assert_eq!(
+            merged_json,
+            json!({ "kind": "alreadyMerged", "target": "main" })
+        );
     }
 
     #[test]

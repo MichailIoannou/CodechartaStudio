@@ -3,7 +3,7 @@ use ts_rs::TS;
 
 use crate::methods::projects::FolderRef;
 use crate::registry::method;
-use crate::values::HostName;
+use crate::values::{CommitSha, FullRefName, HostName};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -57,6 +57,33 @@ method!(
     HostingStatus
 );
 
+/// Fetches `refs/pull/<number>/head` (GitHub) or `refs/merge-requests/<number>/head` (GitLab) of the
+/// configured remote `remote` into `refs/codecharta/pr/<number>` or `refs/codecharta/mr/<number>`, and
+/// nothing else; only ever on the user's explicit request. Cancel it with `core.cancel`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FetchChangeRequestHeadParams {
+    pub folder: FolderRef,
+    pub remote: String,
+    pub provider: HostingProvider,
+    pub number: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchedHead {
+    pub git_ref: FullRefName,
+    pub commit: CommitSha,
+}
+
+method!(
+    HostingFetchChangeRequestHead,
+    "hosting.fetchChangeRequestHead",
+    Renderer,
+    FetchChangeRequestHeadParams,
+    FetchedHead
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -86,6 +113,23 @@ mod tests {
                 "detectedBy": null
             })
         );
+    }
+
+    #[test]
+    fn should_refuse_fetch_params_with_a_refspec_or_a_negative_number() {
+        // Arrange
+        let folder = json!({ "projectId": "p-1", "folderId": "f-1" });
+        let with_refspec = json!({ "folder": folder, "remote": "origin", "provider": "github",
+            "number": 7, "refspec": "+refs/heads/main:refs/heads/main" });
+        let negative =
+            json!({ "folder": folder, "remote": "origin", "provider": "github", "number": -7 });
+
+        // Act
+        let parsed =
+            [with_refspec, negative].map(serde_json::from_value::<FetchChangeRequestHeadParams>);
+
+        // Assert
+        assert!(parsed.iter().all(Result::is_err));
     }
 
     #[test]

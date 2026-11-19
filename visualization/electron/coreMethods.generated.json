@@ -48,6 +48,7 @@
     "compare.resolve",
     "compare.changedFiles",
     "hosting.status",
+    "hosting.fetchChangeRequestHead",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",
