@@ -23,7 +23,7 @@
             @if (side; as side) {
                 <button
                     type="button"
-                    class="btn btn-ghost btn-sm min-w-0 max-w-48 gap-1 font-normal"
+                    class="btn btn-ghost btn-sm min-w-0 max-w-48 shrink gap-1 font-normal"
                     [attr.data-testid]="'comparison-' + side.caption"
                     [title]="side.caption + ' ' + side.shortCommit + (side.label ? ' ' + side.label : '')"
                     (click)="change()"
@@ -54,7 +54,7 @@
             <i class="fa fa-caret-down"></i>
         </button>
         @if (isMenuOpen()) {
-            <ul role="menu" class="dropdown-content z-[70] mt-1 flex w-max min-w-48 flex-col gap-0.5 rounded-box border border-base-300 bg-base-100 p-1 shadow-md">
+            <ul role="menu" class="dropdown-content z-[70] mt-1 flex w-max min-w-48 flex-col gap-0.5 rounded-box border border-base-300 bg-base-100 p-1 text-sm shadow-md">
                 <li role="none">
                     <button type="button" role="menuitem" class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200" (click)="change()">
                         <i class="fa-fw"></i>Change…
