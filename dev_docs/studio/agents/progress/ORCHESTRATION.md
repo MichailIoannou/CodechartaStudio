@@ -71,8 +71,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
 | 04-M7 Operation queue, progress, prompts | core + UI | core and task 5 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
 | 04-M8 Fetch and branches | core + UI | core and task 2 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
-| 04-M9 Changes and diff | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
-| 04-M10 Commit | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
+| 04-M9 Changes and diff | core + UI | core on the stack; task 2 in progress with 04-M10 task 2 (feature/studio-04-m9m10-ui) | — | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
+| 04-M10 Commit | core + UI | core on the stack; task 2 in progress with 04-M9 task 2 (feature/studio-04-m9m10-ui) | — | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
 | 04-M11 Pull, push, abort | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
 | 05-M0 Spikes on a real Windows machine | spike | done (Linux); Windows items W1–W5 open for owner | owner hardware (W1–W5) | feature/studio-05-m0 | 071cfd98a |
@@ -401,6 +401,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 04-M7/M8 renderer passed web e2e 185/185 on the stack. Weekly usage 83%: started the last agent before the reset (04-M9/M10 renderer: changes, diff, commit); no new agents until the weekly reset (2026-11-20 13:00) apart from fixes.
 - 2026-11-19: 04-M7/M8 renderer merged into the stack (fake-bridge conflict resolved); gates: format, tsc, lint, npm test 749/749, build, test:electron 79/79, e2e:desktop 16/16; full web e2e running (the agent's last full run had 185/186 before its fix).
 - 2026-11-19: 06-M1 renderer merged cleanly into the stack; gates: format, tsc, lint, npm test 739/739, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 06-M2+M3 started as one agent (weekly 80%).
 - 2026-11-19: 04-M5 merged into the stack (CHANGELOG conflict resolved); gates: format, tsc, lint, npm test 730/730, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. Renderer of 04-M7 task 5 + 04-M8 task 2 + Show in map started in parallel with the 06-M1 renderer.
