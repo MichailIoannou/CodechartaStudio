@@ -518,6 +518,8 @@ Acceptance: with two analysed commits, `compareCommits` ends in delta mode with 
 
 Acceptance: every row of the section 4 table except PRs, working-tree and imported is reachable in the app and produces the stated base and head.
 
+**As built (06-M2, renderer, design `06-compare.md` over this text; details in `progress/06-m2-m3-entry-points-missing.md`):** there is no `git.searchCommits`: `cc-ref-picker` (in `features/gitHistory`, design deviation 6) lists `git.branches` and searches commits with two `git.log` calls (scope all; a subject filter, and the unfiltered newest page for hash prefixes). No `cc-compare-button` (design deviation 1) and no Refs tab (deviation 2); the dialog sends the `explicit` intent with what was typed. Recents: `repos/recentComparisons.repo.ts` (10 per project) plus `repos/baseMode.repo.ts` for the remembered base mode. History: `provideCompareForGitHistory()` contributes four `COMMIT_ACTIONS` (the port gained `disabledReasonFor?`) and two `BRANCH_ACTIONS` (new port `ports/branchActions.port.ts` in gitHistory; the branch menu that renders them is 04-M7/M8's). Branch comparisons from the History: `CompareFacade.compareBranch(folder, refName, options?)`. The PR badge and PR link in "Copy as text" wait for M5.
+
 ### M3 — Missing snapshots and staleness (M)
 
 1. (renderer) `CompareService` paths for missing sides. Tests: "should ask for a decision when the base has no snapshot", "should analyse only the missing side", "should resolve again and load the pair after both analyses finish", "should offer the nearest snapshot when an analysis fails", "should stop without loading when the batch is cancelled", "should record stale-by per side when the nearest snapshot is used", "should refuse the nearest snapshots when both sides resolve to the same one", "should warn when the two analysis profiles differ". Commit: `feat(visualization): prepare missing analyses for a comparison`
@@ -528,6 +530,8 @@ Acceptance: every row of the section 4 table except PRs, working-tree and import
 The core side (nearest snapshot, stale-by, size verdict) is covered in M1 task 2; add no core code here unless the M1 reconciliation with plan 05 shows a gap.
 
 Acceptance: no entry point ends in an error merely because an analysis is missing; the chip always tells which commit is really shown.
+
+**As built (06-M3):** one core gap closed: `NearestSnapshot` carries `behind` and `ahead` beside `staleBy`, so the chip can word descendant and diverged sides as the workspace status does. Renderer: `CompareService.analyseMissing()` / `cancelAnalyses()` with the `analysing` phase and `CompareState.analyses`, through a new `ANALYSIS_GATEWAY` port (adapter over the snapshots' `AnalysisJobsService`); `cc-compare-preparation` (C5); `SnapshotGateway.holdMap()` (`SnapshotViewService.holdShownSnapshot()`) keeps a snapshot-view resolution in flight from replacing the pair.
 
 ### M4 — Changed files (M)
 
