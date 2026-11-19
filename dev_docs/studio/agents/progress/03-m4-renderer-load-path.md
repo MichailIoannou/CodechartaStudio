@@ -37,7 +37,7 @@ on project switches is plan 06's.
 - [x] 2. Project snapshot origin
 - [x] 3. Root names
 - [x] 4. Replace in one step
-- [ ] 5. IndexedDB filter
+- [x] 5. IndexedDB filter
 - [ ] 6. Load project snapshots
 - [ ] 7. Boot from project
 
@@ -52,4 +52,9 @@ on project switches is plan 06's.
   the plan names them.
 - Task 1: `applySavedSettingsUpFront(savedCcState)` returns `{ restoredSettings, missingProperties }`;
   `provenance()` takes `forceDefaultMetrics` (default `source === "reset"`).
+- Task 4: `LoadFilesOptions` stays module-private in `loadFile.service.ts` (nothing outside needs the name).
+- Task 5 deviation: "not due when nothing is persistable and nothing is persisted" is narrowed to "files are
+  loaded, all of them project maps, and nothing is persisted", so an empty file list keeps today's web
+  behaviour (due while nothing was persisted yet). `persistableFiles` reads `fileState.file?.fileMeta?` because
+  existing specs (and the `removeFilesFromState` empty-list state) hand in file states without a file.
 
