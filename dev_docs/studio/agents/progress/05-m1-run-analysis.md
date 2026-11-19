@@ -34,7 +34,7 @@ Gates with and without `--all-features`.
 ## Steps
 
 - [x] 1. Profiles
-- [ ] 2. Argv
+- [x] 2. Argv
 - [ ] 3. Output and failures
 - [ ] 4. Progress
 - [ ] 5. fake-ccsh
@@ -81,3 +81,12 @@ reached through `TargetOs::Windows` in unit tests; nothing Windows-specific ran.
   was replaced by `should_sort_and_dedupe_both_lists`; "reject an unknown without entry" is tested as a
   deserialisation failure. `ExcludePattern` already guarantees non-empty and no line break; the validator adds
   comma and NUL. Extra test: `should_hash_the_record_keys_and_ignore_parallel`.
+
+### 2. Argv
+- `analysis/argv.rs`: `AnalyseArgvInput { folder_path, output_base, profile: &ValidProfile, commit: Option<&CommitSha> }`,
+  `build_analyse_argv` → `analyse <folder> -o <output_base> [-p] [--without=<csv>] [--exclude=<pattern>]… [--commit=<sha>]`.
+  `-p` only when `profile.parallel` (plan: always). Exclude patterns are always written as one `--exclude=<p>`
+  argument, so a pattern `-i` reaches ccsh as `--exclude=-i`. Errors are `INVALID_ARGUMENTS` (relative path,
+  an element equal to `-i`/`--interactive`). `CommitSha` already guarantees a full lower-case sha; confirming it
+  with `git cat-file -e` stays with the caller (preflight, M3).
+- Extra tests: `should_leave_out_parallel_and_empty_lists`, `should_refuse_an_interactive_flag_as_a_whole_argument`.
