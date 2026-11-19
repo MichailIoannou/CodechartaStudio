@@ -54,8 +54,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M7 Operation queue, progress, prompts | core + UI | core half (tasks 1–4) verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (UI): 04 History UI | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
 | 04-M8 Fetch and branches | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
 | 04-M9 Changes and diff | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
-| 04-M10 Commit | core + UI | in progress (core, task 1, from feature/studio-04-m9) | task 2 (UI): 04 History UI | feature/studio-04-m10 | — |
-| 04-M11 Pull, push, abort | core + UI | todo | 04-M10 | — | — |
+| 04-M10 Commit | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
+| 04-M11 Pull, push, abort | core + UI | in progress (core, task 1, from feature/studio-04-m10) | task 2 (UI): 04 History UI | feature/studio-04-m11 | — |
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
 | 05-M0 Spikes on a real Windows machine | spike | blocked | owner: needs a Windows machine | — | — |
 | 05-M1 Run one analysis from the core | core | todo | plan 04 core | — | — |
@@ -194,6 +194,11 @@ the milestone is started.
   the new file for good; paths go to git on stdin (`--pathspec-from-file=- --pathspec-file-nul`);
   discard works per listed row and recycles, never deletes (checked: no direct file removal in `src/git/`);
   new code `CHANGED_SINCE_LISTED`; diffs over 4 MiB → `OUTPUT_TOO_LARGE`, 2 MiB shown.
+- 04-M10 core (see `04-M10-commit.md` on `feature/studio-04-m10`): params type `GitCreateCommitParams`;
+  message file in `<dataDir>/git-messages/`, `-c user.useConfigOnly=true commit --cleanup=whitespace -F`;
+  preconditions from status counts; amend/cherry-pick/revert/bisect in progress → `OPERATION_IN_PROGRESS`;
+  gpg failures → `COMMAND_FAILED`; new codes `IDENTITY_UNKNOWN`, `NOTHING_TO_COMMIT`, `HOOK_FAILED`,
+  `CONFLICTS`. gpg signing and `commit-msg` hooks have no automated tests.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -225,6 +230,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 04-M10 core verified on a scratch merge (clippy and cargo test with and without features: 557/561, cargo-deny, contract drift, format, lint, tsc, npm test 661/661). 02-M4 merged; web e2e running. 04-M11 core started.
 - 2026-11-19: 04-M9 core verified on a scratch merge (clippy and cargo test with and without features: 538/542, cargo-deny, contract drift, format, lint, tsc, npm test 659/659). 04-M10 core started.
 - 2026-11-19: 02-M3 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 659/659, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 157/157). 02-M4 started.
 - 2026-11-19: 04-M8 core verified on a scratch merge (clippy and cargo test with and without features: 502/506, cargo-deny, contract drift, format, lint, tsc, npm test 659/659). 02-M3 merged; its web e2e is running. 04-M9 core started.
