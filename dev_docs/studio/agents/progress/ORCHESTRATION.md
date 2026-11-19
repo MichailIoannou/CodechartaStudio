@@ -79,8 +79,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M1 Run one analysis from the core | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m1 | a6eff44c7 (verified, not merged) |
 | 05-M2 Snapshot records | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m2 | 3eff64af5 (verified, not merged) |
 | 05-M3 Queue, preflight, RPC, CLI | core (+ fake bridge) | tasks 1–4 verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (fake bridge): core stack merge | feature/studio-05-m3 | b3b7a6164 (verified, not merged) |
-| 05-M4 Analyse from the UI, browse snapshots | UI | in progress (from feature/studio-stack, parallel; W1 + S4 + S9; history badges after 04-M4) | — | — | — |
-| 05-M5 Nearest snapshot and stale notice | core + UI | core half verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge, 05-M4 | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
+| 05-M4 Analyse from the UI, browse snapshots | UI | merged into `feature/studio-stack` (8747e752b), web e2e running; history badges (task 5) after 04-M4 | — | — | — |
+| 05-M5 Nearest snapshot and stale notice | core + UI | core half on the stack; UI half in progress (feature/studio-05-m5-ui, parallel) | — | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
 | 05-M6 Batches, retention, cleanup | core + UI | core tasks 1, 3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge; design O4 | feature/studio-05-m6 | 9acf7a56b (verified, not merged) |
 | 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
 | 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
@@ -327,6 +327,15 @@ the milestone is started.
   Open for the owner/designer (in the progress Notes): "folder select" in the not-a-repository notice vs. the
   design's no-folder-select rule; "Open desktop tools" cannot jump to the section yet; `gitTooOld` version
   read from message text.
+- 05-M4 (see `05-m4-analyse-ui.md` on the stack): W1 workspace status (`features/workspaceStatus`) replaces the
+  jobs indicator and branch chip; snapshots dialog (S4) hosts the move/bind dialog (P9); log dialog (S9) via the
+  new core method `analysis.readLog`; fake bridge analysis handlers (05-M3 task 5). Not built: the loaded-snapshot
+  registry (task 2; `shownSnapshot` already covers it with one working folder), the "other profile" flag (no
+  profile hash in the renderer), W1's "Show commit…/Show current checkout/Analyse <short>" (05-M5, area 06),
+  history badges (task 5, after 04-M4), entry points on the overview (would create a projects→snapshots cycle).
+  Merge into the stack conflicted with 04-M3 (05-M4 still used `FolderGitService`): ported the snapshots dialog
+  and W1 to `GitRepositoryService`, kept 04-M3's fake `git` handlers plus 05-M4's analysis handlers, removed a
+  duplicated `activeProject`/`workingFolder` in `projectsFacade.ts`.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -358,6 +367,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 05-M4 merged into the stack with conflicts resolved and ported; gates on the merged stack: cargo with and without features 844/848, contract drift, format, lint, tsc, npm test 708/708, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 05-M5 UI started in parallel (weekly usage 75%: two UI agents at a time).
 - 2026-11-19: 04-M3 stack merge passed web e2e 173/173 — done on the stack. 02-M7 held: its wider bar sits under the open explorer (Layout cell unreachable by mouse at 1920 px); the agent had switched the e2e page object to keyboard, which hides it. Fixing needs a design change (T4 and upstream PR #4557 keep the bar centred on the window) — asked as O7.
 - 2026-11-19: 04-M3 merged into the stack with conflicts resolved; gates on the merged stack: format (after an import-order fix), lint, tsc, npm test 698/698, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 04-M4 started in parallel.
 - 2026-11-19: 03-M6 verified on `feature/studio-stack` (cargo with and without features 843/847, cargo-deny, contract drift, format, lint, tsc, npm test 686/686, build, test:electron 76/76, e2e:desktop 16/16; web e2e running on port 9031). 05-M4 started in parallel; running agents told to use per-branch cargo folders and their own e2e port.
