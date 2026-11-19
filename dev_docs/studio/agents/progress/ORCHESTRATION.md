@@ -35,8 +35,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M2 No-flash boot | UI | done | — | feature/studio-02-m2 | bcd46657d (merged 407d7551e) |
 | 02-M3 Radial map and word cloud | UI | done | — | feature/studio-02-m3 | 45090be56 (merged 660082556) |
 | 02-M4 Dependency graph, color-range diagram | UI | done | — | feature/studio-02-m4 | ddf7e6b7f (merged 2daeb8b08) |
-| 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | in progress | — | feature/studio-02-m5 | — |
-| 02-M6 Native window appearance | UI | todo | plan 01 | — | — |
+| 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | done | — | feature/studio-02-m5 | 057018bc9 (merged a0827d426) |
+| 02-M6 Native window appearance | UI | in progress | — | feature/studio-02-m6 | — |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | part A (tasks 1–7) verified, **merge pending**; part B todo | merge: uncommitted owner/designer edits to plan 03 in the main checkout; part B (tasks 8–9): 01-M4.1 | feature/studio-03-m2 | 168d4fa21 (verified, not merged) |
@@ -251,6 +251,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 02-M5 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 663/663, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 165/165). 02-M6 started (reusing the shell's `setWindowBackground`).
 - 2026-11-19: 05-M0 Linux spikes recorded; 02-M5 merged, web e2e running; 05-M1 started from feature/studio-04-m11.
 - 2026-11-19: 04-M11 core verified on a scratch merge (clippy and cargo test with and without features: 578/582, cargo-deny, contract drift, format, lint, tsc, npm test 661/661). Plan 04 core complete. 05-M0 Linux spikes started.
 - 2026-11-19: 02-M4 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 661/661, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 157/157). 02-M5 started without the quick toggle (OD10).
