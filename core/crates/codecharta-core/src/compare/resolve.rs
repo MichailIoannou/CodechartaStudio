@@ -1,12 +1,13 @@
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::methods::compare::{
-    BaseMode, CompareIntent, ComparedCommit, RefLabel, RefLabelKind, ResolveComparisonParams,
-    ResolveStatus, ResolvedComparison, ResolvedSide,
+    BaseMode, CompareIntent, ComparedCommit, ComparisonOrigin, RefLabel, RefLabelKind,
+    ResolveComparisonParams, ResolveStatus, ResolvedComparison, ResolvedSide,
 };
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::values::{CommitSha, Revision, SHORTEST_COMMIT_HASH_LENGTH};
 use tokio_util::sync::CancellationToken;
 
+use super::branch::branch_pair;
 use super::change_request::change_request_pair;
 use super::preflight::{SizeLimits, preflight};
 use super::sides::SideLookup;
@@ -25,6 +26,8 @@ pub struct CommitComparison<'deps, 'core, Sides> {
     pub git: &'deps GitService<'core>,
     pub sides: &'deps Sides,
     pub limits: SizeLimits,
+    /// The folder's default branch, such as `main`: what the current branch is compared with.
+    pub default_branch: Option<&'deps str>,
 }
 
 impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
@@ -38,9 +41,11 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
             git: self.git,
             folder,
             cancel,
+            default_branch: self.default_branch,
         };
         let pair = pick_pair(&history, params).await?;
         let status = status_of(&history, &pair).await?;
+        let origin = origin_of(&params.intent);
         let compared_folder = params.intent.folder();
         let base_mode = pair
             .origin
@@ -54,6 +59,7 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
         let preflight = preflight(&base.status, &head.status, &self.limits);
         Ok(ResolvedComparison {
             status,
+            origin,
             base_mode,
             base,
             head,
@@ -88,6 +94,7 @@ pub(super) struct History<'call, 'core> {
     pub(super) git: &'call GitService<'core>,
     pub(super) folder: &'call GitFolder,
     pub(super) cancel: &'call CancellationToken,
+    pub(super) default_branch: Option<&'call str>,
 }
 
 impl History<'_, '_> {
@@ -177,7 +184,18 @@ async fn pick_pair(
             head: history.pick(&current_revision(params)?).await?,
             origin: None,
         }),
+        CompareIntent::Branch { .. } => branch_pair(history, &params.intent).await,
         CompareIntent::ChangeRequest { .. } => change_request_pair(history, &params.intent).await,
+    }
+}
+
+fn origin_of(intent: &CompareIntent) -> ComparisonOrigin {
+    match intent {
+        CompareIntent::Commits { .. }
+        | CompareIntent::WithParent { .. }
+        | CompareIntent::WithCurrent { .. } => ComparisonOrigin::Commits,
+        CompareIntent::Branch { .. } => ComparisonOrigin::Branches,
+        CompareIntent::ChangeRequest { .. } => ComparisonOrigin::PullRequest,
     }
 }
 
@@ -192,7 +210,7 @@ async fn order_by_history(history: &History<'_, '_>, a: Picked, b: Picked) -> Co
     Ok(tips(a, b))
 }
 
-fn tips(base: Picked, head: Picked) -> Pair {
+pub(super) fn tips(base: Picked, head: Picked) -> Pair {
     Pair {
         base,
         head,

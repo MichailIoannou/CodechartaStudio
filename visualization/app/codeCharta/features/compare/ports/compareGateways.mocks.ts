@@ -34,6 +34,7 @@ function anExactSide(commit: ComparedCommit, snapshot = aCommitSnapshot(commit.c
 export function aResolvedComparison(overrides: Partial<ResolvedComparison> = {}): ResolvedComparison {
     return {
         status: { kind: "ready" },
+        origin: "commits",
         baseMode: "tip",
         base: anExactSide(aComparedCommit(BASE_SHA, { kind: "branch", name: "main" })),
         head: anExactSide(aComparedCommit(HEAD_SHA, { kind: "branch", name: "feature/x" })),

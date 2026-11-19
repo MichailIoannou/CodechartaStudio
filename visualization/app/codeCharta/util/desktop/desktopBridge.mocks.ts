@@ -893,6 +893,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         const isSameCommit = base.requested.commit === head.requested.commit
         return succeed({
             status: { kind: isSameCommit ? "sameCommit" : "ready" },
+            origin: "commits",
             baseMode: "tip",
             base,
             head,

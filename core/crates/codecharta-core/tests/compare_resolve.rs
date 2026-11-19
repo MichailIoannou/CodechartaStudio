@@ -10,8 +10,8 @@ use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
 use codecharta_core_api::methods::analysis::{AnalysisTarget, TargetKind};
 use codecharta_core_api::methods::compare::{
-    BaseMode, CompareIntent, ComparedCommit, RefLabel, RefLabelKind, ResolveComparisonParams,
-    ResolveStatus, ResolvedComparison, SideStatus,
+    BaseMode, CompareIntent, ComparedCommit, ComparisonOrigin, RefLabel, RefLabelKind,
+    ResolveComparisonParams, ResolveStatus, ResolvedComparison, SideStatus,
 };
 use codecharta_core_api::methods::hosting::HostingProvider;
 use codecharta_core_api::methods::projects::FolderRef;
@@ -26,6 +26,7 @@ use support::TempRepo;
 const PROFILE: &str = "c0ffee00";
 const FINISHED_AT: &str = "2026-11-19T00:00:00Z";
 const SHORT_COMMIT_LENGTH: usize = 7;
+const DEFAULT_BRANCH: &str = "main";
 
 /// Snapshots held in memory and resolved like the store's, so a test needs no store.
 struct InMemorySides<'test> {
@@ -151,6 +152,7 @@ async fn resolve_with(
         git: &git,
         sides: &sides,
         limits: SizeLimits::default(),
+        default_branch: Some(DEFAULT_BRANCH),
     };
     comparison
         .resolve(&folder, params, &CancellationToken::new())
@@ -357,6 +359,135 @@ async fn should_refuse_a_revision_the_repository_does_not_have() {
     // Assert
     let error = result.expect_err("the branch does not exist");
     assert_eq!(error.code(), ErrorCode::UnknownRevision);
+}
+
+fn branch(name: &str, target: Option<&str>, base_mode: BaseMode) -> ResolveComparisonParams {
+    ResolveComparisonParams {
+        intent: CompareIntent::Branch {
+            folder: folder_ref(),
+            branch: revision(&format!("refs/heads/{name}")),
+            target: target.map(|target| revision(&format!("refs/heads/{target}"))),
+            base_mode,
+        },
+        shown_commit: None,
+    }
+}
+
+/// `main`: root, fork point, a later commit; `feature` leaves at the fork point with one commit. `main` is
+/// checked out.
+struct BranchHistory {
+    repo: TempRepo,
+    fork_point: String,
+    main_tip: String,
+    feature_tip: String,
+}
+
+fn branch_history() -> BranchHistory {
+    let repo = TempRepo::new();
+    repo.commit_file("a.txt", "0", "Root");
+    let fork_point = repo.commit_file("a.txt", "1", "Fork point");
+    repo.branch("feature");
+    let main_tip = repo.commit_file("a.txt", "2", "Later on main");
+    repo.checkout("feature");
+    let feature_tip = repo.commit_file("f.txt", "1", "Feature");
+    repo.checkout("main");
+    BranchHistory {
+        repo,
+        fork_point: fork_point.trim().to_string(),
+        main_tip: main_tip.trim().to_string(),
+        feature_tip: feature_tip.trim().to_string(),
+    }
+}
+
+#[tokio::test]
+async fn should_use_the_merge_base_by_default() {
+    // Arrange
+    let history = branch_history();
+
+    // Act
+    let comparison = resolve(&history.repo, &branch("feature", None, BaseMode::MergeBase)).await;
+
+    // Assert
+    assert_eq!(comparison.status, ResolveStatus::Ready);
+    assert_eq!(comparison.origin, ComparisonOrigin::Branches);
+    assert_eq!(comparison.base_mode, BaseMode::MergeBase);
+    assert_eq!(
+        base_and_head(&comparison),
+        pair(&history.fork_point, &history.feature_tip)
+    );
+    let tip = comparison.base_tip.expect("the target tip");
+    assert_eq!(tip.commit.as_str(), history.main_tip);
+    assert_eq!(tip.label.name, "main");
+    assert_eq!(comparison.head.requested.label.name, "feature");
+}
+
+#[tokio::test]
+async fn should_use_the_target_tip_in_tip_mode() {
+    // Arrange
+    let history = branch_history();
+
+    // Act
+    let comparison = resolve(
+        &history.repo,
+        &branch("feature", Some("main"), BaseMode::Tip),
+    )
+    .await;
+
+    // Assert
+    assert_eq!(comparison.status, ResolveStatus::Ready);
+    assert_eq!(comparison.base_mode, BaseMode::Tip);
+    assert_eq!(comparison.base_tip, None);
+    assert_eq!(
+        base_and_head(&comparison),
+        pair(&history.main_tip, &history.feature_tip)
+    );
+    assert_eq!(comparison.base.requested.label.name, "main");
+}
+
+#[tokio::test]
+async fn should_target_the_default_branch_when_the_current_branch_is_compared() {
+    // Arrange
+    let history = branch_history();
+    history.repo.checkout("feature");
+
+    // Act
+    let comparison = resolve(&history.repo, &branch("feature", None, BaseMode::Tip)).await;
+    let from_main = resolve(&history.repo, &branch("main", None, BaseMode::Tip)).await;
+
+    // Assert
+    assert_eq!(
+        base_and_head(&comparison),
+        pair(&history.main_tip, &history.feature_tip)
+    );
+    assert_eq!(
+        base_and_head(&from_main),
+        pair(&history.feature_tip, &history.main_tip)
+    );
+}
+
+#[tokio::test]
+async fn should_report_a_branch_that_is_already_merged() {
+    // Arrange
+    let history = branch_history();
+    history.repo.branch("done");
+    history
+        .repo
+        .git(&["branch", "-f", "done", &history.fork_point]);
+
+    // Act
+    let comparison = resolve(
+        &history.repo,
+        &branch("done", Some("main"), BaseMode::MergeBase),
+    )
+    .await;
+
+    // Assert
+    assert_eq!(
+        comparison.status,
+        ResolveStatus::AlreadyMerged {
+            target: "main".to_string()
+        }
+    );
 }
 
 const UNKNOWN_SHA: &str = "ffffffffffffffffffffffffffffffffffffffff";

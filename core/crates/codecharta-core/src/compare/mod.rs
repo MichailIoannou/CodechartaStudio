@@ -1,3 +1,4 @@
+mod branch;
 mod change_request;
 pub mod changed_files;
 pub mod preflight;

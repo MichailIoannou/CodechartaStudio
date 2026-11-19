@@ -129,6 +129,16 @@ impl ProjectRepository<'_> {
     }
 
     /// The folder git runs in; `FOLDER_UNAVAILABLE` while it is missing on disk.
+    /// The default branch git named when the folder was last inspected.
+    pub fn default_branch(&self, target: &FolderRef) -> CoreResult<Option<String>> {
+        let record = self.read_record(&target.project_id)?;
+        let folder = existing_folder(&record, &target.folder_id)?;
+        Ok(folder
+            .git
+            .as_ref()
+            .and_then(|facts| facts.default_branch.clone()))
+    }
+
     pub fn git_folder(&self, target: &FolderRef) -> CoreResult<GitFolder> {
         let folder = self.resolve_folder(target)?;
         if folder.status != FolderStatus::Ok {

@@ -10,7 +10,8 @@ use crate::values::{BranchName, CommitSha, Revision};
 
 /// What the user pointed at in one project folder. `Commits` takes the ancestor as the base, else the
 /// older commit; `WithParent` compares with the first parent; `WithCurrent` compares with `shownCommit`,
-/// else with `HEAD`. `ChangeRequest` compares a pull or merge request from its merge base, with what
+/// else with `HEAD`. `Branch` compares the branch with `target`, else with the current branch, else (when
+/// the branch is the current one) with the folder's default branch. `ChangeRequest` compares a pull or merge request from its merge base, with what
 /// the renderer knows of it: its head is `headCommit`, else the fetched `refs/codecharta/<pr|mr>/<n>`;
 /// the base branch tip is `baseCommit`, else the first parent of `mergeCommit`, else
 /// `<remote>/<baseRefName>`, the first of them this clone has.
@@ -34,6 +35,12 @@ pub enum CompareIntent {
         folder: FolderRef,
         commit: Revision,
     },
+    Branch {
+        folder: FolderRef,
+        branch: Revision,
+        target: Option<Revision>,
+        base_mode: BaseMode,
+    },
     ChangeRequest {
         folder: FolderRef,
         provider: HostingProvider,
@@ -52,6 +59,7 @@ impl CompareIntent {
             CompareIntent::Commits { folder, .. }
             | CompareIntent::WithParent { folder, .. }
             | CompareIntent::WithCurrent { folder, .. }
+            | CompareIntent::Branch { folder, .. }
             | CompareIntent::ChangeRequest { folder, .. } => folder,
         }
     }
@@ -71,6 +79,15 @@ pub struct ResolveComparisonParams {
 pub enum BaseMode {
     MergeBase,
     Tip,
+}
+
+/// Where a comparison came from: two commits, two branches (or tags), or a pull or merge request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum ComparisonOrigin {
+    Commits,
+    Branches,
+    PullRequest,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -174,6 +191,7 @@ pub enum ResolveStatus {
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedComparison {
     pub status: ResolveStatus,
+    pub origin: ComparisonOrigin,
     pub base_mode: BaseMode,
     pub base: ResolvedSide,
     pub head: ResolvedSide,
