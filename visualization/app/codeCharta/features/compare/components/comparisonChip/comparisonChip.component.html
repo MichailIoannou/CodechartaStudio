@@ -1,0 +1,89 @@
+<div class="flex min-w-0 items-center gap-1" role="group" aria-label="Comparison" data-testid="comparison-chip">
+    @if (isNoDifferences()) {
+        <span class="flex min-w-0 items-center gap-2 px-2 text-sm" data-testid="comparison-no-differences">
+            <i class="fa-solid fa-equals fa-fw text-base-content/60"></i>
+            <span class="truncate"
+                >No metric differences between <span class="font-mono">{{ base()?.shortCommit }}</span> and
+                <span class="font-mono">{{ head()?.shortCommit }}</span></span
+            >
+        </span>
+    } @else {
+        @for (side of [base(), head()]; track $index; let isHead = $last) {
+            @if (isHead) {
+                <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square"
+                    title="Switch reference and comparison file"
+                    data-testid="comparison-swap"
+                    (click)="swap()"
+                >
+                    <i class="fa fa-arrows-h"></i>
+                </button>
+            }
+            @if (side; as side) {
+                <button
+                    type="button"
+                    class="btn btn-ghost btn-sm min-w-0 max-w-48 shrink gap-1 font-normal"
+                    [attr.data-testid]="'comparison-' + side.caption"
+                    [title]="side.caption + ' ' + side.shortCommit + (side.label ? ' ' + side.label : '')"
+                    (click)="change()"
+                >
+                    <span class="hidden text-xs text-base-content/60 xl:inline">{{ side.caption }}</span>
+                    <span class="font-mono">{{ side.shortCommit }}</span>
+                    @if (side.label) {
+                        <span class="truncate">{{ side.label }}</span>
+                    }
+                </button>
+                @if (side.staleBy > 0) {
+                    <span class="badge badge-warning badge-sm shrink-0 whitespace-nowrap" [title]="side.staleTitle">stale by {{ side.staleBy }}</span>
+                }
+            }
+        }
+    }
+
+    <div class="dropdown dropdown-end" [class.dropdown-open]="isMenuOpen()">
+        <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square"
+            aria-label="Comparison actions"
+            aria-haspopup="menu"
+            data-testid="comparison-actions"
+            [attr.aria-expanded]="isMenuOpen()"
+            (click)="toggleMenu()"
+        >
+            <i class="fa fa-caret-down"></i>
+        </button>
+        @if (isMenuOpen()) {
+            <ul role="menu" class="dropdown-content z-[70] mt-1 flex w-max min-w-48 flex-col gap-0.5 rounded-box border border-base-300 bg-base-100 p-1 text-sm shadow-md">
+                <li role="none">
+                    <button type="button" role="menuitem" class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200" (click)="change()">
+                        <i class="fa-fw"></i>Change…
+                    </button>
+                </li>
+                @if (!isNoDifferences()) {
+                    <li role="none">
+                        <button type="button" role="menuitem" class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200" (click)="swap()">
+                            <i class="fa-fw"></i>Swap base and head
+                        </button>
+                    </li>
+                }
+                <li role="none">
+                    <button type="button" role="menuitem" class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200" (click)="copyAsText()">
+                        <i class="fa-fw"></i>Copy as text
+                    </button>
+                </li>
+                <li role="none">
+                    <button
+                        type="button"
+                        role="menuitem"
+                        class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200"
+                        data-testid="comparison-leave"
+                        (click)="leave()"
+                    >
+                        <i class="fa-solid fa-xmark fa-fw"></i>Leave compare
+                    </button>
+                </li>
+            </ul>
+        }
+    </div>
+</div>

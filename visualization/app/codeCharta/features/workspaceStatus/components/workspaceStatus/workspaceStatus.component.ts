@@ -7,6 +7,7 @@ import {
     effect,
     HostListener,
     inject,
+    input,
     signal,
     untracked,
     viewChild
@@ -58,6 +59,8 @@ export class WorkspaceStatusComponent {
     private readonly logDialog = viewChild.required(AnalysisLogDialogComponent)
     private finishedTimer: ReturnType<typeof setTimeout> | undefined
 
+    /** During a project comparison only the activity icon and the progress fill stay, in front of the comparison chip. */
+    readonly iconOnly = input(false)
     readonly isOpen = signal(false)
     readonly outcome = signal<RecentOutcome>("none")
     readonly shortDate = shortDate

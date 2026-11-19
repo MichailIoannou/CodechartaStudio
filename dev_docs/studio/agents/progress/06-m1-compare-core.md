@@ -1,6 +1,6 @@
 ---
 name: 06-M1 compare core - commit vs commit
-state: progress
+state: complete
 version: 1
 ---
 
@@ -32,7 +32,14 @@ diverged)) — do not duplicate git queries or nearest-snapshot logic. Gates wit
 - [x] 1. Contract and preflight
 - [x] 2. Resolve
 - [x] 3. RPC and CLI
-- [ ] 4–11. Renderer (later)
+- [x] 4. Prune remembered selection (tidy first)
+- [x] 5. Compare state, text and gateway ports
+- [x] 6. Orchestrate loading a comparison into delta
+- [x] 7. Swap and leave
+- [x] 8. Adapters to projects/snapshots and the bridge
+- [x] 9. Facade, comparison chip, compare dialog, Compare tab delegation, legend caption
+- [x] 10. Screenshot name base before head
+- [x] 11. E2E and changelog
 
 ## Notes
 
@@ -154,3 +161,97 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
   `diff_name_status`.
 - M5: short names (`main`, PR numbers) need their own intent fields; `Revision` accepts only `HEAD`, full shas and
   full ref names. Size limits stay provisional until 06-M0 task 4.
+
+### Renderer half (tasks 4–11), design `06-compare.md` over the plan's UI
+Branch `feature/studio-06-m1-ui` from `feature/studio-stack` (`fb818dd0e`).
+
+**4. Prune remembered selection.** `FileSelectionModeService.rememberedFilesAfter` runs on every `files$`
+emission: on a mode change it remembers the previous selection, otherwise it keeps the remembered one, and
+both are filtered to maps still in the store (`filterNoneExisting`, now called with the new file list). A
+map removed by any route is no longer held in memory or put back when the mode toggles. Tests: the plan's
+two names (the second drops a map with `setFiles` while staying in delta: `removeFiles` always leaves delta,
+because the reducer marks the first remaining map `Partial`).
+
+**Verified first:** `compare.resolve` and its types in `model/coreApi` (the stack also has 06-M5's
+`changeRequest` intent and `alreadyMerged` status); `LoadFilesUseCase.loadProjectSnapshots` (replace in one step,
+roots renamed to `PROJECT_ROOT_NAME`, identical content loaded once, result checksums = `fileMeta.fileChecksum`);
+`ProjectsService.loadSnapshot` (working folder only, toasts identical content); `SnapshotViewService` (target
+follows `shownSnapshot`); W1 has no icon-only form; no `COMMIT_ACTIONS` on the stack (04-M5 adds it);
+`FileSelectionModeService`, `ModeToggleComponent`, `RedirectAwayFromDomainViewEffect`, `NavBarWriteStore`,
+`createPNGFileName`, `legendDeltaColorsSection` as plan 06 "Current state" says.
+
+**Files.** `features/compare/`: `facade.ts` (`CompareFacade`, `CompareHostComponent`, `ComparisonChipComponent`,
+`ComparisonLegendCaptionComponent`); `model/compare.model.ts` (`ComparePhase` adds `stopped`, `LoadedSide { requested,
+snapshot, relation, staleBy, checksum }`, `CompareError`, `PairLoad`, `ComparePrefill`); `ports/compareGateways.ts`
+(`SnapshotGateway { loadPair, loadAlone, shownCommit }`, `CoreGateway { resolve, toRevision }`, tokens with default
+factories to the adapters) + `.mocks.ts`; `adapters/{snapshotGateway,coreGateway}.adapter.ts`;
+`services/compare.service.ts` (`compareInputs`, `start`, `continueWithShownSnapshots`, `swap`, `exit`, `cancel`),
+`services/compareFacade.ts`, `services/comparisonText.ts`; `stores/compare.{store,read.store,write.store}.ts`;
+`components/{comparisonChip,compareHost,compareDialog,comparisonLegendCaption}`; `e2e/compare.{e2e,po}.ts`.
+**Shared files touched (small):** `projects.service.ts` (+`loadSnapshots(refs)`, `acceptLoadResult` split into
+`reportUnreadable` / `showLoaded`; facts are now recorded for every loaded map), `projectsFacade.ts`, the stand-in bridge
+(`compare.resolve`), `navBar.component.html|ts`, `fileSelectionMode.service.ts`, `workspaceStatus` component
+(`iconOnly` input), `legendDeltaColorsSection.component.html|ts`, `model/files/files.helper.ts`, `CHANGELOG.md`
+(+ the specs of each).
+
+**Design over plan.** No `cc-compare-button` (design deviation 1): the Compare tab of the metric mode bar opens C3
+through `FileSelectionModeService.toggle()` (active comparison → `exit()`; desktop project with a git folder and no
+delta → `openDialog()`; otherwise unchanged, so uploaded and sample maps keep today's delta). Chip sides open C3
+prefilled (deviation 3); the caret menu has Change…, Swap base and head, Copy as text (toast "Copied main..x"), Leave
+compare (plan M2 task 7, built here because the chip is in the design as one piece). W1 shrinks to its icon-only form
+(`w-[3.25rem]`, icon + fill + caret) in front of the chip, as the mock-up's "During a comparison" row. C9 caption at
+the top of the delta colours. C3 in M1: title, folder select (hidden for one git folder), Base / Head as plain mono
+inputs (the C4 picker is M2, in `features/gitHistory`), the ⇄ input swap, pasting `a..b` / `a...b` fills both
+(base mode is ignored until M2 adds branch intents), Ctrl+Enter, Escape/Cancel cancels a running resolve, the C6
+outcome alert ("Compare tip vs tip" goes on with the resolved sides), the C5 rows and alerts, the error alert with
+"Retry" for a stopped core, "Loading maps…" on the button. Not in M1: the lists segment (Pull requests | Recent),
+base-mode radios, analysis dots under the inputs, the PR and base-mode badges, "12 files changed in git".
+
+**Choices where neither document words it.** Typed sides become revisions in `CoreGatewayAdapter.toRevision`:
+`HEAD`, `refs/…` and full SHAs pass through; a local / remote branch or tag name becomes its `refName`
+(`git.branches`); a 4–63 digit hex prefix goes through `projects.resolveCommit`; anything else is `refNotFound`
+("'x' is not a branch, tag or commit of '<folder>'."). M1 sends the `commits` intent, so the core orders the two by
+history: typing the newer commit as Base still compares older → newer (an `explicit` intent is M2). Errors other than
+the design's kinds (`NOT_A_REPOSITORY`, `UNKNOWN_REVISION` "The commit has no parent…", git errors) show the core's
+message as kind `coreError`; a load that throws or leaves a map out is `loadFailed` with "the analysis of <short>
+could not be read.". C5 in M1: **Use nearest** (disabled with the design's two titles) and, when no side is missing
+but profiles differ or the size warns, **Compare anyway** (the design gives that button only for the size warning);
+**Analyse missing is not offered yet** (M3 task 1–2: enqueue the missing commits, progress rows, re-resolve). The C5
+"nearest" wording and the chip's stale title use the design's "N commits older" for an ancestor only; a descendant /
+diverged nearest shows "nearest: <short>" / "Showing <short>." without a distance (the W1 forms are M3's). A
+comparison started from a facade method (04-M5's menus) opens C3 for a stop or a decision and toasts an error.
+
+**Take-over and give-back with the snapshot view.** `loadSnapshots([head, base])` (head first, so identical content
+keeps the head) sets `shownSnapshot` to the head; `SnapshotViewService.followMapChange` then makes the head snapshot
+the folder's target, so a HEAD change during the comparison does not re-resolve and reload. Leaving keeps the head
+(`setStandard` then `removeFiles`), which is already the shown and remembered snapshot — no `markViewed` needed. A
+resolution of the snapshot view already in flight when a comparison loads can still replace the pair; the chip then
+disappears (`isActive` compares checksums). Identical checksums: the head alone loads and the chip shows "No metric
+differences between <base> and <head>" (also when the loader finds the two equal although the records had no checksum).
+
+**Deviations from the plan.** Ports: no `HostingGateway` (M5; knip), and the tokens have default factories instead of
+providers in `app/app.config.ts` (no edit to the shared composition file; specs override them). Gateway names:
+`loadPair`/`loadAlone`/`shownCommit`, `resolve`/`toRevision`. No `compareIntent.ts` (one intent in M1).
+`LoadedSide` keeps the shown `SnapshotSummary` and `relation` instead of `snapshotId`/`shownCommit`/`fileName`. The
+"no project comparison" case of the toggle is `isActive`, so in the `noDifferences` form the Compare tab opens the
+dialog and the chip's menu leaves. "should leave the comparison when the domain view is opened": the domain effect
+calls the same `toggle()` (its spec asserts that); `fileSelectionMode.service.spec.ts` covers the exit as "should
+leave the comparison when Explore is chosen".
+
+**Screenshots** (scratch Playwright spec, not committed; seeded stand-in with `sample1`/`sample2` as `main` /
+`feature/x`, 1920 and 1280 wide, cc-dark and cc-light by `data-theme`): dialog (Base `main`, ⇄, Head `feature/x`,
+Cancel / Compare right-aligned) as C3 minus the M2 parts; refNotFound alert-error between inputs and footer; map in
+delta with green/red tops, the chip `base 9f8e7d6 main ⇄ head a1b2c3d feature/x ▾` after the icon-only W1 (as the
+mock-up row), menu with the four items and the ✕ on Leave compare, legend caption "Δ = head a1b2c3d − base 9f8e7d6"
+above DELTA COLORS. Both themes readable. **Finding for the designer:** at 1280 px the captions still show (design:
+hidden below 1280) and the branch labels truncate away first ("base 9f8e7d6 ⇄ head a1b2c3d"); hiding the captions
+below 1536 would keep the labels — not changed here.
+
+### For 06-M2 / M3
+- M2: replace the inputs with `cc-ref-picker` from `features/gitHistory` and send an `explicit` intent so Base stays
+  base; add the base-mode radios, Pull requests | Recent, and History entries through 04-M5's `COMMIT_ACTIONS` calling
+  `CompareFacade.compareCommits / compareWithParent / compareWithCurrent / openDialog({ folder, head })`.
+- M3: `CompareService` already stops in `needsDecision` and `continueWithShownSnapshots()` is "Use nearest"; add
+  `analysing` (enqueue through `AnalysisJobsService`, progress rows, re-resolve) and the W1-style stale wording.
+- The chip label for a working-tree or imported side, the PR badge and the base-mode badge need `LoadedSide` /
+  `ResolvedComparison` fields the core does not send yet.

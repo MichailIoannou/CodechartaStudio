@@ -1,8 +1,9 @@
 import { Injectable, OnDestroy } from "@angular/core"
-import { filter, pairwise, tap } from "rxjs"
+import { pairwise, tap } from "rxjs"
 import { FileSelectionState, FileState } from "../../../model/files/files"
 import { isDeltaState, isEqual } from "../../../model/files/files.helper"
 import { FileStoreReadWindow, FilesRepo } from "../../../stores/fileStore/fileStore.facade"
+import { CompareFacade } from "../../compare/facade"
 import { NavBarWriteStore } from "../stores/navBar.write.store"
 
 @Injectable({ providedIn: "root" })
@@ -12,9 +13,8 @@ export class FileSelectionModeService implements OnDestroy {
     private readonly subscription = this.fileStoreReadWindow.files$
         .pipe(
             pairwise(),
-            filter(([oldFiles, newFiles]) => isDeltaState(oldFiles) !== isDeltaState(newFiles) || newFiles.length === 0),
             tap(([oldFiles, newFiles]) => {
-                this.lastSetFilesOfPreviousMode = newFiles.length === 0 ? newFiles : oldFiles
+                this.lastSetFilesOfPreviousMode = this.rememberedFilesAfter(oldFiles, newFiles)
             })
         )
         .subscribe()
@@ -22,14 +22,15 @@ export class FileSelectionModeService implements OnDestroy {
     constructor(
         private readonly fileStoreReadWindow: FileStoreReadWindow,
         private readonly filesRepo: FilesRepo,
-        private readonly navBarWriteStore: NavBarWriteStore
+        private readonly navBarWriteStore: NavBarWriteStore,
+        private readonly compareFacade: CompareFacade
     ) {}
 
     ngOnDestroy(): void {
         this.subscription.unsubscribe()
     }
 
-    /** Toggles selection mode between "Standard" and "Delta".
+    /** Toggles selection mode between "Standard" and "Delta"; in a desktop project it opens and leaves comparisons of commits instead.
      * If available it restores the last set selected files of new mode.
      * When it switches to delta mode and there is no reference
      * file selected, it sets the first selected file as reference as there
@@ -37,6 +38,14 @@ export class FileSelectionModeService implements OnDestroy {
      */
     toggle() {
         const existingFiles = this.filesRepo.getFiles()
+        if (this.compareFacade.isActive()) {
+            this.compareFacade.exit()
+            return
+        }
+        if (this.compareFacade.isAvailable() && !isDeltaState(existingFiles)) {
+            this.compareFacade.openDialog()
+            return
+        }
         if (!isDeltaState(existingFiles)) {
             this.lastSetFilesOfPreviousMode = this.filterNoneExisting(existingFiles, this.lastSetFilesOfPreviousMode)
             const referenceFile =
@@ -59,6 +68,13 @@ export class FileSelectionModeService implements OnDestroy {
         if (referenceFile !== undefined) {
             this.navBarWriteStore.setStandard([referenceFile])
         }
+    }
+
+    /** Keeps only maps still in the store, so a remembered selection never holds a removed map in memory or puts it back. */
+    private rememberedFilesAfter(oldFiles: FileState[], newFiles: FileState[]): FileState[] {
+        const hasModeChanged = isDeltaState(oldFiles) !== isDeltaState(newFiles) || newFiles.length === 0
+        const remembered = hasModeChanged ? oldFiles : this.lastSetFilesOfPreviousMode
+        return this.filterNoneExisting(newFiles, remembered)
     }
 
     private filterNoneExisting(existingFileStates: FileState[], fileStates: FileState[]) {
