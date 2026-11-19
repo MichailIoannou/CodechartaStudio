@@ -165,6 +165,31 @@ impl AnalysisQueue {
         Ok(())
     }
 
+    /// Cancels every queued and running job of the batch and answers how many; `NOT_FOUND` when the
+    /// queue knows no job of it.
+    pub fn cancel_batch(&self, batch_id: &BatchId) -> CoreResult<usize> {
+        let batch_jobs: Vec<(JobId, bool)> = self
+            .lock()
+            .entries
+            .iter()
+            .filter(|entry| entry.job.batch_id.as_ref() == Some(batch_id))
+            .map(|entry| (entry.job.id.clone(), entry.is_active()))
+            .collect();
+        if batch_jobs.is_empty() {
+            return Err(CoreError::NotFound(format!(
+                "There is no analysis batch {batch_id}."
+            )));
+        }
+        let active: Vec<JobId> = batch_jobs
+            .into_iter()
+            .filter_map(|(job_id, is_active)| is_active.then_some(job_id))
+            .collect();
+        for job_id in &active {
+            self.cancel(job_id)?;
+        }
+        Ok(active.len())
+    }
+
     pub fn list(&self) -> Vec<AnalysisJob> {
         self.lock()
             .entries

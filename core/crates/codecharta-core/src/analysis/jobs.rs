@@ -1,14 +1,15 @@
-use codecharta_core_api::ids::{JobId, SnapshotId};
+use codecharta_core_api::ids::{BatchId, JobId, SnapshotId};
 use codecharta_core_api::methods::analysis::{
-    AnalysisErrorCode, AnalysisJob, AnalysisTarget, EnqueueResult, JobError, JobState,
-    PreflightResult,
+    AnalysisErrorCode, AnalysisJob, AnalysisTarget, BatchResult, BatchSelection, EnqueueResult,
+    JobError, JobState, PreflightProblem, PreflightResult,
 };
-use codecharta_core_api::methods::projects::{AnalysisProfile, FolderRef};
+use codecharta_core_api::methods::projects::{AnalysisProfile, FolderKind, FolderRef};
 use codecharta_core_api::methods::snapshots::SnapshotRef;
 use codecharta_core_api::methods::tools::ToolsReport;
-use codecharta_core_api::values::FullCommit;
+use codecharta_core_api::values::{CommitSha, FullCommit};
 use tokio_util::sync::CancellationToken;
 
+use super::batch::{BatchPlan, expand_batch, plan_batch, preflight_target, validate_selection};
 use super::launcher::TargetOs;
 use super::preflight::{
     DiskPlaces, PreflightContext, PreflightSubject, SystemDiskSpace, run_preflight,
@@ -21,7 +22,7 @@ use super::service::{AnalysisConfig, AnalysisDeps, AnalysisService, JobFailure, 
 use crate::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::git::GitFolder;
-use crate::ids::commit_snapshot_id;
+use crate::ids::{commit_snapshot_id, new_batch_id};
 use crate::projects::folder_operations::ResolvedFolder;
 use crate::snapshots::hosting::HOSTING_BUDGET;
 
@@ -102,6 +103,58 @@ impl<'core> Analyses<'core> {
         })
     }
 
+    /// Expands the selection, checks the folder once and queues one batch job per commit without a
+    /// snapshot of the current profile; a dry run only answers what it would queue.
+    pub async fn enqueue_batch(
+        &self,
+        folder: &FolderRef,
+        selection: &BatchSelection,
+        dry_run: bool,
+    ) -> CoreResult<BatchResult> {
+        validate_selection(selection)?;
+        let facts = self.folder_facts(folder)?;
+        if facts.folder.kind == FolderKind::Plain {
+            return Err(CoreError::BadRequest(
+                "Only a git folder has commits to analyse.".to_string(),
+            ));
+        }
+        let preflight = self
+            .check(folder, &facts, &preflight_target(selection))
+            .await?;
+        if !preflight.ok {
+            return Ok(rejected_batch(preflight.problems));
+        }
+        let profile = validate_profile(&facts.profile)
+            .map_err(|error| CoreError::BadRequest(error.message))?;
+        let profile_hash = profile_hash(&profile);
+        let expanded = match self.expand(folder, &facts, selection).await {
+            Err(CoreError::NotACommit { commit }) => {
+                return Ok(rejected_batch(vec![unknown_commit_problem(&commit)]));
+            }
+            expanded => expanded?,
+        };
+        let snapshots = self.core.snapshots()?.list(folder)?;
+        let plan = plan_batch(expanded, &snapshots, &profile_hash);
+        let batch = PlannedBatch {
+            folder,
+            profile_hash,
+            plan,
+        };
+        let queued = if dry_run {
+            None
+        } else {
+            self.queue_batch(&batch)?
+        };
+        Ok(batch.into_result(queued, preflight.problems))
+    }
+
+    pub fn cancel_batch(&self, batch_id: &BatchId) -> CoreResult<()> {
+        self.core
+            .analysis_queue()
+            .cancel_batch(batch_id)
+            .map(|_| ())
+    }
+
     pub fn cancel(&self, job_id: &JobId) -> CoreResult<()> {
         self.core.analysis_queue().cancel(job_id)
     }
@@ -135,6 +188,43 @@ impl<'core> Analyses<'core> {
     pub async fn drive(&self) {
         let executor = CoreExecutor { core: self.core };
         self.core.analysis_queue().drive(&executor).await;
+    }
+
+    async fn expand(
+        &self,
+        folder: &FolderRef,
+        facts: &FolderFacts,
+        selection: &BatchSelection,
+    ) -> CoreResult<Vec<CommitSha>> {
+        let git_folder = GitFolder {
+            path: facts.folder.path.clone(),
+            repo: Some(folder.clone()),
+        };
+        let git = self.core.git()?;
+        expand_batch(&git, &git_folder, selection, &CancellationToken::new()).await
+    }
+
+    /// `None` when there is nothing to queue.
+    fn queue_batch(&self, batch: &PlannedBatch<'_>) -> CoreResult<Option<QueuedBatch>> {
+        if batch.plan.to_analyse.is_empty() {
+            return Ok(None);
+        }
+        let batch_id = new_batch_id()?;
+        let mut jobs = Vec::new();
+        for sha in &batch.plan.to_analyse {
+            let job = NewJob {
+                folder: batch.folder.clone(),
+                target: AnalysisTarget::Commit { sha: sha.clone() },
+                profile_hash: batch.profile_hash.clone(),
+                batch_id: Some(batch_id.clone()),
+                force: false,
+            };
+            match self.core.analysis_queue().enqueue(job, None)? {
+                EnqueueOutcome::Queued(job) | EnqueueOutcome::AlreadyQueued(job) => jobs.push(job),
+                EnqueueOutcome::AlreadyAnalysed(_) => {}
+            }
+        }
+        Ok(Some(QueuedBatch { batch_id, jobs }))
     }
 
     fn folder_facts(&self, folder: &FolderRef) -> CoreResult<FolderFacts> {
@@ -199,6 +289,58 @@ impl<'core> Analyses<'core> {
     async fn tools_report(&self, cancel: &CancellationToken) -> CoreResult<ToolsReport> {
         self.core.tools().doctor(false, cancel, &|_, _| {}).await
     }
+}
+
+/// A batch whose commits are known, before or after it was queued.
+struct PlannedBatch<'folder> {
+    folder: &'folder FolderRef,
+    profile_hash: String,
+    plan: BatchPlan,
+}
+
+struct QueuedBatch {
+    batch_id: BatchId,
+    jobs: Vec<AnalysisJob>,
+}
+
+impl PlannedBatch<'_> {
+    fn into_result(
+        self,
+        queued: Option<QueuedBatch>,
+        problems: Vec<PreflightProblem>,
+    ) -> BatchResult {
+        let (batch_id, jobs) = queued.map_or((None, Vec::new()), |queued| {
+            (Some(queued.batch_id), queued.jobs)
+        });
+        BatchResult {
+            batch_id,
+            to_analyse: self.plan.to_analyse,
+            already_analysed: self.plan.already_analysed,
+            left_out: self.plan.left_out,
+            jobs,
+            estimated_duration_ms: self.plan.estimated_duration_ms,
+            problems,
+        }
+    }
+}
+
+fn rejected_batch(problems: Vec<PreflightProblem>) -> BatchResult {
+    BatchResult {
+        batch_id: None,
+        to_analyse: Vec::new(),
+        already_analysed: Vec::new(),
+        left_out: 0,
+        jobs: Vec::new(),
+        estimated_duration_ms: None,
+        problems,
+    }
+}
+
+fn unknown_commit_problem(commit: &str) -> PreflightProblem {
+    PreflightProblem::error(JobError::new(
+        AnalysisErrorCode::UnknownCommit,
+        format!("The repository has no commit {commit}."),
+    ))
 }
 
 /// Builds the analysis service of the core for each job, so every job sees the current tools and store.

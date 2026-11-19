@@ -1,4 +1,5 @@
 pub mod argv;
+pub mod batch;
 pub mod janitor;
 pub mod jobs;
 pub mod launcher;

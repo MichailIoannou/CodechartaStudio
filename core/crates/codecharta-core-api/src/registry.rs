@@ -5,9 +5,10 @@ use ts_rs::{Config, ExportError, TS};
 
 use crate::events::CoreProgress;
 use crate::methods::analysis::{
-    AnalysisCancel, AnalysisCancelledEvent, AnalysisClearFinished, AnalysisEnqueue,
-    AnalysisFailedEvent, AnalysisFinishedEvent, AnalysisList, AnalysisPreflight,
-    AnalysisProgressEvent, AnalysisQueuedEvent, AnalysisStartedEvent, SnapshotsChangedEvent,
+    AnalysisCancel, AnalysisCancelBatch, AnalysisCancelledEvent, AnalysisClearFinished,
+    AnalysisEnqueue, AnalysisEnqueueBatch, AnalysisFailedEvent, AnalysisFinishedEvent,
+    AnalysisList, AnalysisPreflight, AnalysisProgressEvent, AnalysisQueuedEvent,
+    AnalysisStartedEvent, SnapshotsChangedEvent,
 };
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
 use crate::methods::git::{
@@ -173,6 +174,8 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<AnalysisPreflight>(),
     MethodSpec::of::<AnalysisEnqueue>(),
     MethodSpec::of::<AnalysisCancel>(),
+    MethodSpec::of::<AnalysisEnqueueBatch>(),
+    MethodSpec::of::<AnalysisCancelBatch>(),
     MethodSpec::of::<AnalysisList>(),
     MethodSpec::of::<AnalysisClearFinished>(),
     MethodSpec::of::<GitRepositoryInfoMethod>(),

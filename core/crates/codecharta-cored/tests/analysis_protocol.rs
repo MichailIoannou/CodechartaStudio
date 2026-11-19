@@ -205,6 +205,97 @@ fn should_report_a_failed_analysis_and_forget_it_on_clear() {
     assert_eq!(jobs["result"]["jobs"], json!([]));
 }
 
+fn last_commits_params(folder: &Value, tip: &str, count: u16, dry_run: bool) -> Value {
+    let mut params = folder.clone();
+    params["selection"] =
+        json!({ "kind": "lastCommits", "tipSha": tip, "count": count, "firstParentOnly": true });
+    params["dryRun"] = json!(dry_run);
+    params
+}
+
+/// Polls `analysis.list` until every job is finished.
+fn finished_jobs(core: &mut AnalysisCore) -> Vec<Value> {
+    let deadline = Instant::now() + JOB_EVENT_TIMEOUT;
+    while Instant::now() < deadline {
+        let listed = core.request("analysis.list", json!({}));
+        let jobs = listed["result"]["jobs"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let states = ["done", "failed", "cancelled"];
+        if jobs
+            .iter()
+            .all(|job| states.iter().any(|state| job["state"] == *state))
+        {
+            return jobs;
+        }
+        std::thread::sleep(POLL);
+    }
+    panic!("the jobs did not finish within {JOB_EVENT_TIMEOUT:?}");
+}
+
+#[test]
+fn should_only_estimate_on_a_dry_run() {
+    // Arrange
+    let mut core = AnalysisCore::start(&json!({ "write_map": true }));
+    core.enqueue_head_until("snapshots.changed");
+    let second = core.repository.add_commit("b.txt");
+    let third = core.repository.add_commit("c.txt");
+    let head = core.repository.head.clone();
+
+    // Act
+    let planned = core.request(
+        "analysis.enqueueBatch",
+        last_commits_params(&core.folder, &third, 3, true),
+    );
+    let jobs = core.request("analysis.list", json!({}));
+
+    // Assert
+    let result = &planned["result"];
+    assert_eq!(result["toAnalyse"], json!([third, second]), "{planned}");
+    assert_eq!(result["alreadyAnalysed"], json!([head]));
+    assert_eq!(result["leftOut"], 0);
+    assert_eq!(result["batchId"], Value::Null);
+    assert_eq!(result["jobs"], json!([]));
+    assert!(result["estimatedDurationMs"].is_u64(), "{planned}");
+    assert_eq!(result["problems"], json!([]));
+    assert_eq!(jobs["result"]["jobs"].as_array().map(Vec::len), Some(1));
+}
+
+#[test]
+fn should_queue_a_batch_and_cancel_it_over_json_rpc() {
+    // Arrange
+    let mut core = AnalysisCore::start(&json!({ "hang": true }));
+    let second = core.repository.add_commit("b.txt");
+    let too_many = last_commits_params(&core.folder, &second, 201, false);
+
+    // Act
+    let queued = core.request(
+        "analysis.enqueueBatch",
+        last_commits_params(&core.folder, &second, 2, false),
+    );
+    let batch_id = queued["result"]["batchId"].clone();
+    let cancelled = core.request("analysis.cancelBatch", json!({ "batchId": batch_id }));
+    let jobs = finished_jobs(&mut core);
+    let unknown = core.request(
+        "analysis.cancelBatch",
+        json!({ "batchId": "batch-0000000000000000" }),
+    );
+    let refused = core.request("analysis.enqueueBatch", too_many);
+
+    // Assert
+    assert!(batch_id.is_string(), "{queued}");
+    assert_eq!(queued["result"]["jobs"].as_array().map(Vec::len), Some(2));
+    assert_eq!(cancelled["result"], Value::Null, "{cancelled}");
+    assert_eq!(jobs.len(), 2);
+    assert!(
+        jobs.iter()
+            .all(|job| job["state"] == "cancelled" && job["batchId"] == batch_id)
+    );
+    assert_eq!(error_data_code(&unknown), "NOT_FOUND");
+    assert_eq!(error_data_code(&refused), "BAD_REQUEST");
+}
+
 const PLAIN_MAP: &str = r#"{"projectName":"demo","apiVersion":"1.5","nodes":[]}"#;
 
 fn resolve_params(folder: &Value, target: Value) -> Value {

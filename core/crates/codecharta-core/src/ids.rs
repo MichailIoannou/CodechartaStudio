@@ -2,7 +2,7 @@ use std::fmt::Write;
 use std::time::SystemTime;
 
 use codecharta_core_api::ids::{
-    FolderId, JobId, ProjectId, SnapshotId, WORKING_TREE_SNAPSHOT_PREFIX,
+    BatchId, FolderId, JobId, ProjectId, SnapshotId, WORKING_TREE_SNAPSHOT_PREFIX,
 };
 use codecharta_core_api::secret::Secret;
 use codecharta_core_api::values::{FullCommit, PICK_TOKEN_LENGTH, PickToken, PromptId};
@@ -12,6 +12,7 @@ use crate::error::{CoreError, CoreResult};
 const PROJECT_ID_PREFIX: &str = "p-";
 const FOLDER_ID_PREFIX: &str = "f-";
 const JOB_ID_PREFIX: &str = "job-";
+const BATCH_ID_PREFIX: &str = "batch-";
 const RANDOM_ID_BYTES: usize = 8;
 const STAGING_SUFFIX_BYTES: usize = 4;
 const IMPORTED_MARKER: &str = "imported";
@@ -34,6 +35,11 @@ pub fn new_folder_id() -> CoreResult<FolderId> {
 pub fn new_job_id() -> CoreResult<JobId> {
     let id = random_hex(JOB_ID_PREFIX, RANDOM_ID_BYTES)?;
     JobId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
+}
+
+pub fn new_batch_id() -> CoreResult<BatchId> {
+    let id = random_hex(BATCH_ID_PREFIX, RANDOM_ID_BYTES)?;
+    BatchId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
 }
 
 pub fn new_token() -> CoreResult<PickToken> {

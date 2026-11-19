@@ -5,6 +5,8 @@ import type { AddFolderParams } from "./AddFolderParams"
 import type { AnalysisJobChanged } from "./AnalysisJobChanged"
 import type { AnalysisJobList } from "./AnalysisJobList"
 import type { AnalysisProgress } from "./AnalysisProgress"
+import type { BatchRefParams } from "./BatchRefParams"
+import type { BatchResult } from "./BatchResult"
 import type { CancelParams } from "./CancelParams"
 import type { ClearToolPathParams } from "./ClearToolPathParams"
 import type { CreateProjectParams } from "./CreateProjectParams"
@@ -12,6 +14,7 @@ import type { DeleteProjectParams } from "./DeleteProjectParams"
 import type { DeleteSnapshotParams } from "./DeleteSnapshotParams"
 import type { DoctorParams } from "./DoctorParams"
 import type { EmptyParams } from "./EmptyParams"
+import type { EnqueueBatchParams } from "./EnqueueBatchParams"
 import type { EnqueueParams } from "./EnqueueParams"
 import type { EnqueueResult } from "./EnqueueResult"
 import type { ErrorCode } from "./ErrorCode"
@@ -197,6 +200,8 @@ export type CoreMethods = {
     "analysis.preflight": { params: PreflightParams; result: PreflightResult }
     "analysis.enqueue": { params: EnqueueParams; result: EnqueueResult }
     "analysis.cancel": { params: JobRefParams; result: null }
+    "analysis.enqueueBatch": { params: EnqueueBatchParams; result: BatchResult }
+    "analysis.cancelBatch": { params: BatchRefParams; result: null }
     "analysis.list": { params: EmptyParams; result: AnalysisJobList }
     "analysis.clearFinished": { params: EmptyParams; result: null }
     "git.repositoryInfo": { params: GitRepoParams; result: GitRepositoryInfo }
@@ -281,6 +286,8 @@ export const RENDERER_METHODS = [
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",
+    "analysis.enqueueBatch",
+    "analysis.cancelBatch",
     "analysis.list",
     "analysis.clearFinished",
     "git.repositoryInfo",

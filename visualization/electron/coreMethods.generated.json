@@ -45,6 +45,8 @@
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",
+    "analysis.enqueueBatch",
+    "analysis.cancelBatch",
     "analysis.list",
     "analysis.clearFinished",
     "git.repositoryInfo",

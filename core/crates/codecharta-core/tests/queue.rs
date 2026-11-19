@@ -7,6 +7,7 @@ use codecharta_core::analysis::queue::{
 };
 use codecharta_core::analysis::runner::RunHooks;
 use codecharta_core::analysis::service::{JobFailure, JobRequest};
+use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::ids::{BatchId, FolderId, JobId, ProjectId, SnapshotId};
 use codecharta_core_api::methods::analysis::{
     AnalysisErrorCode, AnalysisJob, AnalysisTarget, JobError, JobProgress, JobState,
@@ -505,4 +506,39 @@ async fn should_forget_finished_jobs_on_clear() {
     );
     let listed: Vec<JobId> = harness.queue.list().into_iter().map(|job| job.id).collect();
     assert_eq!(listed, [waiting.id]);
+}
+
+#[tokio::test]
+async fn should_cancel_all_jobs_of_a_batch() {
+    // Arrange
+    let mut harness = Harness::driven();
+    let batch: Vec<AnalysisJob> = (1..=3).map(|n| harness.enqueue(batch_job(n))).collect();
+    let started = harness.next_started().await;
+    let direct = harness.enqueue(commit_job(4));
+    let batch_id = BatchId::try_from("batch-1").expect("a batch id");
+
+    // Act
+    let cancelled = harness
+        .queue
+        .cancel_batch(&batch_id)
+        .expect("the batch is known");
+    let finished = [
+        harness.finished(&batch[0]).await,
+        harness.finished(&batch[1]).await,
+        harness.finished(&batch[2]).await,
+    ];
+    let next = harness.next_started().await;
+    let unknown = harness
+        .queue
+        .cancel_batch(&BatchId::try_from("batch-2").expect("a batch id"));
+
+    // Assert
+    assert_eq!(started, batch[0].id);
+    assert_eq!(cancelled, 3);
+    assert!(finished.iter().all(|job| job.state == JobState::Cancelled));
+    assert_eq!(next, direct.id);
+    assert_eq!(
+        unknown.map_err(|error| error.code()).err(),
+        Some(ErrorCode::NotFound)
+    );
 }

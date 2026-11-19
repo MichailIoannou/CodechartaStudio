@@ -285,6 +285,67 @@ pub struct AnalysisProgress {
     pub progress: JobProgress,
 }
 
+/// The commits a batch analyses: the given ones, the last `count` commits up to `tipSha`, or the commit of
+/// every tag. A batch queues at most `MAX_BATCH_JOBS` (200) analyses.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum BatchSelection {
+    Commits {
+        shas: Vec<CommitSha>,
+    },
+    LastCommits {
+        tip_sha: CommitSha,
+        count: u16,
+        first_parent_only: bool,
+    },
+    Tags,
+}
+
+/// `dryRun` answers what the batch would analyse and queues nothing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EnqueueBatchParams {
+    pub project_id: ProjectId,
+    pub folder_id: FolderId,
+    pub selection: BatchSelection,
+    #[serde(default)]
+    pub dry_run: bool,
+}
+
+impl EnqueueBatchParams {
+    pub fn folder(&self) -> FolderRef {
+        FolderRef {
+            project_id: self.project_id.clone(),
+            folder_id: self.folder_id.clone(),
+        }
+    }
+}
+
+/// `toAnalyse` lists the commits without a snapshot of the current profile, newest first, `leftOut` how
+/// many more there were beyond the batch limit. `batchId` and `jobs` are set once something was queued; a
+/// blocking preflight problem queues nothing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchResult {
+    pub batch_id: Option<BatchId>,
+    pub to_analyse: Vec<CommitSha>,
+    pub already_analysed: Vec<CommitSha>,
+    pub left_out: u32,
+    pub jobs: Vec<AnalysisJob>,
+    pub estimated_duration_ms: Option<u64>,
+    pub problems: Vec<PreflightProblem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BatchRefParams {
+    pub batch_id: BatchId,
+}
+
 method!(
     AnalysisPreflight,
     "analysis.preflight",
@@ -304,6 +365,20 @@ method!(
     "analysis.cancel",
     Renderer,
     JobRefParams,
+    ()
+);
+method!(
+    AnalysisEnqueueBatch,
+    "analysis.enqueueBatch",
+    Renderer,
+    EnqueueBatchParams,
+    BatchResult
+);
+method!(
+    AnalysisCancelBatch,
+    "analysis.cancelBatch",
+    Renderer,
+    BatchRefParams,
     ()
 );
 method!(
@@ -482,6 +557,37 @@ mod tests {
                 { "status": "rejected", "problems": [] }
             ])
         );
+    }
+
+    #[test]
+    fn should_read_batch_selections_by_kind_and_default_to_a_real_run() {
+        // Arrange
+        let params = json!({
+            "projectId": "p-1",
+            "folderId": "f-1",
+            "selection": {
+                "kind": "lastCommits",
+                "tipSha": "0123456789abcdef0123456789abcdef01234567",
+                "count": 20,
+                "firstParentOnly": true
+            }
+        });
+
+        // Act
+        let parsed: EnqueueBatchParams = serde_json::from_value(params).unwrap();
+        let tags = serde_json::to_value(BatchSelection::Tags).unwrap();
+
+        // Assert
+        assert!(!parsed.dry_run);
+        assert_eq!(
+            parsed.selection,
+            BatchSelection::LastCommits {
+                tip_sha: CommitSha::try_from("0123456789abcdef0123456789abcdef01234567").unwrap(),
+                count: 20,
+                first_parent_only: true,
+            }
+        );
+        assert_eq!(tags, json!({ "kind": "tags" }));
     }
 
     #[test]

@@ -7,7 +7,8 @@ use codecharta_core_api::PROTOCOL_VERSION;
 use codecharta_core_api::error::{ErrorCode, ErrorPayload};
 use codecharta_core_api::events::{CoreProgress, ProgressParams};
 use codecharta_core_api::methods::analysis::{
-    AnalysisCancel, AnalysisClearFinished, AnalysisEnqueue, AnalysisList, AnalysisPreflight,
+    AnalysisCancel, AnalysisCancelBatch, AnalysisClearFinished, AnalysisEnqueue,
+    AnalysisEnqueueBatch, AnalysisList, AnalysisPreflight,
 };
 use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
@@ -224,6 +225,14 @@ const ROUTES: &[Route] = &[
     Route {
         name: AnalysisCancel::NAME,
         handler: analysis_routes::cancel,
+    },
+    Route {
+        name: AnalysisEnqueueBatch::NAME,
+        handler: analysis_routes::enqueue_batch,
+    },
+    Route {
+        name: AnalysisCancelBatch::NAME,
+        handler: analysis_routes::cancel_batch,
     },
     Route {
         name: AnalysisList::NAME,

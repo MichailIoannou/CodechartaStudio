@@ -3,10 +3,10 @@ use std::sync::Arc;
 use codecharta_core::analysis::queue::AnalysisEvent;
 use codecharta_core::{Core, CoreResult};
 use codecharta_core_api::methods::analysis::{
-    AnalysisCancel, AnalysisCancelledEvent, AnalysisClearFinished, AnalysisEnqueue,
-    AnalysisFailedEvent, AnalysisFinishedEvent, AnalysisJobChanged, AnalysisJobList, AnalysisList,
-    AnalysisPreflight, AnalysisProgress, AnalysisProgressEvent, AnalysisQueuedEvent,
-    AnalysisStartedEvent, SnapshotsChangedEvent,
+    AnalysisCancel, AnalysisCancelBatch, AnalysisCancelledEvent, AnalysisClearFinished,
+    AnalysisEnqueue, AnalysisEnqueueBatch, AnalysisFailedEvent, AnalysisFinishedEvent,
+    AnalysisJobChanged, AnalysisJobList, AnalysisList, AnalysisPreflight, AnalysisProgress,
+    AnalysisProgressEvent, AnalysisQueuedEvent, AnalysisStartedEvent, SnapshotsChangedEvent,
 };
 use codecharta_core_api::registry::{Event, Method};
 use serde_json::Value;
@@ -49,6 +49,24 @@ pub fn cancel(core: &Core, _context: RequestContext, params: Value) -> HandlerFu
     Box::pin(async move {
         let params = read_params::<AnalysisCancel>(params)?;
         answer::<AnalysisCancel>(core.analyses().cancel(&params.job_id))
+    })
+}
+
+pub fn enqueue_batch(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<AnalysisEnqueueBatch>(params)?;
+        let enqueued = core
+            .analyses()
+            .enqueue_batch(&params.folder(), &params.selection, params.dry_run)
+            .await;
+        answer::<AnalysisEnqueueBatch>(enqueued)
+    })
+}
+
+pub fn cancel_batch(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
+    Box::pin(async move {
+        let params = read_params::<AnalysisCancelBatch>(params)?;
+        answer::<AnalysisCancelBatch>(core.analyses().cancel_batch(&params.batch_id))
     })
 }
 
