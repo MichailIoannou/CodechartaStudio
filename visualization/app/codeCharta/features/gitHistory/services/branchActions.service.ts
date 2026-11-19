@@ -5,7 +5,7 @@ import type { GitLocalBranch } from "../../../model/coreApi/GitLocalBranch"
 import type { GitRemoteBranch } from "../../../model/coreApi/GitRemoteBranch"
 import { shortSha } from "../../../util/wording"
 import { ToastService } from "../../shared/facade"
-import type { GitError, GitResult } from "../model/gitError"
+import type { GitResult } from "../model/gitError"
 import { readyValueOf } from "../model/loadState"
 import {
     deleteLocalConfirmation,
@@ -15,9 +15,10 @@ import {
     quoted,
     switchConfirmation
 } from "../util/effectText"
-import { GitErrorContext, gitErrorSentence } from "../util/gitErrorText"
+import type { GitErrorContext } from "../util/gitErrorText"
 import { GitApiService } from "./gitApi.service"
 import { GitConfirmationService } from "./gitConfirmation.service"
+import { GitFailureReport } from "./gitFailureReport.service"
 import { GitOperationKind, GitOperationService } from "./gitOperation.service"
 import { GitRepositoryService } from "./gitRepository.service"
 
@@ -50,6 +51,7 @@ export class BranchActionsService {
     private readonly operations = inject(GitOperationService)
     private readonly confirmations = inject(GitConfirmationService)
     private readonly toast = inject(ToastService)
+    private readonly failures = inject(GitFailureReport)
     private readonly dialogRequest = signal<BranchDialogRequest | null>(null)
 
     readonly dialog = this.dialogRequest.asReadonly()
@@ -164,16 +166,9 @@ export class BranchActionsService {
         }
         const result = await this.operations.run({ kind: write.kind, repo, send: operationId => write.send(repo, operationId) })
         if (result && "error" in result && result.error.code !== write.handledCode) {
-            this.report(result.error, write.context)
+            this.failures.report(result.error, write.context)
         }
         return result
-    }
-
-    /** A cancel the user asked for needs no message: the button already shows the operation ended. */
-    private report(error: GitError, context: GitErrorContext) {
-        if (error.code !== "CANCELLED") {
-            this.toast.show(gitErrorSentence(error, context), "error", error.detail ? { details: error.detail } : {})
-        }
     }
 
     /** Design H15: a clean switch runs at once; with changed files git may refuse, which the user hears first. */
