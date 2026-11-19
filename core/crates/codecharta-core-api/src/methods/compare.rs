@@ -142,13 +142,18 @@ pub struct ComparedCommit {
     pub label: RefLabel,
 }
 
-/// The snapshot "Use nearest" would show; `staleBy` counts the commits between it and the asked commit.
+/// The snapshot "Use nearest" would show; `staleBy` counts the commits between it and the asked commit:
+/// `behind` plus `ahead`, as the snapshots resolution counts them.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct NearestSnapshot {
     pub snapshot: SnapshotSummary,
     pub relation: SnapshotRelation,
     pub stale_by: u32,
+    /// Commits the asked commit has that the shown snapshot lacks.
+    pub behind: u32,
+    /// Commits the shown snapshot has that the asked commit lacks.
+    pub ahead: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

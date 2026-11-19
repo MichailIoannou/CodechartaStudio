@@ -48,6 +48,8 @@ pub fn side_status(resolution: SnapshotResolution) -> SideStatus {
                 snapshot,
                 relation,
                 stale_by: behind.saturating_add(ahead),
+                behind,
+                ahead,
             }),
         },
         SnapshotResolution::Latest { .. } | SnapshotResolution::None { .. } => {
@@ -108,6 +110,8 @@ mod tests {
                     snapshot,
                     relation: SnapshotRelation::Diverged,
                     stale_by: 5,
+                    behind: 2,
+                    ahead: 3,
                 }),
             }
         );

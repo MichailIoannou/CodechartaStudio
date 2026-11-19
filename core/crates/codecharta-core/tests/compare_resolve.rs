@@ -323,6 +323,7 @@ async fn should_report_stale_by_for_the_nearest_snapshot() {
     assert_eq!(nearest.snapshot, snapshot);
     assert_eq!(nearest.relation, SnapshotRelation::Ancestor);
     assert_eq!(nearest.stale_by, 2);
+    assert_eq!((nearest.behind, nearest.ahead), (2, 0));
     assert!(comparison.preflight.identical_checksums);
     assert_eq!(comparison.preflight.combined_bytes, 20);
 }

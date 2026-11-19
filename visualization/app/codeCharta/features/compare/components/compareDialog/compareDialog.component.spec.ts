@@ -138,7 +138,13 @@ describe("CompareDialogComponent", () => {
 
     it("should list each side with its status and go on with the nearest analysis", async () => {
         // Arrange
-        const nearest = { snapshot: aCommitSnapshot("3c4d5e6".padEnd(40, "0")), relation: "ancestor" as const, staleBy: 2 }
+        const nearest = {
+            snapshot: aCommitSnapshot("3c4d5e6".padEnd(40, "0")),
+            relation: "ancestor" as const,
+            staleBy: 2,
+            behind: 2,
+            ahead: 0
+        }
         const resolved = aResolvedComparison({
             head: { requested: aComparedCommit(HEAD_SHA, { kind: "branch", name: "feature/x" }), status: { status: "missing", nearest } },
             preflight: { identicalChecksums: false, profilesDiffer: true, combinedBytes: 1, sizeVerdict: "warn" }

@@ -205,7 +205,7 @@ describe("CompareService", () => {
         core.resolution = aResolvedComparison({
             base: {
                 requested: aComparedCommit(BASE_SHA),
-                status: { status: "missing", nearest: { snapshot: nearest, relation: "ancestor", staleBy: 2 } }
+                status: { status: "missing", nearest: { snapshot: nearest, relation: "ancestor", staleBy: 2, behind: 2, ahead: 0 } }
             }
         })
         await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
