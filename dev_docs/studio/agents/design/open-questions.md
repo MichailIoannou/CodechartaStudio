@@ -102,3 +102,13 @@ answer that differs means the named file is changed, nothing else.
   (values listed in `progress/02-m5-editor-schemes.md`). Please confirm or replace them. Also: the shared
   dark dependency-graph palette has a slight blue cast on the neutral Darcula and VS Dark chrome — keep
   one shared dark graph palette, or give those two their own?
+
+- **O4 (2026-11-19). Snapshot deletion edge cases (05-M6 core).**
+  1. The core no longer falls back to permanent deletion when the recycle bin fails (owner decision:
+     deletions go to the recycle bin); it answers `RECYCLE_FAILED` and removes nothing. `05-snapshots.md`
+     has no state for this. What should the delete and clean-up dialogs show, and should they offer
+     "Delete permanently" (the core accepts `permanently: true`)?
+  2. Re-analysing a commit with "force" replaces its snapshot; the old copy (same commit and profile) is
+     removed for good, not recycled. Acceptable as a replace, or should it go to the recycle bin too?
+  3. `snapshots.planPrune` / `prune` work per folder; the design's project-wide clean-up dialog would call
+     them once per folder. Fine?
