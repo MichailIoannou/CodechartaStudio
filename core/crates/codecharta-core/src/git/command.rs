@@ -134,6 +134,18 @@ pub const REV_LIST_LIMITS: Limits = Limits {
     max_stdout_bytes: MAX_OUTPUT_CEILING_BYTES,
 };
 
+/// Branch commands run hooks such as `post-checkout`.
+pub const BRANCH_LIMITS: Limits = Limits {
+    timeout: Duration::from_secs(120),
+    max_stdout_bytes: MEBIBYTE,
+};
+
+/// A person may be answering a credential prompt meanwhile.
+pub const NETWORK_LIMITS: Limits = Limits {
+    timeout: Duration::from_secs(1800),
+    max_stdout_bytes: MEBIBYTE,
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandKind {
     Read,
@@ -163,6 +175,13 @@ impl GitCommand {
             limits,
             stdin: None,
             askpass: None,
+        }
+    }
+
+    pub fn mutating(folder: &Path, args: &[&str], limits: Limits) -> Self {
+        Self {
+            kind: CommandKind::Mutating,
+            ..Self::read(folder, args, limits)
         }
     }
 

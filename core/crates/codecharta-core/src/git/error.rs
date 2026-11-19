@@ -56,6 +56,11 @@ pub fn command_failed(output: &RunOutput) -> CoreError {
         .into()
 }
 
+/// A refusal the core decides itself, before git runs, worded as git's own would be.
+pub fn refused(code: ErrorCode) -> CoreError {
+    GitError::new(code, message_for(code)).into()
+}
+
 pub fn parse_failed(what: &str) -> CoreError {
     GitError::new(
         ErrorCode::ParseFailed,
@@ -73,6 +78,21 @@ pub fn message_for(code: ErrorCode) -> &'static str {
         ErrorCode::BareRepository => "The folder is a bare repository without a working tree.",
         ErrorCode::IndexLocked => "Another git process is using this repository.",
         ErrorCode::UnknownRevision => "The repository does not contain that commit.",
+        ErrorCode::BranchExists => "A branch with that name already exists.",
+        ErrorCode::BranchNotFullyMerged => {
+            "The branch has commits that no other branch contains; delete it anyway only if they are not needed."
+        }
+        ErrorCode::BranchCheckedOutElsewhere => {
+            "The branch is checked out in another worktree of this repository."
+        }
+        ErrorCode::LocalChangesWouldBeOverwritten => {
+            "git refused because local changes to the files it names would be overwritten."
+        }
+        ErrorCode::OperationInProgress => {
+            "A merge, rebase or similar operation is in progress; finish or abort it first."
+        }
+        ErrorCode::AuthenticationRequired => "The remote needs credentials that git could not get.",
+        ErrorCode::NetworkUnavailable => "git could not reach the remote.",
         _ => "git failed.",
     }
 }

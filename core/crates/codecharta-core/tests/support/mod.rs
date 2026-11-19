@@ -5,6 +5,7 @@
 )]
 
 pub mod git_fixture;
+pub mod git_operations;
 pub mod recycler;
 pub mod store_workspace;
 

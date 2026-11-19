@@ -16,6 +16,7 @@ use super::details::{ChangedFilesRequest, changed_files, commit_details};
 use super::locator::{Repository, locate};
 use super::log::{LogContext, LogRequest, log_page};
 use super::memory::{GitMemory, QueryKey, Remembered};
+use super::operation::Operations;
 use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
 use super::query::check_candidate_count;
 use super::query::{self, RevListRequest, ShaSink};
@@ -44,7 +45,7 @@ impl GitFolder {
 }
 
 /// The memory of one service on its own (tests, one command line call), or the core's shared one.
-enum Memory<'core> {
+pub(super) enum Memory<'core> {
     Own(Box<GitMemory>),
     Shared(&'core GitMemory),
 }
@@ -62,9 +63,10 @@ impl Deref for Memory<'_> {
 
 /// The read-only git operations of the core.
 pub struct GitService<'core> {
-    git: GitCli<'core>,
-    changes: Option<&'core RepositoryChanges>,
-    memory: Memory<'core>,
+    pub(super) git: GitCli<'core>,
+    pub(super) changes: Option<&'core RepositoryChanges>,
+    pub(super) memory: Memory<'core>,
+    pub(super) operations: Option<Operations<'core>>,
 }
 
 impl<'core> GitService<'core> {
@@ -72,6 +74,7 @@ impl<'core> GitService<'core> {
         Self {
             git: GitCli::new(process, data_dir),
             changes: None,
+            operations: None,
             memory: Memory::Own(Box::default()),
         }
     }
@@ -387,6 +390,6 @@ impl<'core> GitService<'core> {
     }
 }
 
-fn in_progress(repository: &Repository) -> Option<OperationInProgress> {
+pub(super) fn in_progress(repository: &Repository) -> Option<OperationInProgress> {
     operation_in_progress(|marker| repository.git_dir.join(marker).exists())
 }

@@ -38,10 +38,17 @@ pub enum ErrorCode {
     LogSessionExpired,
     UnknownRevision,
     AuthenticationCancelled,
+    BranchExists,
+    BranchNotFullyMerged,
+    BranchCheckedOutElsewhere,
+    LocalChangesWouldBeOverwritten,
+    OperationInProgress,
+    AuthenticationRequired,
+    NetworkUnavailable,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 32] = [
+    pub const ALL: [ErrorCode; 39] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -74,6 +81,13 @@ impl ErrorCode {
         ErrorCode::LogSessionExpired,
         ErrorCode::UnknownRevision,
         ErrorCode::AuthenticationCancelled,
+        ErrorCode::BranchExists,
+        ErrorCode::BranchNotFullyMerged,
+        ErrorCode::BranchCheckedOutElsewhere,
+        ErrorCode::LocalChangesWouldBeOverwritten,
+        ErrorCode::OperationInProgress,
+        ErrorCode::AuthenticationRequired,
+        ErrorCode::NetworkUnavailable,
     ];
 }
 
@@ -125,6 +139,13 @@ mod tests {
             ErrorCode::LogSessionExpired,
             ErrorCode::UnknownRevision,
             ErrorCode::AuthenticationCancelled,
+            ErrorCode::BranchExists,
+            ErrorCode::BranchNotFullyMerged,
+            ErrorCode::BranchCheckedOutElsewhere,
+            ErrorCode::LocalChangesWouldBeOverwritten,
+            ErrorCode::OperationInProgress,
+            ErrorCode::AuthenticationRequired,
+            ErrorCode::NetworkUnavailable,
         ];
 
         // Act
@@ -143,7 +164,14 @@ mod tests {
                 "COMMAND_FAILED",
                 "LOG_SESSION_EXPIRED",
                 "UNKNOWN_REVISION",
-                "AUTHENTICATION_CANCELLED"
+                "AUTHENTICATION_CANCELLED",
+                "BRANCH_EXISTS",
+                "BRANCH_NOT_FULLY_MERGED",
+                "BRANCH_CHECKED_OUT_ELSEWHERE",
+                "LOCAL_CHANGES_WOULD_BE_OVERWRITTEN",
+                "OPERATION_IN_PROGRESS",
+                "AUTHENTICATION_REQUIRED",
+                "NETWORK_UNAVAILABLE"
             ])
         );
     }

@@ -41,6 +41,12 @@
     "git.measureDistances",
     "git.refsAt",
     "git.changedFiles",
+    "git.fetch",
+    "git.switch",
+    "git.branchCreate",
+    "git.branchRename",
+    "git.branchDelete",
+    "git.setUpstream",
     "prompt.answer",
     "prompt.cancel"
   ]

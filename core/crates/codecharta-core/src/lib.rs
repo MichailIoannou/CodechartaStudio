@@ -31,6 +31,7 @@ use config::settings::SETTINGS_FILE_NAME;
 use git::changes::RepositoryChanges;
 use git::command::UserEnvironment;
 use git::memory::GitMemory;
+use git::operation::Operations;
 use git::queue::OperationQueue;
 use git::{GitFolder, GitService};
 use process::ProcessRunner;
@@ -131,7 +132,11 @@ impl Core {
         Ok(GitService::new(&self.tools, self.data_dir())
             .with_changes(&self.repository_changes)
             .with_memory(&self.git_memory)
-            .with_user_environment(self.user_environment.clone()))
+            .with_user_environment(self.user_environment.clone())
+            .with_operations(Operations {
+                queue: &self.operation_queue,
+                prompts: &self.prompts,
+            }))
     }
 
     /// The project folder a git request names, resolved through the store.

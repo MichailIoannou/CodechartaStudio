@@ -1,12 +1,18 @@
+use codecharta_core::git::branch::{BranchCreateRequest, BranchRenameRequest, SetUpstreamRequest};
 use codecharta_core::git::details::ChangedFilesRequest;
 use codecharta_core::git::log::LogRequest;
+use codecharta_core::git::operation::OperationContext;
+use codecharta_core::git::parse::progress::ProgressUpdate;
 use codecharta_core::git::query::check_candidate_count;
 use codecharta_core::{Core, CoreResult};
+use codecharta_core_api::events::ProgressParams;
 use codecharta_core_api::methods::git::{
-    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitDistances,
+    GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod, GitBranchesMethod,
+    GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitDistances, GitFetchMethod,
     GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod, GitMergeBaseMethod,
     GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
-    GitRevListCountMethod, GitStatusMethod, RepositoryChanged, RepositoryChangedEvent,
+    GitRevListCountMethod, GitSetUpstreamMethod, GitStatusMethod, GitSwitchMethod,
+    RepositoryChanged, RepositoryChangedEvent,
 };
 use codecharta_core_api::registry::{Event, Method};
 use serde_json::Value;
@@ -134,6 +140,87 @@ folder_route!(
             mode: params.mode,
         },
         cancel
+    )
+);
+
+/// git's progress as `core.progress` notifications of the request.
+fn progress_of(context: &RequestContext) -> impl Fn(ProgressUpdate) + Send + Sync + use<> {
+    let notifier = context.notifier.clone();
+    let request_id = context.id.clone();
+    move |update: ProgressUpdate| {
+        notifier.progress(ProgressParams {
+            request_id: request_id.clone(),
+            message: update.message,
+            done: update.done,
+            total: update.total,
+        });
+    }
+}
+
+/// A handler for a mutating method: like `folder_route`, but `$call` gets the request's operation
+/// context, whose prompts name the request and whose progress becomes `core.progress`.
+macro_rules! operation_route {
+    ($handler:ident, $method:ty, |$git:ident, $folder:ident, $params:ident, $operation:ident| $call:expr) => {
+        pub fn $handler(core: &Core, context: RequestContext, params: Value) -> HandlerFuture<'_> {
+            Box::pin(async move {
+                let $params = read_params::<$method>(params)?;
+                let report = progress_of(&context);
+                let result = async {
+                    let $folder = core.git_folder(&$params.repo)?;
+                    let $git = core.git()?;
+                    let $operation = &OperationContext {
+                        cancel: &context.cancel,
+                        request_id: Some(context.id.clone()),
+                        progress: &report,
+                    };
+                    $call.await
+                };
+                answer::<$method>(result.await)
+            })
+        }
+    };
+}
+
+operation_route!(fetch, GitFetchMethod, |git, folder, params, operation| git
+    .fetch(&folder, params.prune, operation));
+
+operation_route!(switch, GitSwitchMethod, |git, folder, params, operation| {
+    git.switch(&folder, &params.target, operation)
+});
+
+operation_route!(
+    branch_create,
+    GitBranchCreateMethod,
+    |git, folder, params, operation| git.branch_create(
+        &folder,
+        &BranchCreateRequest::from(params.clone()),
+        operation
+    )
+);
+
+operation_route!(
+    branch_rename,
+    GitBranchRenameMethod,
+    |git, folder, params, operation| git.branch_rename(
+        &folder,
+        &BranchRenameRequest::from(params.clone()),
+        operation
+    )
+);
+
+operation_route!(
+    branch_delete,
+    GitBranchDeleteMethod,
+    |git, folder, params, operation| git.branch_delete(&folder, &params.target, operation)
+);
+
+operation_route!(
+    set_upstream,
+    GitSetUpstreamMethod,
+    |git, folder, params, operation| git.set_upstream(
+        &folder,
+        &SetUpstreamRequest::from(params.clone()),
+        operation
     )
 );
 

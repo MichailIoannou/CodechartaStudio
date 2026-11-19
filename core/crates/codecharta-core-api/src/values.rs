@@ -20,10 +20,15 @@ pub const MAX_LOG_CURSOR_LENGTH: usize = 128;
 pub const MAX_PROMPT_ID_LENGTH: usize = 64;
 pub const MAX_LOG_FILTER_CHARS: usize = 200;
 pub const MAX_REPO_PATH_LENGTH: usize = 1024;
+pub const MAX_BRANCH_NAME_CHARS: usize = 200;
+const LOCAL_BRANCH_PREFIX: &str = "refs/heads/";
+const OPTION_PREFIX: char = '-';
 const PARENT_SEGMENT: &str = "..";
 const PATH_SEPARATORS: [char; 2] = ['/', '\\'];
 const DRIVE_SEPARATOR: char = ':';
 const HEAD_REVISION: &str = "HEAD";
+/// git reads a lone `@` as `HEAD`.
+const HEAD_SHORTHAND: &str = "@";
 const REF_COMPONENT_SEPARATOR: char = '/';
 const REF_FORBIDDEN_SEQUENCES: [&str; 3] = ["..", "@{", "//"];
 const REF_FORBIDDEN_CHARACTERS: [char; 8] = ['~', '^', ':', '?', '*', '[', '\\', ' '];
@@ -169,6 +174,16 @@ fn is_well_formed_full_ref_name(value: &str) -> bool {
         })
 }
 
+/// What `git check-ref-format refs/heads/<name>` accepts, without a leading `-` and never `HEAD` or `@`;
+/// the core still asks git before it creates the branch.
+fn is_branch_name(value: &str) -> bool {
+    has_chars(value, 1..=MAX_BRANCH_NAME_CHARS)
+        && !value.starts_with(OPTION_PREFIX)
+        && value != HEAD_REVISION
+        && value != HEAD_SHORTHAND
+        && is_well_formed_full_ref_name(&format!("{LOCAL_BRANCH_PREFIX}{value}"))
+}
+
 /// A text value checked while it is deserialised, so a handler never sees an invalid one. The rule text
 /// never repeats the value: it may be long or carry something the caller did not mean to log.
 macro_rules! validated_text {
@@ -309,6 +324,12 @@ validated_text!(
     RepoRelativePath,
     is_repo_relative_path,
     "use a relative path inside the repository: at most 1024 bytes, no .. segment, no : and no control characters"
+);
+
+validated_text!(
+    BranchName,
+    is_branch_name,
+    "use 1 to 200 characters git accepts as a branch name: no leading -, not HEAD or @, no .., @{, spaces, control characters or ~^:?*[\\"
 );
 
 #[cfg(test)]
@@ -577,5 +598,35 @@ mod tests {
         // Assert
         assert_eq!(rejected, [true; 3]);
         assert!(LogFilterText::try_from("Fix \"quoted\" [bug]").is_ok());
+    }
+
+    #[test]
+    fn should_reject_invalid_branch_names() {
+        // Arrange
+        let candidates = [
+            "-x".to_string(),
+            "a..b".to_string(),
+            "a@{1}".to_string(),
+            "HEAD".to_string(),
+            "@".to_string(),
+            "tab\there".to_string(),
+            "bell\u{7}".to_string(),
+            "with space".to_string(),
+            "ends.lock".to_string(),
+            "trailing/".to_string(),
+            String::new(),
+            "x".repeat(MAX_BRANCH_NAME_CHARS + 1),
+        ];
+
+        // Act
+        let rejected: Vec<bool> = candidates
+            .into_iter()
+            .map(|candidate| serde_json::from_value::<BranchName>(json!(candidate)).is_err())
+            .collect();
+
+        // Assert
+        assert_eq!(rejected, vec![true; rejected.len()]);
+        assert!(BranchName::try_from("feature/login-form").is_ok());
+        assert!(BranchName::try_from("fix-ü").is_ok());
     }
 }

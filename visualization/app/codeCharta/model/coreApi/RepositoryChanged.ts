@@ -3,6 +3,6 @@ import type { ChangedPart } from "./ChangedPart"
 import type { FolderRef } from "./FolderRef"
 
 /**
- * The core saw a repository change: a read found a new refs fingerprint.
+ * The core saw a repository change: a read found a new refs fingerprint, or an operation ended.
  */
 export type RepositoryChanged = { repo: FolderRef; repositoryId: string; parts: Array<ChangedPart>; fingerprint: string | null }

@@ -10,10 +10,11 @@ use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
 use codecharta_core_api::methods::git::{
-    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitIsAncestorMethod,
+    GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod, GitBranchesMethod,
+    GitChangedFilesMethod, GitCommitDetailsMethod, GitFetchMethod, GitIsAncestorMethod,
     GitLogMethod, GitMeasureDistancesMethod, GitMergeBaseMethod, GitRefsAtMethod,
     GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
-    GitRevListCountMethod, GitStatusMethod,
+    GitRevListCountMethod, GitSetUpstreamMethod, GitStatusMethod, GitSwitchMethod,
 };
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use codecharta_core_api::methods::projects::{
@@ -248,6 +249,30 @@ const ROUTES: &[Route] = &[
     Route {
         name: GitChangedFilesMethod::NAME,
         handler: git_routes::changed_files,
+    },
+    Route {
+        name: GitFetchMethod::NAME,
+        handler: git_routes::fetch,
+    },
+    Route {
+        name: GitSwitchMethod::NAME,
+        handler: git_routes::switch,
+    },
+    Route {
+        name: GitBranchCreateMethod::NAME,
+        handler: git_routes::branch_create,
+    },
+    Route {
+        name: GitBranchRenameMethod::NAME,
+        handler: git_routes::branch_rename,
+    },
+    Route {
+        name: GitBranchDeleteMethod::NAME,
+        handler: git_routes::branch_delete,
+    },
+    Route {
+        name: GitSetUpstreamMethod::NAME,
+        handler: git_routes::set_upstream,
     },
     Route {
         name: PromptAnswerMethod::NAME,

@@ -3,7 +3,9 @@ use ts_rs::TS;
 
 use crate::methods::projects::{FolderRef, GitRemote};
 use crate::registry::{Audience, Event, method};
-use crate::values::{CommitSha, FullRefName, LogCursor, LogFilterText, RepoRelativePath, Revision};
+use crate::values::{
+    BranchName, CommitSha, FullRefName, LogCursor, LogFilterText, RepoRelativePath, Revision,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -203,7 +205,7 @@ pub struct GitChangedFilesParams {
     pub mode: ChangedFilesMode,
 }
 
-/// The core saw a repository change: a read found a new refs fingerprint.
+/// The core saw a repository change: a read found a new refs fingerprint, or an operation ended.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RepositoryChanged {
@@ -368,6 +370,108 @@ pub struct RefsAt {
     pub tags: Vec<String>,
 }
 
+/// What a branch operation left behind: the repository's status and refs read right after it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitOperationResult {
+    pub status: GitStatus,
+    pub refs: GitRefs,
+    /// A note for the user about the outcome; null when there is nothing to add.
+    pub message: Option<String>,
+}
+
+/// `updatedRefs` counts the branches, remote branches and tags the fetch added, moved or removed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitFetchResult {
+    pub updated_refs: u32,
+    pub refs: GitRefs,
+}
+
+/// Fetches every remote; `prune` also removes remote branches the remotes no longer have.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitFetchParams {
+    pub repo: FolderRef,
+    pub prune: bool,
+}
+
+/// `local` switches to an existing local branch (`refs/heads/…`); `trackRemote` creates `localName` from
+/// a remote branch (`refs/remotes/…`), tracking it, and switches to it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum GitSwitchTarget {
+    Local {
+        ref_name: FullRefName,
+    },
+    TrackRemote {
+        remote_ref_name: FullRefName,
+        local_name: BranchName,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitSwitchParams {
+    pub repo: FolderRef,
+    pub target: GitSwitchTarget,
+}
+
+/// Creates the branch `name` at `startPoint` without an upstream; `checkout` also switches to it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitBranchCreateParams {
+    pub repo: FolderRef,
+    pub name: BranchName,
+    pub start_point: CommitSha,
+    pub checkout: bool,
+}
+
+/// Renames the local branch `refName` (`refs/heads/…`); its upstream stays.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitBranchRenameParams {
+    pub repo: FolderRef,
+    pub ref_name: FullRefName,
+    pub new_name: BranchName,
+}
+
+/// `local` deletes a local branch; an unmerged one only with `force`, after `BRANCH_NOT_FULLY_MERGED` and a
+/// second confirmation. `remote` deletes the branch on its remote, named by its remote-tracking ref.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum GitBranchDeleteTarget {
+    Local { ref_name: FullRefName, force: bool },
+    Remote { remote_ref_name: FullRefName },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitBranchDeleteParams {
+    pub repo: FolderRef,
+    pub target: GitBranchDeleteTarget,
+}
+
+/// Makes the remote branch `upstreamRefName` (`refs/remotes/…`) the upstream of the local branch
+/// `refName`; null removes its upstream.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitSetUpstreamParams {
+    pub repo: FolderRef,
+    pub ref_name: FullRefName,
+    pub upstream_ref_name: Option<FullRefName>,
+}
+
 method!(
     GitRepositoryInfoMethod,
     "git.repositoryInfo",
@@ -454,6 +558,48 @@ method!(
     GitChangedFilesParams,
     GitChangedFiles
 );
+method!(
+    GitFetchMethod,
+    "git.fetch",
+    Renderer,
+    GitFetchParams,
+    GitFetchResult
+);
+method!(
+    GitSwitchMethod,
+    "git.switch",
+    Renderer,
+    GitSwitchParams,
+    GitOperationResult
+);
+method!(
+    GitBranchCreateMethod,
+    "git.branchCreate",
+    Renderer,
+    GitBranchCreateParams,
+    GitOperationResult
+);
+method!(
+    GitBranchRenameMethod,
+    "git.branchRename",
+    Renderer,
+    GitBranchRenameParams,
+    GitOperationResult
+);
+method!(
+    GitBranchDeleteMethod,
+    "git.branchDelete",
+    Renderer,
+    GitBranchDeleteParams,
+    GitOperationResult
+);
+method!(
+    GitSetUpstreamMethod,
+    "git.setUpstream",
+    Renderer,
+    GitSetUpstreamParams,
+    GitOperationResult
+);
 
 pub struct RepositoryChangedEvent;
 
@@ -506,5 +652,39 @@ mod tests {
                 { "kind": "detached", "commit": "0123456789abcdef0123456789abcdef01234567" }
             ])
         );
+    }
+
+    #[test]
+    fn should_tag_switch_and_delete_targets_by_kind_and_refuse_unknown_fields() {
+        // Arrange
+        let track = json!({
+            "kind": "trackRemote",
+            "remoteRefName": "refs/remotes/origin/feature",
+            "localName": "feature"
+        });
+        let delete = json!({ "kind": "local", "refName": "refs/heads/old", "force": false });
+        let smuggled = json!({ "kind": "local", "refName": "refs/heads/main", "args": "--force" });
+
+        // Act
+        let switch_target = serde_json::from_value::<GitSwitchTarget>(track);
+        let delete_target = serde_json::from_value::<GitBranchDeleteTarget>(delete);
+        let refused = serde_json::from_value::<GitSwitchTarget>(smuggled);
+
+        // Assert
+        assert_eq!(
+            switch_target.unwrap(),
+            GitSwitchTarget::TrackRemote {
+                remote_ref_name: FullRefName::try_from("refs/remotes/origin/feature").unwrap(),
+                local_name: BranchName::try_from("feature").unwrap(),
+            }
+        );
+        assert_eq!(
+            delete_target.unwrap(),
+            GitBranchDeleteTarget::Local {
+                ref_name: FullRefName::try_from("refs/heads/old").unwrap(),
+                force: false,
+            }
+        );
+        assert!(refused.is_err());
     }
 }

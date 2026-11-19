@@ -12,23 +12,31 @@ import type { EmptyParams } from "./EmptyParams"
 import type { ErrorCode } from "./ErrorCode"
 import type { FolderPath } from "./FolderPath"
 import type { FolderRef } from "./FolderRef"
+import type { GitBranchCreateParams } from "./GitBranchCreateParams"
+import type { GitBranchDeleteParams } from "./GitBranchDeleteParams"
+import type { GitBranchRenameParams } from "./GitBranchRenameParams"
 import type { GitChangedFiles } from "./GitChangedFiles"
 import type { GitChangedFilesParams } from "./GitChangedFilesParams"
 import type { GitCommitDetails } from "./GitCommitDetails"
 import type { GitCommitDistances } from "./GitCommitDistances"
 import type { GitCommitParams } from "./GitCommitParams"
 import type { GitCommitSummary } from "./GitCommitSummary"
+import type { GitFetchParams } from "./GitFetchParams"
+import type { GitFetchResult } from "./GitFetchResult"
 import type { GitIsAncestorParams } from "./GitIsAncestorParams"
 import type { GitLogPage } from "./GitLogPage"
 import type { GitLogParams } from "./GitLogParams"
 import type { GitMeasureDistancesParams } from "./GitMeasureDistancesParams"
 import type { GitMergeBaseParams } from "./GitMergeBaseParams"
+import type { GitOperationResult } from "./GitOperationResult"
 import type { GitRefs } from "./GitRefs"
 import type { GitRepoParams } from "./GitRepoParams"
 import type { GitRepositoryInfo } from "./GitRepositoryInfo"
 import type { GitResolveCommitParams } from "./GitResolveCommitParams"
 import type { GitRevListCountParams } from "./GitRevListCountParams"
+import type { GitSetUpstreamParams } from "./GitSetUpstreamParams"
 import type { GitStatus } from "./GitStatus"
+import type { GitSwitchParams } from "./GitSwitchParams"
 import type { HelloParams } from "./HelloParams"
 import type { HelloResult } from "./HelloResult"
 import type { ImportSnapshotParams } from "./ImportSnapshotParams"
@@ -107,7 +115,14 @@ export const CORE_ERROR_CODES = [
     "COMMAND_FAILED",
     "LOG_SESSION_EXPIRED",
     "UNKNOWN_REVISION",
-    "AUTHENTICATION_CANCELLED"
+    "AUTHENTICATION_CANCELLED",
+    "BRANCH_EXISTS",
+    "BRANCH_NOT_FULLY_MERGED",
+    "BRANCH_CHECKED_OUT_ELSEWHERE",
+    "LOCAL_CHANGES_WOULD_BE_OVERWRITTEN",
+    "OPERATION_IN_PROGRESS",
+    "AUTHENTICATION_REQUIRED",
+    "NETWORK_UNAVAILABLE"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {
@@ -160,6 +175,12 @@ export type CoreMethods = {
     "git.measureDistances": { params: GitMeasureDistancesParams; result: GitCommitDistances }
     "git.refsAt": { params: GitCommitParams; result: RefsAt }
     "git.changedFiles": { params: GitChangedFilesParams; result: GitChangedFiles }
+    "git.fetch": { params: GitFetchParams; result: GitFetchResult }
+    "git.switch": { params: GitSwitchParams; result: GitOperationResult }
+    "git.branchCreate": { params: GitBranchCreateParams; result: GitOperationResult }
+    "git.branchRename": { params: GitBranchRenameParams; result: GitOperationResult }
+    "git.branchDelete": { params: GitBranchDeleteParams; result: GitOperationResult }
+    "git.setUpstream": { params: GitSetUpstreamParams; result: GitOperationResult }
     "prompt.answer": { params: PromptAnswerParams; result: null }
     "prompt.cancel": { params: PromptCancelParams; result: null }
 }
@@ -215,6 +236,12 @@ export const RENDERER_METHODS = [
     "git.measureDistances",
     "git.refsAt",
     "git.changedFiles",
+    "git.fetch",
+    "git.switch",
+    "git.branchCreate",
+    "git.branchRename",
+    "git.branchDelete",
+    "git.setUpstream",
     "prompt.answer",
     "prompt.cancel"
 ] as const satisfies ReadonlyArray<keyof CoreMethods>

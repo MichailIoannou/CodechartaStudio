@@ -86,6 +86,129 @@ impl GitCore {
         }
         (answer.unwrap_or_default(), notified.unwrap_or_default())
     }
+
+    /// The answer to the request and every `notification` that arrived before it.
+    fn request_collecting(
+        &mut self,
+        method: &str,
+        params: Value,
+        notification: &str,
+    ) -> (Value, Vec<Value>) {
+        self.next_id += 1;
+        let id = json!(self.next_id);
+        self.core
+            .send(json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }));
+        let mut notified = Vec::new();
+        loop {
+            let message = self.core.receive();
+            if message["id"] == id {
+                return (message, notified);
+            }
+            if message["method"] == notification {
+                notified.push(message);
+            }
+        }
+    }
+}
+
+#[test]
+fn should_create_a_branch_over_stdio_and_announce_the_change() {
+    // Arrange
+    let repo = TempRepo::new();
+    let commit = repo.commit("Add a", &[("a.txt", "a")]);
+    let mut core = GitCore::start(&repo);
+    let folder = core.project_of(repo.path());
+    let params = json!({ "repo": folder, "name": "work", "startPoint": commit, "checkout": true });
+
+    // Act
+    let (answer, changed) = core.request_awaiting("git.branchCreate", params, REPOSITORY_CHANGED);
+
+    // Assert
+    let result = &answer["result"];
+    assert_eq!(result["status"]["head"]["name"], "work");
+    assert_eq!(result["message"], Value::Null);
+    assert_eq!(changed["params"]["parts"], json!(["status", "refs"]));
+    assert_eq!(
+        changed["params"]["fingerprint"],
+        result["refs"]["fingerprint"]
+    );
+}
+
+#[test]
+fn should_report_fetch_progress_with_the_request_id_over_stdio() {
+    // Arrange
+    let repo = TempRepo::new();
+    repo.commit("Add a", &[("a.txt", "a")]);
+    let repo = repo.with_bare_origin();
+    let other = repo.clone_of_origin();
+    other.commit("Add b", &[("b.txt", "b")]);
+    other.git(&["push", "--quiet", "origin", "HEAD:refs/heads/fresh"]);
+    let mut core = GitCore::start(&repo);
+    let folder = core.project_of(repo.path());
+
+    // Act
+    let (answer, progress) = core.request_collecting(
+        "git.fetch",
+        json!({ "repo": folder, "prune": false }),
+        "core.progress",
+    );
+
+    // Assert
+    assert_eq!(answer["result"]["updatedRefs"], 1);
+    assert!(!progress.is_empty());
+    assert!(
+        progress
+            .iter()
+            .all(|notification| notification["params"]["requestId"] == answer["id"])
+    );
+}
+
+#[test]
+fn should_reject_malformed_branch_params_without_running_git() {
+    // Arrange
+    let repo = TempRepo::new();
+    let commit = repo.commit("Add a", &[("a.txt", "a")]);
+    let mut core = GitCore::start(&repo);
+    let folder = core.project_of(repo.path());
+    let malformed = [
+        (
+            "git.branchCreate",
+            json!({ "repo": folder, "name": "-x", "startPoint": commit, "checkout": false }),
+        ),
+        (
+            "git.branchCreate",
+            json!({ "repo": folder, "name": "x", "startPoint": "HEAD", "checkout": false }),
+        ),
+        (
+            "git.switch",
+            json!({ "repo": folder, "target": { "kind": "local", "refName": "main" } }),
+        ),
+        (
+            "git.branchDelete",
+            json!({ "repo": folder, "target": { "kind": "local", "refName": "refs/heads/main" } }),
+        ),
+        (
+            "git.branchRename",
+            json!({ "repo": folder, "refName": "refs/heads/main", "newName": "a..b" }),
+        ),
+        (
+            "git.fetch",
+            json!({ "repo": folder, "prune": false, "remote": "x" }),
+        ),
+    ];
+
+    // Act
+    let codes: Vec<Value> = malformed
+        .iter()
+        .map(|(method, params)| error_data_code(&core.request(method, params.clone())).clone())
+        .collect();
+
+    // Assert
+    assert_eq!(codes, vec![json!("BAD_REQUEST"); codes.len()]);
+    assert_eq!(
+        repo.git(&["for-each-ref", "--format=%(refname)", "refs/heads"]),
+        "refs/heads/main"
+    );
 }
 
 #[test]

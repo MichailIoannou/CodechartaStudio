@@ -295,10 +295,10 @@ Every `repo` param is a `FolderRef`. Methods marked **(op)** are called with the
 | `git.fetch` (op) | `{ repo, prune }` | `GitFetchResult` |
 | `git.pull` (op) | `{ repo, mode: GitPullMode }` | `GitOperationResult` |
 | `git.push` (op) | `{ repo, branchRefName, remote, setUpstream, forceWithLeaseExpected: Option<String> }` | `GitOperationResult` |
-| `git.switch` (op) | `{ repo, refName }` or `{ repo, remoteRefName, localName }` (track remote) | `GitOperationResult` |
+| `git.switch` (op) | `{ repo, target: GitSwitchTarget }` — `{ kind: "local", refName }` or `{ kind: "trackRemote", remoteRefName, localName }` (as built in M8: a tagged `target` instead of two param shapes) | `GitOperationResult` |
 | `git.branchCreate` (op) | `{ repo, name, startPoint, checkout }` | `GitOperationResult` |
 | `git.branchRename` (op) | `{ repo, refName, newName }` | `GitOperationResult` |
-| `git.branchDelete` (op) | `{ repo, refName, force }` or `{ repo, remoteRefName }` (on the remote) | `GitOperationResult` |
+| `git.branchDelete` (op) | `{ repo, target: GitBranchDeleteTarget }` — `{ kind: "local", refName, force }` or `{ kind: "remote", remoteRefName }` (on the remote; as built in M8) | `GitOperationResult` |
 | `git.setUpstream` (op) | `{ repo, refName, upstreamRefName: Option<String> }` | `GitOperationResult` |
 | `git.abortOperation` (op) | `{ repo, operation: "merge" \| "rebase" }` | `GitOperationResult` |
 | `git.stashList` / `git.stashPush` (op) / `git.stashPop` (op) | stretch (M12): `{ repo }` / `{ repo, message, includeUntracked }` / `{ repo, index }` | `Vec<GitStashEntry>` / `GitOperationResult` |
@@ -433,7 +433,7 @@ Arguments are validated SHAs, so `A..B` cannot read as an option. Results are ca
 
 ```rust
 pub struct RevListRequest { pub include: Vec<CommitSha>, pub exclude: Vec<CommitSha>, pub first_parent: bool, pub max_count: Option<u32> }
-pub struct FetchRefspecsRequest { pub remote: String, pub refspecs: Vec<Refspec> }   // Refspec { force: bool, source: String, destination: FullRefName } — destination under refs/codecharta/
+pub struct FetchRefspecsRequest { pub remote: String, pub refspecs: Vec<Refspec> }   // as built (git/sync.rs): Refspec::new(force, source, destination) -> CoreResult<Refspec>; both full well-formed ref names, destination under refs/codecharta/, else BAD_REQUEST
 pub struct ChangedFilesRequest { pub from: CommitSha, pub to: CommitSha, pub mode: ChangedFilesMode }
 
 impl GitService {
@@ -481,7 +481,7 @@ impl OperationQueue {
 
 The newtypes `CommitSha`, `FullRefName`, `Revision`, `BranchName`, `RepoPath` are constructed only through validating `TryFrom<&str>` (section 4.4 rules), so a value reaching the runner is always valid.
 
-**Failure classification** (`failure.rs`), first match wins. Runner errors map to `timeout`, `cancelled`, `outputTooLarge`, `gitNotFound`; any failure after the user cancelled a prompt of that operation → `AUTHENTICATION_CANCELLED` (as built in M7: `PromptSession::settle`, applied before these rules; a cancelled helper makes git or ssh fail with varying texts). For a non-zero exit, stderr (and stdout where noted) is matched: `dubious ownership` → dubiousOwnership; `not a git repository` → notARepository; `index.lock` → indexLocked; `terminal prompts disabled`, `Authentication failed`, `could not read Username`, `Permission denied (publickey`, `Host key verification failed` → authenticationRequired; `Could not resolve host`, `unable to access`, `Connection timed out` → networkUnavailable; `already exists` (branch create / rename) → branchExists; `is already checked out at`, `already used by worktree` → branchCheckedOutElsewhere; `would be overwritten by` → localChangesWouldBeOverwritten; `is not fully merged` → branchNotFullyMerged; `Author identity unknown`, `Please tell me who you are` → identityUnknown; `nothing to commit`, `no changes added to commit` (stdout) → nothingToCommit; `pre-receive hook declined` → pushRejected; `Diverging branches can't be fast-forwarded`, `Not possible to fast-forward` → notFastForward; `stale info` → stalePushLease; `! [rejected]`, `failed to push some refs` → pushRejected; `has no upstream branch` → noUpstream; `CONFLICT` (stdout or stderr), `could not apply` → conflicts; any other non-zero exit of `commit` → hookFailed (UNVERIFIED: M10 task 1 confirms with a fixture hook that exits 1); anything else → commandFailed. Every error carries git's verbatim `detail`, and the UI always shows it. Each rule gets a test with a captured or fixture-produced text.
+**Failure classification** (`failure.rs`), first match wins. Runner errors map to `timeout`, `cancelled`, `outputTooLarge`, `gitNotFound`; any failure after the user cancelled a prompt of that operation → `AUTHENTICATION_CANCELLED` (as built in M7: `PromptSession::settle`, applied before these rules; a cancelled helper makes git or ssh fail with varying texts). For a non-zero exit, stderr (and stdout where noted) is matched: `dubious ownership` → dubiousOwnership; `not a git repository` → notARepository; `index.lock` → indexLocked; `terminal prompts disabled`, `Authentication failed`, `could not read Username`, `Permission denied (publickey`, `Host key verification failed` → authenticationRequired; `Could not resolve host`, `unable to access`, `Connection timed out` → networkUnavailable; `already exists` (branch create / rename) → branchExists; `is already checked out at`, `used by worktree` → branchCheckedOutElsewhere; `would be overwritten by` → localChangesWouldBeOverwritten; `is not fully merged` → branchNotFullyMerged; `Author identity unknown`, `Please tell me who you are` → identityUnknown; `nothing to commit`, `no changes added to commit` (stdout) → nothingToCommit; `pre-receive hook declined` → pushRejected; `Diverging branches can't be fast-forwarded`, `Not possible to fast-forward` → notFastForward; `stale info` → stalePushLease; `! [rejected]`, `failed to push some refs` → pushRejected; `has no upstream branch` → noUpstream; `CONFLICT` (stdout or stderr), `could not apply` → conflicts; any other non-zero exit of `commit` → hookFailed (UNVERIFIED: M10 task 1 confirms with a fixture hook that exits 1); anything else → commandFailed. Every error carries git's verbatim `detail`, and the UI always shows it. Each rule gets a test with a captured or fixture-produced text.
 
 ### 4.6 Mutating operations and credential prompts (core)
 
@@ -511,19 +511,19 @@ All mutating operations run in `OperationQueue::run_exclusive(repository_id, …
 | Operation | Preconditions (inside the queue) | Command |
 |---|---|---|
 | switch to local | branch exists; not checked out elsewhere; no operation in progress. **No app-side dirty-tree check** (owner decision): git carries changes over or refuses. | `switch --no-guess --no-recurse-submodules --end-of-options <name>`; refusal → `localChangesWouldBeOverwritten` with git's file list |
-| switch tracking a remote branch | as above; `localName` unused | `switch --no-guess --no-recurse-submodules -c <localName> --track --end-of-options <remote>/<branch>` |
-| `branch_create` | name valid and unused; start point a commit; with `checkout` the switch preconditions | `branch --no-track --end-of-options <name> <startPoint>`, then the switch command if `checkout` |
+| switch tracking a remote branch | as above; `localName` unused | `switch --no-guess --no-recurse-submodules -c <localName> --track --end-of-options refs/remotes/<remote>/<branch>` (as built in M8: the full remote-tracking ref; `localName` is the value of `-c`, a validated `BranchName`) |
+| `branch_create` | name valid and unused; start point a commit; with `checkout` the switch preconditions | `branch --no-track --end-of-options <name> <startPoint>`; with `checkout` one command instead, `switch --no-guess --no-recurse-submodules -c <name> --no-track --end-of-options <startPoint>` (as built in M8: no branch is left behind when the switch is refused) |
 | `branch_rename` | local ref exists; new name valid and unused | `branch -m --end-of-options <old> <new>` |
 | `branch_delete` local | not current; not checked out elsewhere | `branch -d --end-of-options <name>`; after `branchNotFullyMerged` and a second confirmation `force: true` → `branch -D --end-of-options <name>` |
-| `branch_delete` remote | remote ref exists | `push --progress --end-of-options <remote> --delete <branch>` (network) |
-| `set_upstream` | local ref; upstream a remote-tracking ref or none | `branch --set-upstream-to=<remote>/<branch> --end-of-options <name>` / `branch --unset-upstream --end-of-options <name>` |
+| `branch_delete` remote | remote ref exists | `push --progress --delete --end-of-options <remote> refs/heads/<branch>` (network; as built in M8 — after `--end-of-options` git would read `--delete` as a refspec) |
+| `set_upstream` | local ref; upstream a remote-tracking ref or none | `branch --set-upstream-to=refs/remotes/<remote>/<branch> --end-of-options <name>` / `branch --unset-upstream --end-of-options <name>` |
 
 **Sync** (`sync.rs`) — network environment with askpass, `--progress`, stderr through `parse/progress.rs` (split on `\r` and `\n`, keep the last non-empty line, strip `remote: ` and trailing spaces, `NN%` → `done/total = NN/100`), throttled to one `core.progress` per 200 ms (`GitCli::run_reporting`), cancellable (kills the process tree and closes the operation's open prompts).
 
 | Operation | Command | Outcome |
 |---|---|---|
 | `fetch` | `fetch --all --progress [--prune] --no-recurse-submodules --no-auto-maintenance` | `updated_refs` = changed fingerprint lines |
-| `fetch_refspecs` | `fetch --progress --no-recurse-submodules --no-auto-maintenance --end-of-options <remote> <refspec…>` | for plan 06; destinations under `refs/codecharta/` only |
+| `fetch_refspecs` | `fetch --progress --no-recurse-submodules --no-auto-maintenance --no-tags --refmap= --no-write-fetch-head --end-of-options <remote> <refspec…>` | for plan 06; destinations under `refs/codecharta/` only. As built in M8: without the empty `--refmap` git also updated `refs/remotes/<remote>/…` (found by the test), without `--no-tags` it follows tags. Not an RPC method: plan 06 builds the refspec from a PR number |
 | `pull` FfOnly (default) | `pull --ff-only --progress --no-recurse-submodules` | `notFastForward` → renderer opens the pull choice; repository unchanged |
 | `pull` Rebase | `pull --rebase --progress --no-recurse-submodules` | `conflicts` → stop, banner |
 | `pull` Merge | `pull --no-rebase --no-edit --progress --no-recurse-submodules` | `conflicts` → stop, banner |
@@ -797,6 +797,9 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 1. **Core.** `sync.rs` fetch and `fetch_refspecs`, `branch.rs`, `validate_new_branch_name`, RPC entries; contract types for these calls.
    - Tests (fixture with bare origin): fetch a new remote branch and prune a deleted one only when asked; progress reported; cancel aborts a running fetch; `fetch_refspecs` writes `refs/codecharta/…` and refuses other destinations; switch to an existing branch; unrelated local change carried over; refusal leaves the tree untouched with git's file list; refuse during a merge; refuse a branch checked out in another worktree; tracking branch from a remote branch, refuse an existing local name; create at a commit without touching the tree; rename keeps upstream; delete merged; unmerged → `branchNotFullyMerged`, deleted only with force; refuse deleting the current branch; delete on the remote; set and unset upstream; reject invalid names (`-x`, `..`, `@{`, `HEAD`, control chars); `--end-of-options` before every ref (faked runner); `repository.changed` after each operation.
    - Commit: `feat(core): add fetch and branch management`
+   - As built: the tests live in `tests/git_branches.rs`, `tests/git_fetch.rs` (fixture helpers
+     `tests/support/git_operations.rs`) and `codecharta-cored/tests/git_protocol.rs`; the refusal of other
+     `fetch_refspecs` destinations is a `Refspec::new` refusal, so no such refspec can be built.
 2. **Renderer.** `syncButtons` (Fetch), `branchContextMenu`, commit-menu write entries, create / rename / delete dialogs, `util/effectText.ts`, hooks notice.
    - Tests: switch confirmation names both branches and the folder; No sends nothing; refusal shows git's files; second confirmation before force delete; remote named on remote delete; name validated while typing; progress and Cancel while fetching; other actions disabled while one runs; hooks notice once per repository and session.
    - Commit: `feat(visualization): fetch and manage branches from history`
@@ -948,3 +951,15 @@ Reconciled with plans 01 and 03 as implemented (04-M1 task 1, 2026-11-18):
   take `(&GitFolder, …, &CancellationToken)`; internal reads take a `FolderGit { git, folder, cancel }`.
   New api values `Revision`, `LogCursor`, `LogFilterText`, `RepoRelativePath`; error codes
   `LOG_SESSION_EXPIRED`, `UNKNOWN_REVISION`. `git.measureDistances` answers `GitCommitDistances`.
+- As built in M8 (details: `progress/04-M8-fetch-branches.md`): mutating operations take `(&GitFolder, …,
+  &OperationContext { cancel, request_id, progress })` (`git/operation.rs`) and need
+  `GitService::with_operations(Operations { queue, prompts })`, which `Core::git()` sets. Inside the queue a
+  `Mutation { git, folder, repository, prompts, context }` re-reads refs and runs `run` (mutating) or
+  `run_network` (prompt session, progress, `settle`); every operation ends with `forget_logs`, a fresh
+  status + refs read and `RepositoryChanges::announce_operation` (`repository.changed` with parts
+  `status`, `refs`), also after a failure. Branch commands in `git/branch.rs` (`BranchCreateRequest`,
+  `BranchRenameRequest`, `SetUpstreamRequest`), fetch in `git/sync.rs` (`Refspec`, `FetchRefspecsRequest`,
+  `count_updated_refs`). New api value `BranchName`; api enums `GitSwitchTarget`, `GitBranchDeleteTarget`;
+  error codes `BRANCH_EXISTS`, `BRANCH_NOT_FULLY_MERGED`, `BRANCH_CHECKED_OUT_ELSEWHERE`,
+  `LOCAL_CHANGES_WOULD_BE_OVERWRITTEN`, `OPERATION_IN_PROGRESS`, `AUTHENTICATION_REQUIRED`,
+  `NETWORK_UNAVAILABLE`.

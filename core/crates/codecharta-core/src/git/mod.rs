@@ -1,4 +1,5 @@
 pub mod askpass;
+pub mod branch;
 pub mod cache;
 pub mod changes;
 pub mod command;
@@ -10,6 +11,7 @@ pub mod locator;
 pub mod log;
 pub mod memory;
 pub mod nul;
+pub mod operation;
 pub mod parse;
 pub mod progress;
 pub mod query;
@@ -17,6 +19,7 @@ pub mod queue;
 pub mod read;
 pub mod runner;
 pub mod service;
+pub mod sync;
 
 pub use error::GitError;
 pub use runner::{FolderGit, GitCli, GitFuture, GitOutput, GitProcess, GitRunner};
