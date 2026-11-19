@@ -54,7 +54,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M4 Dependency graph, color-range diagram | UI | done | — | feature/studio-02-m4 | ddf7e6b7f (merged 2daeb8b08) |
 | 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | done | — | feature/studio-02-m5 | 057018bc9 (merged a0827d426) |
 | 02-M6 Native window appearance | UI | done | — | feature/studio-02-m6 | b0e051814 (merged 7523f1965) |
-| 02-M7 Metrics bar, file extension bar, toasts (OD6, OD7, OD8; new) | UI | built, **held unmerged** | owner/design decision O7 (bar under the open explorer); the branch's keyboard-only page object must be replaced | feature/studio-02-m7 | 7d2564686 (not merged) |
+| 02-M7 Metrics bar, file extension bar, toasts (OD6, OD7, OD8; new) | UI | in progress again: implementing owner answer O7 = A (bar centred between explorer and inspector; #4557's test changed; mouse clicks restored) | — | feature/studio-02-m7 | 7d2564686 (not merged) |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | done on `feature/studio-stack` (part B via feature/studio-03-shell); integration merge pending | integration merge: owner's uncommitted plan 03 edit | feature/studio-03-m2, feature/studio-03-shell | 598d6ffd7 (merged into stack e8de7965e) |
@@ -370,6 +370,16 @@ the milestone is started.
   when the folder has an analysis; confirm and branch dialogs hosted in the History panel. Security tests: the
   answer never reaches console/HTML/state, input cleared before sending, sent once, Cancel/Escape send
   `prompt.cancel`. Wording supplied by the implementer: branch-menu icons, reused hints, "Upstream" label.
+- Owner answers 2026-11-19 (`design/open-questions.md`, uncommitted owner edits in the main checkout at the time):
+  O2 (picker title "Choose <tool>"; "Custom path not found: <path>"; keep "Programs" and the generic failure
+  toast; light summary contrast unchanged), O3 (keep Rider Day values; Darcula and VS Dark get their own neutral
+  graph palettes), O4 (recycle-bin failure → persistent error toast, no "Delete permanently"; forced re-analysis
+  replace accepted; clean-up for the working folder only), O5 (keep "Add folder"/"Re-link"; truncation OK; keep
+  import wording; remove the 4 GiB drop limit; cancelling "Look for commit… in another folder" removes the
+  just-created project), O6 (keep the Dependencies Legend tool; legend above the bar stands), O7 (option A).
+  Applied in: 02-M7 (O6/O7), `feature/studio-fixes-owner-answers` (O2, O3, O5), 05-M6 renderer later (O4).
+  Designer follow-ups named in the answers: T4 in `02-themes.md`, `05-snapshots.md` (recycle failure state,
+  working-folder clean-up), `03-projects.md` (cancel removes the project).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -401,6 +411,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: owner answered O2–O7; resumed 02-M7 for option A, started a Sonnet fixes agent for O2/O3/O5. Closed the old CodeCharta window (opened by the orchestrator) and launched the current stack build with the real ccsh on PATH for the owner.
 - 2026-11-19: 04-M7/M8 renderer passed web e2e 185/185 on the stack. Weekly usage 83%: started the last agent before the reset (04-M9/M10 renderer: changes, diff, commit); no new agents until the weekly reset (2026-11-20 13:00) apart from fixes.
 - 2026-11-19: 04-M7/M8 renderer merged into the stack (fake-bridge conflict resolved); gates: format, tsc, lint, npm test 749/749, build, test:electron 79/79, e2e:desktop 16/16; full web e2e running (the agent's last full run had 185/186 before its fix).
 - 2026-11-19: 06-M1 renderer merged cleanly into the stack; gates: format, tsc, lint, npm test 739/739, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 06-M2+M3 started as one agent (weekly 80%).
