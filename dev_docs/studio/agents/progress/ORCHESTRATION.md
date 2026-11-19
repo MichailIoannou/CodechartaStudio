@@ -69,8 +69,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 06-M1 Compare core: commit vs commit | core + UI | core tasks 1–3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI tasks 4–11: core stack merge | feature/studio-06-m1 | 698643e98 (verified, not merged) |
 | 06-M2 Entry points | UI | todo | 06-M1 | — | — |
 | 06-M3 Missing snapshots and staleness | UI (no core tasks) | todo | 06-M1 UI; core stack merge | — | — |
-| 06-M4 Changed files | core + UI | in progress (core task 1, from feature/studio-06-m1) | UI tasks: 06-M3 | feature/studio-06-m4 | — |
-| 06-M5 PRs and merge requests | core + UI | todo | 06-M4 | — | — |
+| 06-M4 Changed files | core + UI | core task 1 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: 06-M3 | feature/studio-06-m4 | 919fb2972 (verified, not merged) |
+| 06-M5 PRs and merge requests | core + UI | in progress (core tasks 1, 4; from feature/studio-06-m4) | tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner); UI: core stack merge | feature/studio-06-m5 | — |
 | 06-M6 Polish and stretch | UI | todo | 06-M5 | — | — |
 
 The core/UI split of mixed milestones is provisional; it is confirmed against the plan text when
@@ -259,6 +259,13 @@ the milestone is started.
   `SnapshotRef` is `ComparedCommit`; no new git module (reuses plan 04) and one `SideLookup` trait; no new
   error codes; `staleBy` = `behind + ahead` for every relation; size limits 15 MB warn / 60 MB block are
   provisional (06-M0 item 4). `Revision` refuses short names, so branches/PRs need their own intent fields.
+- 06-M4 core (see `06-m4-changed-files.md` on `feature/studio-06-m4`): reuses plan 04's name-status parsing;
+  new `GitService::changed_paths` (`--relative`, no 5000-file cut); picks the first folder that has both
+  commits; no new error code.
+- Disk incident 2026-11-19: the disk filled (1.3 GB free) because every agent worktree built its own
+  `core/target` (up to 15 GB each). Clean, fully committed agent worktrees were removed (branches kept) and
+  remaining `core/target` dirs deleted: 139 GB free. From now on core agents use a shared `CARGO_TARGET_DIR`
+  in the scratchpad, and verified worktrees are cleaned right away.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -290,6 +297,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: disk full; cleaned agent worktrees (139 GB free). 06-M4 core verified on a scratch merge (clippy and cargo test with and without features: 800/804, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 06-M5 core tasks 1 and 4 started.
 - 2026-11-19: 06-M1 core verified on a scratch merge (clippy and cargo test with and without features: 789/793, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 06-M3 has no core tasks. 06-M4 core started.
 - 2026-11-19: 06-M0 recorded as blocked (no gh/glab, Windows, needs projects UI); 06-M1 core tasks 1–3 started with provisional size limits.
 - 2026-11-19: 05-M6 core verified on a scratch merge (clippy and cargo test with and without features: 766/770, cargo-deny, contract drift, format, lint, tsc, npm test 663/663); deletion paths read in code. Plan 05 core complete. Design question O4 logged.
