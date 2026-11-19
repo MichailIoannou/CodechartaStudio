@@ -3,6 +3,7 @@ use std::sync::Mutex;
 
 use codecharta_core::CoreError;
 use codecharta_core::git::GitProcess;
+use codecharta_core::git::askpass::AskpassHelpers;
 use codecharta_core::git::changes::RepositoryChanges;
 use codecharta_core::git::memory::GitMemory;
 use codecharta_core::git::operation::{OperationContext, Operations};
@@ -10,6 +11,7 @@ use codecharta_core::git::parse::progress::ProgressUpdate;
 use codecharta_core::git::queue::OperationQueue;
 use codecharta_core::git::{GitFolder, GitService};
 use codecharta_core::prompt::PromptBroker;
+use codecharta_core::prompt::broker::AskpassTarget;
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::ids::{FolderId, ProjectId};
 use codecharta_core_api::methods::git::RepositoryChanged;
@@ -47,6 +49,15 @@ impl OperationsHarness {
 
     pub fn recycler(&self) -> &RecordingRecycler {
         &self.recycler
+    }
+
+    /// Network commands then get the askpass environment, as if the askpass server listened at
+    /// `endpoint`; git calls no helper as long as no remote asks for credentials.
+    pub fn attach_askpass(&self, endpoint: &str, helpers: AskpassHelpers) {
+        self.prompts.attach(AskpassTarget {
+            endpoint: endpoint.to_string(),
+            helpers,
+        });
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<RepositoryChanged> {

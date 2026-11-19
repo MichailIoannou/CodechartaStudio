@@ -5,16 +5,17 @@ use codecharta_core::git::log::LogRequest;
 use codecharta_core::git::operation::OperationContext;
 use codecharta_core::git::parse::progress::ProgressUpdate;
 use codecharta_core::git::query::check_candidate_count;
+use codecharta_core::git::sync::PushRequest;
 use codecharta_core::{Core, CoreResult};
 use codecharta_core_api::events::ProgressParams;
 use codecharta_core_api::methods::git::{
-    GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod, GitBranchesMethod,
-    GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitDistances, GitCommitMethod,
-    GitDiffFileMethod, GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod,
-    GitMeasureDistancesMethod, GitMergeBaseMethod, GitRefsAtMethod, GitRefsFingerprintMethod,
-    GitRepositoryInfoMethod, GitResolveCommitMethod, GitRevListCountMethod, GitSetUpstreamMethod,
-    GitStageMethod, GitStatusMethod, GitSwitchMethod, GitUnstageMethod, GitWorkingTreeMethod,
-    RepositoryChanged, RepositoryChangedEvent,
+    GitAbortOperationMethod, GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod,
+    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitDistances,
+    GitCommitMethod, GitDiffFileMethod, GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod,
+    GitLogMethod, GitMeasureDistancesMethod, GitMergeBaseMethod, GitPullMethod, GitPushMethod,
+    GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
+    GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
+    GitUnstageMethod, GitWorkingTreeMethod, RepositoryChanged, RepositoryChangedEvent,
 };
 use codecharta_core_api::registry::{Event, Method};
 use serde_json::Value;
@@ -256,6 +257,18 @@ operation_route!(
 operation_route!(commit, GitCommitMethod, |git, folder, params, operation| {
     git.commit(&folder, CommitRequest::from(params.clone()), operation)
 });
+
+operation_route!(pull, GitPullMethod, |git, folder, params, operation| git
+    .pull(&folder, params.mode, operation));
+
+operation_route!(push, GitPushMethod, |git, folder, params, operation| git
+    .push(&folder, &PushRequest::from(params.clone()), operation));
+
+operation_route!(
+    abort_operation,
+    GitAbortOperationMethod,
+    |git, folder, params, operation| git.abort_operation(&folder, params.operation, operation)
+);
 
 /// Sends every repository change the core announces as a `repository.changed` notification.
 pub async fn forward_repository_changes(

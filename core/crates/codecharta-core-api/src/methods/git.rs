@@ -590,6 +590,55 @@ pub struct GitCreateCommitParams {
     pub amend: bool,
 }
 
+/// How a pull combines the current branch with its upstream: `ffOnly` only moves the branch forward and
+/// fails with `NOT_FAST_FORWARD` when the two have diverged; `rebase` and `merge` stop with `CONFLICTS`,
+/// leaving the operation in progress, when files conflict.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum GitPullMode {
+    FfOnly,
+    Rebase,
+    Merge,
+}
+
+/// Pulls the current branch from its upstream.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitPullParams {
+    pub repo: FolderRef,
+    pub mode: GitPullMode,
+}
+
+/// Pushes the local branch `branchRefName` (`refs/heads/…`) to the configured remote `remote` (a name,
+/// never a url), onto its upstream branch there or one of the same name. `setUpstream` also makes that
+/// branch its upstream. `forceWithLeaseExpected` replaces the remote branch only while it still points at
+/// that commit, else the push fails with `STALE_PUSH_LEASE`; without it a push the remote refuses fails
+/// with `PUSH_REJECTED`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitPushParams {
+    pub repo: FolderRef,
+    pub branch_ref_name: FullRefName,
+    pub remote: String,
+    pub set_upstream: bool,
+    pub force_with_lease_expected: Option<CommitSha>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum GitAbortableOperation {
+    Merge,
+    Rebase,
+}
+
+/// Aborts the merge or rebase in progress and returns the branch to where it was before.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitAbortOperationParams {
+    pub repo: FolderRef,
+    pub operation: GitAbortableOperation,
+}
+
 method!(
     GitRepositoryInfoMethod,
     "git.repositoryInfo",
@@ -762,6 +811,28 @@ method!(
     GitOperationResult
 );
 
+method!(
+    GitPullMethod,
+    "git.pull",
+    Renderer,
+    GitPullParams,
+    GitOperationResult
+);
+method!(
+    GitPushMethod,
+    "git.push",
+    Renderer,
+    GitPushParams,
+    GitOperationResult
+);
+method!(
+    GitAbortOperationMethod,
+    "git.abortOperation",
+    Renderer,
+    GitAbortOperationParams,
+    GitOperationResult
+);
+
 pub struct RepositoryChangedEvent;
 
 impl Event for RepositoryChangedEvent {
@@ -876,6 +947,48 @@ mod tests {
                 change: GitFileChange::Added,
             }]
         );
+    }
+
+    #[test]
+    fn should_read_pull_push_and_abort_params_and_refuse_a_free_form_force() {
+        // Arrange
+        let repo = json!({ "projectId": "p-0123456789abcdef", "folderId": "f-0123456789abcdef" });
+        let sha = "0123456789abcdef0123456789abcdef01234567";
+        let pull = json!({ "repo": repo, "mode": "ffOnly" });
+        let push = json!({
+            "repo": repo, "branchRefName": "refs/heads/main", "remote": "origin",
+            "setUpstream": true, "forceWithLeaseExpected": sha
+        });
+        let abort = json!({ "repo": repo, "operation": "rebase" });
+        let forced = json!({
+            "repo": repo, "branchRefName": "refs/heads/main", "remote": "origin",
+            "setUpstream": false, "forceWithLeaseExpected": null, "force": true
+        });
+        let expression = json!({
+            "repo": repo, "branchRefName": "refs/heads/main", "remote": "origin",
+            "setUpstream": false, "forceWithLeaseExpected": "HEAD~1"
+        });
+
+        // Act
+        let pulled = serde_json::from_value::<GitPullParams>(pull);
+        let pushed = serde_json::from_value::<GitPushParams>(push);
+        let aborted = serde_json::from_value::<GitAbortOperationParams>(abort);
+        let refused = [forced, expression]
+            .map(|params| serde_json::from_value::<GitPushParams>(params).is_err());
+
+        // Assert
+        assert_eq!(pulled.unwrap().mode, GitPullMode::FfOnly);
+        let pushed = pushed.unwrap();
+        assert!(pushed.set_upstream);
+        assert_eq!(
+            pushed
+                .force_with_lease_expected
+                .map(String::from)
+                .as_deref(),
+            Some(sha)
+        );
+        assert_eq!(aborted.unwrap().operation, GitAbortableOperation::Rebase);
+        assert_eq!(refused, [true, true]);
     }
 
     #[test]

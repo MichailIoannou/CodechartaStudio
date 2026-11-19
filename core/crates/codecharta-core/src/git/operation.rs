@@ -10,7 +10,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::branch::{self, BranchCreateRequest, BranchRenameRequest, SetUpstreamRequest};
 use super::command::{BRANCH_LIMITS, GitCommand, NETWORK_LIMITS};
-use super::error::command_failed;
+use super::error::{network_failed, without_ssh_prompts};
 use super::locator::{Repository, locate};
 use super::progress::ProgressSink;
 use super::queue::OperationQueue;
@@ -97,12 +97,20 @@ impl Mutation<'_> {
             repository_label: Some(self.repository_label()),
         })?;
         let askpass = session.askpass().cloned();
+        let lacks_ssh_helper = askpass
+            .as_ref()
+            .is_some_and(|setup| setup.ssh_helper.is_none());
         let command = GitCommand::network(&self.folder.path, args, NETWORK_LIMITS, askpass);
         let output = self
             .git
             .run_reporting(&command, self.context.cancel, self.context.progress)
             .await;
-        session.settle(output.and_then(succeeded))
+        let result = output.and_then(succeeded);
+        session.settle(if lacks_ssh_helper {
+            result.map_err(without_ssh_prompts)
+        } else {
+            result
+        })
     }
 
     fn repository_label(&self) -> String {
@@ -117,7 +125,7 @@ fn succeeded(output: RunOutput) -> CoreResult<RunOutput> {
     if output.exit_code == 0 {
         Ok(output)
     } else {
-        Err(command_failed(&output))
+        Err(network_failed(&output))
     }
 }
 

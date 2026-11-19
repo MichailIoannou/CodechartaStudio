@@ -657,6 +657,67 @@ fn should_commit_staged_changes_over_stdio_and_refuse_a_multi_line_subject() {
 }
 
 #[test]
+fn should_pull_and_push_over_stdio_and_reject_a_free_form_force() {
+    // Arrange
+    let repo = TempRepo::new();
+    repo.commit("Add a", &[("a.txt", "a")]);
+    let repo = repo.with_bare_origin();
+    let other = repo.clone_of_origin();
+    let pushed = other.commit("Add b", &[("b.txt", "b")]);
+    other.git(&["push", "--quiet", "origin", "HEAD:refs/heads/main"]);
+    let mut core = GitCore::start(&repo);
+    let folder = core.project_of(repo.path());
+    let push = json!({
+        "repo": folder, "branchRefName": "refs/heads/main", "remote": "origin",
+        "setUpstream": false, "forceWithLeaseExpected": null
+    });
+    let malformed = [
+        ("git.pull", json!({ "repo": folder, "mode": "ff" })),
+        (
+            "git.push",
+            json!({
+                "repo": folder, "branchRefName": "refs/heads/main", "remote": "origin",
+                "setUpstream": false, "forceWithLeaseExpected": null, "force": true
+            }),
+        ),
+        (
+            "git.push",
+            json!({
+                "repo": folder, "branchRefName": "refs/heads/main", "remote": "origin",
+                "setUpstream": false, "forceWithLeaseExpected": "HEAD"
+            }),
+        ),
+        (
+            "git.abortOperation",
+            json!({ "repo": folder, "operation": "cherryPick" }),
+        ),
+    ];
+
+    // Act
+    let codes: Vec<Value> = malformed
+        .iter()
+        .map(|(method, params)| error_data_code(&core.request(method, params.clone())).clone())
+        .collect();
+    let (pulled, changed) = core.request_awaiting(
+        "git.pull",
+        json!({ "repo": folder, "mode": "ffOnly" }),
+        REPOSITORY_CHANGED,
+    );
+    let local = repo.commit("Add c", &[("c.txt", "c")]);
+    let pushed_local = core.request("git.push", push);
+
+    // Assert
+    assert_eq!(codes, vec![json!("BAD_REQUEST"); codes.len()]);
+    assert_eq!(pulled["result"]["status"]["head"]["commit"], json!(pushed));
+    assert_eq!(changed["method"], REPOSITORY_CHANGED);
+    assert_eq!(pushed_local["result"]["status"]["upstream"]["ahead"], 0);
+    assert!(
+        repo.git(&["ls-remote", "origin", "refs/heads/main"])
+            .starts_with(&local)
+    );
+}
+
+#[test]
 fn should_print_three_log_lines_from_cli_with_limit() {
     // Arrange
     let repo = TempRepo::new();

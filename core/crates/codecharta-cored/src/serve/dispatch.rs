@@ -10,12 +10,13 @@ use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
 use codecharta_core_api::methods::git::{
-    GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod, GitBranchesMethod,
-    GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitMethod, GitDiffFileMethod,
-    GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod,
-    GitMergeBaseMethod, GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod,
-    GitResolveCommitMethod, GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod,
-    GitStatusMethod, GitSwitchMethod, GitUnstageMethod, GitWorkingTreeMethod,
+    GitAbortOperationMethod, GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod,
+    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitMethod,
+    GitDiffFileMethod, GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod,
+    GitMeasureDistancesMethod, GitMergeBaseMethod, GitPullMethod, GitPushMethod, GitRefsAtMethod,
+    GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
+    GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
+    GitUnstageMethod, GitWorkingTreeMethod,
 };
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use codecharta_core_api::methods::projects::{
@@ -298,6 +299,18 @@ const ROUTES: &[Route] = &[
     Route {
         name: GitCommitMethod::NAME,
         handler: git_routes::commit,
+    },
+    Route {
+        name: GitPullMethod::NAME,
+        handler: git_routes::pull,
+    },
+    Route {
+        name: GitPushMethod::NAME,
+        handler: git_routes::push,
+    },
+    Route {
+        name: GitAbortOperationMethod::NAME,
+        handler: git_routes::abort_operation,
     },
     Route {
         name: PromptAnswerMethod::NAME,

@@ -53,6 +53,9 @@
     "git.unstage",
     "git.discard",
     "git.commit",
+    "git.pull",
+    "git.push",
+    "git.abortOperation",
     "prompt.answer",
     "prompt.cancel"
   ]

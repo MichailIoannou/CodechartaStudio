@@ -45,3 +45,7 @@ export type ErrorCode =
     | "NOTHING_TO_COMMIT"
     | "HOOK_FAILED"
     | "CONFLICTS"
+    | "NOT_FAST_FORWARD"
+    | "PUSH_REJECTED"
+    | "NO_UPSTREAM"
+    | "STALE_PUSH_LEASE"

@@ -50,10 +50,14 @@ pub enum ErrorCode {
     NothingToCommit,
     HookFailed,
     Conflicts,
+    NotFastForward,
+    PushRejected,
+    NoUpstream,
+    StalePushLease,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 44] = [
+    pub const ALL: [ErrorCode; 48] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -98,6 +102,10 @@ impl ErrorCode {
         ErrorCode::NothingToCommit,
         ErrorCode::HookFailed,
         ErrorCode::Conflicts,
+        ErrorCode::NotFastForward,
+        ErrorCode::PushRejected,
+        ErrorCode::NoUpstream,
+        ErrorCode::StalePushLease,
     ];
 }
 
@@ -161,6 +169,10 @@ mod tests {
             ErrorCode::NothingToCommit,
             ErrorCode::HookFailed,
             ErrorCode::Conflicts,
+            ErrorCode::NotFastForward,
+            ErrorCode::PushRejected,
+            ErrorCode::NoUpstream,
+            ErrorCode::StalePushLease,
         ];
 
         // Act
@@ -191,7 +203,11 @@ mod tests {
                 "IDENTITY_UNKNOWN",
                 "NOTHING_TO_COMMIT",
                 "HOOK_FAILED",
-                "CONFLICTS"
+                "CONFLICTS",
+                "NOT_FAST_FORWARD",
+                "PUSH_REJECTED",
+                "NO_UPSTREAM",
+                "STALE_PUSH_LEASE"
             ])
         );
     }

@@ -1,9 +1,17 @@
 use std::collections::BTreeMap;
 
-use codecharta_core_api::methods::git::GitRefs;
-use codecharta_core_api::values::{FullRefName, Revision};
+use codecharta_core_api::error::ErrorCode;
+use codecharta_core_api::methods::git::{
+    GitAbortableOperation, GitLocalBranch, GitOperationResult, GitPullMode, GitPushParams, GitRefs,
+    OperationInProgress,
+};
+use codecharta_core_api::values::{CommitSha, FullRefName, Revision};
 
-use super::operation::Mutation;
+use super::branch::{ensure_no_operation_in_progress, local_branch};
+use super::error::refused;
+use super::locator::locate;
+use super::operation::{Mutation, OperationContext};
+use super::service::{GitFolder, GitService};
 use crate::error::{CoreError, CoreResult};
 
 const FETCH_ALL_ARGS: [&str; 5] = [
@@ -26,6 +34,20 @@ const FETCH_REFSPECS_ARGS: [&str; 7] = [
     "--no-write-fetch-head",
 ];
 const END_OF_OPTIONS: &str = "--end-of-options";
+const PULL: &str = "pull";
+const PULL_OPTIONS: [&str; 2] = ["--progress", "--no-recurse-submodules"];
+const FAST_FORWARD_ONLY: [&str; 1] = ["--ff-only"];
+const REBASE: [&str; 1] = ["--rebase"];
+const MERGE: [&str; 2] = ["--no-rebase", "--no-edit"];
+/// `--porcelain` puts every refused ref and its reason on stdout, where the classifier finds them.
+const PUSH_ARGS: [&str; 3] = ["push", "--progress", "--porcelain"];
+const SET_UPSTREAM: &str = "-u";
+/// Always with the remote ref and the commit the user saw there, never bare and never `--force`.
+const FORCE_WITH_LEASE_OPTION: &str = "--force-with-lease=";
+const ABORT: &str = "--abort";
+const MERGE_SUBCOMMAND: &str = "merge";
+const REBASE_SUBCOMMAND: &str = "rebase";
+const LOCAL_BRANCHES_PREFIX: &str = "refs/heads/";
 /// The only refs the core writes into a user's repository besides what the user asks git to do (D5).
 pub const CODECHARTA_REFS_PREFIX: &str = "refs/codecharta/";
 const FULL_REF_PREFIX: &str = "refs/";
@@ -88,6 +110,165 @@ pub struct FetchRefspecsRequest {
     pub refspecs: Vec<Refspec>,
 }
 
+/// `remote` is the name of a configured remote, never a url; `force_with_lease_expected` is the commit
+/// the user saw on the remote branch.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PushRequest {
+    pub branch_ref_name: FullRefName,
+    pub remote: String,
+    pub set_upstream: bool,
+    pub force_with_lease_expected: Option<CommitSha>,
+}
+
+impl From<GitPushParams> for PushRequest {
+    fn from(params: GitPushParams) -> Self {
+        Self {
+            branch_ref_name: params.branch_ref_name,
+            remote: params.remote,
+            set_upstream: params.set_upstream,
+            force_with_lease_expected: params.force_with_lease_expected,
+        }
+    }
+}
+
+impl GitService<'_> {
+    /// A pull fetches too, so it ends like a fetch.
+    pub async fn pull(
+        &self,
+        folder: &GitFolder,
+        mode: GitPullMode,
+        context: &OperationContext<'_>,
+    ) -> CoreResult<GitOperationResult> {
+        let repository = locate(&self.git, &folder.path, context.cancel).await?;
+        let mutation = self.mutation(folder, &repository, context)?;
+        let settled = self.operate(&mutation, pull(&mutation, mode)).await;
+        let info = &repository.info;
+        self.memory.fetched(&info.repository_id, info.is_shallow);
+        Ok(settled?.into_operation_result())
+    }
+
+    pub async fn push(
+        &self,
+        folder: &GitFolder,
+        request: &PushRequest,
+        context: &OperationContext<'_>,
+    ) -> CoreResult<GitOperationResult> {
+        let repository = locate(&self.git, &folder.path, context.cancel).await?;
+        let mutation = self.mutation(folder, &repository, context)?;
+        let settled = self.operate(&mutation, push(&mutation, request));
+        Ok(settled.await?.into_operation_result())
+    }
+
+    pub async fn abort_operation(
+        &self,
+        folder: &GitFolder,
+        operation: GitAbortableOperation,
+        context: &OperationContext<'_>,
+    ) -> CoreResult<GitOperationResult> {
+        let repository = locate(&self.git, &folder.path, context.cancel).await?;
+        let mutation = self.mutation(folder, &repository, context)?;
+        let settled = self.operate(&mutation, abort(&mutation, operation));
+        Ok(settled.await?.into_operation_result())
+    }
+}
+
+/// The current branch from its upstream; conflicts leave the merge or rebase in progress.
+async fn pull(mutation: &Mutation<'_>, mode: GitPullMode) -> CoreResult<()> {
+    ensure_no_operation_in_progress(mutation)?;
+    let refs = mutation.refs().await?;
+    let branch = current_branch(&refs)?;
+    if branch.upstream.is_none() {
+        return Err(refused(ErrorCode::NoUpstream));
+    }
+    mutation.run_network(&pull_args(mode)).await.map(drop)
+}
+
+fn current_branch(refs: &GitRefs) -> CoreResult<&GitLocalBranch> {
+    refs.local_branches
+        .iter()
+        .find(|branch| branch.is_current)
+        .ok_or_else(|| {
+            CoreError::NotAllowed(
+                "A pull needs a checked-out branch; switch to one first.".to_string(),
+            )
+        })
+}
+
+fn pull_args(mode: GitPullMode) -> Vec<&'static str> {
+    let mode_args: &[&str] = match mode {
+        GitPullMode::FfOnly => &FAST_FORWARD_ONLY,
+        GitPullMode::Rebase => &REBASE,
+        GitPullMode::Merge => &MERGE,
+    };
+    [&[PULL], mode_args, PULL_OPTIONS.as_slice()].concat()
+}
+
+async fn push(mutation: &Mutation<'_>, request: &PushRequest) -> CoreResult<()> {
+    let refs = mutation.refs().await?;
+    let branch = local_branch(&refs, &request.branch_ref_name)?;
+    ensure_remote(&refs, &request.remote)?;
+    let destination = push_destination(&refs, branch, &request.remote);
+    let args = push_args(&branch.ref_name, &destination, request);
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    mutation.run_network(&args).await.map(drop)
+}
+
+/// The branch's upstream on that remote, or a branch of the same name there.
+fn push_destination(refs: &GitRefs, branch: &GitLocalBranch, remote: &str) -> String {
+    let upstream = branch.upstream.as_ref().and_then(|upstream| {
+        refs.remote_branches
+            .iter()
+            .find(|tracking| tracking.ref_name == upstream.ref_name && tracking.remote == remote)
+    });
+    let name = upstream.map_or(branch.name.as_str(), |tracking| {
+        tracking.branch_name.as_str()
+    });
+    format!("{LOCAL_BRANCHES_PREFIX}{name}")
+}
+
+fn push_args(source: &str, destination: &str, request: &PushRequest) -> Vec<String> {
+    let mut args: Vec<String> = PUSH_ARGS.iter().map(ToString::to_string).collect();
+    if request.set_upstream {
+        args.push(SET_UPSTREAM.to_string());
+    }
+    if let Some(expected) = &request.force_with_lease_expected {
+        args.push(format!("{FORCE_WITH_LEASE_OPTION}{destination}:{expected}"));
+    }
+    args.extend([
+        END_OF_OPTIONS.to_string(),
+        request.remote.clone(),
+        format!("{source}{REFSPEC_SEPARATOR}{destination}"),
+    ]);
+    args
+}
+
+async fn abort(mutation: &Mutation<'_>, operation: GitAbortableOperation) -> CoreResult<()> {
+    let (expected, subcommand) = match operation {
+        GitAbortableOperation::Merge => (OperationInProgress::Merge, MERGE_SUBCOMMAND),
+        GitAbortableOperation::Rebase => (OperationInProgress::Rebase, REBASE_SUBCOMMAND),
+    };
+    if mutation.operation_in_progress() != Some(expected) {
+        return Err(CoreError::NotAllowed(format!(
+            "No {subcommand} is in progress to abort."
+        )));
+    }
+    mutation.run(&[subcommand, ABORT]).await.map(drop)
+}
+
+fn ensure_remote(refs: &GitRefs, remote: &str) -> CoreResult<()> {
+    if refs
+        .remotes
+        .iter()
+        .any(|configured| configured.name == remote)
+    {
+        Ok(())
+    } else {
+        Err(CoreError::NotFound(format!(
+            "There is no remote {remote:?}."
+        )))
+    }
+}
+
 /// Answers the refs as they were before, to count what the fetch changed.
 pub async fn fetch(mutation: &Mutation<'_>, prune: bool) -> CoreResult<GitRefs> {
     let before = mutation.refs().await?;
@@ -109,16 +290,7 @@ pub async fn fetch_refspecs(
         ));
     }
     let before = mutation.refs().await?;
-    if !before
-        .remotes
-        .iter()
-        .any(|remote| remote.name == request.remote)
-    {
-        return Err(CoreError::NotFound(format!(
-            "There is no remote {:?}.",
-            request.remote
-        )));
-    }
+    ensure_remote(&before, &request.remote)?;
     let refspecs: Vec<String> = request.refspecs.iter().map(Refspec::text).collect();
     let mut args = FETCH_REFSPECS_ARGS.to_vec();
     args.extend([END_OF_OPTIONS, request.remote.as_str()]);
@@ -182,6 +354,78 @@ mod tests {
 
         // Assert
         assert_eq!(refused, vec![true; destinations.len()]);
+    }
+
+    fn push_request(set_upstream: bool, expected: Option<&str>) -> PushRequest {
+        PushRequest {
+            branch_ref_name: FullRefName::try_from("refs/heads/feature").unwrap(),
+            remote: "origin".to_string(),
+            set_upstream,
+            force_with_lease_expected: expected.map(|sha| CommitSha::try_from(sha).unwrap()),
+        }
+    }
+
+    #[test]
+    fn should_push_with_a_lease_on_the_destination_and_the_expected_sha_only() {
+        // Arrange
+        let expected = "0123456789abcdef0123456789abcdef01234567";
+        let (source, destination) = ("refs/heads/feature", "refs/heads/upstream");
+
+        // Act
+        let plain = push_args(source, destination, &push_request(false, None));
+        let leased = push_args(source, destination, &push_request(true, Some(expected)));
+
+        // Assert
+        assert_eq!(
+            plain,
+            [
+                "push",
+                "--progress",
+                "--porcelain",
+                "--end-of-options",
+                "origin",
+                "refs/heads/feature:refs/heads/upstream"
+            ]
+        );
+        assert_eq!(
+            leased[3..6],
+            [
+                "-u".to_string(),
+                format!("--force-with-lease=refs/heads/upstream:{expected}"),
+                "--end-of-options".to_string()
+            ]
+        );
+        assert!(
+            !plain
+                .iter()
+                .chain(&leased)
+                .any(|arg| arg == "--force" || arg == "-f")
+        );
+    }
+
+    #[test]
+    fn should_pull_fast_forward_only_unless_rebase_or_merge_is_asked() {
+        // Arrange
+        let modes = [GitPullMode::FfOnly, GitPullMode::Rebase, GitPullMode::Merge];
+
+        // Act
+        let args = modes.map(pull_args);
+
+        // Assert
+        assert_eq!(
+            args,
+            [
+                vec!["pull", "--ff-only", "--progress", "--no-recurse-submodules"],
+                vec!["pull", "--rebase", "--progress", "--no-recurse-submodules"],
+                vec![
+                    "pull",
+                    "--no-rebase",
+                    "--no-edit",
+                    "--progress",
+                    "--no-recurse-submodules"
+                ],
+            ]
+        );
     }
 
     #[test]

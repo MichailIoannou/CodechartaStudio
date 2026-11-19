@@ -12,6 +12,7 @@ import type { EmptyParams } from "./EmptyParams"
 import type { ErrorCode } from "./ErrorCode"
 import type { FolderPath } from "./FolderPath"
 import type { FolderRef } from "./FolderRef"
+import type { GitAbortOperationParams } from "./GitAbortOperationParams"
 import type { GitBranchCreateParams } from "./GitBranchCreateParams"
 import type { GitBranchDeleteParams } from "./GitBranchDeleteParams"
 import type { GitBranchRenameParams } from "./GitBranchRenameParams"
@@ -33,6 +34,8 @@ import type { GitLogParams } from "./GitLogParams"
 import type { GitMeasureDistancesParams } from "./GitMeasureDistancesParams"
 import type { GitMergeBaseParams } from "./GitMergeBaseParams"
 import type { GitOperationResult } from "./GitOperationResult"
+import type { GitPullParams } from "./GitPullParams"
+import type { GitPushParams } from "./GitPushParams"
 import type { GitRefs } from "./GitRefs"
 import type { GitRepoParams } from "./GitRepoParams"
 import type { GitRepositoryInfo } from "./GitRepositoryInfo"
@@ -134,7 +137,11 @@ export const CORE_ERROR_CODES = [
     "IDENTITY_UNKNOWN",
     "NOTHING_TO_COMMIT",
     "HOOK_FAILED",
-    "CONFLICTS"
+    "CONFLICTS",
+    "NOT_FAST_FORWARD",
+    "PUSH_REJECTED",
+    "NO_UPSTREAM",
+    "STALE_PUSH_LEASE"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {
@@ -199,6 +206,9 @@ export type CoreMethods = {
     "git.unstage": { params: GitUnstageParams; result: GitWorkingTree }
     "git.discard": { params: GitDiscardParams; result: GitWorkingTree }
     "git.commit": { params: GitCreateCommitParams; result: GitOperationResult }
+    "git.pull": { params: GitPullParams; result: GitOperationResult }
+    "git.push": { params: GitPushParams; result: GitOperationResult }
+    "git.abortOperation": { params: GitAbortOperationParams; result: GitOperationResult }
     "prompt.answer": { params: PromptAnswerParams; result: null }
     "prompt.cancel": { params: PromptCancelParams; result: null }
 }
@@ -266,6 +276,9 @@ export const RENDERER_METHODS = [
     "git.unstage",
     "git.discard",
     "git.commit",
+    "git.pull",
+    "git.push",
+    "git.abortOperation",
     "prompt.answer",
     "prompt.cancel"
 ] as const satisfies ReadonlyArray<keyof CoreMethods>

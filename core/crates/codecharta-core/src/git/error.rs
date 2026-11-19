@@ -1,10 +1,16 @@
 use codecharta_core_api::error::ErrorCode;
 
-use super::failure::classify;
+use super::failure::{classify, classify_streams};
 use crate::error::CoreError;
 use crate::process::RunOutput;
 
 pub const MAX_DETAIL_CHARS: usize = 2000;
+/// Without a space-free helper path ssh cannot ask through the core, so it fails as if it had no key.
+pub const SSH_AGENT_MESSAGE: &str = "CodeCharta cannot ask for ssh passphrases on this machine. Load the key into ssh-agent / Pageant first.";
+const SSH_FAILURES: [&str; 2] = [
+    "Permission denied (publickey",
+    "Host key verification failed",
+];
 
 /// A refusal of git itself. `message` is one sentence safe to show; `detail` is git's own text, shown
 /// verbatim next to it.
@@ -56,6 +62,33 @@ pub fn command_failed(output: &RunOutput) -> CoreError {
         .into()
 }
 
+/// A command that talked to a remote: git names conflicts and refused refs on stdout, so both streams are
+/// classified and both are the detail.
+pub fn network_failed(output: &RunOutput) -> CoreError {
+    let code = classify_streams(&[&output.stderr, &output.stdout]);
+    let text = format!("{}\n{}", output.stderr.trim(), output.stdout.trim());
+    GitError::new(code, message_for(code))
+        .with_detail(&text)
+        .into()
+}
+
+/// An ssh refusal of a command that ran without an ssh helper says how to get past it.
+pub fn without_ssh_prompts(error: CoreError) -> CoreError {
+    match error {
+        CoreError::Git(git_error) if is_ssh_refusal(&git_error) => CoreError::Git(GitError {
+            message: SSH_AGENT_MESSAGE.to_string(),
+            ..git_error
+        }),
+        other => other,
+    }
+}
+
+fn is_ssh_refusal(error: &GitError) -> bool {
+    let detail = error.detail.as_deref().unwrap_or_default();
+    error.code == ErrorCode::AuthenticationRequired
+        && SSH_FAILURES.iter().any(|text| detail.contains(text))
+}
+
 /// A refusal the core decides itself, before git runs, worded as git's own would be.
 pub fn refused(code: ErrorCode) -> CoreError {
     GitError::new(code, message_for(code)).into()
@@ -101,7 +134,92 @@ pub fn message_for(code: ErrorCode) -> &'static str {
         }
         ErrorCode::NothingToCommit => "Nothing is staged to commit.",
         ErrorCode::HookFailed => "A git hook of this repository stopped the commit.",
-        ErrorCode::Conflicts => "Some files still have conflicts; resolve and stage them first.",
+        ErrorCode::Conflicts => {
+            "Some files have conflicts; resolve them in your editor and stage them, or abort."
+        }
+        ErrorCode::NotFastForward => {
+            "The branch and its upstream have diverged; choose whether to rebase or merge."
+        }
+        ErrorCode::PushRejected => {
+            "The remote refused the push; if it has commits your branch lacks, pull first."
+        }
+        ErrorCode::NoUpstream => "The branch has no upstream to pull from.",
+        ErrorCode::StalePushLease => {
+            "The remote branch moved since you looked at it; fetch, review and try again."
+        }
         _ => "git failed.",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn refusal(code: ErrorCode, detail: &str) -> CoreError {
+        GitError::new(code, message_for(code))
+            .with_detail(detail)
+            .into()
+    }
+
+    fn message_of(error: CoreError) -> String {
+        match error {
+            CoreError::Git(error) => error.message,
+            other => panic!("not a refusal of git: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn should_name_ssh_agent_only_for_ssh_refusals() {
+        // Arrange
+        let publickey = refusal(
+            ErrorCode::AuthenticationRequired,
+            "git@example.test: Permission denied (publickey).",
+        );
+        let host_key = refusal(
+            ErrorCode::AuthenticationRequired,
+            "Host key verification failed.",
+        );
+        let https = refusal(
+            ErrorCode::AuthenticationRequired,
+            "fatal: Authentication failed for 'https://example.test/'",
+        );
+        let network = refusal(
+            ErrorCode::NetworkUnavailable,
+            "Permission denied (publickey) and Connection timed out",
+        );
+
+        // Act
+        let messages = [publickey, host_key, https, network]
+            .map(|error| message_of(without_ssh_prompts(error)));
+
+        // Assert
+        assert_eq!(messages[0], SSH_AGENT_MESSAGE);
+        assert_eq!(messages[1], SSH_AGENT_MESSAGE);
+        assert_eq!(messages[2], message_for(ErrorCode::AuthenticationRequired));
+        assert_eq!(messages[3], message_for(ErrorCode::NetworkUnavailable));
+    }
+
+    #[test]
+    fn should_classify_and_keep_both_streams_of_a_network_command() {
+        // Arrange
+        let output = RunOutput {
+            exit_code: 1,
+            stdout: "CONFLICT (content): Merge conflict in f.txt".to_string(),
+            stderr: "From ../origin".to_string(),
+            duration: std::time::Duration::ZERO,
+        };
+
+        // Act
+        let error = network_failed(&output);
+
+        // Assert
+        let CoreError::Git(error) = error else {
+            panic!("not a refusal of git");
+        };
+        assert_eq!(error.code, ErrorCode::Conflicts);
+        assert_eq!(
+            error.detail.as_deref(),
+            Some("From ../origin\nCONFLICT (content): Merge conflict in f.txt")
+        );
     }
 }

@@ -1,8 +1,9 @@
 use codecharta_core_api::error::ErrorCode;
 
 /// git's English messages (reads run with `LC_ALL=C`, mutations with `LC_MESSAGES=C`) and the code each
-/// one means; the first match wins.
-const RULES: [(&str, ErrorCode); 22] = [
+/// one means; the first match wins. A push reports a stale lease next to "failed to push some refs", and
+/// a refused tag push as "already exists", so the pull and push rules come before the branch rules.
+const RULES: [(&str, ErrorCode); 33] = [
     ("dubious ownership", ErrorCode::DubiousOwnership),
     ("not a git repository", ErrorCode::NotARepository),
     ("index.lock", ErrorCode::IndexLocked),
@@ -32,6 +33,20 @@ const RULES: [(&str, ErrorCode); 22] = [
     ("Could not resolve host", ErrorCode::NetworkUnavailable),
     ("unable to access", ErrorCode::NetworkUnavailable),
     ("Connection timed out", ErrorCode::NetworkUnavailable),
+    ("pre-receive hook declined", ErrorCode::PushRejected),
+    (
+        "Diverging branches can't be fast-forwarded",
+        ErrorCode::NotFastForward,
+    ),
+    ("Not possible to fast-forward", ErrorCode::NotFastForward),
+    ("stale info", ErrorCode::StalePushLease),
+    ("[rejected]", ErrorCode::PushRejected),
+    ("[remote rejected]", ErrorCode::PushRejected),
+    ("failed to push some refs", ErrorCode::PushRejected),
+    ("has no upstream branch", ErrorCode::NoUpstream),
+    ("There is no tracking information", ErrorCode::NoUpstream),
+    ("CONFLICT", ErrorCode::Conflicts),
+    ("could not apply", ErrorCode::Conflicts),
     (
         "is already checked out at",
         ErrorCode::BranchCheckedOutElsewhere,
@@ -46,9 +61,15 @@ const RULES: [(&str, ErrorCode); 22] = [
 ];
 
 pub fn classify(stderr: &str) -> ErrorCode {
+    classify_streams(&[stderr])
+}
+
+/// For commands that report on stdout too: a merge names its conflicts there, a porcelain push its
+/// refused refs.
+pub fn classify_streams(streams: &[&str]) -> ErrorCode {
     RULES
         .iter()
-        .find(|(text, _)| stderr.contains(text))
+        .find(|(text, _)| streams.iter().any(|stream| stream.contains(text)))
         .map_or(ErrorCode::CommandFailed, |(_, code)| *code)
 }
 
@@ -180,6 +201,78 @@ mod tests {
                 ErrorCode::AuthenticationRequired,
                 ErrorCode::NetworkUnavailable,
                 ErrorCode::NetworkUnavailable,
+            ]
+        );
+    }
+
+    #[test]
+    fn should_classify_refused_pulls_and_pushes_in_stderr_and_stdout() {
+        // Arrange
+        let refused = "error: failed to push some refs to '../origin.git'";
+        let outputs = [
+            [
+                "hint: Diverging branches can't be fast-forwarded, you need to either:\n\
+              fatal: Not possible to fast-forward, aborting.",
+                "",
+            ],
+            ["fatal: Not possible to fast-forward, aborting.", ""],
+            [
+                refused,
+                "To ../origin.git\n!\trefs/heads/main:refs/heads/main\t[rejected] (stale info)\nDone",
+            ],
+            [
+                refused,
+                "To ../origin.git\n!\trefs/heads/main:refs/heads/main\t[rejected] (non-fast-forward)",
+            ],
+            [
+                refused,
+                "!\trefs/heads/main:refs/heads/main\t[remote rejected] (pre-receive hook declined)",
+            ],
+            [
+                refused,
+                "!\trefs/tags/v1:refs/tags/v1\t[rejected] (already exists)",
+            ],
+            [" ! [rejected]        main -> main (fetch first)", ""],
+            [
+                "fatal: The current branch lonely has no upstream branch.",
+                "",
+            ],
+            [
+                "There is no tracking information for the current branch.",
+                "",
+            ],
+            [
+                "",
+                "Auto-merging f.txt\nCONFLICT (content): Merge conflict in f.txt\n\
+                  Automatic merge failed; fix conflicts and then commit the result.",
+            ],
+            [
+                "error: could not apply 3c97af6... local",
+                "CONFLICT (content): Merge conflict in f.txt",
+            ],
+        ];
+
+        // Act
+        let codes: Vec<ErrorCode> = outputs
+            .iter()
+            .map(|streams| classify_streams(streams))
+            .collect();
+
+        // Assert
+        assert_eq!(
+            codes,
+            vec![
+                ErrorCode::NotFastForward,
+                ErrorCode::NotFastForward,
+                ErrorCode::StalePushLease,
+                ErrorCode::PushRejected,
+                ErrorCode::PushRejected,
+                ErrorCode::PushRejected,
+                ErrorCode::PushRejected,
+                ErrorCode::NoUpstream,
+                ErrorCode::NoUpstream,
+                ErrorCode::Conflicts,
+                ErrorCode::Conflicts,
             ]
         );
     }

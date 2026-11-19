@@ -186,7 +186,7 @@ pub async fn set_upstream(mutation: &Mutation<'_>, request: &SetUpstreamRequest)
     mutation.run(&args).await.map(drop)
 }
 
-fn local_branch<'refs>(
+pub(super) fn local_branch<'refs>(
     refs: &'refs GitRefs,
     ref_name: &FullRefName,
 ) -> CoreResult<&'refs GitLocalBranch> {
@@ -218,7 +218,7 @@ fn remote_branch<'refs>(
         .ok_or_else(|| CoreError::NotFound(format!("There is no remote branch {ref_name}.")))
 }
 
-fn ensure_no_operation_in_progress(mutation: &Mutation<'_>) -> CoreResult<()> {
+pub(super) fn ensure_no_operation_in_progress(mutation: &Mutation<'_>) -> CoreResult<()> {
     match mutation.operation_in_progress() {
         Some(_) => Err(refused(ErrorCode::OperationInProgress)),
         None => Ok(()),

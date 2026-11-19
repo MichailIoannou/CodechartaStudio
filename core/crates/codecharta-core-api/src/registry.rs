@@ -6,13 +6,13 @@ use ts_rs::{Config, ExportError, TS};
 use crate::events::CoreProgress;
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
 use crate::methods::git::{
-    GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod, GitBranchesMethod,
-    GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitMethod, GitDiffFileMethod,
-    GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod, GitMeasureDistancesMethod,
-    GitMergeBaseMethod, GitRefsAtMethod, GitRefsFingerprintMethod, GitRepositoryInfoMethod,
-    GitResolveCommitMethod, GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod,
-    GitStatusMethod, GitSwitchMethod, GitUnstageMethod, GitWorkingTreeMethod,
-    RepositoryChangedEvent,
+    GitAbortOperationMethod, GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod,
+    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitMethod,
+    GitDiffFileMethod, GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod,
+    GitMeasureDistancesMethod, GitMergeBaseMethod, GitPullMethod, GitPushMethod, GitRefsAtMethod,
+    GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
+    GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
+    GitUnstageMethod, GitWorkingTreeMethod, RepositoryChangedEvent,
 };
 use crate::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use crate::methods::projects::{
@@ -187,6 +187,9 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<GitUnstageMethod>(),
     MethodSpec::of::<GitDiscardMethod>(),
     MethodSpec::of::<GitCommitMethod>(),
+    MethodSpec::of::<GitPullMethod>(),
+    MethodSpec::of::<GitPushMethod>(),
+    MethodSpec::of::<GitAbortOperationMethod>(),
     MethodSpec::of::<PromptAnswerMethod>(),
     MethodSpec::of::<PromptCancelMethod>(),
 ];

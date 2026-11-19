@@ -248,6 +248,7 @@ pub struct DiscardEntry { pub path: WorkingTreePath, pub kind: GitEntryKind, pub
 pub struct GitOperationResult { pub status: GitStatus, pub refs: GitRefs, pub message: Option<String> }
 pub struct GitFetchResult { pub updated_refs: u32, pub refs: GitRefs }
 pub enum GitPullMode { FfOnly, Rebase, Merge }
+pub enum GitAbortableOperation { Merge, Rebase }        // as built in M11
 pub struct GitStashEntry { pub index: u32, pub sha: String, pub subject: String }
 
 // notifications (as built in M7: GitOperationProgress is not added — progress travels as plan 01's core.progress)
@@ -296,13 +297,13 @@ Every `repo` param is a `FolderRef`. Methods marked **(op)** are called with the
 | `git.commit` (op) | `{ repo, subject, body, amend }` (as built in M10: `GitCreateCommitParams`, since `GitCommitParams` is `{ repo, sha }`; `body` is `""` for none) | `GitOperationResult` |
 | `git.fetch` (op) | `{ repo, prune }` | `GitFetchResult` |
 | `git.pull` (op) | `{ repo, mode: GitPullMode }` | `GitOperationResult` |
-| `git.push` (op) | `{ repo, branchRefName, remote, setUpstream, forceWithLeaseExpected: Option<String> }` | `GitOperationResult` |
+| `git.push` (op) | `{ repo, branchRefName, remote, setUpstream, forceWithLeaseExpected: Option<CommitSha> }` (as built in M11: `GitPushParams`) | `GitOperationResult` |
 | `git.switch` (op) | `{ repo, target: GitSwitchTarget }` — `{ kind: "local", refName }` or `{ kind: "trackRemote", remoteRefName, localName }` (as built in M8: a tagged `target` instead of two param shapes) | `GitOperationResult` |
 | `git.branchCreate` (op) | `{ repo, name, startPoint, checkout }` | `GitOperationResult` |
 | `git.branchRename` (op) | `{ repo, refName, newName }` | `GitOperationResult` |
 | `git.branchDelete` (op) | `{ repo, target: GitBranchDeleteTarget }` — `{ kind: "local", refName, force }` or `{ kind: "remote", remoteRefName }` (on the remote; as built in M8) | `GitOperationResult` |
 | `git.setUpstream` (op) | `{ repo, refName, upstreamRefName: Option<String> }` | `GitOperationResult` |
-| `git.abortOperation` (op) | `{ repo, operation: "merge" \| "rebase" }` | `GitOperationResult` |
+| `git.abortOperation` (op) | `{ repo, operation: GitAbortableOperation }` — `"merge"` or `"rebase"` (as built in M11: `GitAbortOperationParams`) | `GitOperationResult` |
 | `git.stashList` / `git.stashPush` (op) / `git.stashPop` (op) | stretch (M12): `{ repo }` / `{ repo, message, includeUntracked }` / `{ repo, index }` | `Vec<GitStashEntry>` / `GitOperationResult` |
 | `prompt.answer` | `PromptAnswerParams` | `null` |
 | `prompt.cancel` | `PromptCancelParams` | `null` |
@@ -483,7 +484,7 @@ impl OperationQueue {
 
 The newtypes `CommitSha`, `FullRefName`, `Revision`, `BranchName`, `RepoPath` are constructed only through validating `TryFrom<&str>` (section 4.4 rules), so a value reaching the runner is always valid.
 
-**Failure classification** (`failure.rs`), first match wins. Runner errors map to `timeout`, `cancelled`, `outputTooLarge`, `gitNotFound`; any failure after the user cancelled a prompt of that operation → `AUTHENTICATION_CANCELLED` (as built in M7: `PromptSession::settle`, applied before these rules; a cancelled helper makes git or ssh fail with varying texts). For a non-zero exit, stderr (and stdout where noted) is matched: `dubious ownership` → dubiousOwnership; `not a git repository` → notARepository; `index.lock` → indexLocked; `terminal prompts disabled`, `Authentication failed`, `could not read Username`, `Permission denied (publickey`, `Host key verification failed` → authenticationRequired; `Could not resolve host`, `unable to access`, `Connection timed out` → networkUnavailable; `already exists` (branch create / rename) → branchExists; `is already checked out at`, `used by worktree` → branchCheckedOutElsewhere; `would be overwritten by` → localChangesWouldBeOverwritten; `is not fully merged` → branchNotFullyMerged; `Author identity unknown`, `Please tell me who you are` → identityUnknown; `nothing to commit`, `no changes added to commit` (stdout) → nothingToCommit; `pre-receive hook declined` → pushRejected; `Diverging branches can't be fast-forwarded`, `Not possible to fast-forward` → notFastForward; `stale info` → stalePushLease; `! [rejected]`, `failed to push some refs` → pushRejected; `has no upstream branch` → noUpstream; `CONFLICT` (stdout or stderr), `could not apply` → conflicts; any other non-zero exit of `commit` → hookFailed (verified in M10, git 2.56: a `pre-commit` hook exiting 1 leaves only its own output on stderr; the commit rules live in `commit.rs`, checked in stderr and stdout before the general ones, plus `You have nothing to amend` → nothingToCommit, `unmerged files` → conflicts and `gpg failed to sign` → commandFailed); anything else → commandFailed. Every error carries git's verbatim `detail`, and the UI always shows it. Each rule gets a test with a captured or fixture-produced text.
+**Failure classification** (`failure.rs`), first match wins. Runner errors map to `timeout`, `cancelled`, `outputTooLarge`, `gitNotFound`; any failure after the user cancelled a prompt of that operation → `AUTHENTICATION_CANCELLED` (as built in M7: `PromptSession::settle`, applied before these rules; a cancelled helper makes git or ssh fail with varying texts). For a non-zero exit, stderr (and stdout where noted) is matched: `dubious ownership` → dubiousOwnership; `not a git repository` → notARepository; `index.lock` → indexLocked; `terminal prompts disabled`, `Authentication failed`, `could not read Username`, `Permission denied (publickey`, `Host key verification failed` → authenticationRequired; `Could not resolve host`, `unable to access`, `Connection timed out` → networkUnavailable; `already exists` (branch create / rename) → branchExists; `is already checked out at`, `used by worktree` → branchCheckedOutElsewhere; `would be overwritten by` → localChangesWouldBeOverwritten; `is not fully merged` → branchNotFullyMerged; `Author identity unknown`, `Please tell me who you are` → identityUnknown; `nothing to commit`, `no changes added to commit` (stdout) → nothingToCommit; `pre-receive hook declined` → pushRejected; `Diverging branches can't be fast-forwarded`, `Not possible to fast-forward` → notFastForward; `stale info` → stalePushLease; `! [rejected]`, `failed to push some refs` → pushRejected; `has no upstream branch` → noUpstream; `CONFLICT` (stdout or stderr), `could not apply` → conflicts (as built in M11: network commands are classified over stderr and stdout, since a merge names its conflicts and a porcelain push its refused refs on stdout — `[rejected]`, `[remote rejected]`; the pull and push rules come before the branch rules, as a refused tag push says `already exists`; `There is no tracking information` → noUpstream too); any other non-zero exit of `commit` → hookFailed (verified in M10, git 2.56: a `pre-commit` hook exiting 1 leaves only its own output on stderr; the commit rules live in `commit.rs`, checked in stderr and stdout before the general ones, plus `You have nothing to amend` → nothingToCommit, `unmerged files` → conflicts and `gpg failed to sign` → commandFailed); anything else → commandFailed. Every error carries git's verbatim `detail`, and the UI always shows it. Each rule gets a test with a captured or fixture-produced text.
 
 ### 4.6 Mutating operations and credential prompts (core)
 
@@ -529,8 +530,8 @@ All mutating operations run in `OperationQueue::run_exclusive(repository_id, …
 | `pull` FfOnly (default) | `pull --ff-only --progress --no-recurse-submodules` | `notFastForward` → renderer opens the pull choice; repository unchanged |
 | `pull` Rebase | `pull --rebase --progress --no-recurse-submodules` | `conflicts` → stop, banner |
 | `pull` Merge | `pull --no-rebase --no-edit --progress --no-recurse-submodules` | `conflicts` → stop, banner |
-| `push` | `push --progress --porcelain [-u] [--force-with-lease=refs/heads/<b>:<expectedSha>] --end-of-options <remote> refs/heads/<b>:refs/heads/<upstream branch or b>` | `-u` on first push; `pushRejected` → "Pull first"; `stalePushLease` → "fetch, review, retry". Never `--force`; never a bare `--force-with-lease`. |
-| `abort_operation` | `merge --abort` / `rebase --abort` (not network) | only when `operation_in_progress` matches |
+| `push` | `push --progress --porcelain [-u] [--force-with-lease=refs/heads/<upstream branch or b>:<expectedSha>] --end-of-options <remote> refs/heads/<b>:refs/heads/<upstream branch or b>` (as built in M11: the lease names the remote ref being replaced, the destination) | `-u` on first push; `pushRejected` → "Pull first"; `stalePushLease` → "fetch, review, retry". Never `--force`; never a bare `--force-with-lease`. |
+| `abort_operation` | `merge --abort` / `rebase --abort` (not network) | only when `operation_in_progress` matches (as built in M11: else `NOT_ALLOWED`) |
 
 Conflicts are not resolved in the app: the banner lists conflicted files, says "Resolve the conflicts in your editor, stage the files, then commit (merge) or continue the rebase in a terminal", and offers Abort (confirmed) and Refresh. `rebase --continue` is not offered; after a merge, Commit concludes it.
 
@@ -837,6 +838,9 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 1. **Core.** `sync.rs` pull, push, abort; RPC entries.
    - Tests (fixture with bare origin and a second clone): fast-forward pull; `notFastForward` leaves the repository unchanged; rebase / merge when asked; `conflicts` leaves the operation in progress; abort merge and rebase; first push sets upstream; `pushRejected` when the remote is ahead; force with lease only with the expected SHA; `stalePushLease` when the remote moved; never `--force` (faked runner); askpass env and progress on every network command (faked runner).
    - Commit: `feat(core): pull, push and abort`
+   - As built: tests in `tests/git_sync.rs` (plus unit tests in `git/sync.rs`, `git/failure.rs`,
+     `git/error.rs`, `methods/git.rs`) and `codecharta-cored/tests/git_protocol.rs`; details in
+     `progress/04-M11-pull-push.md`.
 2. **Renderer.** Pull and Push in `syncButtons`, `pullChoiceDialog`, `pushDialog` with the separate force-push confirmation, `operationStateBanner`.
    - Tests: fast-forward-only by default; rebase / merge offered only after `notFastForward`; conflicted files listed with a confirmed Abort; publish without upstream; Pull offered after a rejected push; force-push text with both SHAs and that SHA sent; ahead/behind badges.
    - Commit: `feat(visualization): pull and push from history`
@@ -982,3 +986,10 @@ Reconciled with plans 01 and 03 as implemented (04-M1 task 1, 2026-11-18):
   `GitCli::data_dir`, `COMMIT_LIMITS`. New api values `CommitSubject`, `CommitBody`; params
   `GitCreateCommitParams`; method `git.commit` answering `GitOperationResult`; error codes `IDENTITY_UNKNOWN`,
   `NOTHING_TO_COMMIT`, `HOOK_FAILED`, `CONFLICTS` (M11's pull reuses `CONFLICTS`).
+- As built in M11 (details: `progress/04-M11-pull-push.md`): `GitService::pull(&GitFolder, GitPullMode, …)`,
+  `push(&GitFolder, &PushRequest, …)` and `abort_operation(&GitFolder, GitAbortableOperation, …)` in
+  `git/sync.rs`; params `GitPullParams`, `GitPushParams`, `GitAbortOperationParams`, api enums `GitPullMode`,
+  `GitAbortableOperation`; methods `git.pull`, `git.push`, `git.abortOperation` answering
+  `GitOperationResult`. Error codes `NOT_FAST_FORWARD`, `PUSH_REJECTED`, `NO_UPSTREAM`, `STALE_PUSH_LEASE`.
+  `Mutation::run_network` classifies stderr and stdout (`error::network_failed`) and, without an ssh helper,
+  words ssh refusals as the ssh-agent / Pageant message (`error::SSH_AGENT_MESSAGE`).
