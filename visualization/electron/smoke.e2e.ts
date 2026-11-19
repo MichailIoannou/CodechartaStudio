@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process"
 import { once } from "node:events"
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { _electron, ElectronApplication, expect, Page, test } from "@playwright/test"
@@ -10,6 +10,9 @@ const BOOT_TIMEOUT_MS = 60_000
 const SECOND_INSTANCE_TIMEOUT_MS = 20_000
 const DOCTOR_TIMEOUT_MS = 60_000
 const TOOL_COUNT = 5
+const SAMPLE_MAP = join(__dirname, "..", "app", "codeCharta", "assets", "sample1.cc.json")
+const MAP_CHUNK_BYTES = 16 * 1024 * 1024
+const GZIP_MAGIC_BYTES = [31, 139]
 const BRIDGE_KEYS = [
     "cancel",
     "chooseStoreRoot",
@@ -272,4 +275,64 @@ test("should refuse the shell-only project methods from the page", async () => {
 
     // Assert
     expect(answers.map(answer => answer.error.code)).toEqual(["NOT_ALLOWED", "NOT_ALLOWED", "NOT_ALLOWED"])
+})
+
+test("should open a picked cc.json file into a project and read its stored map", async () => {
+    // Arrange
+    const page = await bootedWindow()
+    const importFile = join(userDataDir, "imports", "assets", "sample1.cc.json")
+    await mkdir(join(userDataDir, "imports", "assets"), { recursive: true })
+    await copyFile(SAMPLE_MAP, importFile)
+    await pickWithTheNativeDialog(importFile)
+
+    // Act
+    const observed = await page.evaluate(async chunkBytes => {
+        const bridge = (window as any).codeChartaDesktop
+        const openPickedFile = async () => {
+            const options = { title: "Open cc.json", filters: [{ name: "cc.json", extensions: ["json", "gz"] }] }
+            const picked = await bridge.request("snapshots.pickImportFile", options)
+            const opened = await bridge.request("snapshots.openFile", {
+                importToken: picked.value.importToken,
+                target: null,
+                bindToCommit: null
+            })
+            return opened.value
+        }
+        const opened = await openPickedFile()
+        const openedAgain = await openPickedFile()
+        const chunk = await bridge.request("snapshots.readMapChunk", { ...opened.snapshot.ref, offset: 0, length: chunkBytes })
+        return {
+            projectName: opened.project.name,
+            createdProject: opened.createdProject,
+            wasAlreadyImported: openedAgain.wasAlreadyImported,
+            leadingBytes: [...chunk.value.bytes.slice(0, 2)],
+            chunkLength: chunk.value.bytes.length,
+            totalBytes: chunk.value.totalBytes,
+            mapBytes: opened.snapshot.mapBytes
+        }
+    }, MAP_CHUNK_BYTES)
+
+    // Assert
+    expect(observed).toMatchObject({ projectName: "assets", createdProject: true, wasAlreadyImported: true })
+    expect(observed.leadingBytes).toEqual(GZIP_MAGIC_BYTES)
+    expect(observed.chunkLength).toBe(observed.totalBytes)
+    expect(observed.totalBytes).toBe(observed.mapBytes)
+})
+
+test("should refuse the shell-only snapshot methods from the page", async () => {
+    // Arrange
+    const page = await bootedWindow()
+
+    // Act
+    const answers = await page.evaluate(async () => {
+        const bridge = (window as any).codeChartaDesktop
+        const snapshotRef = { projectId: "p-1", folderId: "f-1", snapshotId: "s-1" }
+        return [
+            await bridge.request("snapshots.inspectImportFile", { path: "/etc/passwd" }),
+            await bridge.request("snapshots.mapLocation", snapshotRef)
+        ]
+    })
+
+    // Assert
+    expect(answers.map(answer => answer.error.code)).toEqual(["NOT_ALLOWED", "NOT_ALLOWED"])
 })

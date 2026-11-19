@@ -6,6 +6,7 @@ const contract = require("./coreMethods.generated.json")
 const { CoreClient } = require("./coreClient")
 const { createProjectsShell } = require("./projectsShell")
 const { createShellActions, readShellSettings, runAction } = require("./shellActions")
+const { createSnapshotsShell } = require("./snapshotsShell")
 const policy = require("./shellPolicy")
 
 const CHANNELS = {
@@ -176,7 +177,7 @@ function createActions() {
 }
 
 function createComposedMethods() {
-    return { ...createProjectsShell(shellPorts()) }
+    return { ...createProjectsShell(shellPorts()), ...createSnapshotsShell(shellPorts()) }
 }
 
 function captureSender(event) {

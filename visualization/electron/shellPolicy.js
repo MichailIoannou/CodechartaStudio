@@ -8,6 +8,7 @@ const CORE_RESTART_DELAYS_MS = [500, 1000, 2000, 4000, 8000]
 const CORE_FAILURE_WINDOW_MS = 60_000
 const MAX_OPERATION_ID_LENGTH = 64
 const MAP_FILE_ENDINGS = [".cc.json", ".cc.json.gz"]
+const MAX_MAP_CHUNK_BYTES = 32 * 1024 * 1024
 const COLOR_SCHEMES = ["light", "dark", "system"]
 const WINDOW_BACKGROUND_COLOR = /^#[0-9a-fA-F]{6}$/
 const FILTER_EXTENSION = /^(\*|[A-Za-z0-9]+)$/
@@ -119,6 +120,11 @@ function isReadableMapPath(filePath, { allowedRoots, platform }) {
     return isInsideARoot && MAP_FILE_ENDINGS.some(ending => filePath.toLowerCase().endsWith(ending))
 }
 
+function isMapChunkRange({ offset, length }) {
+    const isWholeBytes = value => Number.isSafeInteger(value) && value >= 0
+    return isWholeBytes(offset) && isWholeBytes(length) && length > 0 && length <= MAX_MAP_CHUNK_BYTES
+}
+
 function isWindowBackgroundColor(color) {
     return typeof color === "string" && WINDOW_BACKGROUND_COLOR.test(color)
 }
@@ -154,6 +160,7 @@ module.exports = {
     isColorScheme,
     isComposedMethod,
     isInsideFolder,
+    isMapChunkRange,
     isTrustedSender,
     isValidOperationId,
     isWindowBackgroundColor,

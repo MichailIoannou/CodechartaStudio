@@ -221,7 +221,7 @@ pub struct StoreStatus { problem: Option<StoreProblemCode> }
 pub struct StoreRootChange { store_root: String, adopted: bool }
 
 // shell-composed results: declared by hand in visualization/app/codeCharta/util/desktop/desktopBridge.ts, not in codecharta-core-api (03-M2 part B)
-pub struct MapChunk { #[ts(type = "Uint8Array")] bytes: Vec<u8>, offset: u64, total_bytes: u64 }   // UNVERIFIED ts-rs override
+interface MapChunk { bytes: Uint8Array, offset: number, totalBytes: number }
 interface SourceFileBytes { bytes: Uint8Array }
 pub struct MapLocation { path: String }                                   // shell-only result of snapshots.mapLocation
 pub struct SourceFileLocation { path: String, folder_root: String, size_bytes: u64 }
@@ -252,10 +252,10 @@ JSON-RPC methods (params → result; `ok` types are the success payload; failure
 | `projects.revealFolder` | `FolderRef` | `null` | shell: `projects.folderPath` → open the folder in the file manager |
 | `snapshots.list` | `FolderRef` | `SnapshotList { snapshots: SnapshotSummary[] }` | newest first by `createdAt`; named wrapper (03-M3, like `ProjectList`) |
 | `snapshots.mapLocation` | `SnapshotRef` | `MapLocation` | shell-only; `shell.resolvePath` with a `snapshotMap` target answers the same path (03-M3) |
-| `snapshots.readMapChunk` | `SnapshotRef & { offset, length }` | `MapChunk` | shell: `mapLocation`, path inside store root, `read(length at offset)` per call (`length` ≤ 32 MiB); the renderer allocates one `Uint8Array(totalBytes)` after the first chunk and fills it with 16 MiB chunks |
+| `snapshots.readMapChunk` | `SnapshotRef & { offset, length }` | `MapChunk` | shell: `mapLocation` and `paths.get`, the map's realpath inside the store root's realpath and ending in `.cc.json[.gz]`, `read(length at offset)` per call (`offset` a whole number ≤ the map size, `length` 1 to 32 MiB, else `BAD_REQUEST`); the renderer allocates one `Uint8Array(totalBytes)` after the first chunk and fills it with 16 MiB chunks |
 | `snapshots.recordMapFacts` | `SnapshotRef & { checksum, rootName }` | void | `checksum`: `MapChecksum` (1–128 ASCII letters/digits), `rootName`: `RootName` (1–255, no `/`) |
 | `snapshots.inspectImportFile` | `{ path }` | `PickedImportFile` | shell-only |
-| `snapshots.pickImportFile` | — | `PickedImportFile \| null` | shell: native open-file dialog (`*.cc.json`, `*.cc.json.gz`, `*.json`, `*.gz`) → `inspectImportFile` |
+| `snapshots.pickImportFile` | `{ title, filters? }` | `PickedImportFile \| null` | shell: native open-file dialog with the caller's title and filters (Electron takes extensions without dots, so the renderer passes `json`, `gz`) → `inspectImportFile` |
 | `snapshots.openFile` | `{ importToken, target: FolderRef \| null, bindToCommit: FullCommit \| null }` | `OpenedFile` | section 6 |
 | `snapshots.import` | `FolderRef & { importToken, bindToCommit }` | `SnapshotSummary` | |
 | `snapshots.move` | `SnapshotRef & { toFolderId, bindToCommit }` | `SnapshotSummary` | imported snapshots only |

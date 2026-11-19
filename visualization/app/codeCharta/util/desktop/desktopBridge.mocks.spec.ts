@@ -1,5 +1,6 @@
 import { CORE_PROTOCOL_VERSION } from "../../model/coreApi/coreApi"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
+import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { Project } from "../../model/coreApi/Project"
 import type { ProjectFolder } from "../../model/coreApi/ProjectFolder"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
@@ -11,6 +12,37 @@ const NOW = "2026-11-19T08:00:00Z"
 
 function aPickedFolder(name: string): PickedFolder {
     return { pickToken: name.padEnd(32, "0"), path: `/work/${name}`, suggestedLabel: name, kind: "git", git: null }
+}
+
+const HINTED_COMMIT = {
+    commit: "a1b2c3d".padEnd(40, "0"),
+    shortCommit: "a1b2c3d",
+    subject: "Add billing",
+    authorName: "Ada",
+    authorDate: NOW
+}
+
+function aPickedImportFile(overrides: Partial<PickedImportFile> = {}): PickedImportFile {
+    return {
+        importToken: "c".repeat(32),
+        fileName: "a1b2c3d.billing.cc.json",
+        sizeBytes: 42,
+        fileModifiedAt: NOW,
+        commitHint: null,
+        containingFolder: { pickToken: "d".repeat(32), path: "/downloads/out", suggestedName: "out", kind: "plain", git: null },
+        hintCommit: null,
+        existingTarget: null,
+        duplicateOf: null,
+        ...overrides
+    }
+}
+
+async function pickImportFile(bridge: DesktopBridge) {
+    const picked = await answerValue(bridge, "snapshots.pickImportFile", { title: "Open cc.json" })
+    if (picked === null) {
+        throw new Error("The fake picked no file")
+    }
+    return picked
 }
 
 function aFolder(id: string, overrides: Partial<ProjectFolder> = {}): ProjectFolder {
@@ -348,6 +380,108 @@ describe("createFakeDesktopBridge", () => {
         expect((await answerValue(bridge, "projects.get", { projectId: "p-1" })).view.shownSnapshotIdByFolder).toEqual({})
     })
 
+    it("should open a picked file into a new project named after its folder and only once", async () => {
+        // Arrange
+        const bridge = createFakeDesktopBridge({ pickedImportFile: aPickedImportFile(), now: NOW })
+        const firstPick = await pickImportFile(bridge)
+
+        // Act
+        const opened = await answerValue(bridge, "snapshots.openFile", {
+            importToken: firstPick.importToken,
+            target: null,
+            bindToCommit: null
+        })
+        const secondPick = await pickImportFile(bridge)
+        const openedAgain = await answerValue(bridge, "snapshots.openFile", {
+            importToken: secondPick.importToken,
+            target: null,
+            bindToCommit: null
+        })
+        const listed = await answerValue(bridge, "snapshots.list", opened.snapshot.ref)
+
+        // Assert
+        expect(opened).toEqual(expect.objectContaining({ createdProject: true, wasAlreadyImported: false }))
+        expect(opened.project).toEqual(expect.objectContaining({ name: "out" }))
+        expect(opened.project.folders).toEqual([expect.objectContaining({ path: "/downloads/out", kind: "plain", role: "primary" })])
+        expect(opened.snapshot).toEqual(
+            expect.objectContaining({ source: "imported", originalFileName: "a1b2c3d.billing.cc.json", createdAt: NOW, commit: null })
+        )
+        expect(openedAgain).toEqual(expect.objectContaining({ createdProject: false, wasAlreadyImported: true, snapshot: opened.snapshot }))
+        expect(listed.snapshots).toHaveLength(1)
+    })
+
+    it("should open a file into the project that already has its folder and bind it to the hinted commit", async () => {
+        // Arrange
+        const pickedImportFile = aPickedImportFile({
+            hintCommit: HINTED_COMMIT,
+            existingTarget: { projectId: "p-1", projectName: "p-1", folderId: "f-1" }
+        })
+        const bridge = createFakeDesktopBridge({ projects: [aProject("p-1", [aFolder("f-1")])], pickedImportFile })
+        const picked = await pickImportFile(bridge)
+
+        // Act
+        const opened = await answerValue(bridge, "snapshots.openFile", {
+            importToken: picked.importToken,
+            target: null,
+            bindToCommit: HINTED_COMMIT.commit
+        })
+
+        // Assert
+        expect(opened).toEqual(expect.objectContaining({ createdProject: false, wasAlreadyImported: false }))
+        expect(opened.snapshot.ref).toEqual(expect.objectContaining({ projectId: "p-1", folderId: "f-1" }))
+        expect(opened.snapshot).toEqual(
+            expect.objectContaining({ commit: HINTED_COMMIT.commit, shortCommit: "a1b2c3d", subject: "Add billing" })
+        )
+    })
+
+    it("should import a picked file into a chosen folder and refuse a commit the folder does not have", async () => {
+        // Arrange
+        const bridge = createFakeDesktopBridge({ projects: [aProject("p-1", [aFolder("f-1")])], pickedImportFile: aPickedImportFile() })
+        const picked = await pickImportFile(bridge)
+        const target = { projectId: "p-1", folderId: "f-1", importToken: picked.importToken }
+
+        // Act
+        const unknownCommit = await bridge.request("snapshots.import", { ...target, bindToCommit: "f".repeat(40) })
+        const imported = await answerValue(bridge, "snapshots.import", { ...target, bindToCommit: null })
+        const reused = await bridge.request("snapshots.import", { ...target, bindToCommit: null })
+
+        // Assert
+        expect(unknownCommit).toEqual(expect.objectContaining({ ok: false, error: expect.objectContaining({ code: "NOT_A_COMMIT" }) }))
+        expect(imported.ref).toEqual(expect.objectContaining({ projectId: "p-1", folderId: "f-1" }))
+        expect(reused).toEqual(expect.objectContaining({ ok: false, error: expect.objectContaining({ code: "TOKEN_EXPIRED" }) }))
+    })
+
+    it("should hand out the folder of a picked file for a new project", async () => {
+        // Arrange
+        const bridge = createFakeDesktopBridge({ pickedImportFile: aPickedImportFile() })
+        const picked = await pickImportFile(bridge)
+
+        // Act
+        const created = await answerValue(bridge, "projects.create", {
+            name: "Downloads",
+            folders: [{ pickToken: picked.containingFolder.pickToken, label: "out", role: "primary" }]
+        })
+
+        // Assert
+        expect(created.folders).toEqual([expect.objectContaining({ path: "/downloads/out", kind: "plain" })])
+    })
+
+    it("should read a seeded map in chunks", async () => {
+        // Arrange
+        const ref = { projectId: "p-1", folderId: "f-1", snapshotId: "s-1" }
+        const bridge = createFakeDesktopBridge({ snapshotMaps: { "s-1": [31, 139, 8, 0, 1, 2] } })
+
+        // Act
+        const firstChunk = await answerValue(bridge, "snapshots.readMapChunk", { ...ref, offset: 0, length: 4 })
+        const lastChunk = await answerValue(bridge, "snapshots.readMapChunk", { ...ref, offset: 4, length: 4 })
+        const unknown = await bridge.request("snapshots.readMapChunk", { ...ref, snapshotId: "s-2", offset: 0, length: 4 })
+
+        // Assert
+        expect(firstChunk).toEqual({ bytes: new Uint8Array([31, 139, 8, 0]), offset: 0, totalBytes: 6 })
+        expect(lastChunk).toEqual({ bytes: new Uint8Array([1, 2]), offset: 4, totalBytes: 6 })
+        expect(unknown).toEqual(expect.objectContaining({ ok: false, error: expect.objectContaining({ code: "NOT_FOUND" }) }))
+    })
+
     it("should prefer a seeded answer over its own projects", async () => {
         // Arrange
         const seededList = { projects: [] }
@@ -365,7 +499,7 @@ describe("createFakeDesktopBridge", () => {
         expect(status).toEqual({ problem: null })
     })
 
-    it("should answer the project methods of the shell as if nothing was picked or found", async () => {
+    it("should answer the methods of the shell as if nothing was picked or found", async () => {
         // Arrange
         const bridge = createFakeDesktopBridge()
         const folderRef = { projectId: "p-1", folderId: "f-1" }
@@ -374,9 +508,11 @@ describe("createFakeDesktopBridge", () => {
         const picked = await bridge.request("projects.pickFolder", { title: "Add Folder" })
         const sourceFile = await bridge.request("projects.readSourceFile", { ...folderRef, relativePath: "src/app.ts" })
         const revealed = await bridge.request("projects.revealFolder", folderRef)
+        const pickedFile = await bridge.request("snapshots.pickImportFile", { title: "Open cc.json" })
 
         // Assert
-        expect([picked, sourceFile, revealed]).toEqual([
+        expect([picked, sourceFile, revealed, pickedFile]).toEqual([
+            { ok: true, value: null },
             { ok: true, value: null },
             { ok: true, value: null },
             { ok: true, value: null }

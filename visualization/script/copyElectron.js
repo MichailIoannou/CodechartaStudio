@@ -13,6 +13,7 @@ const shellFiles = [
     "electron/shellActions.js",
     "electron/shellFiles.js",
     "electron/projectsShell.js",
+    "electron/snapshotsShell.js",
     "electron/coreMethods.generated.json",
     "package.json"
 ]

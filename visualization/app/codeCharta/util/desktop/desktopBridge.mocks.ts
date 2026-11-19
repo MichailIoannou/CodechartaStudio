@@ -1,8 +1,10 @@
 import type { ErrorCode } from "../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
+import type { FolderRef } from "../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../model/coreApi/FolderRole"
 import type { NewFolder } from "../../model/coreApi/NewFolder"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
+import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { Project } from "../../model/coreApi/Project"
 import type { ProjectView } from "../../model/coreApi/ProjectView"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
@@ -30,6 +32,8 @@ export interface FakeDesktopSeed {
     snapshots?: SnapshotSummary[]
     activeProjectId?: string | null
     pickedFolders?: PickedFolder[]
+    pickedImportFile?: PickedImportFile
+    snapshotMaps?: Record<string, number[]>
     now?: string
 }
 
@@ -55,6 +59,11 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     pickToken?: string
     view?: ProjectView
     checksum?: string
+    importToken?: string
+    target?: FolderRef | null
+    bindToCommit?: string | null
+    offset?: number
+    length?: number
 }
 
 type FakeAnswer = { ok: true; value: unknown } | { ok: false; error: ErrorPayload }
@@ -80,6 +89,10 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         activeProjectId: seed.activeProjectId ?? null,
         foldersToPick: [...(seed.pickedFolders ?? [])],
         pickedFolders: new Map<string, PickedFolder>(),
+        importFileToPick: seed.pickedImportFile ?? null,
+        pickedImportFiles: new Map<string, PickedImportFile>(),
+        importedContent: new Map<string, FolderRef & { snapshotId: string }>(),
+        snapshotMaps: { ...seed.snapshotMaps },
         createdIds: 0
     }
 
@@ -336,6 +349,114 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return snapshot ? succeed(null) : refuse("NOT_FOUND", `The fake desktop bridge has no snapshot ${String(params.snapshotId)}.`)
     }
 
+    function pickImportFile() {
+        const picked = store.importFileToPick
+        if (picked) {
+            const { pickToken, path, suggestedName, kind, git } = picked.containingFolder
+            store.pickedImportFiles.set(picked.importToken, picked)
+            store.pickedFolders.set(pickToken, { pickToken, path, suggestedLabel: suggestedName, kind, git })
+        }
+        return succeed(picked ? JSON.parse(JSON.stringify(picked)) : null)
+    }
+
+    function importedSnapshot(file: PickedImportFile, ref: FolderRef, bindToCommit?: string | null): SnapshotSummary {
+        const commit = bindToCommit ? file.hintCommit : null
+        return {
+            ref: { ...ref, snapshotId: nextId("imported") },
+            source: "imported",
+            createdAt: now,
+            commit: commit?.commit ?? null,
+            shortCommit: commit?.shortCommit ?? null,
+            subject: commit?.subject ?? null,
+            commitDate: null,
+            dirty: false,
+            originalFileName: file.fileName,
+            fileModifiedAt: file.fileModifiedAt,
+            mapBytes: file.sizeBytes,
+            checksum: null,
+            profileHash: null,
+            target: null,
+            finishedAt: null,
+            durationMs: null,
+            notInMap: []
+        }
+    }
+
+    function importInto(file: PickedImportFile, ref: FolderRef, bindToCommit?: string | null) {
+        if (bindToCommit && file.hintCommit?.commit !== bindToCommit) {
+            return refuse("NOT_A_COMMIT", `The folder has no commit ${bindToCommit}.`)
+        }
+        const contentKey = `${ref.projectId}/${file.fileName}/${file.sizeBytes}`
+        const earlierImport = store.importedContent.get(contentKey) ?? file.duplicateOf
+        const existing = earlierImport?.projectId === ref.projectId ? findSnapshot(earlierImport) : undefined
+        store.pickedImportFiles.delete(file.importToken)
+        const snapshot = existing ?? importedSnapshot(file, ref, bindToCommit)
+        if (!existing) {
+            store.snapshots.push(snapshot)
+            store.importedContent.set(contentKey, snapshot.ref)
+        }
+        return succeed({ snapshot: JSON.parse(JSON.stringify(snapshot)), wasAlreadyImported: Boolean(existing) })
+    }
+
+    function openInto(file: PickedImportFile, ref: FolderRef, bindToCommit: string | null | undefined, createdProject: boolean) {
+        const project = store.projects.find(candidate => candidate.id === ref.projectId)
+        if (!project?.folders.some(folder => folder.id === ref.folderId)) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no folder ${String(ref.folderId)}.`)
+        }
+        const imported = importInto(file, ref, bindToCommit)
+        return imported.ok ? succeed({ project: withCounts(project), ...(imported.value as object), createdProject }) : imported
+    }
+
+    function existingTargetOf(file: PickedImportFile): FolderRef | null {
+        if (file.existingTarget) {
+            return { projectId: file.existingTarget.projectId, folderId: file.existingTarget.folderId }
+        }
+        const project = store.projects.find(candidate => candidate.folders.some(folder => folder.path === file.containingFolder.path))
+        const folder = project?.folders.find(candidate => candidate.path === file.containingFolder.path)
+        return project && folder ? { projectId: project.id, folderId: folder.id } : null
+    }
+
+    function openIntoNewProject(file: PickedImportFile, bindToCommit?: string | null) {
+        const { pickToken, suggestedName } = file.containingFolder
+        const created = createProject({ name: suggestedName, folders: [{ pickToken, label: suggestedName, role: "primary" }] })
+        if (!created.ok) {
+            return created
+        }
+        const project = created.value as Project
+        const opened = openInto(file, { projectId: project.id, folderId: project.folders[0].id }, bindToCommit, true)
+        store.projects = opened.ok ? store.projects : store.projects.filter(candidate => candidate.id !== project.id)
+        return opened
+    }
+
+    function openFile(params: FakeRequestParams) {
+        const file = store.pickedImportFiles.get(params.importToken ?? "")
+        if (!file) {
+            return refuse("TOKEN_EXPIRED", "Pick the file again.")
+        }
+        const target = params.target ?? existingTargetOf(file)
+        return target ? openInto(file, target, params.bindToCommit, false) : openIntoNewProject(file, params.bindToCommit)
+    }
+
+    function importSnapshot(params: FakeRequestParams) {
+        const file = store.pickedImportFiles.get(params.importToken ?? "")
+        if (!file) {
+            return refuse("TOKEN_EXPIRED", "Pick the file again.")
+        }
+        const target = { projectId: params.projectId ?? "", folderId: params.folderId ?? "" }
+        const opened = openInto(file, target, params.bindToCommit, false)
+        return opened.ok ? succeed((opened.value as { snapshot: SnapshotSummary }).snapshot) : opened
+    }
+
+    function readMapChunk(params: FakeRequestParams) {
+        const snapshotId = params.snapshotId ?? ""
+        if (!Object.hasOwn(store.snapshotMaps, snapshotId)) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no map for ${snapshotId}.`)
+        }
+        const map = store.snapshotMaps[snapshotId]
+        const offset = params.offset ?? 0
+        return succeed({ bytes: new Uint8Array(map.slice(offset, offset + (params.length ?? 0))), offset, totalBytes: map.length })
+    }
+
     const backend: Partial<Record<FakeAnswerKey, (params: FakeRequestParams) => FakeAnswer>> = {
         "store.status": () => succeed({ problem: null }),
         "projects.list": () => succeed({ projects: store.projects.map(summaryOf) }),
@@ -356,7 +477,11 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "projects.revealFolder": () => succeed(null),
         "snapshots.list": listSnapshots,
         "snapshots.delete": deleteSnapshot,
-        "snapshots.recordMapFacts": recordMapFacts
+        "snapshots.recordMapFacts": recordMapFacts,
+        "snapshots.pickImportFile": pickImportFile,
+        "snapshots.openFile": openFile,
+        "snapshots.import": importSnapshot,
+        "snapshots.readMapChunk": readMapChunk
     }
 
     function answerFromBackend(method: BridgeMethod, params: unknown) {

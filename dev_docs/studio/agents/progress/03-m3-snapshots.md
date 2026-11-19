@@ -1,6 +1,6 @@
 ---
 name: 03-M3 snapshots - core, RPC, CLI, shell
-state: progress
+state: complete
 version: 1
 ---
 
@@ -39,7 +39,7 @@ From `03-m2-projects.md`: append `NOT_A_COMMIT`; `resolve_commit` must also read
 - [x] 3. Open file and move
 - [x] 4. JSON-RPC
 - [x] 5. CLI
-- [ ] 6. Shell (part B)
+- [x] 6. Shell (part B)
 
 ## Notes
 
@@ -244,3 +244,67 @@ described.
   after parsing. `openFile` neither sets the active project nor the view; the renderer calls
   `projects.setActive` / `projects.setView` (section 6 step 7).
 
+
+### 6. Shell (part B)
+- Done on `feature/studio-03-shell` right after 03-M2 tasks 8-9 (see `03-m2-projects.md` for the call
+  shape: composed methods go through `bridge.request`, the relay runs them in the main process, the
+  preload is unchanged).
+- `electron/snapshotsShell.js` (`createSnapshotsShell({ dialog, fs, getWindow, requestCore, platform })`,
+  in `script/copyElectron.js`, merged into the relay's composed-method table in `main.js`):
+  - `snapshots.pickImportFile({ title, filters? })` → `{ ok, value: PickedImportFile | null }`: malformed
+    options `BAD_REQUEST` without a dialog, cancelled `null` without a core call, else
+    `snapshots.inspectImportFile { path }` answered as it is. **Deviation:** the plan's fixed filter
+    (`*.cc.json`, `*.cc.json.gz`, `*.json`, `*.gz`) cannot be written that way (Electron extensions take no
+    dots or wildcards; `shellPolicy.toDialogOptions` accepts alphanumeric extensions only) and its name is
+    wording, so title and filters come from the caller like `pickFile`; the renderer passes
+    `[{ name, extensions: ["json", "gz"] }]`. The core still refuses a file that is not a regular file or
+    a broken gzip.
+  - `snapshots.readMapChunk({ projectId, folderId, snapshotId, offset, length })` → `{ ok, value: { bytes:
+    Uint8Array, offset, totalBytes } }`: `shellPolicy.isMapChunkRange` (`offset` a safe whole number,
+    `length` 1 to 32 MiB) before any core call, else `BAD_REQUEST`; then `snapshots.mapLocation` (only the
+    three ids are passed) and `paths.get`; **both paths go through `fs.realpath`** and the map's realpath must
+    lie inside the store root's realpath and end in `.cc.json` / `.cc.json.gz` (`NOT_ALLOWED`; a symlink in
+    the store that leads out is refused; unresolvable `IO`). The read uses one file handle (`stat` + positional
+    reads), so `totalBytes` and the bytes come from the same open file; `offset` beyond the end is
+    `BAD_REQUEST`, a `length` past the end answers the rest. `bytes` is a fresh `Uint8Array` of exactly the
+    bytes read (no view into a larger buffer crosses IPC).
+  - `readSnapshotMap` (01-M3, whole file) is left as it is; 03-M4 decides whether to keep it.
+- Renderer: `ShellMethods` gains the two methods; `MapChunk` declared by hand in `desktopBridge.ts`.
+- Fake: new seed fields **`pickedImportFile`** (answered by every `snapshots.pickImportFile`, each pick arming
+  its `importToken` and its `containingFolder.pickToken` again, as a real new pick would) and
+  **`snapshotMaps: Record<snapshotId, number[]>`** (JSON-serialisable; `snapshots.readMapChunk` slices it).
+  Backend: `snapshots.openFile` (target `null` → `existingTarget`, else a project folder at the containing
+  folder's path, else a new project named `suggestedName` with that folder as primary, removed again when
+  the import fails), `snapshots.import`, binding only to `hintCommit.commit` (`NOT_A_COMMIT` otherwise,
+  the token stays usable), duplicates by `duplicateOf` or by the fake's own content key (project, file name,
+  size) → `wasAlreadyImported: true`. Imported ids are `imported-` + 16 digits.
+- Tests: `snapshotsShell.test.js` (11, incl. the symlink case on Unix and "should not shadow a method the
+  page may call on the core"), `shellPolicy` "should accept only whole-byte map chunk ranges of at most 32
+  MiB"; Jest: "should open a picked file into a new project named after its folder and only once", "should
+  open a file into the project that already has its folder and bind it to the hinted commit", "should import
+  a picked file into a chosen folder and refuse a commit the folder does not have", "should hand out the
+  folder of a picked file for a new project", "should read a seeded map in chunks"; smoke (stubbed
+  open-file dialog): "should open a picked cc.json file into a project and read its stored map" (copy of
+  `sample1.cc.json` in a folder `assets` → project "assets", second open `wasAlreadyImported: true`, one 16 MiB
+  chunk = the whole gzip map, starting with the gzip magic bytes) and "should refuse the shell-only snapshot
+  methods from the page".
+- This covers the in-app half of the M3 acceptance (through the smoke suite, not a manual click).
+- Not done: 03-M0 spike item 1 (timing a 64 MiB `Uint8Array` over IPC) is still open; the chunk size stays
+  the plan's 16 MiB with the 32 MiB cap. Nothing ran on Windows (realpath/case comparison of the store root,
+  `\\?\` prefixes) or macOS.
+- Plan text corrected: shell types block (`MapChunk`), method table rows `snapshots.pickImportFile` and
+  `snapshots.readMapChunk`.
+
+### For 03-M4 (renderer load path) and 03-M5 (projects UI)
+- Read a stored map with `request("snapshots.readMapChunk", { ...ref, offset, length })`: first call
+  `offset: 0, length: 16 MiB`, allocate one `Uint8Array(totalBytes)`, copy `bytes` at `offset`, continue
+  until `offset + bytes.length === totalBytes`. The bytes are always gzip (`map.cc.json.gz`); inflate in the
+  renderer, then `snapshots.recordMapFacts` once. `readSnapshotMap(ref)` still reads the whole file in one
+  call if 03-M4 prefers it for small maps.
+- Open a file: `request("snapshots.pickImportFile", { title, filters: [{ name, extensions: ["json", "gz"] }] })`
+  (wording is the renderer's), then `snapshots.openFile { importToken, target, bindToCommit }`; `null` =
+  cancelled. Then `projects.setActive` / `projects.setView` (openFile sets neither).
+- Errors arrive as data (`{ ok: false, error }`), never as rejections; `TOKEN_EXPIRED` → ask the user to pick
+  again; `NOT_ALLOWED` from a composed method means the shell refused a path, not a missing permission.
+- Fake seeds for UI specs and web e2e: `projects`, `snapshots`, `activeProjectId`, `pickedFolders`,
+  `pickedImportFile`, `snapshotMaps`, `now`.

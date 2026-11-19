@@ -3,7 +3,9 @@ import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
 import type { FolderRef } from "../../model/coreApi/FolderRef"
 import type { PathsInfo } from "../../model/coreApi/PathsInfo"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
+import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { ShellPathTarget } from "../../model/coreApi/ShellPathTarget"
+import type { SnapshotRef } from "../../model/coreApi/SnapshotRef"
 import type { SourceFileParams } from "../../model/coreApi/SourceFileParams"
 import type { ToolId } from "../../model/coreApi/ToolId"
 import type { ToolsReport } from "../../model/coreApi/ToolsReport"
@@ -47,10 +49,20 @@ interface SourceFileBytes {
     bytes: Uint8Array
 }
 
+interface MapChunk {
+    bytes: Uint8Array
+    offset: number
+    totalBytes: number
+}
+
+type MapChunkParams = SnapshotRef & { offset: number; length: number }
+
 type ShellMethods = {
     "projects.pickFolder": { params: FolderPickerOptions; result: PickedFolder | null }
     "projects.readSourceFile": { params: SourceFileParams; result: SourceFileBytes | null }
     "projects.revealFolder": { params: FolderRef; result: null }
+    "snapshots.pickImportFile": { params: FilePickerOptions; result: PickedImportFile | null }
+    "snapshots.readMapChunk": { params: MapChunkParams; result: MapChunk }
 }
 
 type BridgeMethods = Pick<CoreMethods, RendererMethod> & ShellMethods
