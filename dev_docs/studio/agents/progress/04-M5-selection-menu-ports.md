@@ -38,7 +38,7 @@ analysis enqueue; owner decision: selecting a commit never starts an analysis by
 - [x] 1. Selection
 - [x] 2. Keyboard
 - [x] 3. Ports and context menu
-- [ ] 4. History badges and analyse action
+- [x] 4. History badges and analyse action
 
 ## Notes
 
@@ -105,4 +105,37 @@ Environment (2026-11-19): Arch Linux, node 26, npm 12.2. Branch `feature/studio-
   sentence in `text-error`), then the two-commit action buttons. The same one sentence form for every count (the design
   gives no other form; "0 behind" stays).
 - `GitApiService.measureDistances`; the fake answers `git.measureDistances` from the seeded parents (ancestor sets).
+
+### 4. History badges and analyse actions (05-M4 task 5)
+- `features/snapshots/gitHistory/provideSnapshotsForGitHistory()` (exported from the snapshots facade, spread into
+  `app.config.ts` providers): `ANALYSED_COMMITS` → `SnapshotBadgeProvider`, `LOADED_MAP_LOCATOR` → `SnapshotMapLocator`,
+  two `COMMIT_ACTIONS`. The gitHistory facade now exports the three ports, their types and `CommitSelection` (knip has a
+  consumer now). Dependency direction snapshots → gitHistory; dependency-cruiser clean.
+- `util/commitMarkers.ts commitMarkersOf({ snapshots, jobs, shownSnapshotId })`: a commit snapshot (`target: "commit"`) or
+  a commit-bound import marks its commit `analysed` (import: `analysedAt` null, note "imported map, analysis time
+  unknown" → title "Analysed — imported map, analysis time unknown"); unbound imports and working-tree analyses mark
+  nothing; with several snapshots of one commit the shown one wins, then an analysis over an import, then the newest;
+  `isLoadedInMap` = it is `ProjectsFacade.shownSnapshot`. The latest job of a commit (by `queuedAt`) wins when queued,
+  running (with its percent) or failed (with its message); done / cancelled leave the snapshot to speak. "other profile"
+  is not marked: no renderer API knows the current profile (05-M4 notes; 05-M5's resolution carries `isCurrentProfile`).
+- `SnapshotBadgeProvider.markersFor(repo)` hands out one computed per folder (snapshots from `SnapshotCatalogService`,
+  jobs from `AnalysisJobsService`, shown snapshot); `markerOf(repo, sha)`.
+- `SnapshotMapLocator.nodePathOf(repo, path)`: only while a snapshot of that folder is shown and `GitRepositoryService`
+  knows the folder's `folderPrefix`; the path must lie inside the folder; node path `/root/<path within folder>`
+  (`PROJECT_ROOT_NAME`), returned only when the loaded map has that node (`LoadedMapReadStore.pathToNode`, new read store
+  over `pathToNodeSelector`). This replaces 05-M4 task 2's file-name registry, as that progress file foresaw.
+- `gitHistory/analyseCommitActions.ts`: "Analyse This Commit" / details "Analyse this commit", `fa-solid fa-play`, hint
+  "Run ccsh on this commit in a temporary worktree" (S5), offered for one commit without an analysis — also after a
+  failed one (retry), not while queued or running (it would only toast "already queued"); "Analyse Working Tree" (S5,
+  "Analyse the files as they are on disk now") in the uncommitted changes' menu, no details button (H9 shows none for
+  the working tree). Both run `SnapshotViewService.analyse({ …, surface: "status" })`: answers as S5 (toasts, problems
+  in W1 ACTIVITY, S6), the map opens when that analysis finishes (05-M4 behaviour). Selecting a commit starts nothing
+  (owner rule).
+- **Not built here:** "Analyse the Last Commits from Here…" (S5) needs the batch dialog S7 (05-M6 UI, not on the stack);
+  the H9 resolution line and the primary "Show in map" (S10, S5, Enter / double-click) need 05-M5's resolution flow,
+  which the parallel 05-M5 UI work owns — it should contribute a `CommitAction` with `isPrimary: true`, `label` "Show in
+  Map" (hint per S5), `detailsLabel` "Show in map", `icon` "fa-solid fa-map", provided **before** the analyse actions in
+  `provideSnapshotsForGitHistory()` (H9 shows it first).
+- Changelog: "Git history" names keyboard navigation, the copy menu and the two-commit distance; "Analyses in the app"
+  names analysing any commit picked in the History and the analysed marks there (rewritten, no new entries).
 

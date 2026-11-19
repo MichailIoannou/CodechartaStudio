@@ -45,7 +45,7 @@ time. Keep shared-file edits (nav bar, `app.config.ts`, fake bridge, `CHANGELOG.
 - [x] 2. Registry — covered by 03-M5's `ProjectsService.shownSnapshot` (see Notes); the file-name registry waits for its consumer
 - [x] 3. Workspace status W1
 - [x] 4. Snapshots dialog
-- [ ] 5. History badges (later, after 04-M4)
+- [x] 5. History badges — built in 04-M5 (see `04-M5-selection-menu-ports.md` step 4)
 - [x] 6. Changelog
 - [x] Fake bridge analysis handlers (05-M3 task 5)
 - [x] Core: `analysis.readLog { jobId }` (design deviation 4)
@@ -162,7 +162,7 @@ Environment (2026-11-19): Arch Linux, node 26, npm 12.2, rustc 1.95. Branch `fea
   of the working tree": real core, shell relay of `analysis.*` events and map read work together.
 
 ### Left for later
-- Task 5 (S10 markers, `provideSnapshotsForGitHistory`) after 04-M4; 05-M5 (target, resolution, S2 notice,
+- Task 5 (S10 markers, `provideSnapshotsForGitHistory`) done in 04-M5; 05-M5 (target, resolution, S2 notice,
   stale/ahead badges, "Show current checkout", "Analyse <short>"); 05-M6 UI (S7, S8, delete); M7 desktop smoke with
   fake-ccsh (the scratch spec above is a starting point).
 
