@@ -4,11 +4,13 @@ const path = require("node:path")
 const {
     describeTrustedPage,
     isRendererEvent,
+    isComposedMethod,
     isRendererMethod,
     isTrustedSender,
     isReadableMapPath,
     isValidOperationId,
     isColorScheme,
+    isMapChunkRange,
     isWindowBackgroundColor,
     judgeNavigation,
     planCoreRestart,
@@ -252,6 +254,19 @@ describe("allow-list", () => {
         assert.deepEqual(verdicts, [true, true, false, false, false, false])
     })
 
+    test("should compose only the methods the shell itself offers", () => {
+        // Arrange
+        const composedMethods = { "projects.pickFolder": () => null }
+
+        // Act
+        const verdicts = ["projects.pickFolder", "projects.inspectFolder", "toString", "constructor", undefined].map(method =>
+            isComposedMethod(method, composedMethods)
+        )
+
+        // Assert
+        assert.deepEqual(verdicts, [true, false, false, false, false])
+    })
+
     test("should forward only renderer events", () => {
         // Arrange
         const contract = { rendererEvents: ["core.progress"] }
@@ -345,6 +360,27 @@ describe("shell actions", () => {
 
         // Assert
         assert.deepEqual(verdicts, [true, true, true, false, false, false, false, false])
+    })
+
+    test("should accept only whole-byte map chunk ranges of at most 32 MiB", () => {
+        // Arrange
+        const maxLength = 32 * 1024 * 1024
+        const ranges = [
+            { offset: 0, length: 1 },
+            { offset: 5_000_000_000, length: maxLength },
+            { offset: 0, length: 0 },
+            { offset: 0, length: maxLength + 1 },
+            { offset: -1, length: 1 },
+            { offset: 1.5, length: 1 },
+            { offset: "0", length: 1 },
+            { offset: 0, length: Number.NaN }
+        ]
+
+        // Act
+        const verdicts = ranges.map(isMapChunkRange)
+
+        // Assert
+        assert.deepEqual(verdicts, [true, true, false, false, false, false, false, false])
     })
 
     test("should keep only well-formed picker titles and filters", () => {

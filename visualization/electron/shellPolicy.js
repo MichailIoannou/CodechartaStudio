@@ -8,6 +8,7 @@ const CORE_RESTART_DELAYS_MS = [500, 1000, 2000, 4000, 8000]
 const CORE_FAILURE_WINDOW_MS = 60_000
 const MAX_OPERATION_ID_LENGTH = 64
 const MAP_FILE_ENDINGS = [".cc.json", ".cc.json.gz"]
+const MAX_MAP_CHUNK_BYTES = 32 * 1024 * 1024
 const COLOR_SCHEMES = ["light", "dark", "system"]
 const WINDOW_BACKGROUND_COLOR = /^#[0-9a-fA-F]{6}$/
 const FILTER_EXTENSION = /^(\*|[A-Za-z0-9]+)$/
@@ -91,6 +92,10 @@ function isRendererMethod(method, contract) {
     return typeof method === "string" && contract.rendererMethods.includes(method)
 }
 
+function isComposedMethod(method, composedMethods) {
+    return typeof method === "string" && Object.hasOwn(composedMethods, method)
+}
+
 function isRendererEvent(event, contract) {
     return typeof event === "string" && contract.rendererEvents.includes(event)
 }
@@ -99,19 +104,25 @@ function isValidOperationId(operationId) {
     return operationId === undefined || (typeof operationId === "string" && operationId.length <= MAX_OPERATION_ID_LENGTH)
 }
 
-function isReadableMapPath(filePath, { allowedRoots, platform }) {
+function isInsideFolder(filePath, folder, platform) {
     const isWindows = platform === "win32"
     const pathFlavour = isWindows ? path.win32 : path.posix
-    if (typeof filePath !== "string" || !pathFlavour.isAbsolute(filePath)) {
+    if (typeof filePath !== "string" || typeof folder !== "string" || !pathFlavour.isAbsolute(filePath)) {
         return false
     }
     const comparable = candidate => (isWindows ? pathFlavour.normalize(candidate).toLowerCase() : pathFlavour.normalize(candidate))
-    const mapPath = comparable(filePath)
-    const isInsideARoot = allowedRoots.some(root => {
-        const relativePath = pathFlavour.relative(comparable(root), mapPath)
-        return relativePath.length > 0 && !relativePath.startsWith("..") && !pathFlavour.isAbsolute(relativePath)
-    })
-    return isInsideARoot && MAP_FILE_ENDINGS.some(ending => mapPath.toLowerCase().endsWith(ending))
+    const relativePath = pathFlavour.relative(comparable(folder), comparable(filePath))
+    return relativePath.length > 0 && !relativePath.startsWith("..") && !pathFlavour.isAbsolute(relativePath)
+}
+
+function isReadableMapPath(filePath, { allowedRoots, platform }) {
+    const isInsideARoot = allowedRoots.some(root => isInsideFolder(filePath, root, platform))
+    return isInsideARoot && MAP_FILE_ENDINGS.some(ending => filePath.toLowerCase().endsWith(ending))
+}
+
+function isMapChunkRange({ offset, length }) {
+    const isWholeBytes = value => Number.isSafeInteger(value) && value >= 0
+    return isWholeBytes(offset) && isWholeBytes(length) && length > 0 && length <= MAX_MAP_CHUNK_BYTES
 }
 
 function isWindowBackgroundColor(color) {
@@ -147,6 +158,9 @@ module.exports = {
     isRendererEvent,
     isRendererMethod,
     isColorScheme,
+    isComposedMethod,
+    isInsideFolder,
+    isMapChunkRange,
     isTrustedSender,
     isValidOperationId,
     isWindowBackgroundColor,
