@@ -14,6 +14,8 @@ export interface CommitAction {
     /** Enter and double-click run the first offered primary action. */
     isPrimary: boolean
     isOfferedFor(selection: CommitSelection): boolean
+    /** Why an offered action cannot run for this selection; the menu then shows it disabled with that reason. */
+    disabledReasonFor?(selection: CommitSelection): string | null
     run(selection: CommitSelection): void
 }
 

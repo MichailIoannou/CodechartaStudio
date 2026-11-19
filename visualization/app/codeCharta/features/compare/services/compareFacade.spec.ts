@@ -56,6 +56,23 @@ describe("CompareFacade", () => {
         expect(service.start.mock.calls.map(([intent]) => intent.kind)).toEqual(["commits", "withParent", "withCurrent"])
     })
 
+    it("should compare a branch in the base mode last chosen for the project unless one is given", async () => {
+        // Arrange
+        localStorage.setItem("codeChartaCompareBaseMode", JSON.stringify({ [FOLDER.projectId]: "tip" }))
+        const facade = createFacade()
+
+        // Act
+        await facade.compareBranch(FOLDER, "refs/heads/feature/x")
+        await facade.compareBranch(FOLDER, "refs/heads/feature/x", { target: "refs/heads/main", baseMode: "mergeBase" })
+
+        // Assert
+        expect(service.start.mock.calls.map(([intent]) => intent)).toEqual([
+            { kind: "branch", folder: FOLDER, branch: "refs/heads/feature/x", target: null, baseMode: "tip" },
+            { kind: "branch", folder: FOLDER, branch: "refs/heads/feature/x", target: "refs/heads/main", baseMode: "mergeBase" }
+        ])
+        localStorage.clear()
+    })
+
     it("should open the dialog when a comparison started from a menu needs a decision", async () => {
         // Arrange
         const facade = createFacade()

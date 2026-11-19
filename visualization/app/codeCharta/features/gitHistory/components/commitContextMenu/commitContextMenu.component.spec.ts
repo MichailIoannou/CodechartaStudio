@@ -62,6 +62,22 @@ describe("CommitContextMenuComponent", () => {
         expect(screen.getByText("Copy SHA").closest("button")?.getAttribute("title")).toBe("Copy the full commit hash")
     })
 
+    it("should show an action that cannot run disabled with its reason and not run it", async () => {
+        // Arrange
+        const withParent = anAction("withParent", "Compare with Parent", { disabledReasonFor: () => "This commit has no parent" })
+        const { closed } = await renderMenu(aTarget(), [withParent])
+        const item = screen.getByText("Compare with Parent").closest("button")
+
+        // Act
+        fireEvent.click(screen.getByText("Compare with Parent"))
+
+        // Assert
+        expect(item?.getAttribute("aria-disabled")).toBe("true")
+        expect(item?.getAttribute("title")).toBe("This commit has no parent")
+        expect(withParent.run).not.toHaveBeenCalled()
+        expect(closed).not.toHaveBeenCalled()
+    })
+
     it("should offer only the copy items without contributions", async () => {
         // Arrange & Act
         await renderMenu(aTarget())
