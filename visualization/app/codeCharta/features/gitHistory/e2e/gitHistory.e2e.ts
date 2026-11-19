@@ -258,3 +258,26 @@ test.describe("History writes", () => {
         await expect(history.currentBranch()).toContainText("feature/invoice-rounding")
     })
 })
+
+test.describe("Show in map", () => {
+    test("should show a commit's analysis in the map from its details and on double-click", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const commits = [aLogCommit("a", "Fix invoice rounding", ["c"]), aLogCommit("c", "Release 2.4.0")]
+        const release = aSnapshot("p-billing", "f-api", "s-release", { commit: "c".repeat(40), shortCommit: "ccccccc", target: "commit" })
+        const seed = { ...billingSeed({ "f-api": { commits } }), snapshots: [release], snapshotMaps: { "s-release": SAMPLE_MAP } }
+        await standInForTheDesktopBridge(page, seed)
+        await goto(page)
+        await history.open()
+
+        // Act
+        await history.commitRows().nth(1).click()
+        const firstAction = history.commitDetails().getByRole("button").filter({ hasText: "Show in map" })
+        await expect(firstAction).toBeVisible()
+        await history.commitRows().nth(1).dblclick()
+
+        // Assert
+        await expect(page).toHaveURL(/#\/$/)
+        await expect(history.workspaceStatus()).toContainText("ccccccc")
+    })
+})

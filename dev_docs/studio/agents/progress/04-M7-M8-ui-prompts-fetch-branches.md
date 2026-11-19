@@ -1,6 +1,6 @@
 ---
 name: 04-M7/M8 renderer — credential prompts, fetch and branches (+ Show in map action)
-state: progress
+state: complete
 version: 1
 ---
 
@@ -42,7 +42,7 @@ From `04-M5-selection-menu-ports.md`: contribute "Show in map" as a `CommitActio
 
 - [x] 1. Credential prompts
 - [x] 2. Fetch and branches
-- [ ] 3. Show in map
+- [x] 3. Show in map
 
 ## Notes
 
@@ -173,4 +173,62 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2.2. Branch `feature/st
   (`gitHistory.e2e.ts` "History writes"): fetch with hooks notice, W1 "Fetching · 45 %" and Cancel; passphrase prompt
   over the metrics view, answered once; New Branch Here… then Switch To with the confirmation; refusal toast with
   git's files and Details.
+
+### 3. "Show in map" (primary commit action)
+- `features/snapshots/gitHistory/showInMapAction.ts`, provided **first** in `provideSnapshotsForGitHistory()` (H9 shows it
+  first): `label` "Show in Map", `detailsLabel` "Show in map", `fa-solid fa-map`, `isPrimary: true`, `hoverHint` ""
+  (design S5 gives none: "—"). Offered for one item — a commit or the uncommitted changes (design "What the map
+  follows": the working tree shows the current checkout) — when the folder has at least one snapshot; a folder without
+  any has nothing to show (S10 "none" offers only Analyse). Runs 05-M5's `SnapshotViewService.showCommit(sha)` /
+  `showCurrentCheckout()`, which resolve exact or nearest, load it and navigate to the map. **Gap closed in the
+  action, not in the service:** `showTarget` ignores a request for the target the map already follows, so Show in map
+  on that commit would stay in the History; the action then calls `ProjectsFacade.showMap()` itself, once that target
+  is shown (`status() === "shown"`), leaving `SnapshotViewService` and its "never leave the view later" test untouched.
+  Enter / double-click in the commit list now run it (M5's `runPrimary`).
+- Not built: the H9 resolution line ("Not analysed — nearest is 9f8e7d6, 4 commits older") — 05-M5's renderer notes
+  leave it open; it needs `snapshots.resolveForCommit` per selection in the details pane.
+- Tests: `provideSnapshotsForGitHistory.spec.ts` (labels and order, offered only for one item of an analysed folder,
+  commit → `showCommit`, working tree → `showCurrentCheckout`, already-followed target → only `showMap` once shown);
+  e2e "Show in map": the details' first button and a double-click open the metrics view with that analysis.
+
+### Screenshots (Playwright, seeded stand-in; scratch spec, not committed)
+1600×900, cc-dark and cc-light (theme set on `<html>`): hooks notice; credential prompt secret ("(1 of 3)", masked,
+help line), text, confirm (multi-line host-key message wraps in the `<pre>`, No focused / Yes); fetch running (toolbar
+"Fetching…" disabled + Cancel square, W1 "Fetching · 45 %" with the fill and the pulsing cloud icon); sync caret menu;
+commit menu with Show in Map first and the write entries; New Branch (valid, and with a space: rule message in
+`text-error`, Create branch disabled); branch menus (local, remote); Rename (effect sentence); Set Upstream; Check Out
+as New Local Branch; Switch Branch (No / Yes); Delete Branch; Delete Unmerged Branch (Cancel / Delete anyway in
+`btn-error`); Delete Remote Branch; refusal toast with git's two files, then Details with git's full text. Compared
+with H5, H10, H14–H16 and the mock-up: layouts, wording and button order match. **Fixed after looking:** the menus cut
+"Check Out 'origin/main' as N…" and "Fetch and Remove Deleted Branc…" at `w-64` / `w-72`; they are `w-max min-w-64
+max-w-[32rem]` now. **Seen, not changed (other milestones):** toasts still cover the nav bar's right end (OD8, 02-M7);
+the error alert in cc-dark is a bright red block with dark text (daisyUI `alert-error`); the stand-in counted "0 commits
+not merged" because its seeded branch was in fact merged (real git refuses only unmerged branches).
+
+### Gates (final, Linux)
+Root `npm run format:check` clean; `visualization/`: `npm test` 740 suites, 5901 passed + 2 todo, coverage 97.19 /
+90.42 / 96.03 / 97.15; `npm run lint` (depcruise, styles, knip) clean; `npx tsc --noEmit -p tsconfig.json` clean;
+`npm run test:electron` 79/79; `npm run build` ok; `npm run e2e:ci` 185/186 then the one failure (an assertion on
+`#/metrics`, the metrics route is `#/`) fixed and the history e2e 9/9; `npm run e2e:desktop` 16/16 with the core built
+into `core/target/studio-04-m7m8-ui`. Temporary `E2E_PORT` 9039 and the chromium channel reverted.
+
+### Shared files touched
+`electron/main.js`, `electron/shellPolicy.js` (+test), `views/codeCharta.component.html|ts` (one dialog),
+`features/shared` toast service/component (+specs) and `contextMenuItem` (`disabled` input),
+`features/workspaceStatus` (git activity in the trigger), `features/snapshots/gitHistory` (Show in map),
+`util/desktop/desktopBridge.mocks.ts` (+spec), `CHANGELOG.md` (two entries rewritten), plan 04 (M7 task 5 and M8
+task 2 as built).
+
+### For 04-M9..M11 renderer work
+- Every write goes through `GitOperationService.run({ kind, repo, send(operationId) })` (hooks notice, fresh id,
+  progress, refresh afterwards); extend `GitOperationKind` and `NETWORK_OPERATIONS` (pull, push → Cancel).
+- Confirmations: `GitConfirmationService.ask(GitConfirmation)` with texts in `util/effectText.ts` (add discard, pull
+  choice — needs a third button, force push, amend, abort); failures: copy `BranchActionsService.report` (sticky error
+  toast with Details; `ToastService` already takes `action` for "Pull" / "Fetch" / "Publish branch").
+- M11: make the sync button's main action state-dependent (H5 table), add Pull/Push/Publish/Force Push to the caret
+  and to the branch menu (`util/branchMenu.ts`), word "Pulling"/"Pushing" in `GIT_ACTIVITIES` of
+  `workspaceTrigger.ts`, put the button into W1 / the project overview, and then move `cc-git-confirm-dialog` next to
+  `cc-credential-prompt-dialog` in `views/codeCharta.component.html`.
+- The stand-in bridge answers the M8 writes and simulates slow operations with progress and prompts (seed `slow`);
+  add the M9–M11 methods the same way.
 

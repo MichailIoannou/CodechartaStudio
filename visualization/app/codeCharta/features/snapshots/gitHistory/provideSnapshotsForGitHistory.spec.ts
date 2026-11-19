@@ -2,7 +2,10 @@ import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import { ANALYSED_COMMITS, AnalysedCommitMarker, COMMIT_ACTIONS, CommitSelection, LOADED_MAP_LOCATOR } from "../../gitHistory/facade"
+import { ProjectsFacade } from "../../projects/facade"
+import type { SelectedTarget } from "../model/snapshotTarget"
 import { SnapshotBadgeProvider } from "../services/snapshotBadgeProvider.service"
+import { SnapshotCatalogService } from "../services/snapshotCatalog.service"
 import { SnapshotMapLocator } from "../services/snapshotMapLocator.service"
 import { SnapshotViewService } from "../services/snapshotView.service"
 import { COMMIT_SHA } from "../snapshots.mocks"
@@ -27,10 +30,20 @@ function oneCommit(): CommitSelection {
 describe("provideSnapshotsForGitHistory", () => {
     const markers = signal<ReadonlyMap<string, AnalysedCommitMarker>>(new Map())
     const analyse = jest.fn().mockResolvedValue(undefined)
+    const showCommit = jest.fn()
+    const showCurrentCheckout = jest.fn()
+    const snapshots = jest.fn(() => [{}])
+    const target = signal<SelectedTarget | null>(null)
+    const status = signal("idle")
+    const showMap = jest.fn()
 
     function provided() {
         markers.set(new Map())
         analyse.mockClear()
+        showCommit.mockClear()
+        showCurrentCheckout.mockClear()
+        showMap.mockClear()
+        target.set(null)
         TestBed.configureTestingModule({
             providers: [
                 ...provideSnapshotsForGitHistory(),
@@ -39,13 +52,16 @@ describe("provideSnapshotsForGitHistory", () => {
                     useValue: { markersFor: () => markers, markerOf: (_repo: unknown, sha: string) => markers().get(sha) ?? null }
                 },
                 { provide: SnapshotMapLocator, useValue: { nodePathOf: () => null } },
-                { provide: SnapshotViewService, useValue: { analyse } }
+                { provide: SnapshotViewService, useValue: { analyse, showCommit, showCurrentCheckout, target, status } },
+                { provide: SnapshotCatalogService, useValue: { snapshots } },
+                { provide: ProjectsFacade, useValue: { showMap } }
             ]
         })
         const actions = TestBed.inject(COMMIT_ACTIONS)
         return {
             analyseCommit: actions.find(action => action.id === "snapshots.analyseCommit"),
             analyseWorkingTree: actions.find(action => action.id === "snapshots.analyseWorkingTree"),
+            showInMap: actions.find(action => action.id === "snapshots.showInMap"),
             actions
         }
     }
@@ -58,6 +74,7 @@ describe("provideSnapshotsForGitHistory", () => {
         expect(TestBed.inject(ANALYSED_COMMITS)).toBe(TestBed.inject(SnapshotBadgeProvider))
         expect(TestBed.inject(LOADED_MAP_LOCATOR)).toBe(TestBed.inject(SnapshotMapLocator))
         expect(actions.map(action => [action.label, action.detailsLabel, action.icon, action.hoverHint, action.isPrimary])).toEqual([
+            ["Show in Map", "Show in map", "fa-solid fa-map", "", true],
             ["Analyse This Commit", "Analyse this commit", "fa-solid fa-play", "Run ccsh on this commit in a temporary worktree", false],
             ["Analyse Working Tree", undefined, "fa-solid fa-play", "Analyse the files as they are on disk now", false]
         ])
@@ -120,5 +137,54 @@ describe("provideSnapshotsForGitHistory", () => {
         // Assert
         expect([offeredForTree, offeredForCommit]).toEqual([true, false])
         expect(analyse).toHaveBeenCalledWith({ folder: API, target: { kind: "workingTree" }, surface: "status" })
+    })
+
+    it("should show the selected commit in the map, or the current checkout for the uncommitted changes", () => {
+        // Arrange
+        const { showInMap } = provided()
+        const workingTree: CommitSelection = { repo: API, items: [{ kind: "workingTree", status: STATUS }] }
+
+        // Act
+        showInMap?.run(oneCommit())
+        showInMap?.run(workingTree)
+
+        // Assert
+        expect(showCommit).toHaveBeenCalledWith(COMMIT_SHA)
+        expect(showCurrentCheckout).toHaveBeenCalledTimes(1)
+    })
+
+    it('should offer "Show in map" for one item of a folder that has an analysis', () => {
+        // Arrange
+        const { showInMap } = provided()
+        const two: CommitSelection = {
+            repo: API,
+            items: [oneCommit().items[0], { kind: "commit", commit: { ...COMMIT, sha: "f".repeat(40) } }]
+        }
+
+        // Act
+        const withAnalysis = [showInMap?.isOfferedFor(oneCommit()), showInMap?.isOfferedFor(two)]
+        snapshots.mockReturnValueOnce([])
+        const withoutAnalysis = showInMap?.isOfferedFor(oneCommit())
+
+        // Assert
+        expect(withAnalysis).toEqual([true, false])
+        expect(withoutAnalysis).toBe(false)
+        expect(snapshots).toHaveBeenCalledWith("f-api")
+    })
+
+    it("should only go to the map when the map already follows the selected commit", () => {
+        // Arrange
+        const { showInMap } = provided()
+        target.set({ kind: "commit", sha: COMMIT_SHA })
+
+        // Act
+        status.set("resolving")
+        showInMap?.run(oneCommit())
+        status.set("shown")
+        showInMap?.run(oneCommit())
+
+        // Assert
+        expect(showCommit).not.toHaveBeenCalled()
+        expect(showMap).toHaveBeenCalledTimes(1)
     })
 })
