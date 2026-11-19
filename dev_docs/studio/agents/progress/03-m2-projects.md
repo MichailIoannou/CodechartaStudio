@@ -1,6 +1,6 @@
 ---
 name: 03-M2 projects - core, RPC, CLI, shell, fake
-state: progress
+state: complete
 version: 1
 ---
 
@@ -47,7 +47,7 @@ store API of `03-m1-store-core.md` apply. Git fixtures go in `tests/support/git_
 - [x] 6. JSON-RPC
 - [x] 7. CLI
 - [x] 8. Shell (part B)
-- [ ] 9. Fake bridge backend (part B)
+- [x] 9. Fake bridge backend (part B)
 
 ## Notes
 
@@ -314,3 +314,46 @@ forbids paths from the renderer. The core side is built for tokens; the shell mu
 - Plan text corrected: "Required from plan 01" (call shape, composed methods), the shell types block,
   the method table rows (`projects.pickFolder { title }`, `projects.revealFolder`) and the M2 acceptance
   call.
+
+### 9. Fake bridge backend (part B)
+- `createFakeDesktopBridge` keeps an in-memory store inside its body (still no imports used as values, no
+  outer helpers, no `async`/`await`; the one `/* istanbul ignore next */` stays). New optional
+  `FakeDesktopSeed` fields: `projects: Project[]`, `snapshots: SnapshotSummary[]`, `activeProjectId`,
+  **`pickedFolders: PickedFolder[]`** (answered in order by `projects.pickFolder`, then `null` = cancelled;
+  the plan named no seed for folder picks) and **`now`** (the timestamp written into `createdAt`,
+  `updatedAt`, `addedAt`; fixed so specs and screenshots stay stable). Seeds are copied with
+  `JSON.parse(JSON.stringify(..))`, answers are copies too, so a test cannot change the store by
+  mutating an answer.
+- Precedence per request: a seeded failure, then a seeded response (both as before, so existing specs and
+  the desktop tools e2e are unchanged), then the backend, then `NOT_FOUND`. `answerFor` takes the fallback
+  as a function, so a seeded answer never runs (and never mutates) the backend.
+- Backend methods: `store.status` (`{ problem: null }`), `projects.list|get|create|update|delete|addFolder|
+  updateFolder|removeFolder|relinkFolder|refreshFolder|getActive|setActive|setView`, the composed
+  `projects.pickFolder|readSourceFile|revealFolder` (the last two answer `null`), `snapshots.list|delete|
+  recordMapFacts`. Rules copied from the core in small: generated ids `p-`/`f-` + 16 digits; a pick token
+  is accepted once (`TOKEN_EXPIRED` otherwise); `DUPLICATE_FOLDER` by path, `DUPLICATE_LABEL`
+  case-insensitive; the first folder is primary and a new primary demotes the old one to helper; the
+  primary cannot be turned into another role (`BAD_REQUEST`); removing a folder drops its snapshots and
+  view entry, promotes the first remaining folder and moves the working folder; deleting a project clears
+  the active project; deleting a snapshot clears a view entry naming it; `snapshotCount`,
+  `missingFolderCount` derived. Not modelled: relationships, git facts refresh, `resolveCommit`, move.
+- Tests (`desktopBridge.mocks.spec.ts`): the plan's three ("should create and list a project", "should
+  report a seeded missing folder", "should work when rebuilt from its own source text" — now also
+  picking, creating and listing from the rebuilt text) plus "should accept each pick token once", "should
+  keep one primary folder and unique labels", "should change, relink, refresh and remove folders", "should
+  update and delete a project and forget it as the active one", "should remember the active project and
+  the view", "should list snapshots newest first, record their map facts and delete them", "should prefer
+  a seeded answer over its own projects".
+- Plan text corrected: the fake's seed fields ("Required from plan 01").
+
+### State at the end of part B
+- Tasks 1-9 done; `state: complete`. Gates: see the commit message of task 9 and the final report in
+  `03-m3-snapshots.md`.
+
+### For 03-M4 / 03-M5
+- Call every project method through `bridge.request(...)`, including the composed ones:
+  `request("projects.pickFolder", { title })` → `PickedFolder | null` (title is the caller's wording),
+  `request("projects.readSourceFile", { projectId, folderId, relativePath })` → `{ bytes: Uint8Array } |
+  null`, `request("projects.revealFolder", { projectId, folderId })` → `null`.
+- Jest and web e2e: seed the fake with `projects`, `snapshots`, `activeProjectId`, `pickedFolders`, `now`
+  (`standInForTheDesktopBridge(page, seed)`); the seed must stay JSON-serialisable.
