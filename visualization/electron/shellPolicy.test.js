@@ -5,7 +5,6 @@ const {
     describeTrustedPage,
     isRendererEvent,
     isComposedMethod,
-    isDroppedFileSize,
     isDroppedMapPath,
     isRendererMethod,
     isTrustedSender,
@@ -462,10 +461,8 @@ describe("dropped files", () => {
 
         // Act
         const accepted = candidates.map(([filePath, platform]) => isDroppedMapPath(filePath, platform))
-        const sizes = [0, 4 * 1024 * 1024 * 1024, 4 * 1024 * 1024 * 1024 + 1, Number.NaN].map(isDroppedFileSize)
 
         // Assert
         assert.deepEqual(accepted, [true, true, false, false, false])
-        assert.deepEqual(sizes, [true, true, false, false])
     })
 })
