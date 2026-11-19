@@ -65,8 +65,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M5 Nearest snapshot and stale notice | core + UI | core half verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge, 05-M4 | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
 | 05-M6 Batches, retention, cleanup | core + UI | core tasks 1, 3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge; design O4 | feature/studio-05-m6 | 9acf7a56b (verified, not merged) |
 | 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
-| 06-M0 Spikes | spike | todo | plan 05 core (item 3 needs Windows) | — | — |
-| 06-M1 Compare core: commit vs commit | core + UI | todo | plan 05 core | — | — |
+| 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
+| 06-M1 Compare core: commit vs commit | core + UI | in progress (core tasks 1–3, from feature/studio-05-m6) | UI tasks 4–11: core stack merge | feature/studio-06-m1 | — |
 | 06-M2 Entry points | UI | todo | 06-M1 | — | — |
 | 06-M3 Missing snapshots and staleness | core + UI | todo | 06-M1 | — | — |
 | 06-M4 Changed files | core + UI | todo | 06-M3 | — | — |
@@ -286,6 +286,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 06-M0 recorded as blocked (no gh/glab, Windows, needs projects UI); 06-M1 core tasks 1–3 started with provisional size limits.
 - 2026-11-19: 05-M6 core verified on a scratch merge (clippy and cargo test with and without features: 766/770, cargo-deny, contract drift, format, lint, tsc, npm test 663/663); deletion paths read in code. Plan 05 core complete. Design question O4 logged.
 - 2026-11-19: 05-M5 core verified on a scratch merge (clippy and cargo test with and without features: 747/751, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 05-M6 core started.
 - 2026-11-19: 05-M3 core verified on a scratch merge (clippy and cargo test with and without features: 724/728, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). After the reset (5%), 05-M5 core started.
