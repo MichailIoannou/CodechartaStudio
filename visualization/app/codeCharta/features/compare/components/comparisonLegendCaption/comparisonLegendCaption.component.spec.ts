@@ -32,6 +32,8 @@ describe("ComparisonLegendCaptionComponent", () => {
                 snapshot: aCommitSnapshot(BASE_SHA),
                 relation: null,
                 staleBy: 0,
+                behind: 0,
+                ahead: 0,
                 checksum: TEST_FILE_DATA.fileMeta.fileChecksum
             },
             head: {
@@ -39,9 +41,12 @@ describe("ComparisonLegendCaptionComponent", () => {
                 snapshot: aCommitSnapshot(HEAD_SHA),
                 relation: null,
                 staleBy: 0,
+                behind: 0,
+                ahead: 0,
                 checksum: TEST_FILE_DATA_JAVA.fileMeta.fileChecksum
             },
-            error: null
+            error: null,
+            analyses: []
         })
 
         // Assert

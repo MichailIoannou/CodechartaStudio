@@ -13,7 +13,15 @@ import { CompareStore } from "./compare.store"
 import { CompareWriteStore } from "./compare.write.store"
 
 function aLoadedSide(sha: string, checksum: string): LoadedSide {
-    return { requested: aComparedCommit(sha), snapshot: aCommitSnapshot(sha, checksum), relation: null, staleBy: 0, checksum }
+    return {
+        requested: aComparedCommit(sha),
+        snapshot: aCommitSnapshot(sha, checksum),
+        relation: null,
+        staleBy: 0,
+        behind: 0,
+        ahead: 0,
+        checksum
+    }
 }
 
 describe("CompareStore", () => {
@@ -41,7 +49,8 @@ describe("CompareStore", () => {
             resolved: null,
             base: aLoadedSide(BASE_SHA, baseChecksum),
             head: aLoadedSide(HEAD_SHA, headChecksum),
-            error: null
+            error: null,
+            analyses: []
         })
     }
 

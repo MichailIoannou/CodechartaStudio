@@ -4,6 +4,8 @@ import { StoreModule } from "@ngrx/store"
 import { render, screen } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import { appReducers, setStateMiddleware } from "../../../../stores/rootStore/store"
+import { createFakeDesktopBridge } from "../../../../util/desktop/desktopBridge.mocks"
+import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
 import { ProjectsFacade } from "../../../projects/facade"
 import { aFolder, aProject } from "../../../projects/projects.mocks"
 import type { CompareState } from "../../model/compare.model"
@@ -14,15 +16,33 @@ import { CompareHostComponent } from "../compareHost/compareHost.component"
 
 const BILLING = aProject("p-billing", [
     aFolder("f-api", { label: "billing-api" }),
-    aFolder("f-fork", { label: "billing-fork", role: "fork" })
+    aFolder("f-fork", { label: "billing-fork", role: "fork" }),
+    aFolder("f-docs", { label: "docs", kind: "plain" })
 ])
+const BRANCH = { isCurrent: false, upstream: null, checkedOutInOtherWorktree: null, lastCommit: { subject: "Work", committedAt: 0 } }
+const REFS = {
+    fingerprint: "f",
+    head: { kind: "branch" as const, name: "main", commit: BASE_SHA },
+    localBranches: [
+        { ...BRANCH, refName: "refs/heads/main", name: "main", commit: BASE_SHA, isCurrent: true },
+        { ...BRANCH, refName: "refs/heads/feature/x", name: "feature/x", commit: HEAD_SHA }
+    ],
+    remoteBranches: [],
+    tags: [],
+    remotes: []
+}
 
 describe("CompareDialogComponent", () => {
-    let service: { compareInputs: jest.Mock; continueWithShownSnapshots: jest.Mock; cancel: jest.Mock }
+    let service: { compareSides: jest.Mock; continueWithShownSnapshots: jest.Mock; cancel: jest.Mock }
     let store: CompareStore
 
+    beforeEach(() => {
+        localStorage.clear()
+    })
+
     async function renderDialog(prefill = {}, state: Partial<CompareState> = {}) {
-        service = { compareInputs: jest.fn().mockResolvedValue(undefined), continueWithShownSnapshots: jest.fn(), cancel: jest.fn() }
+        service = { compareSides: jest.fn().mockResolvedValue(undefined), continueWithShownSnapshots: jest.fn(), cancel: jest.fn() }
+        const bridge = createFakeDesktopBridge({ git: { "f-api": { refs: REFS }, "f-fork": { refs: REFS } } })
         HTMLDialogElement.prototype.showModal = jest.fn()
         HTMLDialogElement.prototype.close = jest.fn(function (this: HTMLDialogElement) {
             this.dispatchEvent(new Event("close"))
@@ -31,6 +51,7 @@ describe("CompareDialogComponent", () => {
             imports: [StoreModule.forRoot(appReducers, { metaReducers: [setStateMiddleware] })],
             providers: [
                 { provide: CompareService, useValue: service },
+                { provide: DESKTOP_BRIDGE, useValue: bridge },
                 { provide: ProjectsFacade, useValue: { activeProject: signal(BILLING), workingFolder: signal(BILLING.folders[1]) } }
             ]
         })
@@ -38,6 +59,14 @@ describe("CompareDialogComponent", () => {
         store.update(state)
         store.openDialog(prefill)
         await screen.findByTestId("compare-dialog")
+        await settle()
+    }
+
+    async function settle() {
+        for (let round = 0; round < 3; round++) {
+            TestBed.tick()
+            await new Promise(resolve => setTimeout(resolve))
+        }
     }
 
     function input(testId: string) {
@@ -50,15 +79,71 @@ describe("CompareDialogComponent", () => {
 
         // Act
         await userEvent.type(input("compare-base"), "main")
-        await userEvent.type(input("compare-head"), "feature/x")
+        await userEvent.type(input("compare-head"), "a1b2")
+        await settle()
         await userEvent.click(screen.getByTestId("compare-submit"))
 
         // Assert
-        expect(service.compareInputs).toHaveBeenCalledWith(
+        expect(service.compareSides).toHaveBeenCalledWith(
             { ref: { projectId: "p-billing", folderId: "f-fork" }, label: "billing-fork" },
-            "main",
-            "feature/x"
+            { base: "main", head: "a1b2", baseMode: "mergeBase", unresolved: ["a1b2"] }
         )
+    })
+
+    it("should fill both sides from a recent comparison", async () => {
+        // Arrange
+        localStorage.setItem(
+            "codeChartaRecentComparisons",
+            JSON.stringify({
+                "p-billing": [{ folderId: "f-api", base: "main", head: "feature/x", baseMode: "tip", comparedAt: Date.now() }]
+            })
+        )
+        await renderDialog()
+
+        // Act
+        await userEvent.click(screen.getByTestId("compare-recent-row"))
+
+        // Assert
+        expect(screen.getByTestId("compare-recent-row").textContent).toContain("main..feature/x")
+        expect(screen.getByTestId("compare-recent-row").textContent).toContain("billing-api")
+        expect([input("compare-base").value, input("compare-head").value]).toEqual(["main", "feature/x"])
+        expect((screen.getByTestId("compare-folder") as HTMLSelectElement).value).toBe("f-api")
+    })
+
+    it("should say when there are no comparisons yet", async () => {
+        // Act
+        await renderDialog()
+
+        // Assert
+        expect(screen.getByTestId("compare-recent").textContent?.trim()).toBe("No comparisons yet.")
+    })
+
+    it("should offer only git folders", async () => {
+        // Act
+        await renderDialog()
+
+        // Assert
+        const folders = Array.from(screen.getByTestId("compare-folder").querySelectorAll("option"), option => option.textContent)
+        expect(folders).toEqual(["billing-api", "billing-fork"])
+    })
+
+    it("should show the base mode toggle for a branch base and remember the choice", async () => {
+        // Arrange
+        await renderDialog({ base: "main", head: "feature/x" })
+
+        // Act
+        await userEvent.click(screen.getByTestId("compare-mode-tip"))
+        await userEvent.click(screen.getByTestId("compare-submit"))
+        const forBranch = screen.queryByTestId("compare-base-mode")
+        await userEvent.clear(input("compare-base"))
+        await userEvent.type(input("compare-base"), "9f8e7d6")
+        await settle()
+
+        // Assert
+        expect(forBranch).not.toBeNull()
+        expect(service.compareSides.mock.calls[0][1]).toEqual(expect.objectContaining({ baseMode: "tip", unresolved: [] }))
+        expect(screen.queryByTestId("compare-base-mode")).toBeNull()
+        expect(JSON.parse(localStorage.getItem("codeChartaCompareBaseMode") ?? "{}")).toEqual({ "p-billing": "tip" })
     })
 
     it("should ask for both sides before comparing", async () => {
@@ -85,6 +170,7 @@ describe("CompareDialogComponent", () => {
 
         // Assert
         expect([input("compare-base").value, input("compare-head").value]).toEqual(["feature/x", "main"])
+        expect(localStorage.getItem("codeChartaCompareBaseMode")).toBe(JSON.stringify({ "p-billing": "mergeBase" }))
     })
 
     it("should compare in the chosen folder", async () => {
@@ -96,7 +182,7 @@ describe("CompareDialogComponent", () => {
         await userEvent.keyboard("{Control>}{Enter}{/Control}")
 
         // Assert
-        expect(service.compareInputs.mock.calls[0][0].ref.folderId).toBe("f-api")
+        expect(service.compareSides.mock.calls[0][0].ref.folderId).toBe("f-api")
     })
 
     it("should close after the comparison it started is shown", async () => {
@@ -138,7 +224,13 @@ describe("CompareDialogComponent", () => {
 
     it("should list each side with its status and go on with the nearest analysis", async () => {
         // Arrange
-        const nearest = { snapshot: aCommitSnapshot("3c4d5e6".padEnd(40, "0")), relation: "ancestor" as const, staleBy: 2 }
+        const nearest = {
+            snapshot: aCommitSnapshot("3c4d5e6".padEnd(40, "0")),
+            relation: "ancestor" as const,
+            staleBy: 2,
+            behind: 2,
+            ahead: 0
+        }
         const resolved = aResolvedComparison({
             head: { requested: aComparedCommit(HEAD_SHA, { kind: "branch", name: "feature/x" }), status: { status: "missing", nearest } },
             preflight: { identicalChecksums: false, profilesDiffer: true, combinedBytes: 1, sizeVerdict: "warn" }
@@ -196,7 +288,7 @@ describe("CompareDialogComponent", () => {
 
         // Assert
         expect(screen.getByTestId("compare-error").textContent).toContain("The CodeCharta core is not running.")
-        expect(service.compareInputs).toHaveBeenCalled()
+        expect(service.compareSides).toHaveBeenCalled()
     })
 
     it("should say that maps are loading", async () => {

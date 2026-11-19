@@ -1,13 +1,25 @@
-import { Injectable, inject } from "@angular/core"
+import { effect, Injectable, inject, untracked } from "@angular/core"
 import { Router } from "@angular/router"
 import { routeLinks, viewIdForLink } from "../../../routing/routePaths"
 import { DesktopBridgeError } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
-import type { CompareError, CompareIntent, FolderRef, LoadedSide, ResolvedComparison, ResolvedSide } from "../model/compare.model"
-import { CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
+import type {
+    AnalysisJob,
+    BaseMode,
+    CompareError,
+    CompareIntent,
+    FolderRef,
+    LoadedSide,
+    ResolvedComparison,
+    ResolvedSide
+} from "../model/compare.model"
+import { ANALYSIS_GATEWAY, CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
+import { RecentComparisonsRepo } from "../repos/recentComparisons.repo"
 import { CompareReadStore } from "../stores/compare.read.store"
 import { CompareStore } from "../stores/compare.store"
 import { CompareWriteStore } from "../stores/compare.write.store"
+import { refName } from "./comparisonText"
+import { batchOutcome, missingSidesOf, pendingJobIds, queuedAnalysis, withFailures } from "./missingSides"
 
 const METRIC_VIEW_TOAST = "Compare runs in the metric view — the domain and dependency views show a single map."
 const TREEMAP_TOAST = "Switched to the treemap layout — the radial layouts show a single map."
@@ -16,6 +28,14 @@ const SINGLE_MAP_VIEWS: ReadonlySet<string> = new Set(["domain", "dependencies"]
 export interface ComparedFolder {
     ref: FolderRef
     label: string
+}
+
+export interface TypedSides {
+    base: string
+    head: string
+    baseMode: BaseMode
+    /** The sides no picker could name, base first: an unknown revision is blamed on the first of them. */
+    unresolved: string[]
 }
 
 /** The snapshot a side would show (its own, else its nearest) and how many commits that is away from it. */
@@ -31,18 +51,27 @@ export class CompareService {
     private readonly core = inject(CORE_GATEWAY)
     private readonly router = inject(Router)
     private readonly toastService = inject(ToastService)
+    private readonly recents = inject(RecentComparisonsRepo)
+    private readonly analyses = inject(ANALYSIS_GATEWAY)
     private latestTicket = 0
+    private lastIntent: CompareIntent | null = null
 
-    /** Compares what the user typed as base and head; the history decides which is older. */
-    async compareInputs(folder: ComparedFolder, baseInput: string, headInput: string): Promise<void> {
+    constructor() {
+        effect(() => {
+            const jobs = this.analyses.jobs()
+            if (this.store.state().phase === "analysing") {
+                untracked(() => void this.followAnalyses(jobs))
+            }
+        })
+    }
+
+    /** Compares what the user typed or picked; the base stays the base. */
+    async compareSides(folder: ComparedFolder, sides: TypedSides): Promise<void> {
         const ticket = this.beginResolving()
         try {
-            const [base, head] = await Promise.all([this.revisionOf(folder, baseInput), this.revisionOf(folder, headInput)])
-            if (ticket === this.latestTicket) {
-                await this.resolveAndShow({ kind: "commits", folder: folder.ref, a: base, b: head }, ticket)
-            }
+            await this.resolveAndShow(explicitIntent(folder.ref, sides), ticket)
         } catch (error) {
-            this.fail(ticket, compareErrorOf(error))
+            this.fail(ticket, typedSidesErrorOf(error, folder, sides))
         }
     }
 
@@ -61,6 +90,37 @@ export class CompareService {
         if (resolved) {
             await this.show(resolved, ++this.latestTicket)
         }
+    }
+
+    /** "Analyse missing": queues the sides without an analysis; the comparison goes on once they are analysed. */
+    async analyseMissing(): Promise<void> {
+        const { resolved } = this.store.state()
+        if (!resolved) {
+            return
+        }
+        const ticket = ++this.latestTicket
+        this.snapshots.holdMap()
+        try {
+            const folder = resolved.head.requested.folder
+            const queued = await Promise.all(
+                missingSidesOf(resolved).map(async analysis =>
+                    queuedAnalysis(analysis, await this.analyses.enqueue(folder, analysis.commit))
+                )
+            )
+            if (ticket === this.latestTicket) {
+                this.store.update({ phase: "analysing", analyses: queued, error: null })
+            }
+        } catch (error) {
+            this.fail(ticket, compareErrorOf(error))
+        }
+    }
+
+    /** "Cancel analysis": cancels the whole batch and compares nothing. */
+    async cancelAnalyses(): Promise<void> {
+        const ticket = ++this.latestTicket
+        const pending = pendingJobIds(this.store.state().analyses, this.analyses.jobs())
+        this.fail(ticket, { kind: "analysisCancelled", message: "" })
+        await Promise.all(pending.map(jobId => this.analyses.cancel(jobId).catch(() => undefined)))
     }
 
     swap(): void {
@@ -92,19 +152,33 @@ export class CompareService {
     }
 
     private beginResolving(): number {
-        this.store.set({ phase: "resolving", resolved: null, base: null, head: null, error: null })
+        this.store.set({ phase: "resolving", resolved: null, base: null, head: null, error: null, analyses: [] })
         return ++this.latestTicket
     }
 
-    private async revisionOf(folder: ComparedFolder, input: string): Promise<string> {
-        const revision = await this.core.toRevision(folder.ref, input.trim())
-        if (revision === null) {
-            throw new CompareFailure({ kind: "refNotFound", message: "", input: input.trim(), folderLabel: folder.label })
+    /** Once no analysis of the batch runs: resolves again, so the sides come from the store, and goes on from there. */
+    private async followAnalyses(jobs: readonly AnalysisJob[]): Promise<void> {
+        const { analyses } = this.store.state()
+        const outcome = batchOutcome(analyses, jobs)
+        const ticket = this.latestTicket
+        if (outcome === "cancelled") {
+            this.fail(ticket, { kind: "analysisCancelled", message: "" })
+        } else if (outcome === "finished" && this.lastIntent) {
+            this.store.update({ phase: "resolving", analyses: withFailures(analyses, jobs) })
+            await this.resolveAgain(this.lastIntent, ticket)
         }
-        return revision
+    }
+
+    private async resolveAgain(intent: CompareIntent, ticket: number): Promise<void> {
+        try {
+            await this.resolveAndShow(intent, ticket)
+        } catch (error) {
+            this.fail(ticket, compareErrorOf(error))
+        }
     }
 
     private async resolveAndShow(intent: CompareIntent, ticket: number): Promise<void> {
+        this.lastIntent = intent
         const resolved = await this.core.resolve(intent, this.snapshots.shownCommit())
         if (ticket !== this.latestTicket) {
             return
@@ -128,6 +202,7 @@ export class CompareService {
             return
         }
         this.store.update({ phase: "loading", resolved, error: null })
+        this.snapshots.holdMap()
         try {
             await (resolved.preflight.identicalChecksums ? this.showHeadAlone(base, head, ticket) : this.showPair(base, head, ticket))
         } catch (error) {
@@ -166,6 +241,7 @@ export class CompareService {
         }
         this.showInMetricView()
         this.store.update({ phase: "active", base, head, error: null })
+        this.rememberComparison()
     }
 
     private async showHeadAlone(base: ShownSide, head: ShownSide, ticket: number): Promise<void> {
@@ -183,6 +259,23 @@ export class CompareService {
     private finishWithoutDifferences(base: ShownSide, head: ShownSide, checksum: string): void {
         this.showInMetricView()
         this.store.update({ phase: "noDifferences", base: { ...base, checksum }, head: { ...head, checksum }, error: null })
+        this.rememberComparison()
+    }
+
+    /** As the user named the sides: a merge-base comparison by the tip its base came from. */
+    private rememberComparison(): void {
+        const { resolved } = this.store.state()
+        if (!resolved) {
+            return
+        }
+        const base = resolved.baseTip ?? resolved.base.requested
+        this.recents.remember(base.folder.projectId, {
+            folderId: base.folder.folderId,
+            base: refName(base),
+            head: refName(resolved.head.requested),
+            baseMode: resolved.baseMode,
+            comparedAt: Date.now()
+        })
     }
 
     private showInMetricView(): void {
@@ -203,12 +296,6 @@ export class CompareService {
     }
 }
 
-class CompareFailure extends Error {
-    constructor(readonly error: CompareError) {
-        super(error.message)
-    }
-}
-
 function needsDecision({ base, head, preflight }: ResolvedComparison): boolean {
     return (
         base.status.status === "missing" || head.status.status === "missing" || preflight.sizeVerdict !== "ok" || preflight.profilesDiffer
@@ -217,10 +304,10 @@ function needsDecision({ base, head, preflight }: ResolvedComparison): boolean {
 
 function shownSideOf({ requested, status }: ResolvedSide): ShownSide | null {
     if (status.status === "exact") {
-        return { requested, snapshot: status.snapshot, relation: null, staleBy: 0 }
+        return { requested, snapshot: status.snapshot, relation: null, staleBy: 0, behind: 0, ahead: 0 }
     }
     const { nearest } = status
-    return nearest ? { requested, snapshot: nearest.snapshot, relation: nearest.relation, staleBy: nearest.staleBy } : null
+    return nearest ? { requested, ...nearest } : null
 }
 
 function unreadable(side: ShownSide): CompareError {
@@ -232,10 +319,18 @@ function loadErrorOf(error: unknown): CompareError {
     return compareError.kind === "coreError" ? { kind: "loadFailed", message: compareError.message } : compareError
 }
 
+function explicitIntent(folder: FolderRef, { base, head, baseMode }: TypedSides): CompareIntent {
+    const side = (name: string) => ({ folder, rev: { kind: "rev" as const, name: name.trim() } })
+    return { kind: "explicit", base: side(base), head: side(head), baseMode }
+}
+
+function typedSidesErrorOf(error: unknown, folder: ComparedFolder, sides: TypedSides): CompareError {
+    const isUnknown = error instanceof DesktopBridgeError && (error.code === "UNKNOWN_REVISION" || error.code === "BAD_REQUEST")
+    const input = (sides.unresolved[0] ?? sides.base).trim()
+    return isUnknown ? { kind: "refNotFound", message: "", input, folderLabel: folder.label } : compareErrorOf(error)
+}
+
 function compareErrorOf(error: unknown): CompareError {
-    if (error instanceof CompareFailure) {
-        return error.error
-    }
     if (error instanceof DesktopBridgeError && error.code === "CORE_UNAVAILABLE") {
         return { kind: "coreUnavailable", message: error.message }
     }

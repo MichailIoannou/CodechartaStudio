@@ -1,13 +1,15 @@
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::methods::compare::{
-    BaseMode, CompareIntent, ComparedCommit, RefLabel, RefLabelKind, ResolveComparisonParams,
-    ResolveStatus, ResolvedComparison, ResolvedSide,
+    BaseMode, CompareIntent, ComparedCommit, ComparisonOrigin, RefLabel, RefLabelKind,
+    ResolveComparisonParams, ResolveStatus, ResolvedComparison, ResolvedSide,
 };
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::values::{CommitSha, Revision, SHORTEST_COMMIT_HASH_LENGTH};
 use tokio_util::sync::CancellationToken;
 
+use super::branch::branch_pair;
 use super::change_request::change_request_pair;
+use super::explicit::explicit_pair;
 use super::preflight::{SizeLimits, preflight};
 use super::sides::SideLookup;
 use crate::error::{CoreError, CoreResult};
@@ -25,6 +27,8 @@ pub struct CommitComparison<'deps, 'core, Sides> {
     pub git: &'deps GitService<'core>,
     pub sides: &'deps Sides,
     pub limits: SizeLimits,
+    /// The folder's default branch, such as `main`: what the current branch is compared with.
+    pub default_branch: Option<&'deps str>,
 }
 
 impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
@@ -38,9 +42,11 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
             git: self.git,
             folder,
             cancel,
+            default_branch: self.default_branch,
         };
         let pair = pick_pair(&history, params).await?;
         let status = status_of(&history, &pair).await?;
+        let origin = origin_of(&params.intent, &pair);
         let compared_folder = params.intent.folder();
         let base_mode = pair
             .origin
@@ -54,6 +60,7 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
         let preflight = preflight(&base.status, &head.status, &self.limits);
         Ok(ResolvedComparison {
             status,
+            origin,
             base_mode,
             base,
             head,
@@ -88,6 +95,7 @@ pub(super) struct History<'call, 'core> {
     pub(super) git: &'call GitService<'core>,
     pub(super) folder: &'call GitFolder,
     pub(super) cancel: &'call CancellationToken,
+    pub(super) default_branch: Option<&'call str>,
 }
 
 impl History<'_, '_> {
@@ -177,8 +185,36 @@ async fn pick_pair(
             head: history.pick(&current_revision(params)?).await?,
             origin: None,
         }),
+        CompareIntent::Branch { .. } => branch_pair(history, &params.intent).await,
+        CompareIntent::Explicit { .. } => explicit_pair(history, &params.intent).await,
         CompareIntent::ChangeRequest { .. } => change_request_pair(history, &params.intent).await,
     }
+}
+
+/// An explicit comparison is between branches when its base names a branch or tag.
+fn origin_of(intent: &CompareIntent, pair: &Pair) -> ComparisonOrigin {
+    match intent {
+        CompareIntent::Commits { .. }
+        | CompareIntent::WithParent { .. }
+        | CompareIntent::WithCurrent { .. } => ComparisonOrigin::Commits,
+        CompareIntent::Branch { .. } => ComparisonOrigin::Branches,
+        CompareIntent::ChangeRequest { .. } => ComparisonOrigin::PullRequest,
+        CompareIntent::Explicit { .. } => {
+            let base = pair
+                .origin
+                .as_ref()
+                .map_or(&pair.base, |origin| &origin.tip);
+            if is_named_ref(&base.label) {
+                ComparisonOrigin::Branches
+            } else {
+                ComparisonOrigin::Commits
+            }
+        }
+    }
+}
+
+pub(super) fn is_named_ref(label: &RefLabel) -> bool {
+    matches!(label.kind, RefLabelKind::Branch | RefLabelKind::Tag)
 }
 
 /// The ancestor is the base; without one, the older commit by commit date.
@@ -192,7 +228,7 @@ async fn order_by_history(history: &History<'_, '_>, a: Picked, b: Picked) -> Co
     Ok(tips(a, b))
 }
 
-fn tips(base: Picked, head: Picked) -> Pair {
+pub(super) fn tips(base: Picked, head: Picked) -> Pair {
     Pair {
         base,
         head,
@@ -200,7 +236,8 @@ fn tips(base: Picked, head: Picked) -> Pair {
     }
 }
 
-/// The merge base of `tip` and `head`, else the tip itself when the two share no history.
+/// The merge base of `tip` and `head`, else the tip itself when the two share no history; a merge base that
+/// is the tip keeps the tip's name.
 pub(super) async fn from_merge_base(
     history: &History<'_, '_>,
     origin_tip: Picked,
@@ -209,8 +246,8 @@ pub(super) async fn from_merge_base(
 ) -> CoreResult<Pair> {
     let merge_base = history.merge_base(&origin_tip.commit, &head.commit).await?;
     let base = match &merge_base {
-        Some(sha) => history.pick(&revision_of(sha)?).await?,
-        None => origin_tip.clone(),
+        Some(sha) if sha != origin_tip.commit.as_str() => history.pick(&revision_of(sha)?).await?,
+        _ => origin_tip.clone(),
     };
     let origin = MergeBaseOrigin {
         tip: origin_tip,

@@ -10,15 +10,15 @@ use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
 use codecharta_core_api::methods::analysis::{AnalysisTarget, TargetKind};
 use codecharta_core_api::methods::compare::{
-    BaseMode, CompareIntent, ComparedCommit, RefLabel, RefLabelKind, ResolveComparisonParams,
-    ResolveStatus, ResolvedComparison, SideStatus,
+    BaseMode, CompareIntent, ComparedCommit, ComparisonOrigin, RefInput, RefLabel, RefLabelKind,
+    ResolveComparisonParams, ResolveStatus, ResolvedComparison, SideInput, SideStatus,
 };
 use codecharta_core_api::methods::hosting::HostingProvider;
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::methods::snapshots::{
     SnapshotRef, SnapshotRelation, SnapshotSource, SnapshotSummary,
 };
-use codecharta_core_api::values::{BranchName, CommitSha, FullCommit, Revision};
+use codecharta_core_api::values::{BranchName, CommitSha, FullCommit, Revision, TypedRevision};
 use tokio_util::sync::CancellationToken;
 
 use support::TempRepo;
@@ -26,6 +26,7 @@ use support::TempRepo;
 const PROFILE: &str = "c0ffee00";
 const FINISHED_AT: &str = "2026-11-19T00:00:00Z";
 const SHORT_COMMIT_LENGTH: usize = 7;
+const DEFAULT_BRANCH: &str = "main";
 
 /// Snapshots held in memory and resolved like the store's, so a test needs no store.
 struct InMemorySides<'test> {
@@ -151,6 +152,7 @@ async fn resolve_with(
         git: &git,
         sides: &sides,
         limits: SizeLimits::default(),
+        default_branch: Some(DEFAULT_BRANCH),
     };
     comparison
         .resolve(&folder, params, &CancellationToken::new())
@@ -321,6 +323,7 @@ async fn should_report_stale_by_for_the_nearest_snapshot() {
     assert_eq!(nearest.snapshot, snapshot);
     assert_eq!(nearest.relation, SnapshotRelation::Ancestor);
     assert_eq!(nearest.stale_by, 2);
+    assert_eq!((nearest.behind, nearest.ahead), (2, 0));
     assert!(comparison.preflight.identical_checksums);
     assert_eq!(comparison.preflight.combined_bytes, 20);
 }
@@ -357,6 +360,267 @@ async fn should_refuse_a_revision_the_repository_does_not_have() {
     // Assert
     let error = result.expect_err("the branch does not exist");
     assert_eq!(error.code(), ErrorCode::UnknownRevision);
+}
+
+fn branch(name: &str, target: Option<&str>, base_mode: BaseMode) -> ResolveComparisonParams {
+    ResolveComparisonParams {
+        intent: CompareIntent::Branch {
+            folder: folder_ref(),
+            branch: revision(&format!("refs/heads/{name}")),
+            target: target.map(|target| revision(&format!("refs/heads/{target}"))),
+            base_mode,
+        },
+        shown_commit: None,
+    }
+}
+
+/// `main`: root, fork point, a later commit; `feature` leaves at the fork point with one commit. `main` is
+/// checked out.
+struct BranchHistory {
+    repo: TempRepo,
+    fork_point: String,
+    main_tip: String,
+    feature_tip: String,
+}
+
+fn branch_history() -> BranchHistory {
+    let repo = TempRepo::new();
+    repo.commit_file("a.txt", "0", "Root");
+    let fork_point = repo.commit_file("a.txt", "1", "Fork point");
+    repo.branch("feature");
+    let main_tip = repo.commit_file("a.txt", "2", "Later on main");
+    repo.checkout("feature");
+    let feature_tip = repo.commit_file("f.txt", "1", "Feature");
+    repo.checkout("main");
+    BranchHistory {
+        repo,
+        fork_point: fork_point.trim().to_string(),
+        main_tip: main_tip.trim().to_string(),
+        feature_tip: feature_tip.trim().to_string(),
+    }
+}
+
+#[tokio::test]
+async fn should_use_the_merge_base_by_default() {
+    // Arrange
+    let history = branch_history();
+
+    // Act
+    let comparison = resolve(&history.repo, &branch("feature", None, BaseMode::MergeBase)).await;
+
+    // Assert
+    assert_eq!(comparison.status, ResolveStatus::Ready);
+    assert_eq!(comparison.origin, ComparisonOrigin::Branches);
+    assert_eq!(comparison.base_mode, BaseMode::MergeBase);
+    assert_eq!(
+        base_and_head(&comparison),
+        pair(&history.fork_point, &history.feature_tip)
+    );
+    let tip = comparison.base_tip.expect("the target tip");
+    assert_eq!(tip.commit.as_str(), history.main_tip);
+    assert_eq!(tip.label.name, "main");
+    assert_eq!(comparison.head.requested.label.name, "feature");
+}
+
+#[tokio::test]
+async fn should_keep_the_target_name_when_the_merge_base_is_its_tip() {
+    // Arrange
+    let history = branch_history();
+    history.repo.branch("released");
+    history
+        .repo
+        .git(&["branch", "-f", "released", &history.fork_point]);
+
+    // Act
+    let comparison = resolve(
+        &history.repo,
+        &branch("feature", Some("released"), BaseMode::MergeBase),
+    )
+    .await;
+
+    // Assert
+    assert_eq!(comparison.status, ResolveStatus::Ready);
+    assert_eq!(
+        comparison.base.requested.commit.as_str(),
+        history.fork_point
+    );
+    assert_eq!(
+        comparison.base.requested.label,
+        RefLabel {
+            kind: RefLabelKind::Branch,
+            name: "released".to_string(),
+        }
+    );
+}
+
+#[tokio::test]
+async fn should_use_the_target_tip_in_tip_mode() {
+    // Arrange
+    let history = branch_history();
+
+    // Act
+    let comparison = resolve(
+        &history.repo,
+        &branch("feature", Some("main"), BaseMode::Tip),
+    )
+    .await;
+
+    // Assert
+    assert_eq!(comparison.status, ResolveStatus::Ready);
+    assert_eq!(comparison.base_mode, BaseMode::Tip);
+    assert_eq!(comparison.base_tip, None);
+    assert_eq!(
+        base_and_head(&comparison),
+        pair(&history.main_tip, &history.feature_tip)
+    );
+    assert_eq!(comparison.base.requested.label.name, "main");
+}
+
+#[tokio::test]
+async fn should_target_the_default_branch_when_the_current_branch_is_compared() {
+    // Arrange
+    let history = branch_history();
+    history.repo.checkout("feature");
+
+    // Act
+    let comparison = resolve(&history.repo, &branch("feature", None, BaseMode::Tip)).await;
+    let from_main = resolve(&history.repo, &branch("main", None, BaseMode::Tip)).await;
+
+    // Assert
+    assert_eq!(
+        base_and_head(&comparison),
+        pair(&history.main_tip, &history.feature_tip)
+    );
+    assert_eq!(
+        base_and_head(&from_main),
+        pair(&history.feature_tip, &history.main_tip)
+    );
+}
+
+#[tokio::test]
+async fn should_report_a_branch_that_is_already_merged() {
+    // Arrange
+    let history = branch_history();
+    history.repo.branch("done");
+    history
+        .repo
+        .git(&["branch", "-f", "done", &history.fork_point]);
+
+    // Act
+    let comparison = resolve(
+        &history.repo,
+        &branch("done", Some("main"), BaseMode::MergeBase),
+    )
+    .await;
+
+    // Assert
+    assert_eq!(
+        comparison.status,
+        ResolveStatus::AlreadyMerged {
+            target: "main".to_string()
+        }
+    );
+}
+
+fn explicit(base: &str, head: &str, base_mode: BaseMode) -> ResolveComparisonParams {
+    let side = |name: &str| SideInput {
+        folder: folder_ref(),
+        rev: RefInput::Rev {
+            name: TypedRevision::try_from(name).expect("a typed revision"),
+        },
+    };
+    ResolveComparisonParams {
+        intent: CompareIntent::Explicit {
+            base: side(base),
+            head: side(head),
+            base_mode,
+        },
+        shown_commit: None,
+    }
+}
+
+#[tokio::test]
+async fn should_resolve_a_tag_and_a_unique_prefix() {
+    // Arrange
+    let repo = TempRepo::new();
+    let tagged = repo.commit_file("a.txt", "1", "Release");
+    repo.tag("v1.0", true);
+    let newer = repo.commit_file("a.txt", "2", "Later");
+    let prefix = &newer.trim()[..SHORT_COMMIT_LENGTH];
+
+    // Act
+    let comparison = resolve(&repo, &explicit("v1.0", prefix, BaseMode::MergeBase)).await;
+    let reversed = resolve(&repo, &explicit(prefix, "v1.0", BaseMode::MergeBase)).await;
+
+    // Assert
+    assert_eq!(comparison.status, ResolveStatus::Ready);
+    assert_eq!(comparison.origin, ComparisonOrigin::Branches);
+    assert_eq!(comparison.base_mode, BaseMode::MergeBase);
+    assert_eq!(base_and_head(&comparison), pair(&tagged, &newer));
+    assert_eq!(
+        comparison.base_tip.expect("the tag tip").label,
+        RefLabel {
+            kind: RefLabelKind::Tag,
+            name: "v1.0".to_string(),
+        }
+    );
+    assert_eq!(reversed.origin, ComparisonOrigin::Commits);
+    assert_eq!(reversed.base_mode, BaseMode::Tip);
+    assert_eq!(base_and_head(&reversed), pair(&newer, &tagged));
+}
+
+#[tokio::test]
+async fn should_reject_an_unknown_ref() {
+    // Arrange
+    let repo = TempRepo::new();
+    repo.commit_file("a.txt", "1", "Only");
+
+    // Act
+    let unknown = resolve_with(
+        &repo,
+        &explicit("main", "nowhere", BaseMode::Tip),
+        Vec::new(),
+    )
+    .await;
+    let unknown_prefix =
+        resolve_with(&repo, &explicit("main", "ffff", BaseMode::Tip), Vec::new()).await;
+
+    // Assert
+    assert_eq!(
+        unknown.expect_err("no such branch").code(),
+        ErrorCode::UnknownRevision
+    );
+    assert_eq!(
+        unknown_prefix.expect_err("no such commit").code(),
+        ErrorCode::UnknownRevision
+    );
+}
+
+#[tokio::test]
+async fn should_reject_an_ambiguous_prefix() {
+    // Arrange
+    let repo = TempRepo::new();
+    repo.linear_history(1_000);
+    let mut commits: Vec<String> = repo
+        .git(&["rev-list", "HEAD"])
+        .lines()
+        .map(|line| line[..4].to_string())
+        .collect();
+    commits.sort();
+    let shared = commits
+        .windows(2)
+        .find(|neighbours| neighbours[0] == neighbours[1])
+        .map(|neighbours| neighbours[0].clone())
+        .expect("two of a thousand commits share four leading digits");
+
+    // Act
+    let result = resolve_with(&repo, &explicit("main", &shared, BaseMode::Tip), Vec::new()).await;
+
+    // Assert
+    assert_eq!(
+        result.expect_err("an ambiguous prefix").code(),
+        ErrorCode::UnknownRevision
+    );
 }
 
 const UNKNOWN_SHA: &str = "ffffffffffffffffffffffffffffffffffffffff";

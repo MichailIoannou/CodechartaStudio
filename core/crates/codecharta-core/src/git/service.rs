@@ -302,6 +302,16 @@ impl<'core> GitService<'core> {
             .collect())
     }
 
+    /// The commit a unique hash prefix names; `None` when no commit or several commits start with it.
+    pub async fn resolve_abbreviated(
+        &self,
+        folder: &GitFolder,
+        prefix: &str,
+        cancel: &CancellationToken,
+    ) -> CoreResult<Option<CommitSha>> {
+        query::resolve_abbreviated(self.at(folder, cancel), prefix).await
+    }
+
     /// The tree a commit records.
     pub async fn tree_of(
         &self,

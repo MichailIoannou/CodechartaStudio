@@ -10,17 +10,19 @@ import { setLayoutAlgorithm } from "../../../stores/mapState/mapState.write.faca
 import { appReducers, setStateMiddleware } from "../../../stores/rootStore/store"
 import { DesktopBridgeError } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
-import { CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
+import { ANALYSIS_GATEWAY, CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
 import {
     aCommitSnapshot,
     aComparedCommit,
     aResolvedComparison,
     BASE_SHA,
+    FakeAnalysisGateway,
     FakeCoreGateway,
     FakeSnapshotGateway,
     FOLDER,
     HEAD_SHA
 } from "../ports/compareGateways.mocks"
+import { RecentComparisonsRepo } from "../repos/recentComparisons.repo"
 import { CompareStore } from "../stores/compare.store"
 import { CompareService } from "./compare.service"
 
@@ -42,16 +44,24 @@ describe("CompareService", () => {
     let state: State<CcState>
     let snapshots: FakeSnapshotGateway
     let core: FakeCoreGateway
+    let analyses: FakeAnalysisGateway
     let compareStore: CompareStore
     let dispatched: string[]
     let toast: jest.SpyInstance
 
     beforeEach(() => {
+        localStorage.clear()
         snapshots = new FakeSnapshotGateway()
         core = new FakeCoreGateway()
+        analyses = new FakeAnalysisGateway()
         TestBed.configureTestingModule({
             imports: [StoreModule.forRoot(appReducers, { metaReducers: [setStateMiddleware] })],
-            providers: [provideRouter([]), { provide: SNAPSHOT_GATEWAY, useValue: snapshots }, { provide: CORE_GATEWAY, useValue: core }]
+            providers: [
+                provideRouter([]),
+                { provide: SNAPSHOT_GATEWAY, useValue: snapshots },
+                { provide: CORE_GATEWAY, useValue: core },
+                { provide: ANALYSIS_GATEWAY, useValue: analyses }
+            ]
         })
         store = TestBed.inject(Store)
         state = TestBed.inject(State)
@@ -82,16 +92,39 @@ describe("CompareService", () => {
 
     it("should dispatch setDelta with the base as reference and the head as comparison", async () => {
         // Act
-        await service.compareInputs(COMPARED_FOLDER, "main", "feature/x")
+        await service.compareSides(COMPARED_FOLDER, { base: "main", head: " feature/x ", baseMode: "tip", unresolved: [] })
 
         // Assert
-        expect(core.intents).toEqual([{ kind: "commits", folder: FOLDER, a: "refs/heads/main", b: "refs/heads/feature/x" }])
+        expect(core.intents).toEqual([
+            {
+                kind: "explicit",
+                base: { folder: FOLDER, rev: { kind: "rev", name: "main" } },
+                head: { folder: FOLDER, rev: { kind: "rev", name: "feature/x" } },
+                baseMode: "tip"
+            }
+        ])
         expect(selectionByChecksum()).toEqual({
             [BASE_CHECKSUM]: FileSelectionState.Reference,
             [HEAD_CHECKSUM]: FileSelectionState.Comparison
         })
         expect(compareStore.state().phase).toBe("active")
         expect(compareStore.isActive()).toBe(true)
+    })
+
+    it("should remember a merge-base comparison by the tip its base came from", async () => {
+        // Arrange
+        core.resolution = aResolvedComparison({
+            baseMode: "mergeBase",
+            baseTip: aComparedCommit("7777777".padEnd(40, "0"), { kind: "branch", name: "main" })
+        })
+
+        // Act
+        await service.start({ kind: "branch", folder: FOLDER, branch: "refs/heads/feature/x", target: null, baseMode: "mergeBase" })
+
+        // Assert
+        expect(TestBed.inject(RecentComparisonsRepo).read(FOLDER.projectId)).toEqual([
+            expect.objectContaining({ folderId: FOLDER.folderId, base: "main", head: "feature/x", baseMode: "mergeBase" })
+        ])
     })
 
     it("should find the files by checksum when their names sort head first", async () => {
@@ -122,7 +155,7 @@ describe("CompareService", () => {
         // Assert
         const setDeltaIndex = dispatched.findIndex(type => type === "SET_DELTA")
         expect(setDeltaIndex).toBeGreaterThan(dispatched.indexOf("loaded"))
-        expect(snapshots.calls).toEqual(["loadPair s-9f8e7d6 s-a1b2c3d"])
+        expect(snapshots.calls).toEqual(["holdMap", "loadPair s-9f8e7d6 s-a1b2c3d"])
     })
 
     it("should load only the head and report no differences when checksums are equal", async () => {
@@ -136,7 +169,7 @@ describe("CompareService", () => {
         await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
 
         // Assert
-        expect(snapshots.calls).toEqual(["loadAlone s-a1b2c3d"])
+        expect(snapshots.calls).toEqual(["holdMap", "loadAlone s-a1b2c3d"])
         expect(compareStore.state().phase).toBe("noDifferences")
         expect(compareStore.isShowingNoDifferences()).toBe(true)
     })
@@ -205,7 +238,7 @@ describe("CompareService", () => {
         core.resolution = aResolvedComparison({
             base: {
                 requested: aComparedCommit(BASE_SHA),
-                status: { status: "missing", nearest: { snapshot: nearest, relation: "ancestor", staleBy: 2 } }
+                status: { status: "missing", nearest: { snapshot: nearest, relation: "ancestor", staleBy: 2, behind: 2, ahead: 0 } }
             }
         })
         await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
@@ -216,7 +249,7 @@ describe("CompareService", () => {
 
         // Assert
         expect(phaseBefore).toBe("needsDecision")
-        expect(snapshots.calls).toEqual(["loadPair s-3c4d5e6 s-a1b2c3d"])
+        expect(snapshots.calls).toEqual(["holdMap", "loadPair s-3c4d5e6 s-a1b2c3d"])
         expect(compareStore.state().base?.staleBy).toBe(2)
     })
 
@@ -236,12 +269,14 @@ describe("CompareService", () => {
     })
 
     it("should fail with refNotFound for an input the folder does not have", async () => {
+        // Arrange
+        core.resolution = new DesktopBridgeError({ code: "UNKNOWN_REVISION", message: "The revision is not in the repository." })
+
         // Act
-        await service.compareInputs(COMPARED_FOLDER, "nope", "feature/x")
+        await service.compareSides(COMPARED_FOLDER, { base: "main", head: "nope", baseMode: "mergeBase", unresolved: ["nope"] })
 
         // Assert
         expect(compareStore.state().error).toEqual({ kind: "refNotFound", message: "", input: "nope", folderLabel: "billing-api" })
-        expect(core.intents).toEqual([])
     })
 
     it("should tell a stopped core from other core errors", async () => {
@@ -330,6 +365,172 @@ describe("CompareService", () => {
         // Assert
         expect(compareStore.state().phase).toBe("idle")
         expect(snapshots.calls).toEqual([])
+    })
+
+    describe("missing analyses", () => {
+        const NEAREST_SHA = "3c4d5e6".padEnd(40, "0")
+        const missingBase = {
+            requested: aComparedCommit(BASE_SHA, { kind: "branch", name: "main" }),
+            status: { status: "missing", nearest: null }
+        } as const
+        const nearestBase = {
+            requested: aComparedCommit(BASE_SHA, { kind: "branch", name: "main" }),
+            status: {
+                status: "missing",
+                nearest: { snapshot: aCommitSnapshot(NEAREST_SHA), relation: "ancestor", staleBy: 2, behind: 2, ahead: 0 }
+            }
+        } as const
+
+        async function settle() {
+            for (let round = 0; round < 4; round++) {
+                TestBed.tick()
+                await new Promise(resolve => setTimeout(resolve))
+            }
+        }
+
+        async function startWithoutBase() {
+            core.resolution = aResolvedComparison({ base: missingBase })
+            await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
+        }
+
+        it("should ask for a decision when the base has no snapshot", async () => {
+            // Act
+            await startWithoutBase()
+
+            // Assert
+            expect(compareStore.state().phase).toBe("needsDecision")
+            expect(snapshots.calls).toEqual([])
+            expect(analyses.enqueued).toEqual([])
+        })
+
+        it("should analyse only the missing side", async () => {
+            // Arrange
+            await startWithoutBase()
+
+            // Act
+            await service.analyseMissing()
+
+            // Assert
+            expect(analyses.enqueued).toEqual([BASE_SHA])
+            expect(compareStore.state().phase).toBe("analysing")
+            expect(compareStore.state().analyses).toEqual([
+                { side: "base", commit: BASE_SHA, shortCommit: "9f8e7d6", jobId: "job-9f8e7d6", failure: null }
+            ])
+            expect(snapshots.calls).toEqual(["holdMap"])
+        })
+
+        it("should resolve again and load the pair after both analyses finish", async () => {
+            // Arrange
+            core.resolution = aResolvedComparison({ base: missingBase, head: { ...missingBase, requested: aComparedCommit(HEAD_SHA) } })
+            await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
+            await service.analyseMissing()
+            core.resolution = aResolvedComparison()
+
+            // Act
+            analyses.setJob("job-9f8e7d6", { state: "done" })
+            await settle()
+            const whileOneRuns = compareStore.state().phase
+            analyses.setJob("job-a1b2c3d", { state: "done" })
+            await settle()
+
+            // Assert
+            expect(analyses.enqueued).toEqual([BASE_SHA, HEAD_SHA])
+            expect(whileOneRuns).toBe("analysing")
+            expect(core.intents).toHaveLength(2)
+            expect(compareStore.state().phase).toBe("active")
+        })
+
+        it("should offer the nearest snapshot when an analysis fails", async () => {
+            // Arrange
+            core.resolution = aResolvedComparison({ base: nearestBase })
+            await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
+            await service.analyseMissing()
+
+            // Act
+            analyses.setJob("job-9f8e7d6", { state: "failed", error: { code: "JAVA_TOO_OLD", message: "Java is too old.", hint: null } })
+            await settle()
+
+            // Assert
+            expect(compareStore.state().phase).toBe("needsDecision")
+            expect(compareStore.state().analyses[0].failure).toBe("Java is too old.")
+            expect(compareStore.state().resolved?.base.status.status).toBe("missing")
+        })
+
+        it("should report a refused analysis as a failure without waiting", async () => {
+            // Arrange
+            await startWithoutBase()
+            analyses.answers[BASE_SHA] = {
+                status: "rejected",
+                problems: [{ code: "CCSH_NOT_FOUND", severity: "error", message: "ccsh was not found.", hint: null }]
+            }
+
+            // Act
+            await service.analyseMissing()
+            await settle()
+
+            // Assert
+            expect(compareStore.state().phase).toBe("needsDecision")
+            expect(compareStore.state().analyses[0].failure).toBe("ccsh was not found.")
+        })
+
+        it("should stop without loading when the batch is cancelled", async () => {
+            // Arrange
+            await startWithoutBase()
+            await service.analyseMissing()
+
+            // Act
+            await service.cancelAnalyses()
+            analyses.setJob("job-9f8e7d6", { state: "cancelled" })
+            await settle()
+
+            // Assert
+            expect(analyses.cancelled).toEqual(["job-9f8e7d6"])
+            expect(compareStore.state().phase).toBe("failed")
+            expect(compareStore.state().error?.kind).toBe("analysisCancelled")
+            expect(snapshots.calls).toEqual(["holdMap"])
+        })
+
+        it("should stop when an analysis of the batch is cancelled elsewhere", async () => {
+            // Arrange
+            await startWithoutBase()
+            await service.analyseMissing()
+
+            // Act
+            analyses.setJob("job-9f8e7d6", { state: "cancelled" })
+            await settle()
+
+            // Assert
+            expect(compareStore.state().error).toEqual({ kind: "analysisCancelled", message: "" })
+        })
+
+        it("should record stale-by per side when the nearest snapshot is used", async () => {
+            // Arrange
+            core.resolution = aResolvedComparison({ base: nearestBase })
+            await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
+            snapshots.pairLoad = { base: `checksum-${NEAREST_SHA.slice(0, 7)}`, head: HEAD_CHECKSUM }
+            loadMapsOnLoad([aMap("billing-api@3c4d5e6", `checksum-${NEAREST_SHA.slice(0, 7)}`), aMap("billing-api@a1b2c3d", HEAD_CHECKSUM)])
+
+            // Act
+            await service.continueWithShownSnapshots()
+
+            // Assert
+            expect(compareStore.state().phase).toBe("active")
+            expect([compareStore.state().base?.staleBy, compareStore.state().head?.staleBy]).toEqual([2, 0])
+            expect(compareStore.state().base?.snapshot.commit).toBe(NEAREST_SHA)
+        })
+
+        it("should warn when the two analysis profiles differ", async () => {
+            // Arrange
+            core.resolution = aResolvedComparison({
+                preflight: { identicalChecksums: false, profilesDiffer: true, combinedBytes: 1, sizeVerdict: "ok" }
+            })
+
+            // Act
+            await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
+
+            // Assert
+            expect(compareStore.state().phase).toBe("needsDecision")
+        })
     })
 
     describe("swap and exit", () => {

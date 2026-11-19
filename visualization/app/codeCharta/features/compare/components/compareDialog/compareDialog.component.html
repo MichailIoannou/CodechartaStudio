@@ -1,5 +1,5 @@
 <dialog #dialog class="modal" aria-labelledby="compare-dialog-title" data-testid="compare-dialog" (keydown.control.enter)="compare()">
-    <div class="modal-box flex max-w-3xl flex-col gap-4">
+    <div class="modal-box flex max-w-3xl flex-col gap-4 overflow-visible">
         <h2 id="compare-dialog-title" class="text-xl font-bold">Compare</h2>
 
         @if (gitFolders().length > 1) {
@@ -13,111 +13,117 @@
             </div>
         }
 
-        <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
-            <label class="flex min-w-0 flex-col gap-1">
-                <span class="text-sm text-base-content/60">Base</span>
-                <input
-                    #baseInput
-                    type="text"
-                    class="input input-bordered input-sm w-full font-mono"
-                    autocomplete="off"
-                    spellcheck="false"
-                    data-testid="compare-base"
-                    [value]="base()"
-                    (input)="setBase($any($event.target).value)"
-                />
-            </label>
-            <button type="button" class="btn btn-ghost btn-sm btn-square" title="Swap base and head" aria-label="Swap base and head" (click)="swapInputs()">
-                <i class="fa-solid fa-arrows-left-right"></i>
-            </button>
-            <label class="flex min-w-0 flex-col gap-1">
-                <span class="text-sm text-base-content/60">Head</span>
-                <input
-                    #headInput
-                    type="text"
-                    class="input input-bordered input-sm w-full font-mono"
-                    autocomplete="off"
-                    spellcheck="false"
-                    data-testid="compare-head"
-                    [value]="head()"
-                    (input)="setHead($any($event.target).value)"
-                />
-            </label>
-        </div>
+        @if (repo(); as repo) {
+            <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2">
+                <div class="flex min-w-0 flex-col gap-1">
+                    <span class="text-sm text-base-content/60">Base</span>
+                    <cc-ref-picker
+                        #basePicker
+                        label="Base"
+                        testId="compare-base"
+                        [repo]="repo"
+                        [text]="base()"
+                        [defaultBranch]="defaultBranch()"
+                        (textChange)="base.set($event)"
+                        (rangePasted)="fillBoth($event)"
+                        (resolvedChange)="baseResolution.set($event)"
+                    />
+                </div>
+                <button
+                    type="button"
+                    class="btn btn-ghost btn-sm btn-square mt-6"
+                    title="Swap base and head"
+                    aria-label="Swap base and head"
+                    data-testid="compare-swap-inputs"
+                    (click)="swapInputs()"
+                >
+                    <i class="fa-solid fa-arrows-left-right"></i>
+                </button>
+                <div class="flex min-w-0 flex-col gap-1">
+                    <span class="text-sm text-base-content/60">Head</span>
+                    <cc-ref-picker
+                        #headPicker
+                        label="Head"
+                        testId="compare-head"
+                        [repo]="repo"
+                        [text]="head()"
+                        [defaultBranch]="defaultBranch()"
+                        (textChange)="head.set($event)"
+                        (rangePasted)="fillBoth($event)"
+                        (resolvedChange)="headResolution.set($event)"
+                    />
+                </div>
+            </div>
+        }
+
+        @if (showsBaseMode()) {
+            <div class="flex items-center gap-4 text-sm" role="radiogroup" aria-label="Base mode" data-testid="compare-base-mode">
+                <label class="flex cursor-pointer items-center gap-2">
+                    <input
+                        type="radio"
+                        class="radio radio-sm"
+                        name="compare-base-mode"
+                        data-testid="compare-mode-merge-base"
+                        [checked]="baseMode() === 'mergeBase'"
+                        (change)="chooseBaseMode('mergeBase')"
+                    />
+                    Since the merge base
+                </label>
+                <label class="flex cursor-pointer items-center gap-2">
+                    <input
+                        type="radio"
+                        class="radio radio-sm"
+                        name="compare-base-mode"
+                        data-testid="compare-mode-tip"
+                        [checked]="baseMode() === 'tip'"
+                        (change)="chooseBaseMode('tip')"
+                    />
+                    Tip vs tip
+                </label>
+            </div>
+        }
+
+        @if (!outcome() && !isPreparing()) {
+            <div class="flex flex-col gap-2" data-testid="compare-lists">
+                <fieldset class="join flex" aria-label="Lists">
+                    <button type="button" class="btn btn-sm join-item btn-active flex-1 font-normal normal-case" aria-pressed="true">
+                        <span class="text-xs">Recent</span>
+                    </button>
+                </fieldset>
+                <ul class="m-0 flex max-h-48 list-none flex-col gap-0.5 overflow-y-auto p-0" data-testid="compare-recent">
+                    @for (row of recentComparisons(); track row.range + row.recent.folderId) {
+                        <li>
+                            <button
+                                type="button"
+                                class="flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-left text-sm hover:bg-base-200"
+                                data-testid="compare-recent-row"
+                                (click)="useRecent(row.recent)"
+                            >
+                                <span class="min-w-0 truncate font-mono">{{ row.range }}</span>
+                                @if (row.folderLabel) {
+                                    <span class="min-w-0 truncate text-xs text-base-content/60">{{ row.folderLabel }}</span>
+                                }
+                                <span class="ml-auto shrink-0 text-xs text-base-content/60" [title]="row.comparedAtTitle">{{ row.age }}</span>
+                            </button>
+                        </li>
+                    } @empty {
+                        <li class="px-3 py-1.5 text-sm text-base-content/60">No comparisons yet.</li>
+                    }
+                </ul>
+            </div>
+        }
 
         @if (outcome(); as outcome) {
             <div role="status" class="alert text-sm" [class.alert-info]="outcome.tone === 'info'" [class.alert-warning]="outcome.tone === 'warning'" data-testid="compare-outcome">
                 <span>{{ outcome.text }}</span>
                 @if (outcome.offersTipVsTip) {
-                    <button type="button" class="btn btn-sm" (click)="continueWithShownSnapshots()">Compare tip vs tip</button>
+                    <button type="button" class="btn btn-sm" (click)="continueAfterOutcome()">Compare tip vs tip</button>
                 }
             </div>
         }
 
-        @if (preparation(); as preparation) {
-            <div class="flex flex-col gap-2" data-testid="compare-preparation">
-                @for (row of preparation.rows; track row.caption) {
-                    <div class="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-2 text-sm">
-                        <span class="text-xs font-semibold">{{ row.caption }}</span>
-                        <span class="truncate"
-                            ><span class="font-mono">{{ row.shortCommit }}</span>
-                            @if (row.label) {
-                                ({{ row.label }})
-                            }
-                        </span>
-                        <span class="flex items-center gap-1">
-                            @switch (row.tone) {
-                                @case ("exact") {
-                                    <i class="fa-solid fa-circle text-success"></i>
-                                }
-                                @case ("nearest") {
-                                    <i class="fa-solid fa-circle-half-stroke text-warning"></i>
-                                }
-                                @default {
-                                    <i class="fa-regular fa-circle text-base-content/50"></i>
-                                }
-                            }
-                            {{ row.status }}
-                        </span>
-                    </div>
-                }
-                @if (preparation.profilesDiffer) {
-                    <div role="alert" class="alert alert-warning text-sm">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>The two analyses used different profiles; some differences may not be code changes.</span>
-                    </div>
-                }
-                @switch (preparation.sizeVerdict) {
-                    @case ("warn") {
-                        <div role="alert" class="alert alert-warning text-sm">
-                            <span>These two analyses are large; comparing may take a while and use several GB of memory.</span>
-                        </div>
-                    }
-                    @case ("block") {
-                        <div role="alert" class="alert alert-error text-sm">
-                            <span>Too large to compare in memory. Analyse with a lighter profile or compare a sub-folder.</span>
-                        </div>
-                    }
-                }
-                @if (preparation.sizeVerdict !== "block") {
-                    <div class="flex justify-end gap-2">
-                        @if (preparation.hasMissingSide) {
-                            <button
-                                type="button"
-                                class="btn btn-sm"
-                                data-testid="compare-use-nearest"
-                                [disabled]="preparation.useNearestRefusal !== null"
-                                [title]="preparation.useNearestRefusal ?? ''"
-                                (click)="continueWithShownSnapshots()"
-                            >
-                                Use nearest
-                            </button>
-                        } @else {
-                            <button type="button" class="btn btn-sm" data-testid="compare-anyway" (click)="continueWithShownSnapshots()">Compare anyway</button>
-                        }
-                    </div>
-                }
-            </div>
+        @if (isPreparing()) {
+            <cc-compare-preparation (goingOn)="hasStartedHere.set(true)" />
         }
 
         @if (errorText(); as errorText) {

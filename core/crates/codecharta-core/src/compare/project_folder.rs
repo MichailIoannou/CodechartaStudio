@@ -22,10 +22,12 @@ pub async fn resolve_in_project(
     cancel: &CancellationToken,
 ) -> CoreResult<ResolvedComparison> {
     let folder = compared_folder(resolver.projects, params.intent.folder())?;
+    let default_branch = resolver.projects.default_branch(params.intent.folder())?;
     let comparison = CommitComparison {
         git: resolver.git,
         sides: resolver,
         limits: SizeLimits::default(),
+        default_branch: default_branch.as_deref(),
     };
     comparison.resolve(&folder, params, cancel).await
 }

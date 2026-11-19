@@ -91,6 +91,8 @@ mod tests {
                 snapshot,
                 relation: SnapshotRelation::Ancestor,
                 stale_by: 1,
+                behind: 1,
+                ahead: 0,
             }),
         }
     }

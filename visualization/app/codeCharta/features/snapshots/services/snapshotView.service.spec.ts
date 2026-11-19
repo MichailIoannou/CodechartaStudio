@@ -151,6 +151,29 @@ describe("SnapshotViewService", () => {
             expect(view.resolution()).toMatchObject({ snapshot: { ref: AT_COMMIT.ref } })
         })
 
+        it("should drop a resolution in flight when a comparison holds the map", async () => {
+            // Arrange
+            const { view, loadFilesUseCase, projects } = await setUp()
+            await projects.loadSnapshot(API.ref)
+            await settle()
+            loadFilesUseCase.loadProjectSnapshots.mockClear()
+            const catalog = TestBed.inject(SnapshotCatalogService)
+            let answer: (resolution: SnapshotResolution) => void = () => undefined
+            jest.spyOn(catalog, "resolve").mockImplementationOnce(() => new Promise(resolve => (answer = resolve)))
+            view.showCommit(COMMIT_SHA)
+            await settle()
+
+            // Act
+            view.holdShownSnapshot()
+            answer({ kind: "exact", snapshot: AT_COMMIT, isCurrentProfile: true })
+            await settle()
+
+            // Assert
+            expect(loadFilesUseCase.loadProjectSnapshots).not.toHaveBeenCalled()
+            expect(view.target()).toEqual({ kind: "snapshot", ref: API.ref })
+            expect(view.status()).toBe("shown")
+        })
+
         it("should go empty without snapshots", async () => {
             // Arrange
             const { view, loadFilesUseCase } = await setUp({ snapshots: [] })

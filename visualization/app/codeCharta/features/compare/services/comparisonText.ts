@@ -1,5 +1,15 @@
 import { counted } from "../../../util/wording"
-import type { BaseMode, ComparedCommit, CompareError, LoadedSide, ResolvedComparison, ResolvedSide } from "../model/compare.model"
+import { parseRefRange } from "../../gitHistory/facade"
+import type {
+    BaseMode,
+    ComparedCommit,
+    CompareError,
+    LoadedSide,
+    ResolvedComparison,
+    ResolvedSide,
+    SideAnalysis,
+    SnapshotRelation
+} from "../model/compare.model"
 
 const MERGE_BASE_SEPARATOR = "..."
 const TIP_SEPARATOR = ".."
@@ -8,6 +18,12 @@ export interface ParsedRange {
     base: string
     head: string
     baseMode: BaseMode
+}
+
+interface Distance {
+    relation: SnapshotRelation
+    behind: number
+    ahead: number
 }
 
 export interface ResolveOutcome {
@@ -27,18 +43,17 @@ export function sideCaption(commit: ComparedCommit): string | null {
 }
 
 export function rangeText(base: ComparedCommit, head: ComparedCommit, baseMode: BaseMode): string {
-    const separator = baseMode === "mergeBase" ? MERGE_BASE_SEPARATOR : TIP_SEPARATOR
-    return `${refName(base)}${separator}${refName(head)}`
+    return rangeOf(refName(base), refName(head), baseMode)
+}
+
+/** As git writes a range: three dots from the merge base, two dots tip with tip. */
+export function rangeOf(base: string, head: string, baseMode: BaseMode): string {
+    return `${base}${baseMode === "mergeBase" ? MERGE_BASE_SEPARATOR : TIP_SEPARATOR}${head}`
 }
 
 export function parseRange(text: string): ParsedRange | null {
-    const trimmed = text.trim()
-    const separator = trimmed.includes(MERGE_BASE_SEPARATOR) ? MERGE_BASE_SEPARATOR : TIP_SEPARATOR
-    const [base, head, ...rest] = trimmed.split(separator)
-    if (rest.length > 0 || !base || !head) {
-        return null
-    }
-    return { base, head, baseMode: separator === MERGE_BASE_SEPARATOR ? "mergeBase" : "tip" }
+    const range = parseRefRange(text)
+    return range && { base: range.base, head: range.head, baseMode: range.isMergeBase ? "mergeBase" : "tip" }
 }
 
 export function resolveOutcome(resolved: ResolvedComparison): ResolveOutcome | null {
@@ -64,6 +79,8 @@ export function errorSentence(error: CompareError): string {
     switch (error.kind) {
         case "refNotFound":
             return `'${error.input ?? ""}' is not a branch, tag or commit of '${error.folderLabel ?? ""}'.`
+        case "analysisCancelled":
+            return "The analysis was cancelled. Nothing was compared."
         case "loadFailed":
             return `The analyses could not be loaded: ${error.message}`
         case "rootMismatch":
@@ -84,13 +101,42 @@ export function sideStatusText({ status }: ResolvedSide): string {
     if (!nearest) {
         return "not analysed"
     }
-    const older = nearest.relation === "ancestor" ? `, ${counted(nearest.staleBy, "commit")} older` : ""
-    return `not analysed · nearest: ${nearest.snapshot.shortCommit ?? ""}${older}`
+    return `not analysed · nearest: ${nearest.snapshot.shortCommit ?? ""}${distanceText(nearest)}`
+}
+
+export function analysisFailureText({ shortCommit, failure }: SideAnalysis): string {
+    return `The analysis of ${shortCommit} failed: ${failure ?? ""}`
 }
 
 export function staleTitle(side: LoadedSide): string {
-    const older = side.relation === "ancestor" ? `, ${counted(side.staleBy, "commit")} older` : ""
-    return `No analysis for ${side.requested.shortCommit}. Showing ${side.snapshot.shortCommit ?? ""}${older}.`
+    const distance = side.relation ? distanceText({ ...side, relation: side.relation }) : ""
+    return `No analysis for ${side.requested.shortCommit}. Showing ${side.snapshot.shortCommit ?? ""}${distance}.`
+}
+
+/** The chip's badge for a side shown by its nearest analysis, as the workspace status words it; null for its own analysis. */
+export function staleBadge({ relation, behind, ahead }: Pick<LoadedSide, "relation" | "behind" | "ahead">): string | null {
+    switch (relation) {
+        case "ancestor":
+            return `stale by ${behind}`
+        case "descendant":
+            return `ahead by ${ahead}`
+        case "diverged":
+            return `diverged ${behind}↓ ${ahead}↑`
+        default:
+            return null
+    }
+}
+
+/** How far the nearest analysis is from the asked commit, in the words of the stale notice. */
+function distanceText({ relation, behind, ahead }: Distance): string {
+    switch (relation) {
+        case "ancestor":
+            return `, ${counted(behind, "commit")} older`
+        case "descendant":
+            return `, which is ahead by ${counted(ahead, "commit")}`
+        case "diverged":
+            return ` from a diverged line: ${behind} behind / ${ahead} ahead`
+    }
 }
 
 /** Why "Use nearest" cannot go on, or null when every missing side has a nearest analysis and the two differ. */

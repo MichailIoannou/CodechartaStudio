@@ -6,11 +6,13 @@ use crate::methods::hosting::HostingProvider;
 use crate::methods::projects::FolderRef;
 use crate::methods::snapshots::{SnapshotRelation, SnapshotSummary};
 use crate::registry::method;
-use crate::values::{BranchName, CommitSha, Revision};
+use crate::values::{BranchName, CommitSha, Revision, TypedRevision};
 
 /// What the user pointed at in one project folder. `Commits` takes the ancestor as the base, else the
 /// older commit; `WithParent` compares with the first parent; `WithCurrent` compares with `shownCommit`,
-/// else with `HEAD`. `ChangeRequest` compares a pull or merge request from its merge base, with what
+/// else with `HEAD`. `Branch` compares the branch with `target`, else with the current branch, else (when
+/// the branch is the current one) with the folder's default branch. `Explicit` keeps the base the user
+/// chose; its `mergeBase` mode applies only when the base names a branch or tag. `ChangeRequest` compares a pull or merge request from its merge base, with what
 /// the renderer knows of it: its head is `headCommit`, else the fetched `refs/codecharta/<pr|mr>/<n>`;
 /// the base branch tip is `baseCommit`, else the first parent of `mergeCommit`, else
 /// `<remote>/<baseRefName>`, the first of them this clone has.
@@ -34,6 +36,17 @@ pub enum CompareIntent {
         folder: FolderRef,
         commit: Revision,
     },
+    Branch {
+        folder: FolderRef,
+        branch: Revision,
+        target: Option<Revision>,
+        base_mode: BaseMode,
+    },
+    Explicit {
+        base: SideInput,
+        head: SideInput,
+        base_mode: BaseMode,
+    },
     ChangeRequest {
         folder: FolderRef,
         provider: HostingProvider,
@@ -52,9 +65,30 @@ impl CompareIntent {
             CompareIntent::Commits { folder, .. }
             | CompareIntent::WithParent { folder, .. }
             | CompareIntent::WithCurrent { folder, .. }
+            | CompareIntent::Branch { folder, .. }
             | CompareIntent::ChangeRequest { folder, .. } => folder,
+            CompareIntent::Explicit { base, .. } => &base.folder,
         }
     }
+}
+
+/// What the user typed or picked for one side. Both sides of an `explicit` intent are in one folder.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SideInput {
+    pub folder: FolderRef,
+    pub rev: RefInput,
+}
+
+/// `rev`: a branch, remote branch or tag name, `HEAD`, a full ref name or the leading digits of a commit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum RefInput {
+    Rev { name: TypedRevision },
 }
 
 /// Resolving never starts an analysis.
@@ -71,6 +105,15 @@ pub struct ResolveComparisonParams {
 pub enum BaseMode {
     MergeBase,
     Tip,
+}
+
+/// Where a comparison came from: two commits, two branches (or tags), or a pull or merge request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum ComparisonOrigin {
+    Commits,
+    Branches,
+    PullRequest,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -99,13 +142,18 @@ pub struct ComparedCommit {
     pub label: RefLabel,
 }
 
-/// The snapshot "Use nearest" would show; `staleBy` counts the commits between it and the asked commit.
+/// The snapshot "Use nearest" would show; `staleBy` counts the commits between it and the asked commit:
+/// `behind` plus `ahead`, as the snapshots resolution counts them.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct NearestSnapshot {
     pub snapshot: SnapshotSummary,
     pub relation: SnapshotRelation,
     pub stale_by: u32,
+    /// Commits the asked commit has that the shown snapshot lacks.
+    pub behind: u32,
+    /// Commits the shown snapshot has that the asked commit lacks.
+    pub ahead: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -174,6 +222,7 @@ pub enum ResolveStatus {
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedComparison {
     pub status: ResolveStatus,
+    pub origin: ComparisonOrigin,
     pub base_mode: BaseMode,
     pub base: ResolvedSide,
     pub head: ResolvedSide,
@@ -280,6 +329,33 @@ mod tests {
 
         // Assert
         assert!(params.is_err());
+    }
+
+    #[test]
+    fn should_read_typed_sides_and_refuse_an_expression() {
+        // Arrange
+        let side = |name: &str| {
+            json!({
+                "folder": { "projectId": "p-1", "folderId": "f-1" },
+                "rev": { "kind": "rev", "name": name }
+            })
+        };
+        let intent = |base: &str, head: &str| {
+            json!({
+                "intent": { "kind": "explicit", "base": side(base), "head": side(head), "baseMode": "mergeBase" },
+                "shownCommit": null
+            })
+        };
+
+        // Act
+        let typed = serde_json::from_value::<ResolveComparisonParams>(intent("main", "a1b2"));
+        let expression =
+            serde_json::from_value::<ResolveComparisonParams>(intent("main~1", "HEAD"));
+
+        // Assert
+        let params = typed.expect("short names and a prefix are typed revisions");
+        assert_eq!(params.intent.folder().folder_id.as_str(), "f-1");
+        assert!(expression.is_err());
     }
 
     #[test]

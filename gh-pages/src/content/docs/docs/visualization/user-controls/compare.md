@@ -60,3 +60,23 @@ Click a building or a folder to see its changes in the [Inspector](/docs/visuali
 
 The [Dependencies view](/docs/visualization/user-controls/dependency-view) shows a single map, so it asks you to leave
 Compare first.
+
+## Comparing commits in the desktop app
+
+In the desktop app, with a project open whose folder is a git repository, **Compare** in the mode bar opens the
+**Compare** dialog instead of switching between loaded maps:
+
+1. Pick the **Base** and the **Head**: type a branch, tag or commit hash, or choose from the list of branches, tags and
+   matching commits. Each side tells whether that commit is analysed. Pasting `main...feature/x` fills both sides.
+2. When the base is a branch or tag, choose **Since the merge base** to see only what the head changed since it left
+   the base, or **Tip vs tip** to see everything that differs between the two. The dialog remembers the choice for
+   the project.
+3. Click **Compare** (or press Ctrl+Enter). **Recent** lists the last comparisons of the project; one click fills both
+   sides again.
+
+The History offers the same: **Compare** for two selected commits, and **Compare with Parent**, **Compare with
+Current** and **Compare with…** in a commit's menu.
+
+While comparing, the top bar names both sides, for example `base 9f8e7d6 main ⇄ head a1b2c3d feature/x`. Click a side
+to change it; the menu next to it swaps the sides, copies the range as text or leaves the comparison, which keeps the
+head on the map.

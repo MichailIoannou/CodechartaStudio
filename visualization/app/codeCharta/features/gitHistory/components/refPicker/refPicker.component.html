@@ -1,0 +1,78 @@
+<div (focusout)="onFocusOut($event)">
+    <input
+        type="text"
+        role="combobox"
+        aria-autocomplete="list"
+        class="input input-bordered input-sm w-full font-mono"
+        autocomplete="off"
+        spellcheck="false"
+        [attr.aria-label]="label()"
+        [attr.aria-expanded]="isOpen()"
+        [attr.aria-controls]="listId"
+        [attr.aria-activedescendant]="activeDescendant()"
+        [attr.data-testid]="testId()"
+        [value]="text()"
+        (input)="onInput($any($event.target).value)"
+        (click)="open()"
+        (keydown)="onKeydown($event)"
+    />
+
+    @if (isOpen()) {
+        <div
+            role="listbox"
+            class="absolute left-0 right-0 top-full z-[70] mt-1 flex max-h-72 flex-col gap-0.5 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-2 shadow-md"
+            [id]="listId"
+            [attr.aria-label]="label()"
+            [attr.data-testid]="testId() + '-list'"
+        >
+            @for (group of groups(); track group.id) {
+                <div role="group" class="flex flex-col gap-0.5" [attr.aria-label]="group.label">
+                    <div class="px-2 pt-1 text-xs uppercase tracking-wide text-base-content/60" aria-hidden="true">{{ group.label }}</div>
+                    @for (option of group.options; track option.id) {
+                        <div
+                            role="option"
+                            [id]="optionId(option)"
+                            [class]="rowClass(option)"
+                            [attr.aria-selected]="option.id === activeOption()?.id"
+                            [attr.data-testid]="testId() + '-option'"
+                            (mousedown)="$event.preventDefault()"
+                            (click)="pick(option)"
+                        >
+                            <i class="fa-fw shrink-0 text-base-content/60" [class]="iconOf(option)"></i>
+                            <span class="min-w-0 truncate" [class.font-mono]="option.kind === 'commit'">{{ displayName(option) }}</span>
+                            @if (option.kind !== "commit") {
+                                <span class="shrink-0 font-mono text-xs">{{ shortShaOf(option.sha) }}</span>
+                            }
+                            <span class="min-w-0 flex-1 truncate text-xs text-base-content/60">{{ option.subject }}</span>
+                            @if (isAnalysed(option.sha)) {
+                                <i class="fa-solid fa-circle shrink-0 text-xs text-success" title="Analysed" aria-label="Analysed"></i>
+                            } @else {
+                                <i class="fa-regular fa-circle shrink-0 text-xs text-base-content/40" title="Not analysed" aria-label="Not analysed"></i>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+            @if (isSearching()) {
+                <div class="flex items-center gap-2 px-2 py-1 text-xs text-base-content/60" data-testid="ref-picker-searching">
+                    <span class="loading loading-dots loading-xs"></span>Searching commits…
+                </div>
+            }
+            @if (noMatchText(); as noMatchText) {
+                <div class="px-2 py-1 text-sm text-base-content/60">{{ noMatchText }}</div>
+            }
+        </div>
+    }
+</div>
+
+@if (resolution(); as resolution) {
+    <div class="mt-1 flex min-w-0 items-center gap-2 text-xs" [attr.data-testid]="testId() + '-resolved'">
+        <span class="shrink-0 font-mono">{{ shortShaOf(resolution.sha) }}</span>
+        <span class="min-w-0 flex-1 truncate text-base-content/60">{{ resolution.subject }}</span>
+        @if (isAnalysed(resolution.sha)) {
+            <span class="flex shrink-0 items-center gap-1"><i class="fa-solid fa-circle text-success"></i>analysed</span>
+        } @else {
+            <span class="flex shrink-0 items-center gap-1"><i class="fa-regular fa-circle text-base-content/50"></i>not analysed</span>
+        }
+    </div>
+}

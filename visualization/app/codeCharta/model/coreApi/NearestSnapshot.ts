@@ -3,6 +3,19 @@ import type { SnapshotRelation } from "./SnapshotRelation"
 import type { SnapshotSummary } from "./SnapshotSummary"
 
 /**
- * The snapshot "Use nearest" would show; `staleBy` counts the commits between it and the asked commit.
+ * The snapshot "Use nearest" would show; `staleBy` counts the commits between it and the asked commit:
+ * `behind` plus `ahead`, as the snapshots resolution counts them.
  */
-export type NearestSnapshot = { snapshot: SnapshotSummary; relation: SnapshotRelation; staleBy: number }
+export type NearestSnapshot = {
+    snapshot: SnapshotSummary
+    relation: SnapshotRelation
+    staleBy: number
+    /**
+     * Commits the asked commit has that the shown snapshot lacks.
+     */
+    behind: number
+    /**
+     * Commits the shown snapshot has that the asked commit lacks.
+     */
+    ahead: number
+}

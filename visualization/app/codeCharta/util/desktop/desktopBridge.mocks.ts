@@ -1280,18 +1280,68 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return prefix ? { kind: prefix[1], name: revision.slice(prefix[0].length) } : { kind: "commit", name: sha.slice(0, 7) }
     }
 
+    function commitsOf(folderId: string) {
+        return Object.hasOwn(store.git, folderId) ? (store.git[folderId].commits ?? []) : []
+    }
+
+    function reachedFrom(folderId: string, sha: string) {
+        return new Set(reachableCommits(commitsOf(folderId), [sha]).map(commit => commit.sha))
+    }
+
+    function nearestOf(folder: FolderRef, sha: string) {
+        const reached = reachedFrom(folder.folderId, sha)
+        const snapshots = snapshotsOf(folder.projectId, folder.folderId)
+        const ancestor = commitsOf(folder.folderId).find(
+            commit => commit.sha !== sha && reached.has(commit.sha) && snapshots.some(candidate => candidate.commit === commit.sha)
+        )
+        if (!ancestor) {
+            return null
+        }
+        const snapshot = snapshots.find(candidate => candidate.commit === ancestor.sha)
+        const fromAncestor = reachedFrom(folder.folderId, ancestor.sha)
+        const behind = [...reached].filter(reachedSha => !fromAncestor.has(reachedSha)).length
+        return { snapshot: JSON.parse(JSON.stringify(snapshot)), relation: "ancestor", staleBy: behind, behind, ahead: 0 }
+    }
+
     function comparedSide(folder: FolderRef, revision: string) {
         const sha = commitAtRevision(folder.folderId, revision)
         const snapshot = snapshotsOf(folder.projectId, folder.folderId).find(candidate => candidate.commit === sha)
         const requested = { folder, commit: sha, shortCommit: sha.slice(0, 7), label: labelOfRevision(revision, sha) }
-        const status = snapshot ? { status: "exact", snapshot: JSON.parse(JSON.stringify(snapshot)) } : { status: "missing", nearest: null }
+        const status = snapshot
+            ? { status: "exact", snapshot: JSON.parse(JSON.stringify(snapshot)) }
+            : { status: "missing", nearest: nearestOf(folder, sha) }
         return { requested, status }
     }
 
+    function comparedFolder(intent: CompareIntent): FolderRef {
+        return intent.kind === "explicit" ? intent.base.folder : intent.folder
+    }
+
+    function revisionOfTyped(folderId: string, name: string) {
+        const refs = Object.hasOwn(store.git, folderId) ? store.git[folderId].refs : undefined
+        if (name === "HEAD" || name.startsWith("refs/") || /^[0-9a-f]{40}$/.test(name)) {
+            return name
+        }
+        const named = [...(refs?.tags ?? []), ...(refs?.localBranches ?? []), ...(refs?.remoteBranches ?? [])].find(
+            ref => ref.name === name
+        )
+        const byPrefix = commitsOf(folderId).filter(commit => /^[0-9a-f]{4,}$/i.test(name) && commit.sha.startsWith(name.toLowerCase()))
+        return named?.refName ?? (byPrefix.length === 1 ? byPrefix[0].sha : null)
+    }
+
+    function branchTarget(folderId: string, branch: string, target: string | null) {
+        const repository = Object.hasOwn(store.git, folderId) ? store.git[folderId] : undefined
+        const current = repository?.refs?.localBranches.find(candidate => candidate.isCurrent)
+        if (target) {
+            return target
+        }
+        return current && current.refName !== branch ? current.refName : "refs/heads/main"
+    }
+
     function comparedRevisions(intent: CompareIntent, shownCommit: string | null) {
-        const commits = Object.hasOwn(store.git, intent.folder.folderId) ? (store.git[intent.folder.folderId].commits ?? []) : []
-        const positionOf = (revision: string) =>
-            commits.findIndex(commit => commit.sha === commitAtRevision(intent.folder.folderId, revision))
+        const folder = comparedFolder(intent)
+        const commits = commitsOf(folder.folderId)
+        const positionOf = (revision: string) => commits.findIndex(commit => commit.sha === commitAtRevision(folder.folderId, revision))
         switch (intent.kind) {
             case "commits":
                 return positionOf(intent.b) > positionOf(intent.a) ? [intent.b, intent.a] : [intent.a, intent.b]
@@ -1301,32 +1351,67 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
             }
             case "withCurrent":
                 return [intent.commit, shownCommit ?? "HEAD"]
+            case "branch":
+                return [branchTarget(folder.folderId, intent.branch, intent.target), intent.branch]
+            case "explicit":
+                return [revisionOfTyped(folder.folderId, intent.base.rev.name), revisionOfTyped(folder.folderId, intent.head.rev.name)]
             default:
                 return null
         }
     }
 
+    function mergeBaseOf(folderId: string, tip: string, head: string) {
+        const fromTip = reachedFrom(folderId, commitAtRevision(folderId, tip))
+        const fromHead = reachedFrom(folderId, commitAtRevision(folderId, head))
+        return commitsOf(folderId).find(commit => fromHead.has(commit.sha) && fromTip.has(commit.sha))?.sha ?? null
+    }
+
+    function usesMergeBase(intent: CompareIntent, base: string) {
+        const isNamedRef = base.startsWith("refs/")
+        return (intent.kind === "branch" || intent.kind === "explicit") && intent.baseMode === "mergeBase" && isNamedRef
+    }
+
+    function sizeVerdictOf(bytes: number) {
+        const megabyte = 1024 * 1024
+        if (bytes > 60 * megabyte) {
+            return "block"
+        }
+        return bytes > 15 * megabyte ? "warn" : "ok"
+    }
+
     function resolveComparison(params: FakeRequestParams) {
         const intent = params.intent as CompareIntent
+        const folder = comparedFolder(intent)
         const revisions = comparedRevisions(intent, params.shownCommit ?? null)
         if (!revisions) {
             return refuse("UNKNOWN_REVISION", "The commit has no parent to compare with.")
         }
-        const [base, head] = revisions.map(revision => comparedSide(intent.folder, revision))
-        const shown = [base, head].map(side => (side.status.status === "exact" ? (side.status.snapshot as SnapshotSummary) : null))
+        if (revisions.some(revision => revision === null)) {
+            return refuse("UNKNOWN_REVISION", "The revision is not in the repository.")
+        }
+        const [baseRevision, headRevision] = revisions as string[]
+        const mergeBase = usesMergeBase(intent, baseRevision) ? mergeBaseOf(folder.folderId, baseRevision, headRevision) : null
+        const isTipTheMergeBase = mergeBase === commitAtRevision(folder.folderId, baseRevision)
+        const base = comparedSide(folder, mergeBase && !isTipTheMergeBase ? mergeBase : baseRevision)
+        const head = comparedSide(folder, headRevision)
+        const shown = [base, head].map(side =>
+            side.status.status === "exact" ? (side.status.snapshot as SnapshotSummary) : (side.status.nearest?.snapshot ?? null)
+        )
         const checksums = shown.map(snapshot => snapshot?.checksum ?? null)
+        const combinedBytes = shown.reduce((total, snapshot) => total + (snapshot?.mapBytes ?? 0), 0)
         const isSameCommit = base.requested.commit === head.requested.commit
         return succeed({
             status: { kind: isSameCommit ? "sameCommit" : "ready" },
-            baseMode: "tip",
+            origin: intent.kind === "branch" || (intent.kind === "explicit" && baseRevision.startsWith("refs/")) ? "branches" : "commits",
+            baseMode: mergeBase ? "mergeBase" : "tip",
             base,
             head,
-            baseTip: null,
+            baseTip: mergeBase ? comparedSide(folder, baseRevision).requested : null,
             preflight: {
                 identicalChecksums: checksums[0] !== null && checksums[0] === checksums[1],
                 profilesDiffer: false,
-                combinedBytes: shown.reduce((total, snapshot) => total + (snapshot?.mapBytes ?? 0), 0),
-                sizeVerdict: "ok"
+                combinedBytes,
+                sizeVerdict: sizeVerdictOf(combinedBytes)
             }
         })
     }

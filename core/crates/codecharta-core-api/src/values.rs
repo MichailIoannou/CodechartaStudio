@@ -222,6 +222,12 @@ fn is_branch_name(value: &str) -> bool {
         && is_well_formed_full_ref_name(&format!("{LOCAL_BRANCH_PREFIX}{value}"))
 }
 
+/// A revision, or a short name git's `check-ref-format` would accept: a branch, remote branch or tag name,
+/// or the leading hexadecimal digits of a commit. Never an expression.
+fn is_typed_revision(value: &str) -> bool {
+    is_revision(value) || is_branch_name(value)
+}
+
 fn is_host_name(value: &str) -> bool {
     (1..=MAX_HOST_NAME_LENGTH).contains(&value.len())
         && !value.starts_with(HOST_NAME_PUNCTUATION)
@@ -348,6 +354,12 @@ validated_text!(
     Revision,
     is_revision,
     "use HEAD, the 40 or 64 lowercase hexadecimal digits of a commit, or a full ref name"
+);
+
+validated_text!(
+    TypedRevision,
+    is_typed_revision,
+    "use HEAD, a branch, remote branch or tag name, a full ref name or hexadecimal digits of a commit; no expression"
 );
 
 validated_text!(

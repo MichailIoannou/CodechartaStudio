@@ -1,7 +1,8 @@
 import { computed, Injectable, inject } from "@angular/core"
 import { ProjectsFacade } from "../../projects/facade"
 import { ToastService } from "../../shared/facade"
-import type { CompareIntent, ComparePrefill, FolderRef } from "../model/compare.model"
+import type { BaseMode, CompareIntent, ComparePrefill, FolderRef } from "../model/compare.model"
+import { BaseModeRepo } from "../repos/baseMode.repo"
 import { CompareStore } from "../stores/compare.store"
 import { CompareService } from "./compare.service"
 import { errorSentence } from "./comparisonText"
@@ -15,6 +16,7 @@ export class CompareFacade {
     private readonly store = inject(CompareStore)
     private readonly projects = inject(ProjectsFacade)
     private readonly toastService = inject(ToastService)
+    private readonly baseModes = inject(BaseModeRepo)
 
     readonly state = this.store.state
     readonly isActive = this.store.isActive
@@ -35,6 +37,12 @@ export class CompareFacade {
         return this.startOutsideTheDialog({ kind: "withCurrent", folder, commit })
     }
 
+    /** `branch` and `target` are full ref names; without a base mode, the one last chosen for the project. */
+    compareBranch(folder: FolderRef, branch: string, options: { target?: string; baseMode?: BaseMode } = {}): Promise<void> {
+        const baseMode = options.baseMode ?? this.baseModes.read(folder.projectId)
+        return this.startOutsideTheDialog({ kind: "branch", folder, branch, target: options.target ?? null, baseMode })
+    }
+
     openDialog(prefill: ComparePrefill = {}): void {
         this.store.openDialog(prefill)
     }
@@ -48,7 +56,7 @@ export class CompareFacade {
     }
 
     /** A comparison started from a menu shows a decision or a stop in the dialog and an error as a toast. */
-    private async startOutsideTheDialog(intent: CompareIntent): Promise<void> {
+    private async startOutsideTheDialog(intent: Extract<CompareIntent, { folder: FolderRef }>): Promise<void> {
         await this.service.start(intent)
         if (this.store.dialogPrefill() !== null) {
             return
