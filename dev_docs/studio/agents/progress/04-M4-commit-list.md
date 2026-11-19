@@ -41,7 +41,7 @@ Parallel work note: 05-M4 (snapshots/analyse UI) and 02-M7 (metrics bar) run at 
 ## Steps
 
 - [x] 1. Graph layout
-- [ ] 2. Graph cell
+- [x] 2. Graph cell
 - [ ] 3. Virtual window
 - [ ] 4. Log service
 - [ ] 5. Commit list
@@ -65,4 +65,16 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   row passes through any newer rows and ends in HEAD's dot; a commit reached by that lane takes a fresh colour.
 - Tests: the plan's ten cases (every split point of a 12-commit fixture), plus a merge into an already waiting lane,
   colour cycling and the working-tree start.
+
+### 2. Graph cell
+- `util/graphRowGeometry.ts`: `rowGeometry(row)` → width, dot, lines (`path`, colour, dashed), `hiddenLaneCount`;
+  `workingTreeGeometry()`; lane pitch 14, row 28, dot r 4, lane 0 at x 10 (the mock-up's coordinates); curves are the
+  mock-up's cubic shapes (`M24 0 C24 10 10 4 10 14` into a dot, `M10 14 C10 24 24 18 24 28` out of it). Lines in or
+  out of lanes beyond `MAX_DRAWN_LANES = 24` are left out and counted as `+n`.
+- `components/commitGraphCell` (`cc-commit-graph-cell`): inline SVG, `stroke="currentColor"`, lane colour classes of
+  design H8 (deviation 6: `text-base-content/60` instead of `text-neutral`). HEAD = ring (`fill-base-100`, stroke 2,
+  r 3.6) inside an outer ring (r 6.5, stroke 1.2, also filled so lines stop at it — the mock-up's look). Uncommitted
+  changes: dashed hollow circle (`stroke-dasharray="2 2"`) and a dashed line (`3 2`) in `text-warning`, the mock-up's
+  colour for that row; the same dashed warning line runs through the rows down into HEAD's dot.
+- `+n` has no `title`: the design names none.
 

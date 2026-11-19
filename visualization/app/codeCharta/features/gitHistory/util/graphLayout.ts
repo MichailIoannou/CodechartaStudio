@@ -9,7 +9,7 @@ export interface GraphLayoutState {
     nextColor: number
 }
 
-interface GraphEdge {
+export interface GraphEdge {
     fromLane: number
     toLane: number
     color: number

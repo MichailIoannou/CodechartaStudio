@@ -1,0 +1,49 @@
+<svg class="block shrink-0 overflow-visible" [attr.width]="geometry().width" [attr.height]="height" [attr.viewBox]="viewBox()" aria-hidden="true">
+    @for (line of geometry().lines; track $index) {
+        <path
+            [attr.class]="colorClassOf(line.color)"
+            [attr.d]="line.path"
+            [attr.stroke-dasharray]="line.isDashed ? '3 2' : null"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+        />
+    }
+    @if (geometry().dot; as dot) {
+        @if (isWorkingTree()) {
+            <circle
+                [attr.class]="'fill-base-100 ' + colorClassOf(dot.color)"
+                [attr.cx]="dot.x"
+                [attr.cy]="dot.y"
+                [attr.r]="dot.radius"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-dasharray="2 2"
+                data-testid="graph-working-tree-dot"
+            />
+        } @else if (isHead()) {
+            <circle
+                [attr.class]="'fill-base-100 ' + colorClassOf(dot.color)"
+                [attr.cx]="dot.x"
+                [attr.cy]="dot.y"
+                r="6.5"
+                stroke="currentColor"
+                stroke-width="1.2"
+                data-testid="graph-head-ring"
+            />
+            <circle
+                [attr.class]="'fill-base-100 ' + colorClassOf(dot.color)"
+                [attr.cx]="dot.x"
+                [attr.cy]="dot.y"
+                r="3.6"
+                stroke="currentColor"
+                stroke-width="2"
+            />
+        } @else {
+            <circle [attr.class]="colorClassOf(dot.color)" [attr.cx]="dot.x" [attr.cy]="dot.y" [attr.r]="dot.radius" fill="currentColor" />
+        }
+    }
+</svg>
+@if (geometry().hiddenLaneCount > 0) {
+    <span class="text-xs tabular-nums text-base-content/60">+{{ geometry().hiddenLaneCount }}</span>
+}
