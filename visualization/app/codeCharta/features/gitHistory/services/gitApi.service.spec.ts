@@ -2,7 +2,7 @@ import { TestBed } from "@angular/core/testing"
 import type { DesktopBridge } from "../../../util/desktop/desktopBridge"
 import { createFakeDesktopBridge, FakeDesktopBridge } from "../../../util/desktop/desktopBridge.mocks"
 import { DESKTOP_BRIDGE } from "../../../util/desktop/desktopBridge.token"
-import { anErrorPayload, aRepositoryInfo } from "./gitApi.mocks"
+import { aLogCommit, anErrorPayload, aRepositoryInfo } from "./gitApi.mocks"
 import { GitApiService } from "./gitApi.service"
 
 describe("GitApiService", () => {
@@ -22,6 +22,18 @@ describe("GitApiService", () => {
 
         // Assert
         expect(answer).toEqual({ ok: true, value: aRepositoryInfo() })
+    })
+
+    it("should ask the core for the details of one commit", async () => {
+        // Arrange
+        const commit = aLogCommit("a", "Fix invoice rounding")
+        const api = apiWith(createFakeDesktopBridge({ git: { "f-api": { commits: [commit] } } }))
+
+        // Act
+        const answer = await api.commitDetails(repo, commit.sha)
+
+        // Assert
+        expect(answer).toEqual({ ok: true, value: expect.objectContaining({ sha: commit.sha, message: "Fix invoice rounding" }) })
     })
 
     it("should map a git rpc error to a git error with git's text and the repository path", async () => {

@@ -43,7 +43,7 @@ Parallel work note: 05-M4 (snapshots/analyse UI) and 02-M7 (metrics bar) run at 
 - [x] 1. Graph layout
 - [x] 2. Graph cell
 - [x] 3. Virtual window
-- [ ] 4. Log service
+- [x] 4. Log service
 - [ ] 5. Commit list
 - [ ] 6. Toolbar filters
 - [ ] 7. Commit details
@@ -83,4 +83,32 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   `{ firstIndex, lastIndex (inclusive), offsetTop, totalHeight }`; scroll positions are clamped to the list, so an
   overscrolled or shrunken list still renders its last rows. Tests: the plan's four plus partly visible edge rows,
   overscan at the top and a list shorter than the viewport.
+
+### 4. Log service, ref labels, dates
+- `GitLogService` keeps scope (M3) and adds `filter` / `setFilter` / `clearFilter` / `isFiltered`, `commits`,
+  `graphRows`, `isGraphAvailable`, `page` (`LoadState<void>` of the latest page request), `hasMore`,
+  `isLoadingFirstPage`, `loadNextPage()` (also the retry: a failed first page starts over, a failed later page asks
+  for the same cursor again), `reload()`, `refLabels`, `headSha`, `uncommittedChangeCount`.
+- It restarts at page one when the query changes: repository, scope, filter (trimmed; empty = none) or the refs
+  **fingerprint** (`GitRepositoryService.refs()` re-read with the same fingerprint does not restart). Nothing loads
+  before the refs are ready. Late pages are dropped by a generation counter; one page request at a time.
+  `LOG_SESSION_EXPIRED` on a later page restarts once silently (the loaded rows stay until page one replaces them);
+  a second expiry before a page succeeds is shown as a failure.
+- Graph rows are laid out per page with the carried `GraphLayoutState`. When the uncommitted-changes row appears or
+  disappears (or HEAD moves) the loaded commits are laid out again from `stateWaitingForHead` / the empty state.
+- **Uncommitted changes row (H8).** Shown when the status counts any changed file (staged + unstaged + untracked +
+  conflicted), HEAD has a commit, no filter is set, and the scope reaches HEAD (All, or refs that include the
+  current branch). Design gap: H8 does not say what happens under a filter or another branch's scope; leaving the row
+  out there keeps the dashed line from running down a list HEAD is not in.
+- Path filter: the core wants a repository-relative path with `/` (`RepoRelativePath`), so the service trims it,
+  turns `\\` into `/` and drops a leading `./` or `/`. The path is relative to the repository root, not to the
+  project folder (equal unless the folder is a subfolder of its repository).
+- `util/refLabels.ts` (`refLabelsByCommit`: current branch, detached `HEAD`, other local, remote, tags) and
+  `util/commitDate.ts` (`commitDateTime` "3 Nov 2026, 14:03", `shortCommitDateTime` "3 Nov 14:03"; en-GB as the
+  projects feature, the viewer's zone unless one is given). Relative dates reuse `util/wording.ts relativeTime`.
+- `GitApiService.commitDetails`. Fake bridge: `git.log` pages 500 at a time (cursor `page-<offset>`, anything else
+  `LOG_SESSION_EXPIRED`), scope `refs` lists what the named refs reach, `filter` matches subject/SHA, author name or
+  e-mail (case-insensitive) and paths of seeded `details[sha].files`, `isGraphAvailable` false with a filter;
+  `git.commitDetails` answers `details[sha]` or the summary without files, `UNKNOWN_REVISION` otherwise. The body
+  stays self-contained (rebuilt-from-source test added). Builder `aLogCommit` in `services/gitApi.mocks.ts`.
 
