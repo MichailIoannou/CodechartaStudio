@@ -51,8 +51,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M4 Commit list with graph, filters, details | UI | todo | 04-M3 | — | — |
 | 04-M5 Selection, keyboard, context menu, ports | UI | todo | 04-M4 | — | — |
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
-| 04-M7 Operation queue, progress, prompts | core + UI | core half: fix requested (featureless clippy/test build); task 5 todo | task 5 (UI): 04 History UI | feature/studio-04-m7 | 7ee75a2b4 (not yet verified) |
-| 04-M8 Fetch and branches | core + UI | todo | 04-M7 | — | — |
+| 04-M7 Operation queue, progress, prompts | core + UI | core half (tasks 1–4) verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (UI): 04 History UI | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
+| 04-M8 Fetch and branches | core + UI | in progress (core, task 1, from feature/studio-04-m7) | task 2 (UI): 04 History UI | feature/studio-04-m8 | — |
 | 04-M9 Changes and diff | core + UI | todo | 04-M8 | — | — |
 | 04-M10 Commit | core + UI | todo | 04-M9 | — | — |
 | 04-M11 Pull, push, abort | core + UI | todo | 04-M10 | — | — |
@@ -169,7 +169,7 @@ the milestone is started.
   (as CI does). `cargo clippy --all-targets -- -D warnings` without features fails on the unmerged stack
   (first seen on `feature/studio-04-m2`: unused imports in `codecharta-cored/tests/protocol.rs`; more in
   `askpass_mode.rs` on 04-M7). The integration tip is clean. Fix requested on `feature/studio-04-m7`
-  (top of the stack). From now on core verification runs clippy and tests both with and without
+  (top of the stack); fixed in e6f9e6a9b. From now on core verification runs clippy and tests both with and without
   `--all-features`.
 - 04-M7 core half (see `04-M7-queue-prompts.md` on `feature/studio-04-m7`): spike (f) corrected the plan
   (`LC_ALL` overrides `LC_MESSAGES`; mutating commands now drop `LC_ALL` and set the other categories);
@@ -208,6 +208,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 04-M7 core half verified after the fix on a scratch merge (clippy and cargo test with and without features: 471/475, cargo-deny, contract drift, format, lint, tsc, test:electron 42/42, npm test 658/658). 04-M8 core started.
 - 2026-11-19: 02-M2 verified on the merged integration branch in a scratch worktree (owner was running the app from the main checkout): format, lint, tsc, npm test 658/658, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 156/156. 04-M7 core half sent back: featureless clippy fails (see deviations).
 - 2026-11-19: 01-M4.2 verified on the merged integration branch (format, lint, tsc, npm test 657/657, coverage 96.86/90.3/95.46/96.79, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 155/155) — plan 01 complete except owner-hardware items. 04-M2 verified (merge pending). 04-M7 core half and 02-M2 started.
 - 2026-11-19: owner kept the istanbul-ignore comment on the test fake (option 1).
