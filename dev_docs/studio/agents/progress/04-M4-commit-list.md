@@ -188,3 +188,18 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
 - Changelog: the **Git branches** entry is rewritten as **Git history** (plan sentence without "the top bar shows the
   current branch", which is W1 / area 05).
 
+### Performance (100 000 commits)
+- Measured with a scratch Playwright spec (not committed): the stand-in fake bridge seeded in the page with 100 000
+  commits (a main line where every 20th commit merges a side commit, and a 400-commit-long lane every 997 commits),
+  built app, bundled Chromium headless, 1600×900, this machine (Arch Linux, 2026-11-19).
+- First measurement: page median 51 ms, scroll frame median 22.8 ms / p95 35.7 ms. Two fixes
+  (`perf(visualization): keep commit rows while scrolling`): the list keeps each row's view object until the graph,
+  labels, markers, HEAD or the selection change, so a scroll renders only the rows that enter the window; the date
+  formats (`Intl.DateTimeFormat`) are built once instead of per row and render; scroll events coalesce to one
+  `scrollTop` write per frame.
+- After: History click → first rows 146 ms; 199 next pages, all 100 000 commits loaded by scrolling in 6.8 s; per page
+  (scroll to the end → rows rendered) median 33 ms, p95 40 ms, max 62 ms, the last page (offset 99 500) 29 ms, of which
+  the fake's own answer is ~10 ms (it filters the whole seed per page); scrolling 1400 px per frame through the loaded
+  list: frame median 16.6 ms, p95 21.2 ms, max 61 ms (one frame); jumps to 25 / 50 / 75 / 100 % and back to the top
+  render within two frames (21–33 ms); 35 row elements in the DOM at any time.
+

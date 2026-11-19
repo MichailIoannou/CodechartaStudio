@@ -62,6 +62,7 @@ export class CommitListComponent {
     private readonly destroyRef = inject(DestroyRef)
 
     private readonly scrollTop = signal(0)
+    private isScrollFramePending = false
     private readonly viewportSize = signal({ width: Number.POSITIVE_INFINITY, height: 0 })
     readonly nowMs = signal(Date.now())
 
@@ -99,6 +100,16 @@ export class CommitListComponent {
             overscan: OVERSCAN_ROWS
         })
     )
+    /** Rows keep their view while only the scroll position changes, so a scroll renders only the rows that enter. */
+    private readonly rowViews = computed(() => {
+        this.isGraphShown()
+        this.log.graphRows()
+        this.log.headSha()
+        this.log.refLabels()
+        this.markers()
+        this.selection.selectedSha()
+        return new Map<string, CommitRowView>()
+    })
     readonly visibleItems = computed(() => {
         const { firstIndex, lastIndex } = this.window()
         const items: ListItem[] = []
@@ -146,8 +157,15 @@ export class CommitListComponent {
     }
 
     onScroll() {
+        if (this.isScrollFramePending) {
+            return
+        }
+        this.isScrollFramePending = true
         const element = this.viewport().nativeElement
-        requestAnimationFrame(() => this.scrollTop.set(element.scrollTop))
+        requestAnimationFrame(() => {
+            this.isScrollFramePending = false
+            this.scrollTop.set(element.scrollTop)
+        })
     }
 
     selectCommit(commit: GitCommitSummary) {
@@ -184,7 +202,12 @@ export class CommitListComponent {
     }
 
     private viewOf(commit: GitCommitSummary, commitIndex: number): CommitRowView {
-        return {
+        const views = this.rowViews()
+        const known = views.get(commit.sha)
+        if (known) {
+            return known
+        }
+        const view = {
             commit,
             graphRow: this.isGraphShown() ? (this.log.graphRows()[commitIndex] ?? null) : null,
             isHead: commit.sha === this.log.headSha(),
@@ -192,6 +215,8 @@ export class CommitListComponent {
             marker: this.markers().get(commit.sha) ?? null,
             isSelected: commit.sha === this.selection.selectedSha()
         }
+        views.set(commit.sha, view)
+        return view
     }
 
     private observeViewport() {
