@@ -4,6 +4,7 @@ use ts_rs::TS;
 use crate::ids::{BatchId, FolderId, JobId, ProjectId, SnapshotId};
 use crate::methods::core::EmptyParams;
 use crate::methods::projects::FolderRef;
+use crate::methods::snapshots::SnapshotLog;
 use crate::registry::{Audience, Event, method};
 use crate::values::CommitSha;
 
@@ -387,6 +388,13 @@ method!(
     Renderer,
     EmptyParams,
     AnalysisJobList
+);
+method!(
+    AnalysisReadLog,
+    "analysis.readLog",
+    Renderer,
+    JobRefParams,
+    SnapshotLog
 );
 method!(
     AnalysisClearFinished,

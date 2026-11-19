@@ -7,7 +7,7 @@ use crate::events::CoreProgress;
 use crate::methods::analysis::{
     AnalysisCancel, AnalysisCancelBatch, AnalysisCancelledEvent, AnalysisClearFinished,
     AnalysisEnqueue, AnalysisEnqueueBatch, AnalysisFailedEvent, AnalysisFinishedEvent,
-    AnalysisList, AnalysisPreflight, AnalysisProgressEvent, AnalysisQueuedEvent,
+    AnalysisList, AnalysisPreflight, AnalysisProgressEvent, AnalysisQueuedEvent, AnalysisReadLog,
     AnalysisStartedEvent, SnapshotsChangedEvent,
 };
 use crate::methods::compare::{CompareChangedFiles, CompareResolve};
@@ -186,6 +186,7 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<AnalysisEnqueueBatch>(),
     MethodSpec::of::<AnalysisCancelBatch>(),
     MethodSpec::of::<AnalysisList>(),
+    MethodSpec::of::<AnalysisReadLog>(),
     MethodSpec::of::<AnalysisClearFinished>(),
     MethodSpec::of::<GitRepositoryInfoMethod>(),
     MethodSpec::of::<GitStatusMethod>(),

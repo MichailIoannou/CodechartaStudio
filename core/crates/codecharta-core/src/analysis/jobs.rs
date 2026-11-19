@@ -163,6 +163,19 @@ impl<'core> Analyses<'core> {
         self.core.analysis_queue().list()
     }
 
+    /// The log a failed job left; `NOT_FOUND` for an unknown job, one that did not fail, or once the log
+    /// was cleared.
+    pub fn read_failed_log(&self, job_id: &JobId) -> CoreResult<String> {
+        let failed = self
+            .list()
+            .into_iter()
+            .find(|job| job.id == *job_id && job.state == JobState::Failed)
+            .ok_or_else(|| CoreError::NotFound(format!("There is no failed analysis {job_id}.")))?;
+        self.core
+            .snapshots()?
+            .read_failed_log(&failed.folder(), &failed.id)
+    }
+
     /// Forgets the finished jobs; the kept logs of the failed ones go with them.
     pub fn clear_finished(&self) -> CoreResult<()> {
         let cleared = self.core.analysis_queue().clear_finished();

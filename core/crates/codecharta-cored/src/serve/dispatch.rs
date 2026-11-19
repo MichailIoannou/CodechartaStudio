@@ -7,7 +7,7 @@ use codecharta_core_api::error::{ErrorCode, ErrorPayload};
 use codecharta_core_api::events::{CoreProgress, ProgressParams};
 use codecharta_core_api::methods::analysis::{
     AnalysisCancel, AnalysisCancelBatch, AnalysisClearFinished, AnalysisEnqueue,
-    AnalysisEnqueueBatch, AnalysisList, AnalysisPreflight,
+    AnalysisEnqueueBatch, AnalysisList, AnalysisPreflight, AnalysisReadLog,
 };
 use codecharta_core_api::methods::compare::{CompareChangedFiles, CompareResolve};
 use codecharta_core_api::methods::core::{
@@ -266,6 +266,10 @@ const ROUTES: &[Route] = &[
     Route {
         name: AnalysisList::NAME,
         handler: analysis_routes::list,
+    },
+    Route {
+        name: AnalysisReadLog::NAME,
+        handler: analysis_routes::read_log,
     },
     Route {
         name: AnalysisClearFinished::NAME,

@@ -55,6 +55,7 @@
     "analysis.enqueueBatch",
     "analysis.cancelBatch",
     "analysis.list",
+    "analysis.readLog",
     "analysis.clearFinished",
     "git.repositoryInfo",
     "git.status",

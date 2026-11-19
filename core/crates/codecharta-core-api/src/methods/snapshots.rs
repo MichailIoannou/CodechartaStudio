@@ -174,7 +174,7 @@ pub struct MapLocation {
     pub path: String,
 }
 
-/// The captured ccsh output of an analysed snapshot.
+/// The captured ccsh output of an analysed snapshot or of a failed analysis.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapshotLog {

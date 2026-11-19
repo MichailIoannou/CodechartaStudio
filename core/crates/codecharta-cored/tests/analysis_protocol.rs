@@ -205,6 +205,24 @@ fn should_report_a_failed_analysis_and_forget_it_on_clear() {
     assert_eq!(jobs["result"]["jobs"], json!([]));
 }
 
+#[test]
+fn should_read_the_log_of_a_failed_analysis_until_it_is_cleared() {
+    // Arrange
+    let mut core = AnalysisCore::start(&json!({ "exit_code": 1, "stdout": ["Something broke"] }));
+    let (_, notifications) = core.enqueue_head_until("analysis.failed");
+    let job_id = notifications[notifications.len() - 1]["params"]["job"]["id"].clone();
+
+    // Act
+    let log = core.request("analysis.readLog", json!({ "jobId": job_id }));
+    core.request("analysis.clearFinished", json!({}));
+    let cleared = core.request("analysis.readLog", json!({ "jobId": job_id }));
+
+    // Assert
+    let text = log["result"]["log"].as_str().unwrap_or_default();
+    assert!(text.contains("Something broke"), "{log}");
+    assert_eq!(cleared["error"]["data"]["code"], "NOT_FOUND", "{cleared}");
+}
+
 fn last_commits_params(folder: &Value, tip: &str, count: u16, dry_run: bool) -> Value {
     let mut params = folder.clone();
     params["selection"] =
