@@ -66,10 +66,10 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M6 Batches, retention, cleanup | core + UI | core tasks 1, 3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge; design O4 | feature/studio-05-m6 | 9acf7a56b (verified, not merged) |
 | 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
 | 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
-| 06-M1 Compare core: commit vs commit | core + UI | in progress (core tasks 1–3, from feature/studio-05-m6) | UI tasks 4–11: core stack merge | feature/studio-06-m1 | — |
+| 06-M1 Compare core: commit vs commit | core + UI | core tasks 1–3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI tasks 4–11: core stack merge | feature/studio-06-m1 | 698643e98 (verified, not merged) |
 | 06-M2 Entry points | UI | todo | 06-M1 | — | — |
-| 06-M3 Missing snapshots and staleness | core + UI | todo | 06-M1 | — | — |
-| 06-M4 Changed files | core + UI | todo | 06-M3 | — | — |
+| 06-M3 Missing snapshots and staleness | UI (no core tasks) | todo | 06-M1 UI; core stack merge | — | — |
+| 06-M4 Changed files | core + UI | in progress (core task 1, from feature/studio-06-m1) | UI tasks: 06-M3 | feature/studio-06-m4 | — |
 | 06-M5 PRs and merge requests | core + UI | todo | 06-M4 | — | — |
 | 06-M6 Polish and stretch | UI | todo | 06-M5 | — | — |
 
@@ -255,6 +255,10 @@ the milestone is started.
   Batch counts over 200 refused (`BAD_REQUEST`); tags take the newest 200 with `leftOut`; `prune` stops at
   the first failure; `delete` refuses a snapshot being written; `planPrune`/`prune` are per folder. New codes
   `SNAPSHOT_BEING_WRITTEN`, `RECYCLE_FAILED`. **Plan 05's core work is complete** (M1–M3, M5/M6 core halves).
+- 06-M1 core (see `06-m1-compare-core.md` on `feature/studio-06-m1`): types in `methods/compare.rs`; the plan's
+  `SnapshotRef` is `ComparedCommit`; no new git module (reuses plan 04) and one `SideLookup` trait; no new
+  error codes; `staleBy` = `behind + ahead` for every relation; size limits 15 MB warn / 60 MB block are
+  provisional (06-M0 item 4). `Revision` refuses short names, so branches/PRs need their own intent fields.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -286,6 +290,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 06-M1 core verified on a scratch merge (clippy and cargo test with and without features: 789/793, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 06-M3 has no core tasks. 06-M4 core started.
 - 2026-11-19: 06-M0 recorded as blocked (no gh/glab, Windows, needs projects UI); 06-M1 core tasks 1–3 started with provisional size limits.
 - 2026-11-19: 05-M6 core verified on a scratch merge (clippy and cargo test with and without features: 766/770, cargo-deny, contract drift, format, lint, tsc, npm test 663/663); deletion paths read in code. Plan 05 core complete. Design question O4 logged.
 - 2026-11-19: 05-M5 core verified on a scratch merge (clippy and cargo test with and without features: 747/751, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 05-M6 core started.
