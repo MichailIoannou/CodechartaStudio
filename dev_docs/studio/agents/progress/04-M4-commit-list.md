@@ -44,7 +44,7 @@ Parallel work note: 05-M4 (snapshots/analyse UI) and 02-M7 (metrics bar) run at 
 - [x] 2. Graph cell
 - [x] 3. Virtual window
 - [x] 4. Log service
-- [ ] 5. Commit list
+- [x] 5. Commit list
 - [ ] 6. Toolbar filters
 - [ ] 7. Commit details
 
@@ -111,4 +111,37 @@ Environment (2026-11-19): Arch Linux, node 26.13, npm 12.2. Branch `feature/stud
   e-mail (case-insensitive) and paths of seeded `details[sha].files`, `isGraphAvailable` false with a filter;
   `git.commitDetails` answers `details[sha]` or the summary without files, `UNKNOWN_REVISION` otherwise. The body
   stays self-contained (rebuilt-from-source test added). Builder `aLogCommit` in `services/gitApi.mocks.ts`.
+
+### 5. Commit list and rows
+- `components/commitList` (`cc-commit-list`, under the COMMITS header and scope chip): column header (28 px, the H8
+  classes; it sits above the scrolling viewport, so it needs no `sticky`), a `role="listbox"` viewport (`tabindex="0"`,
+  `aria-label` "Commits"; `aria-activedescendant` and the keys come with M5), rows virtualised with `windowOf`
+  (overscan 10; `scrollTop` written once per animation frame; one `ResizeObserver` gives height and width). The next
+  page loads when the window reaches within 100 rows of the end; the last row is `loading loading-dots loading-sm`
+  while a page loads, or "Could not load more commits." + `btn btn-link btn-xs` "Retry" (git's sentence in `title`).
+  First page: 8 skeleton rows; other failures `alert alert-error` with the H6 sentence and "Retry". Empty: "No commits
+  yet." / "No commit matches the filter." + "Clear filters".
+- Columns (CSS grid shared by header and rows): Graph (width of the widest loaded row, `graphWidthFor`, +24 px room
+  when `+n` shows), Commit `minmax(0,1fr)`, Analysis 6.5 rem (only with an `ANALYSED_COMMITS` provider), Author 8 rem,
+  Date 7 rem. No graph column while filtered (H8 "Filtered list").
+- `components/commitRow` (`cc-commit-row`, host is the grid row, `role="option"`): graph cell, subject `min-w-40
+  truncate`, up to 3 ref labels (1 when the pane is narrower than 640 px, measured by the list's `ResizeObserver`
+  rather than a CSS container query) then `badge-ghost` "+n" whose `title` lists every full ref; label classes and
+  icons per H8; Analysis badge `badge badge-soft badge-xs` (`util/analysisBadge.ts`); author `truncate` with
+  "name <e-mail>" title; date relative (`relativeTime`) with the absolute `commitDateTime` title (author date, as the
+  details' author line). Selected `bg-primary/20 font-semibold`, hover `bg-base-200`.
+- Uncommitted changes row: first row, graph cell without a row (dashed circle), "Uncommitted changes (n)" `italic`,
+  no author, no date; selecting it gives the `workingTree` item.
+- **Ports, as built.** `ports/analysedCommits.port.ts` exists now (the list's tests need a fake provider; plan 4.7
+  lists ports under M5). `AnalysedCommitMarker` carries the design's states: `state: "analysed" | "queued" |
+  "running" | "failed"`, `isLoadedInMap`, optional `progressPercent`, `analysedAt`, `note` ("other profile",
+  "imported map, analysis time unknown") and `failureMessage`; the row words them per H8 ("Analysed 3 Nov 14:10 —
+  note", "42 %"). Design gap: a running analysis without a known percentage reads "analysing" (H8's own example row
+  says "analysing 42 %"). Not exported from the facade until 05 provides it (plan 4.2).
+- **Selection, minimal.** `model/commitSelection.ts` (plan types `SelectionItem`, `CommitSelection`) and
+  `services/commitSelection.service.ts` with one item: click selects a commit or the working tree; cleared when the
+  repository changes. M5 adds the second selection, keeping it across refreshes, and the keyboard.
+- Slow first page (H6 inline notice): `TIMEOUT` on page one shows under the toolbar in `cc-git-history-panel` as
+  `alert alert-warning` "The history took too long to load. Running `git commit-graph write --reachable` in the
+  repository makes it faster." with the copy button and "Retry".
 

@@ -1,0 +1,89 @@
+<div
+    class="grid h-7 shrink-0 items-center gap-2 border-b border-base-300 px-2 text-xs uppercase tracking-wide text-base-content/60"
+    [style.grid-template-columns]="gridTemplate()"
+    data-testid="commit-list-header"
+>
+    @if (isGraphShown()) {
+        <span>Graph</span>
+    }
+    <span>Commit</span>
+    @if (isAnalysisShown) {
+        <span>Analysis</span>
+    }
+    <span>Author</span>
+    <span class="text-right">Date</span>
+</div>
+@if (isLoadingFirstPage()) {
+    <div class="flex flex-col" data-testid="commit-list-skeleton">
+        @for (row of skeletonRows; track row) {
+            <div class="flex h-7 items-center px-2"><div class="skeleton h-4 w-full"></div></div>
+        }
+    </div>
+} @else if (firstPageFailure(); as sentence) {
+    <div role="alert" class="alert alert-error m-2 flex px-2 py-1 text-xs" data-testid="commit-list-failure">
+        <span class="flex-1">{{ sentence }}</span>
+        <button type="button" class="btn btn-ghost btn-xs" (click)="retryPage()">Retry</button>
+    </div>
+} @else if (emptyState() === "noCommits") {
+    <p class="p-4 text-sm text-base-content/60" data-testid="commit-list-empty">No commits yet.</p>
+} @else if (emptyState() === "noMatch") {
+    <div class="flex items-center gap-2 p-4 text-sm text-base-content/60" data-testid="commit-list-empty">
+        <span>No commit matches the filter.</span>
+        <button type="button" class="btn btn-ghost btn-xs" (click)="clearFilters()">Clear filters</button>
+    </div>
+}
+<div
+    #viewport
+    role="listbox"
+    tabindex="0"
+    aria-label="Commits"
+    class="min-h-0 flex-1 overflow-auto outline-none"
+    data-testid="commit-list"
+    (scroll)="onScroll()"
+>
+    <div class="relative" [style.height.px]="window().totalHeight">
+        <div class="absolute inset-x-0" [style.top.px]="window().offsetTop">
+            @for (item of visibleItems(); track item.key) {
+                @switch (item.kind) {
+                    @case ("workingTree") {
+                        <div
+                            role="option"
+                            class="grid h-7 cursor-pointer select-none items-center gap-2 whitespace-nowrap px-2 text-sm hover:bg-base-200"
+                            [class]="workingTreeRowClass(item.isSelected)"
+                            [style.grid-template-columns]="gridTemplate()"
+                            [attr.aria-selected]="item.isSelected"
+                            data-testid="commit-row-working-tree"
+                            (click)="selectWorkingTree()"
+                        >
+                            @if (isGraphShown()) {
+                                <cc-commit-graph-cell />
+                            }
+                            <span class="truncate italic">Uncommitted changes ({{ item.count }})</span>
+                        </div>
+                    }
+                    @case ("commit") {
+                        <cc-commit-row
+                            [view]="item.view"
+                            [gridTemplate]="gridTemplate()"
+                            [isAnalysisShown]="isAnalysisShown"
+                            [labelLimit]="labelLimit()"
+                            [nowMs]="nowMs()"
+                            (click)="selectCommit(item.view.commit)"
+                        />
+                    }
+                    @case ("loadingMore") {
+                        <div class="flex h-7 items-center px-2" data-testid="commit-list-loading-more">
+                            <span class="loading loading-dots loading-sm"></span>
+                        </div>
+                    }
+                    @case ("loadMoreFailed") {
+                        <div class="flex h-7 items-center gap-2 px-2 text-sm" data-testid="commit-list-load-more-failed">
+                            <span [title]="item.sentence">Could not load more commits.</span>
+                            <button type="button" class="btn btn-link btn-xs" (click)="retryPage()">Retry</button>
+                        </div>
+                    }
+                }
+            }
+        </div>
+    </div>
+</div>

@@ -10,6 +10,25 @@
             </button>
         </div>
     }
+    @if (isSlowHistoryNoticeShown()) {
+        <div role="alert" class="alert alert-warning mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="history-slow-notice">
+            <span class="flex-1"
+                >The history took too long to load. Running <code class="font-mono">{{ commitGraphCommand }}</code> in the repository makes it
+                faster.</span
+            >
+            <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-square"
+                title="Copy command"
+                aria-label="Copy command"
+                data-testid="history-slow-copy-command"
+                (click)="copyCommitGraphCommand()"
+            >
+                <i [class]="clipboard.copied() ? 'fa-solid fa-check' : 'fa-regular fa-copy'"></i>
+            </button>
+            <button type="button" class="btn btn-ghost btn-xs" (click)="retryHistory()">Retry</button>
+        </div>
+    }
     <div class="flex min-h-0 flex-1 gap-1.5 bg-base-200 p-1.5">
         @if (layout.isBranchesCollapsed()) {
             <section class="flex w-10 shrink-0 flex-col items-center rounded-[10px] bg-base-100 py-1" aria-label="Branches">
@@ -58,6 +77,7 @@
                 <span class="text-xs font-semibold uppercase tracking-wide">Commits</span>
                 <cc-commit-scope-chip />
             </div>
+            <cc-commit-list />
         </section>
         @if (layout.isDetailsCollapsed()) {
             <section class="flex w-10 shrink-0 flex-col items-center rounded-[10px] bg-base-100 py-1" aria-label="Details">
