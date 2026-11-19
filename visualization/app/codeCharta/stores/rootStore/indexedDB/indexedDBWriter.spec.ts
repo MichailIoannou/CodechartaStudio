@@ -13,6 +13,7 @@ import {
     DB_NAME,
     DB_VERSION,
     deleteCcState,
+    isFilesWriteDue,
     readCcState,
     SCENARIOS_STORE_NAME,
     writeCcFiles,
@@ -470,6 +471,61 @@ describe("IndexedDBWriter", () => {
             putSpy.mockRestore()
             const restored = await readCcState()
             expect(restored.files[0].file.fileMeta.fileName).toBe("second.cc.json")
+        })
+    })
+
+    describe("project maps", () => {
+        const projectSnapshot = { projectId: "p-1", folderId: "f-1", snapshotId: "s-1", folderLabel: "billing" }
+        const projectMap = () => ({ file: { fileMeta: { fileName: "billing@abc1234", projectSnapshot } }, selectedAs: "Partial" }) as never
+        const uploadedMap = () => ({ file: { fileMeta: { fileName: "uploaded.cc.json" } }, selectedAs: "Partial" }) as never
+
+        it("should not persist a project map", async () => {
+            // Arrange
+            await deleteCcState()
+
+            // Act
+            await writeCcState({ ...defaultState, files: [projectMap()] })
+
+            // Assert
+            const restored = await readCcState()
+            expect(restored.files).toEqual([])
+        })
+
+        it("should persist an uploaded map beside a project map", async () => {
+            // Arrange
+            await stubWriteCcState()
+            const uploaded = uploadedMap()
+
+            // Act
+            await writeCcFiles([projectMap(), uploaded])
+
+            // Assert
+            const restored = await readCcState()
+            expect(restored.files).toEqual([uploaded])
+        })
+
+        it("should not be due when only project maps are loaded and nothing is persisted", async () => {
+            // Arrange
+            await deleteCcState()
+
+            // Act
+            const isDue = isFilesWriteDue([projectMap()])
+
+            // Assert
+            expect(isDue).toBe(false)
+        })
+
+        it("should clear maps persisted before when a project map replaces them", async () => {
+            // Arrange
+            await stubWriteCcState()
+            await writeCcFiles([uploadedMap()])
+
+            // Act
+            await writeCcFiles([projectMap()])
+
+            // Assert
+            const restored = await readCcState()
+            expect(restored.files).toEqual([])
         })
     })
 

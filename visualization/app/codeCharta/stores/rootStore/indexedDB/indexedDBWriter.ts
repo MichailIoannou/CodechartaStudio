@@ -23,9 +23,11 @@ export async function writeCcState(state: CcState) {
     // before their own record exists would lose them. `getKey` checks that without reading them back.
     const writesTheFilesRecordToo = (await tx.store.getKey(CCSTATE_FILES_ID)) === undefined
 
+    const files = persistableFiles(state.files)
+
     await whileCopyingTheLoadedMaps(writesTheFilesRecordToo, async () => {
         if (writesTheFilesRecordToo) {
-            await tx.store.put({ [CCSTATE_PRIMARY_KEY]: CCSTATE_FILES_ID, files: state.files })
+            await tx.store.put({ [CCSTATE_PRIMARY_KEY]: CCSTATE_FILES_ID, files })
         }
         await tx.store.put({
             [CCSTATE_PRIMARY_KEY]: CCSTATE_STATE_ID,
@@ -34,7 +36,7 @@ export async function writeCcState(state: CcState) {
         await tx.done
         // Only once committed: a cache claiming unwritten files would make every later save skip them.
         if (writesTheFilesRecordToo) {
-            persistedFiles = state.files
+            persistedFiles = files
         }
     })
 }
@@ -67,14 +69,28 @@ function holdsThePersistedFileStates(files: FileState[]): boolean {
     return files.every(file => persisted.includes(file))
 }
 
-export function isFilesWriteDue(files: FileState[]): boolean {
-    return !holdsThePersistedFileStates(files)
+/** Project maps are re-read from the project store on every start, so the session never holds them. */
+function persistableFiles(files: FileState[]): FileState[] {
+    return files.filter(fileState => !fileState.file?.fileMeta?.projectSnapshot)
 }
 
-export async function writeCcFiles(files: FileState[]) {
-    if (!isFilesWriteDue(files)) {
+function holdsOnlyProjectMapsAndNothingIsPersisted(files: FileState[], persistable: FileState[]): boolean {
+    return files.length > 0 && persistable.length === 0 && (persistedFiles ?? []).length === 0
+}
+
+export function isFilesWriteDue(files: FileState[]): boolean {
+    const persistable = persistableFiles(files)
+    if (holdsOnlyProjectMapsAndNothingIsPersisted(files, persistable)) {
+        return false
+    }
+    return !holdsThePersistedFileStates(persistable)
+}
+
+export async function writeCcFiles(loadedFiles: FileState[]) {
+    if (!isFilesWriteDue(loadedFiles)) {
         return
     }
+    const files = persistableFiles(loadedFiles)
     const database = await openCodeChartaDB()
     const tx = database.transaction(CCSTATE_STORE_NAME, "readwrite", { durability: "strict" })
     await whileCopyingTheLoadedMaps(true, async () => {

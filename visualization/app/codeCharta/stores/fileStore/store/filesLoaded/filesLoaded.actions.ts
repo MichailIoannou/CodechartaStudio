@@ -2,7 +2,7 @@ import { createAction, props } from "@ngrx/store"
 import { DependencyLensSource, DomainLensSource, MetricsLensSource, SharedView } from "../../../../model/codeCharta.model"
 import { UrlMetricSelection } from "../../../../util/queryParameter/queryParameter"
 
-export type FilesLoadedSource = "url" | "indexedDB" | "sample" | "upload" | "reset"
+export type FilesLoadedSource = "url" | "indexedDB" | "sample" | "upload" | "reset" | "project"
 
 /**
  * The view slices of a restored session. They must beat the values derived from the files themselves:
