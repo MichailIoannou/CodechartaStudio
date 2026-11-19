@@ -289,6 +289,8 @@ Errors block, warnings are shown and do not block.
 | free space on the store < max(200 MiB, 3 × largest snapshot of the folder) | `disk-full` | error |
 | commit target: free space in the temp dir < 1 GiB | `low-disk-space` | warning |
 
+As built (05-M3): `run_preflight(&PreflightContext { tools, git, disk, places: &DiskPlaces { store, temp } }, &PreflightSubject { folder: &GitFolder, kind, profile, target, largest_snapshot_bytes }) -> PreflightResult`; `SystemDiskSpace` uses `fs4::available_space`. Codes are SCREAMING_SNAKE_CASE like every built code: a blocking problem carries its `AnalysisErrorCode`, a warning a `WarningCode` (`NOT_REPO_ROOT`, `SHALLOW_CLONE`, `LOW_DISK_SPACE`); `ProblemCode` is the untagged union of both. A git folder that is no repository is `NOT_A_REPOSITORY` for a working-tree target too (the run would fail with it); a commit target in a plain folder is `NOT_A_REPOSITORY`. Unreadable free space does not block.
+
 ### Failure classification
 
 `classify_failure`, first match wins:

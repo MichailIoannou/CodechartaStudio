@@ -86,6 +86,76 @@ impl JobError {
     }
 }
 
+/// A finding of the preflight that does not block the analysis. Append-only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum WarningCode {
+    NotRepoRoot,
+    ShallowClone,
+    LowDiskSpace,
+}
+
+/// A blocking problem uses the job error the run would end with; a warning has its own codes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(untagged)]
+pub enum ProblemCode {
+    Error(AnalysisErrorCode),
+    Warning(WarningCode),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum Severity {
+    Error,
+    Warning,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct PreflightProblem {
+    pub code: ProblemCode,
+    pub severity: Severity,
+    pub message: String,
+    pub hint: Option<String>,
+}
+
+impl PreflightProblem {
+    pub fn error(error: JobError) -> Self {
+        Self {
+            code: ProblemCode::Error(error.code),
+            severity: Severity::Error,
+            message: error.message,
+            hint: error.hint,
+        }
+    }
+
+    pub fn warning(code: WarningCode, message: impl Into<String>) -> Self {
+        Self {
+            code: ProblemCode::Warning(code),
+            severity: Severity::Warning,
+            message: message.into(),
+            hint: None,
+        }
+    }
+}
+
+/// `ok` is false when any problem is an error; warnings are shown and do not block.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct PreflightResult {
+    pub ok: bool,
+    pub problems: Vec<PreflightProblem>,
+}
+
+impl PreflightResult {
+    pub fn of(problems: Vec<PreflightProblem>) -> Self {
+        let ok = problems
+            .iter()
+            .all(|problem| problem.severity == Severity::Warning);
+        Self { ok, problems }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,6 +239,29 @@ mod tests {
         assert_eq!(
             written,
             json!({ "code": "UNKNOWN_COMMIT", "message": "No commit found for x", "hint": "Fetch the commit." })
+        );
+    }
+
+    #[test]
+    fn should_write_problem_codes_as_plain_strings_and_block_only_on_errors() {
+        // Arrange
+        let warning = PreflightProblem::warning(WarningCode::ShallowClone, "shallow");
+        let error = PreflightProblem::error(JobError::new(AnalysisErrorCode::DiskFull, "full"));
+
+        // Act
+        let warned = PreflightResult::of(vec![warning.clone()]);
+        let blocked = PreflightResult::of(vec![warning, error]);
+        let written = serde_json::to_value(&blocked).unwrap();
+
+        // Assert
+        assert!(warned.ok);
+        assert!(!blocked.ok);
+        assert_eq!(
+            written,
+            json!({ "ok": false, "problems": [
+                { "code": "SHALLOW_CLONE", "severity": "warning", "message": "shallow", "hint": null },
+                { "code": "DISK_FULL", "severity": "error", "message": "full", "hint": null }
+            ] })
         );
     }
 }
