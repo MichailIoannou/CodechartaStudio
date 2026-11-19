@@ -192,12 +192,53 @@ impl<'deps> SnapshotRepository<'deps> {
         staged: StagedSnapshot,
         record: SnapshotRecord,
     ) -> CoreResult<SnapshotSummary> {
+        self.commit_staged(staged, record, Placement::New).await
+    }
+
+    /// Like `commit_snapshot`, but a snapshot with the same id is moved aside first and deleted once the
+    /// new one is in place; a crash in between is repaired when the store opens.
+    pub async fn commit_snapshot_replacing(
+        &self,
+        staged: StagedSnapshot,
+        record: SnapshotRecord,
+    ) -> CoreResult<SnapshotSummary> {
+        self.commit_staged(staged, record, Placement::Replace).await
+    }
+
+    pub fn read(&self, snapshot: &SnapshotRef) -> CoreResult<SnapshotRecord> {
+        self.record(snapshot)
+    }
+
+    /// The captured ccsh output of an analysed snapshot; `NOT_FOUND` for one without (an import).
+    pub fn read_log(&self, snapshot: &SnapshotRef) -> CoreResult<String> {
+        self.record(snapshot)?;
+        let snapshot_dir = self.store.paths().snapshot_dir(
+            &snapshot.project_id,
+            &snapshot.folder_id,
+            &snapshot.snapshot_id,
+        )?;
+        let log_file = snapshot_dir.join(RUN_LOG_FILE_NAME);
+        fs::read_to_string(&log_file).map_err(|source| match source.kind() {
+            io::ErrorKind::NotFound => CoreError::NotFound(format!(
+                "The snapshot {} has no analysis log.",
+                snapshot.snapshot_id
+            )),
+            _ => io_error("read", &log_file, source),
+        })
+    }
+
+    async fn commit_staged(
+        &self,
+        staged: StagedSnapshot,
+        record: SnapshotRecord,
+        placement: Placement,
+    ) -> CoreResult<SnapshotSummary> {
         let _guard = self
             .store
             .project_locks()
             .lock(&staged.folder.project_id)
             .await;
-        let committed = self.move_into_place(&staged, &record);
+        let committed = self.move_into_place(&staged, &record, placement);
         if committed.is_err() {
             discard_staging(&staged.directory);
         }
@@ -209,7 +250,12 @@ impl<'deps> SnapshotRepository<'deps> {
             .map_err(|source| io_error("remove", &staged.directory, source))
     }
 
-    fn move_into_place(&self, staged: &StagedSnapshot, record: &SnapshotRecord) -> CoreResult<()> {
+    fn move_into_place(
+        &self,
+        staged: &StagedSnapshot,
+        record: &SnapshotRecord,
+        placement: Placement,
+    ) -> CoreResult<()> {
         ensure_record_matches(staged, record)?;
         self.ensure_folder_exists(&staged.folder)?;
         if !staged.map_file().is_file() {
@@ -221,11 +267,34 @@ impl<'deps> SnapshotRepository<'deps> {
             self.store
                 .paths()
                 .snapshot_dir(&record.project_id, &record.folder_id, &record.id)?;
-        if target.exists() {
+        let is_replacing = target.exists();
+        if is_replacing && placement == Placement::New {
             return Err(snapshot_exists(&record.id));
         }
         write_json_atomic(&staged.directory.join(SNAPSHOT_FILE_NAME), record)?;
+        if is_replacing {
+            return self.swap_in(&staged.directory, &target, &staged.folder);
+        }
         fs::rename(&staged.directory, &target).map_err(|source| io_error("store", &target, source))
+    }
+
+    fn swap_in(&self, staged: &Path, target: &Path, folder: &FolderRef) -> CoreResult<()> {
+        let replaced = self.store.paths().replaced_dir(
+            &folder.project_id,
+            &folder.folder_id,
+            &new_staging_suffix()?,
+        )?;
+        fs::rename(target, &replaced).map_err(|source| io_error("move aside", target, source))?;
+        if let Err(source) = fs::rename(staged, target) {
+            if let Err(error) = fs::rename(&replaced, target) {
+                tracing::warn!("could not restore {}: {error}", target.display());
+            }
+            return Err(io_error("store", target, source));
+        }
+        if let Err(error) = delete_permanently(&replaced) {
+            tracing::warn!("the replaced snapshot stays until the next start: {error}");
+        }
+        Ok(())
     }
 
     pub(crate) fn record(&self, snapshot: &SnapshotRef) -> CoreResult<SnapshotRecord> {
@@ -283,6 +352,12 @@ impl<'deps> SnapshotRepository<'deps> {
             && record.project_id == folder.project_id;
         is_in_place.then_some(record)
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Placement {
+    New,
+    Replace,
 }
 
 pub(crate) fn forget_shown(record: &mut ProjectRecord, folder: &FolderId, snapshot: &SnapshotId) {

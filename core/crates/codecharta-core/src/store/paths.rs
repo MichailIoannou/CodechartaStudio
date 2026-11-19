@@ -14,6 +14,10 @@ pub const SNAPSHOT_FILE_NAME: &str = "snapshot.json";
 pub const MAP_FILE_NAME: &str = "map.cc.json.gz";
 pub const RUN_LOG_FILE_NAME: &str = "run.log";
 pub const STAGING_FOLDER_PREFIX: &str = ".incoming-";
+/// The snapshot a replacing commit moved aside; deleted once the new one is in place.
+pub const REPLACED_FOLDER_PREFIX: &str = ".replaced-";
+/// The staging directory of a failed analysis, kept for its `run.log` until the next start.
+pub const FAILED_FOLDER_PREFIX: &str = ".failed-";
 
 /// The only place that builds paths inside the store.
 #[derive(Debug, Clone)]
@@ -104,8 +108,32 @@ impl StorePaths {
         folder: &FolderId,
         suffix: &str,
     ) -> CoreResult<PathBuf> {
+        self.hidden_dir(project, folder, &format!("{STAGING_FOLDER_PREFIX}{suffix}"))
+    }
+
+    /// Where a replacing commit moves the old snapshot; `suffix` is generated.
+    pub fn replaced_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        suffix: &str,
+    ) -> CoreResult<PathBuf> {
+        self.hidden_dir(
+            project,
+            folder,
+            &format!("{REPLACED_FOLDER_PREFIX}{suffix}"),
+        )
+    }
+
+    /// `name` starts with a dot, so it is never a snapshot id.
+    fn hidden_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        name: &str,
+    ) -> CoreResult<PathBuf> {
         let folder_dir = self.folder_snapshots_dir(project, folder)?;
-        self.inside_root(folder_dir.join(format!("{STAGING_FOLDER_PREFIX}{suffix}")))
+        self.inside_root(folder_dir.join(name))
     }
 
     fn inside_root(&self, candidate: PathBuf) -> CoreResult<PathBuf> {

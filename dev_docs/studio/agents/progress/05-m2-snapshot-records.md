@@ -35,7 +35,7 @@ here: hosting is tested with a fake runner only. Gates with and without `--all-f
 - [x] 1. Map head
 - [x] 2. Git state
 - [x] 3. Hosting
-- [ ] 4. Repository
+- [x] 4. Repository
 - [ ] 5. Janitor
 - [ ] 6. Service
 
@@ -89,3 +89,28 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
   `tokio::time::timeout` around the call, besides the runner's timeout) → the provider and repository from the url
   with an empty list, never an error. State lower-cased (`OPEN` → `open`, gitlab's `opened` stays).
 - Extra test: `should_map_glab_output_to_merge_requests`.
+
+### 4. Repository
+- **Reconciliation:** 03-M3's `SnapshotRepository` already lists (newest first by `createdAt`), skips directories
+  whose name is not a snapshot id or whose record is unreadable / misplaced / newer, stages and commits atomically,
+  and finds snapshots by commit. M2 extends it rather than adding the plan's second repository: `read` (public
+  wrapper of the existing `record`), `read_log` (`NOT_FOUND` for a snapshot without `run.log`, i.e. an import), and
+  `commit_snapshot_replacing` beside `commit_snapshot` (shared `commit_staged` with a private `Placement`). Replacing
+  moves the old directory to `.replaced-<8hex>`, renames the staged one in (restoring the old one if that fails)
+  and deletes the old one; `store/sweep.rs` repairs a crash in between at the next writable open (the old one comes
+  back when its id is missing, else it is deleted) and also deletes `.failed-*` directories (the kept logs of failed
+  runs, task 6). New `StorePaths::replaced_dir`, constants `REPLACED_FOLDER_PREFIX`, `FAILED_FOLDER_PREFIX`; per-folder
+  caching (plan) was not added: 03-M3's lister reads the records each time and nothing measured it as slow.
+- **Snapshot ids (overview section 7):** api `SnapshotId` now also accepts `worktree-<8 digits>T<9 digits>Z-<8 hex>`
+  (`ids::WORKING_TREE_SNAPSHOT_PREFIX`); any id with that prefix must match exactly, so a lower-case look-alike is
+  refused and no two ids differ in case alone (Windows). Everything else still has to be a store id (lowercase,
+  digits, dashes, ≤ 96), so `:`, `.`, `/` never get in. Core `ids::commit_snapshot_id(&FullCommit, hash)` and
+  `ids::working_tree_snapshot_id(SystemTime, hash)` (from `humantime::format_rfc3339_millis`, punctuation dropped).
+- Record: `AnalysisRecord.target: Option<TargetKind>` and `reused_from: Option<SnapshotId>` (skipped when `None`)
+  — the plan's optional fields; `GitRecord.tree` came with task 2.
+- **Contract change:** `SnapshotSummary` gained `target: TargetKind | null`, `finishedAt`, `durationMs` (null for
+  imports: analysis time unknown) and `notInMap` (the plan's `SnapshotEntry` fields; "list an imported record with no
+  analysis time, duration or profile hash" needs them on the list). Regenerated: `SnapshotSummary.ts`, new
+  `TargetKind.ts`. Only generated files reference `SnapshotSummary` in `visualization/`.
+- Tests: the plan's eight names in `tests/snapshots.rs`; api `should_accept_a_working_tree_snapshot_id_and_nothing_like_it`;
+  store `should_restore_or_drop_a_replaced_snapshot_and_drop_failed_runs_on_open`.

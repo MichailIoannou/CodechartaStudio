@@ -2,10 +2,12 @@
 import type { FullCommit } from "./FullCommit"
 import type { SnapshotRef } from "./SnapshotRef"
 import type { SnapshotSource } from "./SnapshotSource"
+import type { TargetKind } from "./TargetKind"
 
 /**
  * One snapshot as lists show it. An imported map has no analysis time: `createdAt` is when it entered
- * the store and `fileModifiedAt` only a hint.
+ * the store, `fileModifiedAt` only a hint, and `finishedAt`, `durationMs`, `profileHash` and `target`
+ * are null.
  */
 export type SnapshotSummary = {
     ref: SnapshotRef
@@ -21,4 +23,8 @@ export type SnapshotSummary = {
     mapBytes: number
     checksum: string | null
     profileHash: string | null
+    target: TargetKind | null
+    finishedAt: string | null
+    durationMs: number | null
+    notInMap: Array<string>
 }

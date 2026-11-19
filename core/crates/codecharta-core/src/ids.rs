@@ -1,6 +1,7 @@
 use std::fmt::Write;
+use std::time::SystemTime;
 
-use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
+use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId, WORKING_TREE_SNAPSHOT_PREFIX};
 use codecharta_core_api::secret::Secret;
 use codecharta_core_api::values::{FullCommit, PICK_TOKEN_LENGTH, PickToken, PromptId};
 
@@ -76,6 +77,28 @@ pub fn imported_snapshot_id(
         Some(commit) => format!("{commit}-{IMPORTED_MARKER}-{hash_prefix}"),
         None => format!("{IMPORTED_MARKER}-{hash_prefix}"),
     };
+    SnapshotId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
+}
+
+/// `<fullSha>-<profileHash>`: one snapshot per commit and profile.
+pub fn commit_snapshot_id(commit: &FullCommit, profile_hash: &str) -> CoreResult<SnapshotId> {
+    snapshot_id(format!("{commit}-{profile_hash}"))
+}
+
+/// `worktree-<YYYYMMDD>T<HHmmssSSS>Z-<profileHash>` in UTC: no `:` or `.`, which Windows file names do not
+/// allow or trim.
+pub fn working_tree_snapshot_id(at: SystemTime, profile_hash: &str) -> CoreResult<SnapshotId> {
+    let compact: String = humantime::format_rfc3339_millis(at)
+        .to_string()
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .collect();
+    snapshot_id(format!(
+        "{WORKING_TREE_SNAPSHOT_PREFIX}{compact}-{profile_hash}"
+    ))
+}
+
+fn snapshot_id(id: String) -> CoreResult<SnapshotId> {
     SnapshotId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
 }
 

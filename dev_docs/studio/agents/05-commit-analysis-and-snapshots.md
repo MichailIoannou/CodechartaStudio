@@ -359,6 +359,8 @@ impl SnapshotRepository {
 }
 ```
 
+As built (05-M2), plan 03's `SnapshotRepository` was extended instead: `list` / `find_by_commit` answer `SnapshotSummary` (the plan's `SnapshotEntry`: plan 03's summary plus `target`, `finishedAt`, `durationMs`, `notInMap`; `checksum` is the map checksum), `read`, `read_log`, `map_location`, `begin_snapshot` + `commit_snapshot` / `commit_snapshot_replacing` (instead of `commit_new(…, replace)`), `delete(ref, permanently)`. Ids come from `ids::commit_snapshot_id` / `ids::working_tree_snapshot_id`.
+
 Snapshot ids: commit target `<fullSha>-<profileHash>`; working-tree and non-git targets `worktree-<YYYYMMDD>T<HHmmssSSS>Z-<profileHash>` in UTC (no `:`, which is illegal in Windows file names). `list` ignores folders whose name starts with `.` and folders without a readable `snapshot.json` with `schemaVersion == 1`; imported records are read too and map to a `SnapshotEntry` with `finished_at`, `duration_ms` and `profile_hash` `None` and `created_at` = `imported.at`. If plan 03 already ships a lister, extend it instead of writing a second one (record the choice in Notes). Results are cached per folder and invalidated on write/delete.
 
 Target kinds:

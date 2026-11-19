@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::ids::{FolderId, ProjectId, SnapshotId};
+use crate::methods::analysis::TargetKind;
 use crate::methods::projects::{FolderGitFacts, FolderKind, FolderRef, Project, ResolvedCommit};
 use crate::registry::method;
 use crate::values::{CommitHash, FullCommit, MapChecksum, PickToken, ProjectName, RootName};
@@ -22,7 +23,8 @@ pub struct SnapshotRef {
 }
 
 /// One snapshot as lists show it. An imported map has no analysis time: `createdAt` is when it entered
-/// the store and `fileModifiedAt` only a hint.
+/// the store, `fileModifiedAt` only a hint, and `finishedAt`, `durationMs`, `profileHash` and `target`
+/// are null.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapshotSummary {
@@ -40,6 +42,10 @@ pub struct SnapshotSummary {
     pub map_bytes: u64,
     pub checksum: Option<String>,
     pub profile_hash: Option<String>,
+    pub target: Option<TargetKind>,
+    pub finished_at: Option<String>,
+    pub duration_ms: Option<u64>,
+    pub not_in_map: Vec<String>,
 }
 
 /// The commit a file name starts with, the way `ccsh analyse --commit` names its output.
@@ -245,6 +251,10 @@ mod tests {
             map_bytes: 1,
             checksum: None,
             profile_hash: None,
+            target: None,
+            finished_at: None,
+            duration_ms: None,
+            not_in_map: Vec::new(),
         };
 
         // Act
