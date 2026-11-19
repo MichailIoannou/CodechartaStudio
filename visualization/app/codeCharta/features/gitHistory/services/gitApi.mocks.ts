@@ -1,5 +1,6 @@
 import type { ErrorCode } from "../../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../../model/coreApi/ErrorPayload"
+import type { GitCommitSummary } from "../../../model/coreApi/GitCommitSummary"
 import type { GitLocalBranch } from "../../../model/coreApi/GitLocalBranch"
 import type { GitRefs } from "../../../model/coreApi/GitRefs"
 import type { GitRemoteBranch } from "../../../model/coreApi/GitRemoteBranch"
@@ -82,4 +83,23 @@ export function aRefs(overrides: Partial<GitRefs> = {}): GitRefs {
 
 export function anErrorPayload(code: ErrorCode, message = "Git said no.", details: ErrorPayload["details"] = {}): ErrorPayload {
     return { code, message, details }
+}
+
+/** A commit whose SHA and parents are their seeds repeated to 40 characters. */
+export function aLogCommit(
+    seed: string,
+    subject: string,
+    parentSeeds: string[] = [],
+    overrides: Partial<GitCommitSummary> = {}
+): GitCommitSummary {
+    return {
+        sha: shaOf(seed),
+        parents: parentSeeds.map(shaOf),
+        authorName: "Mia Chen",
+        authorEmail: "mia@example.com",
+        authoredAt: LAST_COMMIT.committedAt,
+        committedAt: LAST_COMMIT.committedAt,
+        subject,
+        ...overrides
+    }
 }

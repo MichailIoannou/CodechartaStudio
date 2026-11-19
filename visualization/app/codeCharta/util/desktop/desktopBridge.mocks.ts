@@ -4,7 +4,9 @@ import type { ErrorCode } from "../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
 import type { FolderRef } from "../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../model/coreApi/FolderRole"
+import type { GitCommitDetails } from "../../model/coreApi/GitCommitDetails"
 import type { GitCommitSummary } from "../../model/coreApi/GitCommitSummary"
+import type { GitLogParams } from "../../model/coreApi/GitLogParams"
 import type { GitRefs } from "../../model/coreApi/GitRefs"
 import type { GitRepositoryInfo } from "../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../model/coreApi/GitStatus"
@@ -32,14 +34,24 @@ type FakeAnswerKey =
     | "setColorScheme"
     | "restartCore"
 
-type FakeGitMethod = "git.repositoryInfo" | "git.status" | "git.branches" | "git.refsFingerprint" | "git.log"
+type FakeGitMethod =
+    | "git.repositoryInfo"
+    | "git.status"
+    | "git.branches"
+    | "git.refsFingerprint"
+    | "git.log"
+    | "git.commitDetails"
+    | "git.resolveCommit"
 
 /** What the fake answers for one folder; a method without a value fails with `NOT_A_REPOSITORY`. */
 interface FakeGitRepository {
     info?: GitRepositoryInfo
     status?: GitStatus
     refs?: GitRefs
+    /** Children before parents; `git.log` pages them 500 at a time. */
     commits?: GitCommitSummary[]
+    /** By SHA; a listed commit without details answers its summary with no files. */
+    details?: Record<string, GitCommitDetails>
     failures?: Partial<Record<FakeGitMethod, ErrorPayload>>
 }
 
@@ -102,6 +114,11 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     offset?: number
     length?: number
     repo?: FolderRef
+    sha?: string
+    revision?: string
+    scope?: GitLogParams["scope"]
+    filter?: GitLogParams["filter"]
+    cursor?: string | null
 }
 
 type FakeAnswer = { ok: true; value: unknown } | { ok: false; error: ErrorPayload }
@@ -556,7 +573,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return succeed({ totalBytes: folders.reduce((total, folder) => total + folder.bytes, 0), folders })
     }
 
-    function gitAnswer(method: FakeGitMethod, read: (repository: FakeGitRepository) => unknown) {
+    function gitAnswer(method: FakeGitMethod, read: (repository: FakeGitRepository, params: FakeRequestParams) => unknown) {
         return (params: FakeRequestParams): FakeAnswer => {
             const folderId = params.repo?.folderId ?? ""
             const repository = Object.hasOwn(store.git, folderId) ? store.git[folderId] : undefined
@@ -564,15 +581,82 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
             if (failure) {
                 return { ok: false, error: failure }
             }
-            const value = repository ? read(repository) : undefined
+            const value = repository ? read(repository, params) : undefined
+            if (value && typeof value === "object" && "code" in value) {
+                return { ok: false, error: value as ErrorPayload }
+            }
             return value === undefined
                 ? refuse("NOT_A_REPOSITORY", `The fake desktop bridge has no repository for ${folderId}.`)
                 : succeed(JSON.parse(JSON.stringify(value)))
         }
     }
 
-    function gitLogPage(repository: FakeGitRepository) {
-        return repository.commits && { commits: repository.commits, nextCursor: null, isGraphAvailable: true }
+    function reachableCommits(commits: GitCommitSummary[], tips: string[]) {
+        const parentsBySha = new Map(commits.map(commit => [commit.sha, commit.parents]))
+        const reached = new Set<string>()
+        const waiting = [...tips]
+        while (waiting.length > 0) {
+            const sha = waiting.pop() as string
+            if (!reached.has(sha) && parentsBySha.has(sha)) {
+                reached.add(sha)
+                waiting.push(...(parentsBySha.get(sha) ?? []))
+            }
+        }
+        return commits.filter(commit => reached.has(commit.sha))
+    }
+
+    function scopedCommits(repository: FakeGitRepository, scope: FakeRequestParams["scope"]) {
+        const commits = repository.commits ?? []
+        if (!scope || scope.kind !== "refs") {
+            return commits
+        }
+        const refs = repository.refs
+        const tips = [...(refs?.localBranches ?? []), ...(refs?.remoteBranches ?? []), ...(refs?.tags ?? [])]
+            .filter(ref => scope.refNames.includes(ref.refName))
+            .map(ref => ref.commit)
+        return reachableCommits(commits, tips)
+    }
+
+    function matchesLogFilter(repository: FakeGitRepository, commit: GitCommitSummary, filter: FakeRequestParams["filter"]) {
+        const contains = (text: string, part: string | null | undefined) => !part || text.toLowerCase().includes(part.toLowerCase())
+        const files = repository.details?.[commit.sha]?.files ?? []
+        const isPathMatched = !filter?.path || files.some(file => file.path === filter.path || file.path.startsWith(`${filter.path}/`))
+        return (
+            contains(`${commit.subject} ${commit.sha}`, filter?.text) &&
+            contains(`${commit.authorName} ${commit.authorEmail}`, filter?.author) &&
+            isPathMatched
+        )
+    }
+
+    function gitLogPage(repository: FakeGitRepository, params: FakeRequestParams) {
+        if (!repository.commits) {
+            return undefined
+        }
+        const pageSize = 500
+        const offset = params.cursor ? Number(params.cursor.replace("page-", "")) : 0
+        if (Number.isNaN(offset)) {
+            return { code: "LOG_SESSION_EXPIRED", message: "The fake desktop bridge has no such log session.", details: {} }
+        }
+        const filter = params.filter
+        const isFiltered = Boolean(filter?.text || filter?.author || filter?.path)
+        const matching = scopedCommits(repository, params.scope).filter(commit => matchesLogFilter(repository, commit, filter))
+        const commits = matching.slice(offset, offset + pageSize)
+        const nextCursor = offset + pageSize < matching.length ? `page-${offset + pageSize}` : null
+        return { commits, nextCursor, isGraphAvailable: !isFiltered }
+    }
+
+    function gitCommitDetails(repository: FakeGitRepository, params: FakeRequestParams) {
+        const sha = params.sha ?? ""
+        const summary = repository.commits?.find(commit => commit.sha === sha)
+        if (repository.details?.[sha]) {
+            return repository.details[sha]
+        }
+        if (!summary) {
+            return { code: "UNKNOWN_REVISION", message: `The fake desktop bridge has no commit ${sha}.`, details: {} }
+        }
+        const noChanges = { files: [], areFilesTruncated: false, totals: { filesChanged: 0, insertions: 0, deletions: 0 } }
+        const committer = { committerName: summary.authorName, committerEmail: summary.authorEmail }
+        return { ...summary, ...committer, ...noChanges, message: summary.subject, comparedToParent: summary.parents[0] ?? null }
     }
 
     function findJob(jobId: string) {
@@ -756,7 +840,12 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "analysis.cancel": cancelAnalysis,
         "analysis.list": () => succeed({ jobs: JSON.parse(JSON.stringify(store.jobs)) }),
         "analysis.clearFinished": clearFinishedAnalyses,
-        "analysis.readLog": readFailedLog
+        "analysis.readLog": readFailedLog,
+        "git.commitDetails": gitAnswer("git.commitDetails", gitCommitDetails),
+        "git.resolveCommit": gitAnswer("git.resolveCommit", (repository, params) => {
+            const found = repository.commits?.find(commit => commit.sha === params.revision)
+            return found ?? { code: "UNKNOWN_REVISION", message: `The fake desktop bridge has no commit ${params.revision}.`, details: {} }
+        })
     }
 
     function answerFromBackend(method: BridgeMethod, params: unknown) {

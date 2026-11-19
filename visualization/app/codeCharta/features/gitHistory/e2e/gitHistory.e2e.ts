@@ -5,7 +5,17 @@ import { expect, test } from "@playwright/test"
 import { CC_URL, goto, standInForTheDesktopBridge } from "../../../../playwright.helper"
 import type { FakeDesktopSeed } from "../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aProject, aSnapshot } from "../../projects/projects.mocks"
-import { aLocalBranch, anErrorPayload, anUpstream, aRefs, aRemoteBranch, aRepositoryInfo, aStatusOn, aTag } from "../services/gitApi.mocks"
+import {
+    aLocalBranch,
+    aLogCommit,
+    anErrorPayload,
+    anUpstream,
+    aRefs,
+    aRemoteBranch,
+    aRepositoryInfo,
+    aStatusOn,
+    aTag
+} from "../services/gitApi.mocks"
 import { GitHistoryPageObject } from "./gitHistory.po"
 
 const SAMPLE_MAP = [...gzipSync(readFileSync(join(__dirname, "..", "..", "..", "assets", "sample1.cc.json")))]
@@ -74,6 +84,49 @@ test.describe("History", () => {
         await expect(history.branchRow("refs/heads/old-experiment")).toContainText("gone")
         await expect(history.scopeChip()).toHaveText("main")
         await expect(page).toHaveURL(/#\/history/)
+    })
+
+    test("should list the commits with their graph, show a merge commit's files and search without the graph", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const merge = aLogCommit("e", "Merge branch 'main' into feature/invoice-rounding", ["d", "c"])
+        const commits = [
+            aLogCommit("a", "Fix invoice rounding", ["e"]),
+            merge,
+            aLogCommit("d", "Add currency table", ["b"]),
+            aLogCommit("c", "Release 2.4.0", ["b"]),
+            aLogCommit("b", "Start the invoice module")
+        ]
+        const files = [
+            { change: "modified" as const, path: "src/billing/invoice.ts", previousPath: null, insertions: 40, deletions: 8 },
+            { change: "added" as const, path: "src/billing/currency.ts", previousPath: null, insertions: 80, deletions: 0 }
+        ]
+        const details = {
+            ...merge,
+            committerName: merge.authorName,
+            committerEmail: merge.authorEmail,
+            message: merge.subject,
+            comparedToParent: merge.parents[0],
+            files,
+            areFilesTruncated: false,
+            totals: { filesChanged: 2, insertions: 120, deletions: 8 }
+        }
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, details: { [merge.sha]: details } } }))
+        await goto(page)
+        await history.open()
+
+        // Act
+        await history.commitRows().nth(1).click()
+
+        // Assert
+        await expect(history.uncommittedChangesRow()).toHaveText("Uncommitted changes (3)")
+        await expect(history.commitRows()).toHaveCount(5)
+        await expect(history.commitListHeader()).toContainText("Graph")
+        await expect(history.commitDetails()).toContainText("Changes compared with the first parent")
+        await expect(history.changedFiles()).toHaveCount(2)
+        await history.search().fill("release")
+        await expect(history.commitRows()).toHaveCount(1)
+        await expect(history.commitListHeader()).not.toContainText("Graph")
     })
 
     test("should explain a folder that git does not trust", async ({ page }) => {

@@ -577,6 +577,98 @@ describe("createFakeDesktopBridge", () => {
         expect(answers).toEqual([expected, expected])
     })
 
+    it("should page, scope and filter the seeded history and answer commit details", async () => {
+        // Arrange
+        const commitOf = (index: number, parents: string[]) => ({
+            sha: index.toString(16).padStart(40, "0"),
+            parents,
+            authorName: index % 2 === 0 ? "Mia" : "Jo",
+            authorEmail: "dev@example.com",
+            authoredAt: index,
+            committedAt: index,
+            subject: `Commit ${index}`
+        })
+        const commits = Array.from({ length: 1200 }, (_, index) =>
+            commitOf(1200 - index, index < 1199 ? [(1199 - index).toString(16).padStart(40, "0")] : [])
+        )
+        const side = commitOf(5000, [commits[1199].sha])
+        const refs = {
+            fingerprint: "f1",
+            head: { kind: "branch" as const, name: "main", commit: commits[0].sha },
+            localBranches: [],
+            remoteBranches: [],
+            tags: [{ refName: "refs/tags/side", name: "side", commit: side.sha, isAnnotated: false, createdAt: 1 }],
+            remotes: []
+        }
+        const file = { change: "added" as const, path: "src/app/a.ts", previousPath: null, insertions: 1, deletions: 0 }
+        const details = {
+            ...commits[3],
+            committerName: "Mia",
+            committerEmail: "dev@example.com",
+            message: "Commit",
+            comparedToParent: null
+        }
+        const seed: FakeDesktopSeed = {
+            git: {
+                "f-1": {
+                    refs,
+                    commits: [...commits, side],
+                    details: {
+                        [commits[3].sha]: {
+                            ...details,
+                            files: [file],
+                            areFilesTruncated: false,
+                            totals: { filesChanged: 1, insertions: 1, deletions: 0 }
+                        }
+                    }
+                }
+            }
+        }
+        const bridge = new Function(`return (${createFakeDesktopBridge.toString()})(${JSON.stringify(seed)})`)() as FakeDesktopBridge
+        const repo = { projectId: "p-1", folderId: "f-1" }
+        const all = { kind: "all" as const }
+
+        // Act
+        const first = await answerValue(bridge, "git.log", { repo, scope: all, filter: null, cursor: null })
+        const last = await answerValue(bridge, "git.log", { repo, scope: all, filter: null, cursor: "page-1000" })
+        const expired = await bridge.request("git.log", { repo, scope: all, filter: null, cursor: "gone" })
+        const scoped = await answerValue(bridge, "git.log", {
+            repo,
+            scope: { kind: "refs", refNames: ["refs/tags/side"] },
+            filter: null,
+            cursor: null
+        })
+        const byAuthor = await answerValue(bridge, "git.log", {
+            repo,
+            scope: all,
+            filter: { text: "commit 1", author: "jo", path: null },
+            cursor: null
+        })
+        const byPath = await answerValue(bridge, "git.log", {
+            repo,
+            scope: all,
+            filter: { text: null, author: null, path: "src/app" },
+            cursor: null
+        })
+        const listed = await answerValue(bridge, "git.commitDetails", { repo, sha: commits[3].sha })
+        const derived = await answerValue(bridge, "git.commitDetails", { repo, sha: side.sha })
+        const unknown = await bridge.request("git.commitDetails", { repo, sha: "f".repeat(40) })
+
+        // Assert
+        expect([first.commits.length, first.nextCursor, first.isGraphAvailable]).toEqual([500, "page-500", true])
+        expect([last.commits.length, last.nextCursor]).toEqual([201, null])
+        expect(expired).toEqual({ ok: false, error: expect.objectContaining({ code: "LOG_SESSION_EXPIRED" }) })
+        expect(scoped.commits.map(commit => commit.sha)).toEqual([commits[1199].sha, side.sha])
+        expect(byAuthor.isGraphAvailable).toBe(false)
+        expect(byAuthor.commits.every(commit => commit.authorName === "Jo" && commit.subject.startsWith("Commit 1"))).toBe(true)
+        expect(byPath.commits.map(commit => commit.sha)).toEqual([commits[3].sha])
+        expect(listed.files).toEqual([file])
+        expect(derived).toEqual(
+            expect.objectContaining({ sha: side.sha, files: [], message: "Commit 5000", comparedToParent: commits[1199].sha })
+        )
+        expect(unknown).toEqual({ ok: false, error: expect.objectContaining({ code: "UNKNOWN_REVISION" }) })
+    })
+
     it("should sum the map sizes of each folder as its store usage", async () => {
         // Arrange
         const project = aProject("p-1", [aFolder("f-1"), aFolder("f-2", { role: "helper" })])

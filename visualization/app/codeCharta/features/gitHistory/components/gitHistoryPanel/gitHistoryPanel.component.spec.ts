@@ -194,4 +194,27 @@ describe("GitHistoryPanelComponent", () => {
         expect(scopedTitle).toBe("refs/heads/feature/invoice-rounding")
         expect(screen.getByTestId("commit-scope-chip").textContent.trim()).toBe("All branches")
     })
+
+    it("should explain a first page that took too long, copy the speed-up command and retry", async () => {
+        // Arrange
+        const writeText = jest.fn().mockResolvedValue(undefined)
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } })
+        const timeout = anErrorPayload("TIMEOUT", "Git did not answer in time.")
+        const seed: FakeDesktopSeed = { git: { "f-api": { ...HEALTHY.git?.["f-api"], failures: { "git.log": timeout } } } }
+        const { bridge, detectChanges } = await renderPanel(seed)
+        const notice = screen.getByTestId("history-slow-notice").querySelector("span")?.textContent.replaceAll(/\s+/g, " ").trim()
+
+        // Act
+        fireEvent.click(screen.getByTestId("history-slow-copy-command"))
+        fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+        await settleGit()
+        detectChanges()
+
+        // Assert
+        expect(notice).toBe(
+            "The history took too long to load. Running git commit-graph write --reachable in the repository makes it faster."
+        )
+        expect(writeText).toHaveBeenCalledWith("git commit-graph write --reachable")
+        expect(bridge.calls.filter(call => call.args[0] === "git.log")).toHaveLength(2)
+    })
 })

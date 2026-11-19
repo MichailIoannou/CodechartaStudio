@@ -1,0 +1,49 @@
+<button
+    type="button"
+    class="btn btn-ghost btn-xs btn-square ml-auto"
+    title="How to read the commit list"
+    aria-label="How to read the commit list"
+    popovertarget="commit-graph-legend"
+    style="anchor-name: --commit-graph-legend"
+    data-anchor-name="commit-graph-legend"
+    data-testid="commit-graph-legend-button"
+>
+    <i class="fa-regular fa-circle-question"></i>
+</button>
+<cc-settings-popover-shell
+    popoverId="commit-graph-legend"
+    anchorName="commit-graph-legend"
+    positionArea="bottom span-right"
+    widthClass="w-80"
+    contentClass="p-3 text-sm"
+    ariaLabel="How to read the commit list"
+    testId="commit-graph-legend"
+>
+    <h4 class="mb-2 text-sm font-semibold">How to read the commit list</h4>
+    <div class="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
+        <cc-commit-graph-cell [row]="commitRow" />
+        <span>a commit</span>
+        <cc-commit-graph-cell [row]="headRow" [isHead]="true" />
+        <span>HEAD — the commit your folder has checked out</span>
+        <cc-commit-graph-cell />
+        <span>your uncommitted changes, on top of HEAD</span>
+        <cc-commit-graph-cell [row]="mergeRow" />
+        <span>a line of development; a line that splits off is a branch, two lines joining at a dot is a merge</span>
+        <span class="badge badge-xs badge-primary inline-flex gap-1 justify-self-start"><i class="fa-solid fa-check"></i>name</span>
+        <span>the branch you are on</span>
+        <span class="badge badge-xs badge-outline badge-primary inline-flex gap-1 justify-self-start"><i class="fa-solid fa-code-branch"></i>name</span>
+        <span>another local branch</span>
+        <span class="badge badge-xs badge-ghost inline-flex gap-1 justify-self-start"><i class="fa-solid fa-cloud"></i>name</span>
+        <span>a branch on a remote (origin)</span>
+        <span class="badge badge-xs badge-outline badge-accent inline-flex gap-1 justify-self-start"><i class="fa-solid fa-tag"></i>name</span>
+        <span>a tag</span>
+        @if (isAnalysisShown) {
+            <span class="flex flex-wrap gap-1">
+                <span class="badge badge-soft badge-xs badge-success">analysed</span>
+                <span class="badge badge-soft badge-xs badge-primary">in map</span>
+                <span class="badge badge-soft badge-xs badge-error">failed</span>
+            </span>
+            <span>whether CodeCharta has an analysis of that commit, and whether the map shows it</span>
+        }
+    </div>
+</cc-settings-popover-shell>
