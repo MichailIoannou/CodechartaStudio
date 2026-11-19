@@ -60,20 +60,28 @@ Branch `feature/studio-02-m7` from `feature/studio-stack`. `npm ci` was needed i
 - Legend: `LegendDrawerStore` (signal service, provided per view) shared by the new `cc-legend-tool` (`fa fa-list`,
   `aria-expanded`, `aria-controls="legend-panel"`, test id `legend-panel-button` kept) and the drawer. The rotated tab
   component is deleted; the drawer ignores pointer-downs on its controls so the tool can close it.
-- **Deviation 1 (needs owner check):** the Dependencies view also loses the rotated tab; its Legend tool sits in the
-  dependency bar's tools cell, the same way as in the metrics bar. The design names only the metrics and domain bars; the
-  alternative (keep the rotated tab only there) would need the removed component back.
-- **Deviation 2:** the open legend panel used to cover the bar's right end (and so the Legend tool). It now opens above the
+- **Deviation 1 (owner confirmed, O6):** the Dependencies view also loses the rotated tab; its Legend tool sits in the
+  dependency bar's tools cell, the same way as in the metrics bar.
+- **Deviation 2 (owner confirmed, O6):** the open legend panel used to cover the bar's right end (and so the Legend tool). It now opens above the
   floating bar (`var(--cc-metrics-bar-height, 0px)` added to its bottom; 0 in Dependencies, 12 px higher than before there).
-- **Deviation 3:** narrow window: metric names truncate (the cells' minimum widths apply from `xl` up), the layout name
-  shows only its glyph below `lg`. The third step, tools `grid-cols-1`, is **not** applied: four stacked 32 px tools would
+- **Deviation 3:** narrow window: metric names, labels and meta values truncate (the cells have no minimum width any
+  more, so they shrink with the free area), the layout name shows only its glyph below `xl`. The third step, tools `grid-cols-1`, is **not** applied: four stacked 32 px tools would
   make the bar taller than its cells, contradicting "never wraps"; left for the designer.
 - **Deviation 4:** design asks for "`title` = `aria-label`"; tools with an explanatory tooltip (Flashlight, Center map's
   right-click hint, Unfocus) keep it as `title`, the label stays the accessible name.
-- **Open question (owner/designer):** the bar keeps its centred position (T4: "unchanged position, width and z-index") but
-  is now wider, so at 1920 px the open explorer covers the Layout cell as it already covered Area (the existing e2e comment
-  calls that intended). The pointer cannot reach the layout picker until the explorer is collapsed; the keyboard can. The
-  page object now opens the picker by focus + Enter; 18 e2e tests had failed on the covered click.
+- **Placement (owner decision O7, option A, amends T4 and upstream PR #4557):** the wider bar sat under the open explorer
+  at 1920 px (18 e2e failures on the Layout click). The explorer, the metrics inspector and the dependency inspector now
+  publish the width they cover (`--cc-bar-inset-left` / `--cc-bar-inset-right`, `shared/util/publishBarInset`, view-scoped;
+  0 while collapsed or hidden). `ccBarShell` uses them as `left` / `right` with `mx-auto`, so the metrics, domain and
+  dependency bars centre in the free area; `max-width` is `max(min(30rem, 100vw - 12px), min(95vw, 1200px, free width))`;
+  `transition-[left,right] duration-300` follows panel slides and resize drags smoothly (`motion-reduce` off). The page
+  object clicks with the mouse again (keyboard is an extra e2e test); the "collapse the explorer first" workarounds in
+  `metricsBar.e2e`, `scenarios.e2e` and `loadPipeline.e2e` are gone; #4557's "stays in place" test now asserts centring
+  in the free area and on the window once collapsed.
+- **Known limit:** below the 30rem floor (both panels open at about 900 px: 236 px free) the bar starts at the explorer's
+  edge and its right part lies under the inspector (z-60 over the bar's z-50) until the inspector closes. At 1150 px with
+  both panels open everything is reachable but heavily truncated. A compact bar mode or a z-order change would be a design
+  decision.
 - Screenshot service: the ignore-by-id for the old tab is gone (the tool lives in `cc-metrics-bar`, which is ignored).
 
 ### 2. File extension bar (T5)
@@ -95,9 +103,19 @@ Branch `feature/studio-02-m7` from `feature/studio-stack`. `npm ci` was needed i
   4x zoom shows a soft 24 px blend, no gap, labels unchanged. Toast under Settings, not over it.
 
 
+### Look with panels (built app, explorer open, inspector opened from the explorer)
+- 1920: bar centred right of the explorer, full labels. 1440: same; with the inspector too, centred between both, names
+  truncate (`sonar_c…`), nothing overlaps. 1150: explorer only fine; both panels: every cell reachable, strongly truncated.
+  900: explorer only: bar fills the free area, truncated, all clickable; both panels: see the known limit. Domain and
+  dependency bars centre beside the explorer the same way. Mouse clicks on Layout and Area succeeded at all four widths
+  with the explorer open.
+
 ### Verification
 - Before the last commit: format:check clean; `npm test` 682 suites, 5317 passed (coverage 96.9 / 90.2 / 95.6 / 96.9);
   lint and tsc clean.
 - With temporary, reverted `BROWSER_CHANNEL = "chromium"` and `E2E_PORT = 9033`: `npm run build && npm run e2e:ci`
   170/170 (the first run had the 18 covered-click failures above, fixed in the page object); `test:electron` 69/69;
   `e2e:desktop` 14/14 with the core built in `core/target/studio-02-m7`.
+- After the placement change (O7 option A), final tree: format:check clean; `npm test` 684 suites, 5324 passed (coverage
+  96.9 / 90.2 / 95.6 / 96.9); lint and tsc clean; `build` + `e2e:ci` 172/172 on port 9033 (temporary edits reverted);
+  `test:electron` 69/69; `e2e:desktop` 14/14.
