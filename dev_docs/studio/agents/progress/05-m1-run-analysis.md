@@ -35,7 +35,7 @@ Gates with and without `--all-features`.
 
 - [x] 1. Profiles
 - [x] 2. Argv
-- [ ] 3. Output and failures
+- [x] 3. Output and failures
 - [ ] 4. Progress
 - [ ] 5. fake-ccsh
 - [ ] 6. Launcher
@@ -90,3 +90,25 @@ reached through `TargetOs::Windows` in unit tests; nothing Windows-specific ran.
   an element equal to `-i`/`--interactive`). `CommitSha` already guarantees a full lower-case sha; confirming it
   with `git cat-file -e` stays with the caller (preflight, M3).
 - Extra tests: `should_leave_out_parallel_and_empty_lists`, `should_refuse_an_interactive_flag_as_a_whole_argument`.
+
+### 3. Output and failures
+- `analysis/output.rs`: `parse_map_line` (last `Map: ` line, trailing `\r`/spaces trimmed), `parse_not_in_map`,
+  `strip_control_characters` (drops C0/C1 controls except `\n \r \t`, 05-M0 finding 6), `classify_failure`,
+  `classify_start_failure`.
+- **Deviation — the run result is an enum, not flags:** `CcshRunResult { end: RunEnd, stdout, stderr }` with
+  `RunEnd::{Exited { code }, Signalled, Cancelled, TimedOut, InteractiveTrap, OutputTooLarge}` instead of
+  `exit_code: Option<i32>` + three booleans (no impossible combinations). It lives in `output.rs` because the
+  classifier needs it before the runner exists; `runner.rs` produces it.
+- **Deviation — `classify_failure(&CcshRunResult) -> Option<JobError>`**: `None` for a cancelled run (not a
+  failure); spawn errors go through `classify_start_failure(&CoreError)` because the built runner reports them as
+  `CoreError::ToolNotFound { tool }` (java for java-direct, ccsh otherwise) or `BadRequest` (batch-file argument
+  refusal → `INVALID_ARGUMENTS` with the plan's "set the ccsh path to the ccsh.bat …" hint), not as `io::Error`.
+- Order (first match wins): cancelled → none; stderr `ccsh needs Java` / `Unrecognized option: --enable-native-access`
+  → `JAVA_TOO_OLD` (hint: the marked line and the next non-empty one); interactive trap; timeout; output cap →
+  `OUTPUT_TOO_LARGE`; signal → `CRASHED`; exit 2 → `INVALID_ARGUMENTS` with the first non-empty **stderr** line;
+  stdout `No commit found for` → `UNKNOWN_COMMIT`; `Failed to create git worktree` → `WORKTREE_FAILED` (long-path
+  hint); `Git command timed out` → `GIT_TIMEOUT`; other non-zero exit → `ANALYSIS_FAILED` with the last non-empty
+  stdout line; exit 0 → `NO_OUTPUT` (the caller asks only when no map was found). stderr is otherwise ignored
+  (JDK 27 reflection warnings).
+- Fixtures are the 05-M0 strings (`--without=x`, `--nonsense`, the missing full sha, the JDK warning, the commit
+  run's summary block with `─`×72 and SO bytes); the java-too-old text follows `CcshLauncher.java`.
