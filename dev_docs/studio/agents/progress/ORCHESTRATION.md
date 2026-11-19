@@ -18,6 +18,11 @@ orchestrator after every change of state. Another machine continues from this fi
   `feature/studio-integration` (fast path; resolve progress-file add/add conflicts with the stack's
   versions). Verified at 491068258: cargo fmt/clippy/test with and without features 833/837, cargo-deny,
   contract drift, format, lint, tsc, npm test 663/663, build, test:electron 45/45, e2e:desktop 10/10.
+- **Parallel UI agents (owner request, 2026-11-19):** several agents may change `visualization/` at the
+  same time, each in its own worktree on its own area, all branched from `feature/studio-stack`. The
+  orchestrator merges them into the stack one at a time, resolves conflicts in shared files (nav bar,
+  `VIEW_TABS`, `app.config.ts`, fake bridge, `CHANGELOG.md`) and re-runs every gate after each merge. This
+  replaces the prompt's "at most one agent changing `visualization/`" rule for UI work.
 - Builds: Rust output goes to the main checkout's `core/target` (real disk) via `CARGO_TARGET_DIR`; never
   under `/tmp` (16 GB RAM tmpfs — filled once on 2026-11-19).
 
@@ -47,6 +52,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M4 Dependency graph, color-range diagram | UI | done | — | feature/studio-02-m4 | ddf7e6b7f (merged 2daeb8b08) |
 | 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | done | — | feature/studio-02-m5 | 057018bc9 (merged a0827d426) |
 | 02-M6 Native window appearance | UI | done | — | feature/studio-02-m6 | b0e051814 (merged 7523f1965) |
+| 02-M7 Metrics bar, file extension bar, toasts (OD6, OD7, OD8; new) | UI | in progress (from feature/studio-stack, parallel) | — | feature/studio-02-m7 | — |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | done on `feature/studio-stack` (part B via feature/studio-03-shell); integration merge pending | integration merge: owner's uncommitted plan 03 edit | feature/studio-03-m2, feature/studio-03-shell | 598d6ffd7 (merged into stack e8de7965e) |
@@ -57,7 +63,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
-| 04-M3 History view, branches pane, chip | UI | todo | 04-M2; plan 03 renderer (03-M4/M5) | — | — |
+| 04-M3 History view, branches pane (chip replaced by W1) | UI | in progress (from feature/studio-stack, parallel) | — | feature/studio-04-m3 | — |
 | 04-M4 Commit list with graph, filters, details | UI | todo | 04-M3 | — | — |
 | 04-M5 Selection, keyboard, context menu, ports | UI | todo | 04-M4 | — | — |
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
@@ -333,6 +339,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: owner asked for UI agents in parallel. Started 04-M3 (History view) and the new 02-M7 (metrics bar, file extension bar, toasts) alongside 03-M6, three UI agents at once, each on its own branch from the stack.
 - 2026-11-19: 03-M5 verified on `feature/studio-stack` (cargo with and without features 834/838, contract drift, format, lint, tsc, npm test 681/681, build, test:electron 69/69, e2e:desktop 14/14, web e2e:ci 169/169). Screenshots sent to the owner. 03-M6 started.
 - 2026-11-19: 03-M4 verified on `feature/studio-stack` (format, lint, tsc, npm test 664/664, build, test:electron 70/70, e2e:desktop 14/14, web e2e:ci run alone 165/165) and merged into the stack. 03-M5 started.
 - 2026-11-19: 03-M2/M3 shell and fake bridge verified on `feature/studio-stack` (format, lint, tsc, contract drift, npm test 663/663, build, test:electron 70/70, e2e:desktop 14/14, web e2e:ci 165/165) and merged into the stack. 03-M4 started from the stack.
