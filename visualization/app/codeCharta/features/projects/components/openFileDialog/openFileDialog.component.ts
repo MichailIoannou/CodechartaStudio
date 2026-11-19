@@ -31,7 +31,7 @@ export class OpenFileDialogComponent {
     private readonly projectSelect = viewChild<ElementRef<HTMLSelectElement>>("projectSelect")
 
     readonly newProjectValue = NEW_PROJECT_VALUE
-    readonly pending = this.openFile.pending
+    readonly shownFile = signal<PendingFile | null>(null)
     readonly target = signal<OpenFileTarget>({ kind: "newProject" })
     readonly isChanging = signal(false)
     readonly resolvedCommit = signal<ResolvedCommit | null>(null)
@@ -41,8 +41,8 @@ export class OpenFileDialogComponent {
     readonly failure = signal<string | null>(null)
     readonly isFileGone = signal(false)
 
-    readonly picked = computed(() => this.pending()?.picked ?? null)
-    readonly isImport = computed(() => this.pending()?.mode === "import")
+    readonly picked = computed(() => this.shownFile()?.picked ?? null)
+    readonly isImport = computed(() => this.shownFile()?.mode === "import")
     readonly title = computed(() => (this.isImport() ? "Import cc.json" : "Open cc.json"))
     readonly sizeText = computed(() => byteSize(this.picked()?.sizeBytes ?? 0))
     readonly fileDateText = computed(() => fileDate(this.picked()?.fileModifiedAt ?? ""))
@@ -68,7 +68,7 @@ export class OpenFileDialogComponent {
 
     constructor() {
         effect(() => {
-            const pending = this.pending()
+            const pending = this.openFile.pending()
             untracked(() => pending && this.start(pending))
         })
     }
@@ -173,6 +173,7 @@ export class OpenFileDialogComponent {
     }
 
     private start(pending: PendingFile) {
+        this.shownFile.set(pending)
         const existing = pending.picked.existingTarget
         const initial: OpenFileTarget = pending.importTarget
             ? { kind: "folder", ...pending.importTarget }

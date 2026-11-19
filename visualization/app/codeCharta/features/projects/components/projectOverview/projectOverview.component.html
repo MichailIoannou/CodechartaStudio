@@ -81,7 +81,7 @@
                     No folders yet. Add the repository folder first; forks and helper folders can follow.
                 </p>
             } @else {
-                <ul class="flex flex-col overflow-hidden rounded-[10px] bg-base-100 py-1">
+                <ul class="flex flex-col rounded-[10px] bg-base-100 py-1">
                     @for (row of folderRows(); track row.folder.id) {
                         <li class="flex flex-col px-4 py-1.5 text-sm" [attr.data-testid]="'project-overview-folder-' + row.folder.label">
                             <div class="flex flex-wrap items-center gap-x-3 gap-y-1">

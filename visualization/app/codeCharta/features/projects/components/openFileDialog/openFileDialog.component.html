@@ -68,7 +68,11 @@
                     }
                 </div>
 
-                @if (bindingCommit(); as commit) {
+                @if (duplicateProjectName() !== null) {
+                    <div role="alert" class="alert alert-info text-sm" data-testid="open-file-duplicate">
+                        This file was already imported into '{{ duplicateProjectName() }}'.
+                    </div>
+                } @else if (bindingCommit(); as commit) {
                     <label class="flex cursor-pointer items-start gap-2" data-testid="open-file-binding">
                         <input type="checkbox" class="checkbox checkbox-sm mt-0.5" [checked]="isBound()" (change)="isBound.set($any($event.target).checked)" />
                         <span class="flex flex-col">
@@ -79,17 +83,11 @@
                 } @else if (unresolvedHash(); as hash) {
                     <div class="flex flex-col items-start">
                         <button type="button" class="btn btn-link btn-sm h-auto min-h-0 px-0" data-testid="open-file-look-elsewhere" (click)="lookInAnotherFolder()">
-                            Look for commit <code class="font-mono">{{ hash }}</code> in another folder…
+                            <span>Look for commit <code class="font-mono">{{ hash }}</code> in another folder…</span>
                         </button>
                         @if (searchFailure(); as searchFailure) {
                             <span class="text-xs text-warning" data-testid="open-file-search-failure">{{ searchFailure }}</span>
                         }
-                    </div>
-                }
-
-                @if (duplicateProjectName() !== null) {
-                    <div role="alert" class="alert alert-info text-sm" data-testid="open-file-duplicate">
-                        This file was already imported into '{{ duplicateProjectName() }}'.
                     </div>
                 }
 

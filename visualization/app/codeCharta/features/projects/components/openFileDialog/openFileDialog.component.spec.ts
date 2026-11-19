@@ -146,7 +146,8 @@ describe("OpenFileDialogComponent", () => {
         const snapshot = aSnapshot("p-billing", "f-out", "imported-1", { source: "imported" })
         const picked = aPickedImportFile("out", {
             existingTarget: { projectId: "p-billing", projectName: "billing", folderId: "f-out" },
-            duplicateOf: snapshot.ref
+            duplicateOf: snapshot.ref,
+            commitHint: { hash: "a1b2c3d" }
         })
         await pickToOpen({ projects: [BILLING], snapshots: [snapshot], pickedImportFile: picked })
 
@@ -157,6 +158,7 @@ describe("OpenFileDialogComponent", () => {
 
         // Assert
         expect(alert).toBe("This file was already imported into 'billing'.")
+        expect(screen.queryByTestId("open-file-look-elsewhere")).toBeNull()
         expect(label).toBe("Show existing snapshot")
         expect(testBed.requestsOf("snapshots.openFile")).toEqual([])
         expect(testBed.projects.shownSnapshot()?.ref).toEqual(snapshot.ref)
