@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
+use codecharta_core_api::ids::{FolderId, JobId, ProjectId, SnapshotId};
 
 use crate::error::{CoreError, CoreResult};
 
@@ -123,6 +123,16 @@ impl StorePaths {
             folder,
             &format!("{REPLACED_FOLDER_PREFIX}{suffix}"),
         )
+    }
+
+    /// Where the staging directory of a failed analysis is kept for its log.
+    pub fn failed_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        job: &JobId,
+    ) -> CoreResult<PathBuf> {
+        self.hidden_dir(project, folder, &format!("{FAILED_FOLDER_PREFIX}{job}"))
     }
 
     /// `name` starts with a dot, so it is never a snapshot id.

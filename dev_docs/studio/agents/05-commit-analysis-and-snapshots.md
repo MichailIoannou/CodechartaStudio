@@ -327,6 +327,8 @@ impl AnalysisService {
 impl JobExecutor for AnalysisService { /* execute(job, hooks): steps below */ }
 ```
 
+As built (05-M2), `execute` lives on `AnalysisService::new(AnalysisDeps { snapshots, git, runner, hosting }, AnalysisConfig { tools, os, launch_override, timeout, hosting_budget })` and is `execute(&JobRequest { id: JobId, folder, target, force }, &RunHooks, &cancel) -> Result<SnapshotId, JobFailure>` with `JobFailure::{Cancelled, Failed(JobError)}`; the queue, preflight, `recover` and the remaining methods come with M3. The staging directory is plan 03's `.incoming-<8hex>` (not `.tmp-<jobId>`), without `job.json` (crash recovery is M3); a failed run keeps only `run.log` as `.failed-<jobId>` (`SnapshotRepository::{keep_failed, read_failed_log}`), deleted at the next writable store open.
+
 Order inside `execute`:
 
 1. Preflight (errors → `failed`).

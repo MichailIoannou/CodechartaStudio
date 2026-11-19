@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use codecharta_core_api::ids::{FolderId, SnapshotId};
+use codecharta_core_api::ids::{FolderId, JobId, SnapshotId};
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::methods::snapshots::{SnapshotRef, SnapshotSummary};
 use codecharta_core_api::values::{FullCommit, MapChecksum, RootName};
@@ -245,6 +245,40 @@ impl<'deps> SnapshotRepository<'deps> {
         committed.map(|()| record.to_summary())
     }
 
+    /// Keeps only the staged `run.log`, as `.failed-<job>`, until the next start; a kept log of an earlier
+    /// run of the same job is replaced.
+    pub fn keep_failed(&self, staged: StagedSnapshot, job: &JobId) -> CoreResult<PathBuf> {
+        let failed = self.failed_dir(&staged.folder, job)?;
+        let kept = keep_only_log(&staged).and_then(|()| {
+            if failed.exists() {
+                delete_permanently(&failed)?;
+            }
+            fs::rename(&staged.directory, &failed)
+                .map_err(|source| io_error("keep", &failed, source))
+        });
+        if kept.is_err() {
+            discard_staging(&staged.directory);
+        }
+        kept.map(|()| failed.join(RUN_LOG_FILE_NAME))
+    }
+
+    /// The log a failed analysis left; `NOT_FOUND` once the next start removed it.
+    pub fn read_failed_log(&self, folder: &FolderRef, job: &JobId) -> CoreResult<String> {
+        let log_file = self.failed_dir(folder, job)?.join(RUN_LOG_FILE_NAME);
+        fs::read_to_string(&log_file).map_err(|source| match source.kind() {
+            io::ErrorKind::NotFound => {
+                CoreError::NotFound(format!("There is no log of the failed analysis {job}."))
+            }
+            _ => io_error("read", &log_file, source),
+        })
+    }
+
+    fn failed_dir(&self, folder: &FolderRef, job: &JobId) -> CoreResult<PathBuf> {
+        self.store
+            .paths()
+            .failed_dir(&folder.project_id, &folder.folder_id, job)
+    }
+
     pub fn abort_snapshot(&self, staged: StagedSnapshot) -> CoreResult<()> {
         fs::remove_dir_all(&staged.directory)
             .map_err(|source| io_error("remove", &staged.directory, source))
@@ -399,6 +433,24 @@ fn ensure_record_matches(staged: &StagedSnapshot, record: &SnapshotRecord) -> Co
         "the snapshot {} names another folder than it was staged in",
         record.id
     )))
+}
+
+fn keep_only_log(staged: &StagedSnapshot) -> CoreResult<()> {
+    let entries = fs::read_dir(&staged.directory)
+        .map_err(|source| io_error("list", &staged.directory, source))?;
+    for entry in entries.filter_map(Result::ok) {
+        if entry.file_name() == RUN_LOG_FILE_NAME {
+            continue;
+        }
+        let path = entry.path();
+        let removed = if entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
+            fs::remove_dir_all(&path)
+        } else {
+            fs::remove_file(&path)
+        };
+        removed.map_err(|source| io_error("remove", &path, source))?;
+    }
+    Ok(())
 }
 
 fn discard_staging(directory: &Path) {

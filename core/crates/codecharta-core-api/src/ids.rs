@@ -121,6 +121,7 @@ macro_rules! store_id {
 store_id!(ProjectId);
 store_id!(FolderId);
 store_id!(SnapshotId, is_snapshot_id);
+store_id!(JobId);
 
 #[cfg(test)]
 mod tests {

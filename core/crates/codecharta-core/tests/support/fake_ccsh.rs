@@ -12,7 +12,7 @@ pub fn fake_ccsh() -> PathBuf {
 }
 
 /// What one fake-ccsh run does, in this order: stdout lines, stderr chunks (pausing `delay_ms` after each),
-/// the map and its summary block, hanging, the exit code.
+/// waiting until `wait_for_file` exists, the map and its summary block, hanging, the exit code.
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct FakeScenario {
     pub stdout: Vec<String>,
@@ -22,6 +22,7 @@ pub struct FakeScenario {
     pub write_map: bool,
     pub hang: bool,
     pub pid_file: Option<PathBuf>,
+    pub wait_for_file: Option<PathBuf>,
 }
 
 impl FakeScenario {

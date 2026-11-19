@@ -1,6 +1,7 @@
 //! Stand-in for `ccsh analyse` in the core's tests; never packaged. It plays the scenario in the JSON file
 //! named by `FAKE_CCSH_SCENARIO`: stdout lines, stderr chunks with a pause after each, optionally a map
-//! named exactly like ccsh names it, optionally hanging until killed, then the scripted exit code.
+//! named exactly like ccsh names it (after waiting for a file the test creates, when scripted), optionally
+//! hanging until killed, then the scripted exit code.
 
 use std::fs;
 use std::io::Write;
@@ -23,6 +24,8 @@ const MAP_SUFFIX: &str = ".cc.json.gz";
 const SEPARATOR_WIDTH: usize = 72;
 const SEPARATOR_CHARACTER: &str = "─";
 const HANG_STEP: Duration = Duration::from_secs(600);
+const WAIT_STEP: Duration = Duration::from_millis(20);
+const WAIT_LIMIT: Duration = Duration::from_secs(30);
 const SETUP_FAILURE_EXIT_CODE: i32 = 101;
 const TINY_MAP: &str = r#"{"meta":{"projectName":"","apiVersion":"2.1","checksum":"d41d8cd98f00b204e9800998ecf8427e"},"files":[{"id":"0","name":"root","type":"Folder","children":[]}],"lenses":{"metrics":{"attributes":{},"attributeDescriptors":{},"attributeTypes":{}},"dependency":{"edges":[],"attributeTypes":{},"attributeDescriptors":{}},"domain":{}}}"#;
 
@@ -36,6 +39,7 @@ struct Scenario {
     write_map: bool,
     hang: bool,
     pid_file: Option<PathBuf>,
+    wait_for_file: Option<PathBuf>,
 }
 
 fn main() {
@@ -61,6 +65,9 @@ fn play(args: &[String]) -> Result<i32, String> {
         &scenario.stderr_chunks,
         Duration::from_millis(scenario.delay_ms),
     );
+    if let Some(file) = &scenario.wait_for_file {
+        wait_for(file)?;
+    }
     if scenario.write_map {
         let map = map_path(args)?;
         write_map(&map)?;
@@ -70,6 +77,17 @@ fn play(args: &[String]) -> Result<i32, String> {
         hang_until_killed();
     }
     Ok(scenario.exit_code)
+}
+
+fn wait_for(file: &Path) -> Result<(), String> {
+    let deadline = std::time::Instant::now() + WAIT_LIMIT;
+    while !file.exists() {
+        if std::time::Instant::now() > deadline {
+            return Err(format!("{} never appeared", file.display()));
+        }
+        std::thread::sleep(WAIT_STEP);
+    }
+    Ok(())
 }
 
 fn hang_until_killed() -> ! {
