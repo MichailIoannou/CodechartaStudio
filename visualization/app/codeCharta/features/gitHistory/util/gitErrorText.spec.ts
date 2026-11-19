@@ -141,6 +141,14 @@ describe("gitErrorText", () => {
         expect(sentence).toBe("Sign-in cancelled. Nothing was changed.")
     })
 
+    it("should say that the list is refreshed when the files changed since they were listed", () => {
+        // Arrange & Act
+        const sentence = gitErrorSentence(anError("CHANGED_SINCE_LISTED"))
+
+        // Assert
+        expect(sentence).toBe("The files changed since they were listed. The list is refreshed — check it and try again.")
+    })
+
     it("should list git's files when a switch would overwrite local changes, at most ten", () => {
         // Arrange
         const files = Array.from({ length: 12 }, (_, index) => `\tsrc/file${index}.ts`)

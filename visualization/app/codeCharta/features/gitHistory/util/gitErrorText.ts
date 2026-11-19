@@ -61,6 +61,8 @@ function plainSentenceOf(error: GitError): string {
             return "Sign-in cancelled. Nothing was changed."
         case "LOCAL_CHANGES_WOULD_BE_OVERWRITTEN":
             return localChangesSentence(error.detail)
+        case "CHANGED_SINCE_LISTED":
+            return "The files changed since they were listed. The list is refreshed — check it and try again."
         default:
             return `Git failed: ${error.message}`
     }

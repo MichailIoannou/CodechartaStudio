@@ -834,6 +834,9 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
    - Tests: four groups; stage / unstage from row and group; discard confirmation names the files and sends exactly those rows; diff lines coloured; diff rendered through interpolation only; list refreshed after each action and on focus; tab remembered per project.
    - Commit: `feat(visualization): show working tree changes with a diff`
    - Changelog: extend with `, and shows changed files with their diff, to stage, unstage or discard`.
+   - As built: also `historyTab.service.ts` (+ `repos/historyTab.repo.ts`), `model/changeRows.ts`, `diffLines`
+     component (virtualised lines), `gitFailureReport.service.ts`; the tabs sit in `cc-history-toolbar` (design H4),
+     rows use worded badges (design deviation 11); details in `progress/04-M9-M10-ui-changes-commit.md`.
 
 ### M10 — Commit (M)
 

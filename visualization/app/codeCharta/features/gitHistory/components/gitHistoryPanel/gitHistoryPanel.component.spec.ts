@@ -46,6 +46,22 @@ describe("GitHistoryPanelComponent", () => {
         expect(screen.queryByTestId("git-problem-notice")).toBeNull()
     })
 
+    it("should replace the three panes by the changes and the diff on the Changes tab", async () => {
+        // Arrange
+        const { detectChanges } = await renderPanel()
+
+        // Act
+        fireEvent.click(screen.getByTestId("history-tab-changes"))
+        await settleGit()
+        detectChanges()
+
+        // Assert
+        expect(screen.queryByRole("region", { name: "Commits" })).toBeNull()
+        expect(screen.getByRole("region", { name: "Changes" }).style.width).toBe("360px")
+        expect(screen.getByTestId("changes-empty")).not.toBeNull()
+        expect(screen.getByText("Select a file to see its changes.")).not.toBeNull()
+    })
+
     it("should restore remembered pane widths within their bounds", async () => {
         // Arrange
         localStorage.setItem("codeChartaHistoryLayout", JSON.stringify({ branchesWidth: 100, detailsWidth: 500 }))

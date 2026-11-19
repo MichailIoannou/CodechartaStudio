@@ -8,10 +8,13 @@ interface PaneBounds {
 }
 
 export type SidePane = "branches" | "details"
+/** The Changes tab's list of changes is resizable too, but does not collapse. */
+type ResizablePane = SidePane | "changes"
 
-export const PANE_BOUNDS: Record<SidePane, PaneBounds> = {
+export const PANE_BOUNDS: Record<ResizablePane, PaneBounds> = {
     branches: { defaultWidth: 260, minWidth: 180, maxWidth: 480 },
-    details: { defaultWidth: 380, minWidth: 280, maxWidth: 640 }
+    details: { defaultWidth: 380, minWidth: 280, maxWidth: 640 },
+    changes: { defaultWidth: 360, minWidth: 260, maxWidth: 640 }
 }
 
 /** Below Tailwind's `xl` the commit list would be squeezed, so the side panes start collapsed there. */
@@ -23,9 +26,10 @@ export class HistoryLayoutService {
     private readonly stored = this.repo.read()
     private readonly isNarrowWindow = globalThis.innerWidth < WIDE_WINDOW_PX
 
-    private readonly widths = signal<Record<SidePane, number>>({
+    private readonly widths = signal<Record<ResizablePane, number>>({
         branches: clampedWidth("branches", this.stored.branchesWidth),
-        details: clampedWidth("details", this.stored.detailsWidth)
+        details: clampedWidth("details", this.stored.detailsWidth),
+        changes: clampedWidth("changes", this.stored.changesWidth)
     })
     private readonly collapsed = signal<Record<SidePane, boolean>>({
         branches: this.stored.isBranchesCollapsed ?? this.isNarrowWindow,
@@ -40,15 +44,16 @@ export class HistoryLayoutService {
 
     readonly branchesWidth = computed(() => this.widths().branches)
     readonly detailsWidth = computed(() => this.widths().details)
+    readonly changesWidth = computed(() => this.widths().changes)
     readonly isBranchesCollapsed = computed(() => this.collapsed().branches)
     readonly isDetailsCollapsed = computed(() => this.collapsed().details)
     readonly toggledGroups = this.toggledGroupIds.asReadonly()
 
-    resize(pane: SidePane, width: number): void {
+    resize(pane: ResizablePane, width: number): void {
         this.widths.update(widths => ({ ...widths, [pane]: clampedWidth(pane, width) }))
     }
 
-    resetWidth(pane: SidePane): void {
+    resetWidth(pane: ResizablePane): void {
         this.resize(pane, PANE_BOUNDS[pane].defaultWidth)
         this.save()
     }
@@ -74,6 +79,7 @@ export class HistoryLayoutService {
         const layout: StoredHistoryLayout = {
             branchesWidth: this.branchesWidth(),
             detailsWidth: this.detailsWidth(),
+            changesWidth: this.changesWidth(),
             isBranchesCollapsed: this.chosenCollapse.branches,
             isDetailsCollapsed: this.chosenCollapse.details,
             toggledGroups: [...this.toggledGroupIds()]
@@ -82,7 +88,7 @@ export class HistoryLayoutService {
     }
 }
 
-function clampedWidth(pane: SidePane, width: unknown): number {
+function clampedWidth(pane: ResizablePane, width: unknown): number {
     const { defaultWidth, minWidth, maxWidth } = PANE_BOUNDS[pane]
     return typeof width === "number" && Number.isFinite(width) ? Math.min(maxWidth, Math.max(minWidth, width)) : defaultWidth
 }

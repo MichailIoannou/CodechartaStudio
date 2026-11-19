@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from "@angular/core"
 import { shortSha } from "../../../../util/wording"
 import { readyValueOf } from "../../model/loadState"
+import type { HistoryTab } from "../../repos/historyTab.repo"
 import { GitLogService } from "../../services/gitLog.service"
 import { GitRepositoryService } from "../../services/gitRepository.service"
+import { HistoryTabService } from "../../services/historyTab.service"
 import { SyncButtonComponent } from "../syncButton/syncButton.component"
 
 const OPERATION_BADGES: Partial<Record<string, string>> = { merge: "merging", rebase: "rebasing" }
@@ -17,6 +19,7 @@ const OPERATION_BADGES: Partial<Record<string, string>> = { merge: "merging", re
 export class HistoryToolbarComponent {
     private readonly repository = inject(GitRepositoryService)
     private readonly log = inject(GitLogService)
+    private readonly tabs = inject(HistoryTabService)
 
     readonly folderLabel = computed(() => this.repository.workingFolder()?.label ?? "")
     readonly repositoryTitle = computed(() => {
@@ -34,6 +37,16 @@ export class HistoryToolbarComponent {
         return operation ? (OPERATION_BADGES[operation] ?? null) : null
     })
     readonly isRefreshing = this.repository.isRefreshing
+    readonly tab = this.tabs.tab
+    readonly changedFileCount = computed(() => {
+        const counts = readyValueOf(this.repository.status())?.counts
+        return counts ? counts.staged + counts.unstaged + counts.untracked + counts.conflicted : 0
+    })
+    readonly hasConflicts = computed(() => (readyValueOf(this.repository.status())?.counts.conflicted ?? 0) > 0)
+
+    selectTab(tab: HistoryTab) {
+        this.tabs.select(tab)
+    }
 
     scopeToCurrentBranch() {
         const head = this.head()

@@ -11,6 +11,7 @@ import { LOADED_MAP_LOCATOR } from "../../ports/loadedMapLocator.port"
 import { CommitSelectionService } from "../../services/commitSelection.service"
 import { aLogCommit, anErrorPayload, aRefs, aRepositoryInfo, aStatusOn } from "../../services/gitApi.mocks"
 import { provideGitHistory, settleGit } from "../../services/gitHistoryTestBed.mocks"
+import { HistoryTabService } from "../../services/historyTab.service"
 import { CommitDetailsComponent } from "./commitDetails.component"
 
 const BILLING = aProject("p-billing", [aFolder("f-api", { label: "billing-api" })])
@@ -314,6 +315,23 @@ describe("CommitDetailsComponent", () => {
 
         // Assert
         expect(screen.getByTestId("commit-details-working-tree").textContent.trim()).toBe("3 changed files: 1 staged, 2 unstaged")
+    })
+
+    it("should open the Changes tab from the uncommitted changes", async () => {
+        // Arrange
+        localStorage.clear()
+        const rendered = await renderDetails(seedOf([BASE]))
+        rendered.selection.select({
+            kind: "workingTree",
+            status: aStatusOn("main", { counts: { staged: 0, unstaged: 1, untracked: 0, conflicted: 0 } })
+        })
+        rendered.detectChanges()
+
+        // Act
+        fireEvent.click(screen.getByRole("button", { name: "Open changes" }))
+
+        // Assert
+        expect(TestBed.inject(HistoryTabService).tab()).toBe("changes")
     })
 
     it("should show a failure with its sentence and retry", async () => {

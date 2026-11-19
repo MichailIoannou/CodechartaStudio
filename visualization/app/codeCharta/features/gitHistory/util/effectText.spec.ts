@@ -2,6 +2,7 @@ import {
     deleteLocalConfirmation,
     deleteRemoteConfirmation,
     deleteUnmergedConfirmation,
+    discardConfirmation,
     fetchResult,
     HOOKS_NOTICE,
     renameEffect,
@@ -78,5 +79,23 @@ describe("effectText", () => {
             "Fetched 3 updated refs"
         ])
         expect(HOOKS_NOTICE).toEqual(expect.objectContaining({ title: "Git Hooks", verb: null }))
+    })
+
+    it("should name up to ten files to discard and count the rest", () => {
+        // Arrange
+        const eleven = Array.from({ length: 11 }, (_, index) => `f${index}.ts`)
+        const tail = "? Tracked files return to the last commit; untracked files go to the recycle bin."
+
+        // Act
+        const texts = [["src/a.ts"], ["src/a.ts", "src/b.ts"], ["a", "b", "c"], eleven].map(paths => discardConfirmation(paths).text)
+
+        // Assert
+        expect(texts).toEqual([
+            `Discard changes to 'src/a.ts'${tail}`,
+            `Discard changes to 'src/a.ts' and 'src/b.ts'${tail}`,
+            `Discard changes to 'a', 'b' and 'c'${tail}`,
+            `Discard changes to 'f0.ts', 'f1.ts', 'f2.ts', 'f3.ts', 'f4.ts', 'f5.ts', 'f6.ts', 'f7.ts', 'f8.ts', 'f9.ts' and 1 more${tail}`
+        ])
+        expect(discardConfirmation(["a"])).toEqual(expect.objectContaining({ title: "Discard Changes", verb: "Discard" }))
     })
 })

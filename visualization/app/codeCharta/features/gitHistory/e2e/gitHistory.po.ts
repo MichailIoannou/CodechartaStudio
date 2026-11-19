@@ -87,6 +87,26 @@ export class GitHistoryPageObject {
         return this.page.locator("cc-toast .alert")
     }
 
+    changesTab() {
+        return this.page.getByTestId("history-tab-changes")
+    }
+
+    changeRow(key: string) {
+        return this.page.locator(`[data-row-key="${key}"]`)
+    }
+
+    groupHeaders() {
+        return this.page.getByTestId("changes-group-toggle")
+    }
+
+    diffView() {
+        return this.page.getByTestId("diff-view")
+    }
+
+    diffLines() {
+        return this.page.getByTestId("diff-line")
+    }
+
     async open() {
         await this.tab().click()
         await this.repository().waitFor({ state: "visible" })

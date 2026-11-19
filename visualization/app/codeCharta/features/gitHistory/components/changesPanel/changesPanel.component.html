@@ -1,0 +1,90 @@
+<div class="flex items-center justify-between border-b border-base-300 px-2 py-2">
+    <span class="text-xs font-semibold uppercase tracking-wide">Changes</span>
+    <button
+        type="button"
+        class="btn btn-ghost btn-xs gap-1.5"
+        [title]="changes.isBusy() ? busyTitle : 'Stage all'"
+        [disabled]="changes.isBusy() || !hasStageable()"
+        data-testid="changes-stage-all"
+        (click)="stageAll()"
+    >
+        <i class="fa-solid fa-plus fa-fw"></i>
+        Stage all
+    </button>
+</div>
+@if (isTruncated()) {
+    <div role="status" class="alert alert-warning mx-2 mt-2 px-2 py-1 text-xs" data-testid="changes-truncated">Showing the first 5 000 changes.</div>
+}
+@if (failure(); as sentence) {
+    <div role="alert" class="alert alert-error mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="changes-failure">
+        <span class="flex-1">{{ sentence }}</span>
+        <button type="button" class="btn btn-ghost btn-xs" (click)="retry()">Retry</button>
+    </div>
+}
+<div
+    role="listbox"
+    aria-label="Changes"
+    aria-multiselectable="true"
+    tabindex="0"
+    class="group min-h-0 flex-1 overflow-auto px-1 py-1 outline-none"
+    data-testid="changes-list"
+    [attr.aria-activedescendant]="activeDescendant()"
+    (keydown)="onKeydown($event)"
+>
+    @if (isLoading()) {
+        <div class="flex flex-col gap-3 p-2" data-testid="changes-loading">
+            @for (row of skeletonRows; track row) {
+                <div class="skeleton h-4 w-full"></div>
+            }
+        </div>
+    } @else if (isEmpty()) {
+        <p class="p-4 text-sm text-base-content/60" data-testid="changes-empty">No changes. The working tree matches the last commit.</p>
+    }
+    @for (group of changes.groups(); track group.kind) {
+        <div role="group" [attr.aria-label]="group.label" [attr.data-group]="group.kind">
+            <div class="flex h-7 items-center gap-1 px-1" role="presentation">
+                <button
+                    type="button"
+                    class="flex min-w-0 cursor-pointer items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-base-content/60"
+                    [attr.aria-expanded]="!isCollapsed(group.kind)"
+                    data-testid="changes-group-toggle"
+                    (click)="toggleGroup(group.kind)"
+                >
+                    <i class="fa-solid fa-fw" [class.fa-caret-down]="!isCollapsed(group.kind)" [class.fa-caret-right]="isCollapsed(group.kind)"></i>
+                    <span>{{ group.label }}</span>
+                    @if (group.kind === "conflicted") {
+                        <span class="badge badge-warning badge-xs tabular-nums">{{ group.rows.length }}</span>
+                    } @else {
+                        <span class="tabular-nums">({{ group.rows.length }})</span>
+                    }
+                </button>
+                @if (groupActionOf(group); as action) {
+                    <button
+                        type="button"
+                        class="btn btn-ghost btn-xs ml-auto font-normal"
+                        [title]="changes.isBusy() ? busyTitle : action.label"
+                        [disabled]="changes.isBusy()"
+                        data-testid="changes-group-action"
+                        (click)="action.run()"
+                    >
+                        {{ action.label }}
+                    </button>
+                }
+            </div>
+            @if (!isCollapsed(group.kind)) {
+                @for (row of group.rows; track row.key) {
+                    <cc-change-row
+                        [row]="row"
+                        [isSelected]="changes.selectedKeys().has(row.key)"
+                        [isActive]="row.key === activeRowKey()"
+                        [isBusy]="changes.isBusy()"
+                        (click)="select(row, $event)"
+                        (stage)="stage(row)"
+                        (unstage)="unstage(row)"
+                        (discard)="discard([row])"
+                    />
+                }
+            }
+        </div>
+    }
+</div>

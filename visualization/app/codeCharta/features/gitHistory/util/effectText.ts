@@ -73,3 +73,21 @@ export function renameEffect(oldName: string, newName: string): string {
 export function fetchResult(updatedRefs: number): string {
     return updatedRefs === 0 ? "Already up to date" : `Fetched ${counted(updatedRefs, "updated ref")}`
 }
+
+const MAX_NAMED_FILES = 10
+
+/** Design H15: names at most ten files, the rest as "and n more". */
+export function discardConfirmation(paths: readonly string[]): GitConfirmation {
+    return {
+        title: "Discard Changes",
+        text: `Discard changes to ${namedFiles(paths)}? Tracked files return to the last commit; untracked files go to the recycle bin.`,
+        verb: "Discard"
+    }
+}
+
+function namedFiles(paths: readonly string[]): string {
+    const named = paths.slice(0, MAX_NAMED_FILES).map(quoted)
+    const rest = paths.length - named.length
+    const parts = rest > 0 ? [...named, `${rest} more`] : named
+    return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`
+}

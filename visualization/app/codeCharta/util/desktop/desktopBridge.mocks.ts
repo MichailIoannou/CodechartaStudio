@@ -7,10 +7,14 @@ import type { FolderRef } from "../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../model/coreApi/FolderRole"
 import type { GitCommitDetails } from "../../model/coreApi/GitCommitDetails"
 import type { GitCommitSummary } from "../../model/coreApi/GitCommitSummary"
+import type { GitDiff } from "../../model/coreApi/GitDiff"
+import type { GitEntryKind } from "../../model/coreApi/GitEntryKind"
+import type { GitFileChange } from "../../model/coreApi/GitFileChange"
 import type { GitLogParams } from "../../model/coreApi/GitLogParams"
 import type { GitRefs } from "../../model/coreApi/GitRefs"
 import type { GitRepositoryInfo } from "../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../model/coreApi/GitStatus"
+import type { GitWorkingTreeEntry } from "../../model/coreApi/GitWorkingTreeEntry"
 import type { JobError } from "../../model/coreApi/JobError"
 import type { JobProgress } from "../../model/coreApi/JobProgress"
 import type { NewFolder } from "../../model/coreApi/NewFolder"
@@ -52,6 +56,11 @@ type FakeGitMethod =
     | "git.branchRename"
     | "git.branchDelete"
     | "git.setUpstream"
+    | "git.workingTree"
+    | "git.diffFile"
+    | "git.stage"
+    | "git.unstage"
+    | "git.discard"
 
 /**
  * A write that does not answer at once: it reports its progress and asks its prompts under the caller's operation id,
@@ -78,6 +87,11 @@ interface FakeGitRepository {
     /** What `git.fetch` reports as updated. */
     fetchedRefs?: number
     slow?: Partial<Record<FakeGitMethod, FakeSlowOperation>>
+    /** The working-tree listing; once seeded, writes keep the status counts in step with it. */
+    changes?: GitWorkingTreeEntry[]
+    areChangesTruncated?: boolean
+    /** By `<kind>:<path>`; a listed row without one answers an empty diff. */
+    diffs?: Record<string, GitDiff>
 }
 
 export interface FakeDesktopSeed {
@@ -157,6 +171,10 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     refName?: string
     newName?: string
     upstreamRefName?: string | null
+    path?: string
+    kind?: GitEntryKind
+    paths?: string[]
+    entries?: { path: string; kind: GitEntryKind; change: GitFileChange }[]
 }
 
 type FakeGitTarget =
@@ -749,7 +767,8 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
     function announceChange(params: FakeRequestParams) {
         const repository = store.git[params.repo?.folderId ?? ""]
         if (params.repo && repository?.refs) {
-            const change = { repo: params.repo, repositoryId: repository.info?.repositoryId ?? "", parts: ["status", "refs"] }
+            const parts = ["status", "refs", "workingTree"]
+            const change = { repo: params.repo, repositoryId: repository.info?.repositoryId ?? "", parts }
             const fingerprint = repository.refs.fingerprint
             Promise.resolve().then(() => emit("repository.changed", { ...change, fingerprint }))
         }
@@ -874,6 +893,104 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         const answer = gitWrite("git.fetch", () => null)(params)
         const repository = store.git[params.repo?.folderId ?? ""]
         return answer.ok ? succeed({ updatedRefs: repository?.fetchedRefs ?? 0, refs: repository?.refs }) : answer
+    }
+
+    function workingTreeOf(repository: FakeGitRepository) {
+        const entries = repository.changes ?? []
+        return { status: repository.status, entries, areEntriesTruncated: repository.areChangesTruncated ?? false }
+    }
+
+    function countChanges(repository: FakeGitRepository) {
+        const entries = repository.changes ?? []
+        const countOf = (kind: GitEntryKind) => entries.filter(entry => entry.kind === kind).length
+        if (repository.status) {
+            const counts = { staged: countOf("staged"), unstaged: countOf("unstaged"), untracked: countOf("untracked") }
+            repository.status.counts = { ...counts, conflicted: countOf("conflicted") }
+        }
+    }
+
+    function workingTreeWrite(
+        method: FakeGitMethod,
+        change: (repository: FakeGitRepository, params: FakeRequestParams) => FakeAnswer | null
+    ) {
+        const read = gitAnswer(method, (repository, params) => {
+            if (!repository.status) {
+                return undefined
+            }
+            const refusal = change(repository, params)
+            if (refusal && "error" in refusal) {
+                return refusal.error
+            }
+            countChanges(repository)
+            return workingTreeOf(repository)
+        })
+        return (params: FakeRequestParams): FakeAnswer => {
+            const answer = read(params)
+            announceChange(params)
+            return answer
+        }
+    }
+
+    function listedEntry(repository: FakeGitRepository, path: string, kinds: GitEntryKind[]) {
+        return (repository.changes ?? []).find(entry => entry.path === path && kinds.includes(entry.kind))
+    }
+
+    function moveEntry(repository: FakeGitRepository, entry: GitWorkingTreeEntry, kind: GitEntryKind, change: GitFileChange) {
+        const others = (repository.changes ?? []).filter(candidate => candidate !== entry)
+        const isMerged = others.some(candidate => candidate.path === entry.path && candidate.kind === kind)
+        repository.changes = isMerged ? others : [...others, { ...entry, kind, change, conflict: null }]
+    }
+
+    function stageChanges(repository: FakeGitRepository, params: FakeRequestParams) {
+        const target = params.target as unknown as { kind: "paths"; paths: string[] } | { kind: "all" }
+        const stageable: GitEntryKind[] = ["unstaged", "untracked", "conflicted"]
+        const paths =
+            target.kind === "all"
+                ? (repository.changes ?? []).filter(entry => stageable.includes(entry.kind)).map(entry => entry.path)
+                : target.paths
+        const entries = paths.map(path => listedEntry(repository, path, stageable))
+        if (entries.some(entry => !entry)) {
+            return refuse("CHANGED_SINCE_LISTED", "The working tree changed since it was listed.")
+        }
+        for (const entry of entries as GitWorkingTreeEntry[]) {
+            moveEntry(repository, entry, "staged", entry.kind === "untracked" ? "added" : entry.change)
+        }
+        return null
+    }
+
+    function unstageChanges(repository: FakeGitRepository, params: FakeRequestParams) {
+        const entries = (params.paths ?? []).map(path => listedEntry(repository, path, ["staged"]))
+        if (entries.some(entry => !entry)) {
+            return refuse("CHANGED_SINCE_LISTED", "The working tree changed since it was listed.")
+        }
+        for (const entry of entries as GitWorkingTreeEntry[]) {
+            moveEntry(repository, entry, entry.change === "added" ? "untracked" : "unstaged", entry.change)
+        }
+        return null
+    }
+
+    function discardChanges(repository: FakeGitRepository, params: FakeRequestParams) {
+        const rows = params.entries ?? []
+        if (rows.some(row => row.kind === "conflicted")) {
+            return refuse("NOT_ALLOWED", "A conflicted file cannot be discarded.")
+        }
+        const listed = rows.map(row =>
+            (repository.changes ?? []).find(entry => entry.path === row.path && entry.kind === row.kind && entry.change === row.change)
+        )
+        if (listed.some(entry => !entry)) {
+            return refuse("CHANGED_SINCE_LISTED", "The working tree changed since it was listed.")
+        }
+        repository.changes = (repository.changes ?? []).filter(entry => !listed.includes(entry))
+        return null
+    }
+
+    function diffOf(repository: FakeGitRepository, params: FakeRequestParams) {
+        const kind = params.kind ?? "unstaged"
+        const path = params.path ?? ""
+        if (!listedEntry(repository, path, [kind])) {
+            return { code: "NOT_FOUND", message: `The fake desktop bridge lists no ${kind} ${path}.`, details: {} }
+        }
+        return repository.diffs?.[`${kind}:${path}`] ?? { path, text: "", isBinary: false, isTruncated: false }
     }
 
     function slowOperationOf(method: BridgeMethod, params: unknown) {
@@ -1261,6 +1378,11 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "git.branchRename": gitWrite("git.branchRename", renameBranch),
         "git.branchDelete": gitWrite("git.branchDelete", deleteBranch),
         "git.setUpstream": gitWrite("git.setUpstream", setUpstream),
+        "git.workingTree": gitAnswer("git.workingTree", repository => (repository.status ? workingTreeOf(repository) : undefined)),
+        "git.diffFile": gitAnswer("git.diffFile", diffOf),
+        "git.stage": workingTreeWrite("git.stage", stageChanges),
+        "git.unstage": workingTreeWrite("git.unstage", unstageChanges),
+        "git.discard": workingTreeWrite("git.discard", discardChanges),
         "prompt.answer": answerPrompt,
         "prompt.cancel": cancelPrompt
     }

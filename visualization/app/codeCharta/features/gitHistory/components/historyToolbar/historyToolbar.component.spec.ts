@@ -5,6 +5,7 @@ import { aFolder, aProject } from "../../../projects/projects.mocks"
 import { aRefs, aRepositoryInfo, aStatusOn } from "../../services/gitApi.mocks"
 import { provideGitHistory, settleGit } from "../../services/gitHistoryTestBed.mocks"
 import { GitLogService } from "../../services/gitLog.service"
+import { HistoryTabService } from "../../services/historyTab.service"
 import { HistoryToolbarComponent } from "./historyToolbar.component"
 
 const BILLING = aProject("p-billing", [aFolder("f-api", { label: "billing-api", path: "C:\\work\\billing-api" })], { name: "billing" })
@@ -79,5 +80,38 @@ describe("HistoryToolbarComponent", () => {
         // Assert
         expect(isSpinning).toBe(true)
         expect(bridge.calls.filter(call => call.args[0] === "git.repositoryInfo")).toHaveLength(infoReadsBefore + 1)
+    })
+
+    it("should switch between the Log and Changes tabs and count the changed files on the Changes tab", async () => {
+        // Arrange
+        localStorage.clear()
+        const counts = { staged: 1, unstaged: 2, untracked: 0, conflicted: 0 }
+        const { detectChanges } = await renderToolbar(aStatusOn("main", { counts }))
+
+        // Act
+        fireEvent.click(screen.getByTestId("history-tab-changes"))
+        detectChanges()
+
+        // Assert
+        expect(TestBed.inject(HistoryTabService).tab()).toBe("changes")
+        expect(screen.getByTestId("history-tab-changes").getAttribute("aria-selected")).toBe("true")
+        expect(screen.getByTestId("history-changes-count").textContent.trim()).toBe("3")
+        expect(screen.getByTestId("history-changes-count").classList).not.toContain("badge-warning")
+    })
+
+    it("should mark the count when files have conflicts", async () => {
+        // Arrange & Act
+        await renderToolbar(aStatusOn("main", { counts: { staged: 0, unstaged: 0, untracked: 0, conflicted: 1 } }))
+
+        // Assert
+        expect(screen.getByTestId("history-changes-count").classList).toContain("badge-warning")
+    })
+
+    it("should show no count without changed files", async () => {
+        // Arrange & Act
+        await renderToolbar()
+
+        // Assert
+        expect(screen.queryAllByTestId("history-changes-count")).toHaveLength(0)
     })
 })
