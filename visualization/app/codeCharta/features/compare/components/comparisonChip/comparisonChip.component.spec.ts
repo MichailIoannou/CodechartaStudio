@@ -6,8 +6,8 @@ import { TEST_FILE_DATA, TEST_FILE_DATA_JAVA } from "../../../../mocks/dataMocks
 import { addFile, setDelta } from "../../../../stores/fileStore/store/files.actions"
 import { appReducers, setStateMiddleware } from "../../../../stores/rootStore/store"
 import { ToastService } from "../../../shared/facade"
-import { LoadedSide } from "../../model/compare.model"
-import { aCommitSnapshot, aComparedCommit, BASE_SHA, FOLDER, HEAD_SHA } from "../../ports/compareGateways.mocks"
+import { LoadedSide, ResolvedComparison } from "../../model/compare.model"
+import { aCommitSnapshot, aComparedCommit, aResolvedComparison, BASE_SHA, FOLDER, HEAD_SHA } from "../../ports/compareGateways.mocks"
 import { CompareService } from "../../services/compare.service"
 import { CompareStore } from "../../stores/compare.store"
 import { ComparisonChipComponent } from "./comparisonChip.component"
@@ -31,7 +31,7 @@ describe("ComparisonChipComponent", () => {
     let service: { swap: jest.Mock; exit: jest.Mock }
     let toast: jest.Mock
 
-    async function renderChip(phase: "active" | "noDifferences" = "active") {
+    async function renderChip(phase: "active" | "noDifferences" = "active", resolved: ResolvedComparison | null = null) {
         service = { swap: jest.fn(), exit: jest.fn() }
         toast = jest.fn()
         await render(ComparisonChipComponent, {
@@ -46,7 +46,7 @@ describe("ComparisonChipComponent", () => {
         store.dispatch(addFile({ file: TEST_FILE_DATA_JAVA }))
         store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA, comparisonFile: TEST_FILE_DATA_JAVA }))
         const head = phase === "noDifferences" ? { ...HEAD, checksum: TEST_FILE_DATA.fileMeta.fileChecksum } : HEAD
-        TestBed.inject(CompareStore).set({ phase, resolved: null, base: BASE, head, error: null })
+        TestBed.inject(CompareStore).set({ phase, resolved, base: BASE, head, error: null })
         await screen.findByTestId("comparison-chip")
     }
 
@@ -136,6 +136,46 @@ describe("ComparisonChipComponent", () => {
         // Assert
         expect(writeText).toHaveBeenCalledWith("main..a1b2c3d")
         expect(toast).toHaveBeenCalledWith("Copied main..a1b2c3d")
+    })
+
+    it("should copy a merge-base range from the branch the base came from and name the base mode", async () => {
+        // Arrange
+        const writeText = jest.fn().mockResolvedValue(undefined)
+        Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true })
+        const resolved = aResolvedComparison({
+            origin: "branches",
+            baseMode: "mergeBase",
+            base: { requested: aComparedCommit(BASE_SHA), status: { status: "missing", nearest: null } },
+            head: {
+                requested: aComparedCommit(HEAD_SHA, { kind: "branch", name: "feature/x" }),
+                status: { status: "missing", nearest: null }
+            },
+            baseTip: aComparedCommit("7777777".padEnd(40, "0"), { kind: "branch", name: "main" })
+        })
+        await renderChip("active", resolved)
+
+        // Act
+        await chooseAction("Copy as text")
+
+        // Assert
+        expect(writeText).toHaveBeenCalledWith("main...a1b2c3d")
+        const badge = screen.getByTestId("comparison-base-mode")
+        expect(badge.textContent?.trim()).toBe("since merge base")
+        expect(badge.getAttribute("title")).toBe("Changes on 'feature/x' since it left 'main'")
+    })
+
+    it("should name tip vs tip for branches and nothing for two commits", async () => {
+        // Arrange
+        await renderChip("active", aResolvedComparison({ origin: "branches", baseMode: "tip" }))
+        const forBranches = screen.getByTestId("comparison-base-mode").getAttribute("title")
+        TestBed.inject(CompareStore).update({ resolved: aResolvedComparison() })
+
+        // Act
+        TestBed.tick()
+
+        // Assert
+        expect(forBranches).toBe("Everything that differs between the two tips")
+        expect(screen.queryByTestId("comparison-base-mode")).toBeNull()
     })
 
     it("should close its menu on a click elsewhere", async () => {

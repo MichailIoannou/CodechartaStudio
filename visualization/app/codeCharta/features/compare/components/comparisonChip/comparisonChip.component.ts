@@ -1,10 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, HostListener, inject, signal } from "@angular/core"
 import { CopyToClipboardService } from "../../../../util/copyToClipboard.service"
 import { ToastService } from "../../../shared/facade"
-import type { LoadedSide } from "../../model/compare.model"
+import type { LoadedSide, ResolvedComparison } from "../../model/compare.model"
 import { CompareService } from "../../services/compare.service"
 import { rangeText, refName, sideCaption, staleTitle } from "../../services/comparisonText"
 import { CompareStore } from "../../stores/compare.store"
+
+interface BaseModeBadge {
+    text: string
+    title: string
+}
 
 interface ChipSide {
     caption: string
@@ -32,6 +37,7 @@ export class ComparisonChipComponent {
     readonly isNoDifferences = this.store.isShowingNoDifferences
     readonly base = computed(() => chipSideOf("base", this.store.state().base))
     readonly head = computed(() => chipSideOf("head", this.store.state().head))
+    readonly baseModeBadge = computed(() => baseModeBadgeOf(this.store.state().resolved))
 
     @HostListener("document:click", ["$event"])
     closeMenuOnOutsideClick(event: MouseEvent): void {
@@ -66,7 +72,7 @@ export class ComparisonChipComponent {
         if (!(base && head)) {
             return
         }
-        const text = rangeText(base.requested, head.requested, resolved?.baseMode ?? "tip")
+        const text = rangeText(resolved?.baseTip ?? base.requested, head.requested, resolved?.baseMode ?? "tip")
         await this.clipboard.copy(text)
         this.toastService.show(`Copied ${text}`)
     }
@@ -75,6 +81,18 @@ export class ComparisonChipComponent {
         this.isMenuOpen.set(false)
         this.service.exit()
     }
+}
+
+/** Only a comparison of branches or a pull request has a base mode worth naming. */
+function baseModeBadgeOf(resolved: ResolvedComparison | null): BaseModeBadge | null {
+    if (!resolved || resolved.origin === "commits") {
+        return null
+    }
+    const head = refName(resolved.head.requested)
+    const target = refName(resolved.baseTip ?? resolved.base.requested)
+    return resolved.baseMode === "mergeBase"
+        ? { text: "since merge base", title: `Changes on '${head}' since it left '${target}'` }
+        : { text: "tip vs tip", title: "Everything that differs between the two tips" }
 }
 
 function chipSideOf(caption: string, side: LoadedSide | null): ChipSide | null {
