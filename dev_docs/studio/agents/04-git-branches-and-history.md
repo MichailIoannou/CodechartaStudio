@@ -632,6 +632,8 @@ export const ANALYSED_COMMITS = new InjectionToken<AnalysedCommitsProvider>("ANA
 export interface CommitAction { id: string; label: string; icon: string; hoverHint: string; isPrimary: boolean
     isOfferedFor(selection: CommitSelection): boolean; run(selection: CommitSelection): void }
 export const COMMIT_ACTIONS = new InjectionToken<readonly CommitAction[]>("COMMIT_ACTIONS")   // multi
+// as built in M5: label is the menu's Title Case; optional detailsLabel (sentence case) makes it a details-pane button
+// (design H9 / S5 word menu items and buttons differently); icon holds the full Font Awesome classes; one action per provider
 // loadedMapLocator.port.ts — plan 05
 export interface LoadedMapLocator { nodePathOf(repo: FolderRef, repositoryRelativePath: string): string | null }
 export const LOADED_MAP_LOCATOR = new InjectionToken<LoadedMapLocator>("LOADED_MAP_LOCATOR")
@@ -771,6 +773,7 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 1. `commitSelection.service.ts`, `model/commitSelection.ts` — tests: one item on click; second on Ctrl+click ordered (working tree first, then newest); third replaces the second; cleared on repository change; kept across refresh when still listed; working-tree item selectable and carries status. Commit: `feat(visualization): select commits and the working tree`
 2. Keyboard in `commitList` — tests: one per shortcut of 4.7; focused row scrolled into the window; `aria-activedescendant`. Commit: `feat(visualization): navigate commit history by keyboard`
 3. Ports, `commitContextMenu`, two-commit summary — tests: copy SHA / subject; offered contributed actions first, others skipped; primary action on Enter and double-click; nothing on Enter without primary; distance sentence for two commits; opens at the focused row from the keyboard. Commit: `feat(visualization): add commit context menu and extension ports`
+   - As built (design H10 over the plan): no Check Out / New Branch items yet (they are write entries, M8+); the working-tree row has a menu only when a contribution is offered for it; ports not exported from the facade until 05-M4 task 5 consumes them.
 
 ### M6 — Read-only end-to-end and docs (S)
 

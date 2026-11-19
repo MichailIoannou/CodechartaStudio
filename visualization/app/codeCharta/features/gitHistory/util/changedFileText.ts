@@ -1,6 +1,7 @@
+import type { GitCommitDistance } from "../../../model/coreApi/GitCommitDistance"
 import type { GitFileChange } from "../../../model/coreApi/GitFileChange"
 import type { StatusCounts } from "../../../model/coreApi/StatusCounts"
-import { counted } from "../../../util/wording"
+import { counted, shortSha } from "../../../util/wording"
 
 export interface ChangeBadge {
     label: string
@@ -42,4 +43,10 @@ export function workingTreeSummary({ staged, unstaged, untracked, conflicted }: 
     ] as const
     const present = parts.filter(([count]) => count > 0).map(([count, kind]) => `${count} ${kind}`)
     return `${counted(staged + unstaged + untracked + conflicted, "changed file")}: ${present.join(", ")}`
+}
+
+/** Design H9's two-commit sentence: "a1b2c3d is 3 commits ahead of and 1 behind 9f8e7d6". */
+export function distanceSentence(newerSha: string, olderSha: string, distance: GitCommitDistance): string {
+    const ahead = counted(distance.onlyInTarget, "commit")
+    return `${shortSha(newerSha)} is ${ahead} ahead of and ${distance.onlyInCandidate} behind ${shortSha(olderSha)}`
 }

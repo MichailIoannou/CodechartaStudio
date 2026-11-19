@@ -43,6 +43,7 @@ export class GitLogService {
     private readonly isGraphAvailableState = signal(true)
     private readonly pageState = signal<LoadState<void>>(IDLE)
     private readonly cursor = signal<string | null>(null)
+    private readonly firstPageLoadCount = signal(0)
     private layoutState: GraphLayoutState = EMPTY_GRAPH_STATE
     private generation = 0
     private isPageInFlight = false
@@ -61,6 +62,8 @@ export class GitLogService {
     readonly graphRows = computed(() => (this.isGraphAvailable() ? this.graphRowsState() : []))
     readonly page = this.pageState.asReadonly()
     readonly hasMore = computed(() => this.cursor() !== null)
+    /** Counts every page one that replaced the list, so a selection can check what is still listed. */
+    readonly firstPageLoads = this.firstPageLoadCount.asReadonly()
     readonly isLoadingFirstPage = computed(() => this.pageState().kind === "loading" && this.commitsState().length === 0)
     readonly refLabels = computed(() => {
         const refs = readyValueOf(this.repository.refs())
@@ -187,6 +190,9 @@ export class GitLogService {
         this.appendCommits(page.commits)
         this.cursor.set(page.nextCursor)
         this.pageState.set(READY)
+        if (cursor === null) {
+            this.firstPageLoadCount.update(count => count + 1)
+        }
     }
 
     private appendCommits(commits: readonly GitCommitSummary[]) {

@@ -1,4 +1,4 @@
-import { VirtualWindowInput, windowOf } from "./virtualWindow"
+import { scrollTopShowing, VirtualWindowInput, windowOf } from "./virtualWindow"
 
 const ROW_HEIGHT = 28
 
@@ -66,5 +66,25 @@ describe("windowOf", () => {
 
         // Assert
         expect(window).toEqual({ firstIndex: 0, lastIndex: -1, offsetTop: 0, totalHeight: 0 })
+    })
+
+    describe("scrollTopShowing", () => {
+        it("should keep the scroll position for a row in view", () => {
+            // Arrange & Act
+            const scrollTop = scrollTopShowing({ index: 5, rowHeight: 28, scrollTop: 56, viewportHeight: 280 })
+
+            // Assert
+            expect(scrollTop).toBe(56)
+        })
+
+        it("should scroll up to a row above the view and down to a row below it", () => {
+            // Arrange & Act
+            const above = scrollTopShowing({ index: 1, rowHeight: 28, scrollTop: 140, viewportHeight: 280 })
+            const below = scrollTopShowing({ index: 20, rowHeight: 28, scrollTop: 0, viewportHeight: 280 })
+
+            // Assert
+            expect(above).toBe(28)
+            expect(below).toBe(21 * 28 - 280)
+        })
     })
 })

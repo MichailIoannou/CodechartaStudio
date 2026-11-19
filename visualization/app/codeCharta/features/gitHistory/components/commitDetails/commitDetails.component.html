@@ -1,4 +1,29 @@
-@if (workingTreeText(); as text) {
+@if (twoItemLines(); as lines) {
+    <div class="flex flex-col gap-2 px-3 pb-3 pt-2" data-testid="commit-details-two">
+        @for (line of lines; track line.key) {
+            <p class="flex min-w-0 items-baseline gap-2 text-sm" data-testid="commit-details-two-item">
+                @if (line.shortSha) {
+                    <span class="shrink-0 font-mono">{{ line.shortSha }}</span>
+                    <span class="truncate font-semibold" [title]="line.text">{{ line.text }}</span>
+                } @else {
+                    <span class="truncate italic">{{ line.text }}</span>
+                }
+            </p>
+        }
+        @if (distanceText(); as sentence) {
+            <p class="text-sm" [class.text-error]="isDistanceFailed()" data-testid="commit-details-distance">{{ sentence }}</p>
+        }
+        @if (detailsActions().length > 0) {
+            <div class="flex flex-wrap gap-2" data-testid="commit-details-actions">
+                @for (action of detailsActions(); track action.id) {
+                    <button type="button" class="btn btn-sm gap-2" [title]="action.hoverHint" (click)="runAction(action)">
+                        <i class="fa-fw" [class]="action.icon"></i>{{ action.detailsLabel }}
+                    </button>
+                }
+            </div>
+        }
+    </div>
+} @else if (workingTreeText(); as text) {
     <p class="p-4 text-sm" data-testid="commit-details-working-tree">{{ text }}</p>
 } @else if (isLoading()) {
     <div class="flex flex-col gap-2 p-3" data-testid="commit-details-loading">
@@ -36,6 +61,15 @@
                     </button>
                 }
             </span>
+        }
+        @if (detailsActions().length > 0) {
+            <div class="mt-1 flex flex-wrap gap-2" data-testid="commit-details-actions">
+                @for (action of detailsActions(); track action.id) {
+                    <button type="button" class="btn btn-sm gap-2" [title]="action.hoverHint" (click)="runAction(action)">
+                        <i class="fa-fw" [class]="action.icon"></i>{{ action.detailsLabel }}
+                    </button>
+                }
+            </div>
         }
         <div class="mt-2 flex items-baseline gap-2 text-xs" data-testid="commit-details-totals">
             <span class="font-semibold uppercase tracking-wide text-base-content/60">Changed files</span>

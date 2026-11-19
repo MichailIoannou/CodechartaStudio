@@ -162,6 +162,23 @@ describe("GitLogService", () => {
             expect(service.page().kind).toBe("ready")
         })
 
+        it("should count each page one that replaces the list but not the pages after it", async () => {
+            // Arrange
+            const service = createService()
+
+            // Act
+            await answer(0, aPage([C], "cursor-1"))
+            void service.loadNextPage()
+            await answer(1, aPage([B]))
+            const afterNextPage = service.firstPageLoads()
+            void service.reload()
+            await answer(2, aPage([C, B]))
+
+            // Assert
+            expect(afterNextPage).toBe(1)
+            expect(service.firstPageLoads()).toBe(2)
+        })
+
         it("should show the first page as loading while nothing is listed", () => {
             // Arrange & Act
             const service = createService()

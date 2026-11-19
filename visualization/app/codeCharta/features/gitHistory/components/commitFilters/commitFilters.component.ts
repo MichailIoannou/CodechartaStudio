@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal, untracked } from "@angular/core"
+import {
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    DestroyRef,
+    ElementRef,
+    effect,
+    inject,
+    signal,
+    untracked,
+    viewChild
+} from "@angular/core"
 import { SettingsPopoverShellComponent } from "../../../shared/facade"
 import { CommitFilter, GitLogService, NO_FILTER } from "../../services/gitLog.service"
 
@@ -15,6 +26,7 @@ type FilterField = keyof CommitFilter
 })
 export class CommitFiltersComponent {
     private readonly log = inject(GitLogService)
+    private readonly searchInput = viewChild.required<ElementRef<HTMLInputElement>>("searchInput")
     private pendingFilter?: ReturnType<typeof setTimeout>
 
     readonly draft = signal<CommitFilter>(this.log.filter())
@@ -35,6 +47,10 @@ export class CommitFiltersComponent {
         this.draft.update(filter => ({ ...filter, [field]: value }))
         clearTimeout(this.pendingFilter)
         this.pendingFilter = setTimeout(() => this.log.setFilter(this.draft()), FILTER_DEBOUNCE_MS)
+    }
+
+    focusSearch() {
+        this.searchInput().nativeElement.focus()
     }
 
     clear() {

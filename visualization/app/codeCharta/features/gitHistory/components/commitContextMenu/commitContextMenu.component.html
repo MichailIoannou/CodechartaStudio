@@ -1,0 +1,15 @@
+<cc-floating-menu class="w-64" data-testid="commit-context-menu" [anchor]="target().anchor" (dismissed)="dismiss()"
+    (positioned)="focusFirstItemIfFromKeyboard()" (keydown)="onKeydown($event)">
+    @for (action of actions(); track action.id) {
+        <cc-context-menu-item [icon]="action.icon" [hoverHint]="action.hoverHint" (itemClick)="runAction(action)">{{ action.label }}</cc-context-menu-item>
+    }
+    @if (commit(); as commit) {
+        @if (actions().length > 0) {
+            <div class="my-1 border-t border-base-300"></div>
+        }
+        <cc-context-menu-item icon="fa-regular fa-copy" hoverHint="Copy the full commit hash" (itemClick)="copySha(commit)">Copy SHA</cc-context-menu-item>
+        <cc-context-menu-item icon="fa-regular fa-copy" hoverHint="Copy the first line of the message" (itemClick)="copySubject(commit)"
+            >Copy Subject</cc-context-menu-item
+        >
+    }
+</cc-floating-menu>

@@ -43,6 +43,10 @@ export class GitApiService {
         return this.call("git.resolveCommit", { repo, revision })
     }
 
+    measureDistances(repo: FolderRef, target: string, candidates: string[]) {
+        return this.call("git.measureDistances", { repo, target, candidates })
+    }
+
     onRepositoryChanged(handler: (change: RepositoryChanged) => void): () => void {
         return this.bridge?.subscribe("repository.changed", handler) ?? (() => undefined)
     }

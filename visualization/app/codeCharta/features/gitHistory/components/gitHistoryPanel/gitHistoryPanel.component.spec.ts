@@ -176,6 +176,36 @@ describe("GitHistoryPanelComponent", () => {
         expect(bridge.calls.filter(call => call.args[0] === "git.repositoryInfo")).toHaveLength(infoReadsBefore + 1)
     })
 
+    it("should focus the commit search on Ctrl+F or slash in the commit list", async () => {
+        // Arrange
+        await renderPanel()
+        const list = screen.getByTestId("commit-list")
+        const search = screen.getByTestId("history-search")
+
+        // Act
+        fireEvent.keyDown(list, { key: "f", ctrlKey: true })
+        const afterCtrlF = document.activeElement
+        list.focus()
+        fireEvent.keyDown(list, { key: "/" })
+
+        // Assert
+        expect(afterCtrlF).toBe(search)
+        expect(document.activeElement).toBe(search)
+    })
+
+    it("should refresh on F5 pressed in the commit list", async () => {
+        // Arrange
+        const { bridge } = await renderPanel()
+        const infoReadsBefore = bridge.calls.filter(call => call.args[0] === "git.repositoryInfo").length
+
+        // Act
+        fireEvent.keyDown(screen.getByTestId("commit-list"), { key: "F5" })
+        await settleGit()
+
+        // Assert
+        expect(bridge.calls.filter(call => call.args[0] === "git.repositoryInfo")).toHaveLength(infoReadsBefore + 1)
+    })
+
     it("should show the scope next to the commit list and lift it again", async () => {
         // Arrange
         const { detectChanges } = await renderPanel()

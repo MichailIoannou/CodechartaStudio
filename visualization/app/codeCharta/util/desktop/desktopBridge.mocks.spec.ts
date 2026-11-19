@@ -669,6 +669,38 @@ describe("createFakeDesktopBridge", () => {
         expect(unknown).toEqual({ ok: false, error: expect.objectContaining({ code: "UNKNOWN_REVISION" }) })
     })
 
+    it("should measure how far commits are apart and leave out unknown candidates", async () => {
+        // Arrange
+        const repo = { projectId: "p-1", folderId: "f-1" }
+        const commitOf = (seed: string, parentSeeds: string[]) => ({
+            sha: seed.repeat(40),
+            parents: parentSeeds.map(parent => parent.repeat(40)),
+            authorName: "Mia",
+            authorEmail: "mia@example.com",
+            authoredAt: 0,
+            committedAt: 0,
+            subject: seed
+        })
+        const base = commitOf("1", [])
+        const main = commitOf("2", ["1"])
+        const side = commitOf("3", ["1"])
+        const tip = commitOf("4", ["2"])
+        const bridge = createFakeDesktopBridge({ git: { "f-1": { commits: [tip, side, main, base] } } })
+
+        // Act
+        const measured = await answerValue(bridge, "git.measureDistances", {
+            repo,
+            target: tip.sha,
+            candidates: [side.sha, base.sha, "f".repeat(40)]
+        })
+
+        // Assert
+        expect(measured.distances).toEqual([
+            { sha: side.sha, onlyInCandidate: 1, onlyInTarget: 2 },
+            { sha: base.sha, onlyInCandidate: 0, onlyInTarget: 2 }
+        ])
+    })
+
     it("should sum the map sizes of each folder as its store usage", async () => {
         // Arrange
         const project = aProject("p-1", [aFolder("f-1"), aFolder("f-2", { role: "helper" })])
