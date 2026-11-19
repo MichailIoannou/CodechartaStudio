@@ -271,6 +271,11 @@ export class ProjectsService {
         return this.request("projects.resolveCommit", { ...folder, hash })
     }
 
+    async moveSnapshot(ref: SnapshotRef, change: { toFolderId: string; bindToCommit: string | null }): Promise<void> {
+        const moved = await this.request("snapshots.move", { ...ref, ...change })
+        await this.showSnapshot(moved.ref)
+    }
+
     async readStoreUsage(): Promise<StoreUsage | null> {
         const project = this.project()
         return project ? this.request("snapshots.usage", { projectId: project.id }) : null

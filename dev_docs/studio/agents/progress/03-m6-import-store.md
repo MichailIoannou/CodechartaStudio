@@ -34,7 +34,7 @@ From 03-M5: `snapshots.openFile` sets neither the active project nor the view â€
 ## Steps
 
 - [x] 1. Open file dialog
-- [ ] 2. Move snapshot dialog
+- [x] 2. Move snapshot dialog
 - [ ] 3. Core store root change
 - [ ] 4. Store folder in settings
 - [ ] 5. Drag and drop (optional)
