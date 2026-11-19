@@ -1,11 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from "@angular/core"
 import { DependencyBoxBadge } from "../../../../model/dependencyGraph.model"
-import {
-    BOX_BADGE_SAMPLE,
-    CYCLE_MARK_COLORS,
-    pillLookOf,
-    type UpwardLine
-} from "../../../../renderer/dependencyGraph/dependencyGraph.facade"
+import { BOX_BADGE_SAMPLE, cycleMarkColors, pillLookOf, type UpwardLine } from "../../../../renderer/dependencyGraph/dependencyGraph.facade"
 
 const SIZES = BOX_BADGE_SAMPLE
 const CENTRE = { x: SIZES.widthPx / 2, y: SIZES.heightPx / 2 }
@@ -31,7 +26,7 @@ export class BoxBadgeSampleComponent {
         const mark = this.mark()
         return mark === "declaration" ? null : pillLookOf(mark, this.upwardLine())
     })
-    protected readonly ringColors = CYCLE_MARK_COLORS.declaration
+    protected readonly ringColors = cycleMarkColors().declaration
     protected readonly dash = computed(() => this.pill()?.lineDash?.join(" ") ?? null)
     protected readonly sizes = SIZES
     protected readonly centre = CENTRE

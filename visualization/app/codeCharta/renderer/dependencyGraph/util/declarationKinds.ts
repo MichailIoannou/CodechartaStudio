@@ -24,12 +24,16 @@ const LOOKS = new Map<string, DeclarationKindLook>(
     })
 )
 
-export const KIND_ICON_COLORS = { stroke: "#7d8898", letter: "#374151" }
+export function kindIconColors(): { stroke: string; letter: string } {
+    return { stroke: "#7d8898", letter: "#374151" }
+}
 
-export const DECLARATION_KIND_LEGEND: readonly DeclarationKindLegendEntry[] = [...LOOKS].map(([kind, look]) => ({
-    kind,
-    ...look
-}))
+export function declarationKindLegend(): readonly DeclarationKindLegendEntry[] {
+    return [...LOOKS].map(([kind, look]) => ({
+        kind,
+        ...look
+    }))
+}
 
 /** The kinds are an open vocabulary: one this table does not know yet is drawn as any other. */
 export function declarationKindLookOf(kind: string | undefined): DeclarationKindLook {

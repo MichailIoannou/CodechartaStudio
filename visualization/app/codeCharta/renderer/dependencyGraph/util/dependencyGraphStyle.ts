@@ -1,27 +1,74 @@
 import { DEPENDENCY_EDGE_TYPES, DependencyEdgeColors, DependencyEdgeType, LineStyleMeaning } from "../../../model/dependencyGraph.model"
 import { isDashedEdgeType } from "./lineStyle"
 
-export const TEXT_COLOR = "#1f2937"
-export const SELECTED_COLOR = "#1b9cfc"
-export const HOVERED_COLOR = "#1f2937"
+export function textColor(): string {
+    return "#1f2937"
+}
+
+export function selectedColor(): string {
+    return "#1b9cfc"
+}
+
+export function hoveredColor(): string {
+    return "#1f2937"
+}
+
 export const HOVERED_LINE_WIDTH_PX = 2
 export const CORNER_RADIUS_PX = 4
 
 const FOLDER_FILLS_BY_DEPTH = ["#f4f6f9", "#e9edf2", "#dfe5ec", "#d5dce5"]
-export const FOLDER_STROKE = "#b8c2cf"
-export const CLOSED_FOLDER_FILL = "#dbe7f5"
-export const CLOSED_FOLDER_STROKE = "#7a9cc6"
+export function folderStroke(): string {
+    return "#b8c2cf"
+}
+
+export function closedFolderFill(): string {
+    return "#dbe7f5"
+}
+
+export function closedFolderStroke(): string {
+    return "#7a9cc6"
+}
+
 const PACKAGE_FILLS_BY_DEPTH = ["#f8f6fd", "#f0ecfa", "#e9e3f7", "#e1d9f3"]
-export const PACKAGE_STROKE = "#c6bce2"
-export const CLOSED_PACKAGE_FILL = "#e6e0f7"
-export const CLOSED_PACKAGE_STROKE = "#8f7fc7"
-export const FILE_FILL = "#ffffff"
-export const DECLARATION_FILL = "#f7f9fc"
-export const FILE_STROKE = "#9aa5b4"
-export const OPEN_FILE_FILL = "#fbfcfe"
-export const QUIET_BADGE_COLOR = "#8a94a3"
-export const LEVEL_SEPARATOR_COLOR = "#c3cbd6"
-export const CYCLE_MARK_COLOR = "#dc2626"
+export function packageStroke(): string {
+    return "#c6bce2"
+}
+
+export function closedPackageFill(): string {
+    return "#e6e0f7"
+}
+
+export function closedPackageStroke(): string {
+    return "#8f7fc7"
+}
+
+export function fileFill(): string {
+    return "#ffffff"
+}
+
+export function declarationFill(): string {
+    return "#f7f9fc"
+}
+
+export function fileStroke(): string {
+    return "#9aa5b4"
+}
+
+export function openFileFill(): string {
+    return "#fbfcfe"
+}
+
+export function quietBadgeColor(): string {
+    return "#8a94a3"
+}
+
+export function levelSeparatorColor(): string {
+    return "#c3cbd6"
+}
+
+export function cycleMarkColor(): string {
+    return "#dc2626"
+}
 
 export const EDGE_TYPE_LABELS: Record<DependencyEdgeType, string> = {
     regular: "Dependency",

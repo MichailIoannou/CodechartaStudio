@@ -1,7 +1,7 @@
 import { DependencyBoxBadge, DependencyEdgeColors, LineStyleMeaning } from "../../../model/dependencyGraph.model"
-import { declarationKindLookOf, KIND_ICON_COLORS } from "./declarationKinds"
+import { declarationKindLookOf, kindIconColors } from "./declarationKinds"
 import { CLICKABLE, UNTRANSFORMED } from "./dependencyGraphElements"
-import { CYCLE_MARK_COLOR, FILE_FILL, QUIET_BADGE_COLOR } from "./dependencyGraphStyle"
+import { cycleMarkColor, fileFill, quietBadgeColor } from "./dependencyGraphStyle"
 import { Rectangle } from "./geometry"
 import { inkCentreShiftOf, MARK_FONT_FAMILY } from "./inkCentre"
 import { LayoutBox } from "./layoutModel"
@@ -72,7 +72,10 @@ interface BadgeDesign extends PillLook {
     info: string
 }
 
-const BADGE_CONTRAST_COLOR = "#ffffff"
+function badgeContrastColor(): string {
+    return "#ffffff"
+}
+
 const MARK_FONT_WEIGHT = "bold"
 const MOST_COUNTED = 99
 /** Drawn around its own centre, as is the arrow up. */
@@ -90,10 +93,12 @@ type PillKind = Exclude<DependencyBoxBadge, "declaration">
 
 /** Filled for the cycles between files, outlined for those within a file: a cycle across files is the wider
  * tangle, so wherever the two are told together it comes first. */
-export const CYCLE_MARK_COLORS: Record<CycleMarkKind, BadgeColors> = {
-    insideFiles: { fill: BADGE_CONTRAST_COLOR, line: CYCLE_MARK_COLOR },
-    betweenFiles: { fill: CYCLE_MARK_COLOR, line: BADGE_CONTRAST_COLOR },
-    declaration: { fill: FILE_FILL, line: CYCLE_MARK_COLOR }
+export function cycleMarkColors(): Record<CycleMarkKind, BadgeColors> {
+    return {
+        insideFiles: { fill: badgeContrastColor(), line: cycleMarkColor() },
+        betweenFiles: { fill: cycleMarkColor(), line: badgeContrastColor() },
+        declaration: { fill: fileFill(), line: cycleMarkColor() }
+    }
 }
 
 const SAMPLE_COUNT = "2"
@@ -125,18 +130,18 @@ export const UPWARD_BADGE_INFO = "upwardBadge"
 
 export function pillLookOf(mark: PillKind, { color, isDashed }: UpwardLine): PillLook {
     if (mark === "upward") {
-        return { colors: { fill: BADGE_CONTRAST_COLOR, line: color }, glyph: UPWARD_GLYPH, lineDash: isDashed ? BADGE_DASH : null }
+        return { colors: { fill: badgeContrastColor(), line: color }, glyph: UPWARD_GLYPH, lineDash: isDashed ? BADGE_DASH : null }
     }
-    return { colors: CYCLE_MARK_COLORS[mark], glyph: CYCLE_GLYPH, lineDash: null }
+    return { colors: cycleMarkColors()[mark], glyph: CYCLE_GLYPH, lineDash: null }
 }
 
 export function drawKindIcon(box: LayoutBox, rect: Rectangle, { opacity, scale }: MarkLook): object[] {
     const { letter, tint } = declarationKindLookOf(box.declarationKind)
     const centre = { cx: rect.x + KIND_ICON.centreInsetPx * scale, cy: rect.y + rect.height / 2 }
-    const disc = { fill: tint, stroke: KIND_ICON_COLORS.stroke, lineWidth: KIND_ICON.lineWidthPx, opacity }
+    const disc = { fill: tint, stroke: kindIconColors().stroke, lineWidth: KIND_ICON.lineWidthPx, opacity }
     return [
         { type: "circle", ...UNTRANSFORMED, silent: true, shape: { ...centre, r: KIND_ICON.radiusPx * scale }, style: disc },
-        centredText(letter, centre, { fontSize: KIND_ICON.fontSizePx * scale, fill: KIND_ICON_COLORS.letter, opacity })
+        centredText(letter, centre, { fontSize: KIND_ICON.fontSizePx * scale, fill: kindIconColors().letter, opacity })
     ]
 }
 
@@ -146,10 +151,10 @@ export function drawDeclarationCount(box: LayoutBox, rect: Rectangle, { opacity,
         return []
     }
     const centre = { cx: rect.x + rect.width - COUNT_BADGE.centreInsetPx * scale, cy: rect.y + rect.height / 2 }
-    const disc = { fill: FILE_FILL, stroke: QUIET_BADGE_COLOR, lineWidth: COUNT_BADGE.outlinePx, opacity }
+    const disc = { fill: fileFill(), stroke: quietBadgeColor(), lineWidth: COUNT_BADGE.outlinePx, opacity }
     return [
         { type: "circle", ...UNTRANSFORMED, silent: true, shape: { ...centre, r: COUNT_BADGE.radiusPx * scale }, style: disc },
-        centredText(String(box.declarationCount), centre, { fontSize: COUNT_BADGE.fontSizePx * scale, fill: QUIET_BADGE_COLOR, opacity })
+        centredText(String(box.declarationCount), centre, { fontSize: COUNT_BADGE.fontSizePx * scale, fill: quietBadgeColor(), opacity })
     ]
 }
 
@@ -171,7 +176,7 @@ export function drawBadges(box: LayoutBox, rect: Rectangle, badges: BadgeLook, {
 
 function drawCycleRing(rect: Rectangle, { opacity, scale }: MarkLook): object {
     const centre = { cx: rect.x + rect.width - CYCLE_RING.insetPx, cy: rect.y + CYCLE_RING.insetPx }
-    const { fill, line } = CYCLE_MARK_COLORS.declaration
+    const { fill, line } = cycleMarkColors().declaration
     const style = { fill, stroke: line, lineWidth: CYCLE_RING.lineWidthPx * scale, opacity }
     return { type: "circle", ...UNTRANSFORMED, silent: true, shape: { ...centre, r: CYCLE_RING.radiusPx * scale }, style }
 }

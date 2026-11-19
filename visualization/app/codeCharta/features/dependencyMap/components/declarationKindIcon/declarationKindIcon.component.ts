@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from "@angular/core"
-import { declarationKindLookOf, KIND_ICON_COLORS } from "../../../../renderer/dependencyGraph/dependencyGraph.facade"
+import { declarationKindLookOf, kindIconColors } from "../../../../renderer/dependencyGraph/dependencyGraph.facade"
 
 @Component({
     selector: "cc-declaration-kind-icon",
@@ -18,5 +18,5 @@ export class DeclarationKindIconComponent {
     readonly kind = input.required<string | undefined>()
 
     protected readonly look = computed(() => declarationKindLookOf(this.kind()))
-    protected readonly colors = KIND_ICON_COLORS
+    protected readonly colors = kindIconColors()
 }
