@@ -193,6 +193,30 @@ describe("FileExtensionBarSegment", () => {
             expect(fixture.componentInstance.backgroundColor).toEqual(mockItem.color)
         })
 
+        it("should blend into both neighbours over at most 12 px a side, meeting each on their half-and-half mix", () => {
+            // Arrange
+            fixture.componentRef.setInput("previousColor", "#4ea8de")
+            fixture.componentRef.setInput("nextColor", "#6cc24a")
+
+            // Act
+            fixture.detectChanges()
+
+            // Assert
+            expect(fixture.componentInstance.backgroundImage).toBe(
+                "linear-gradient(in oklab to right, " +
+                    "color-mix(in oklab, #4ea8de 50%, #ffffff) 0, #ffffff min(12px, 100% / 3), " +
+                    "#ffffff calc(100% - min(12px, 100% / 3)), color-mix(in oklab, #ffffff 50%, #6cc24a) 100%)"
+            )
+        })
+
+        it("should leave the outer edge of the first and the last segment unblended", () => {
+            // Act
+            const alone = fixture.componentInstance.backgroundImage
+
+            // Assert
+            expect(alone).toBe("linear-gradient(in oklab to right, #ffffff 0, #ffffff 100%)")
+        })
+
         it("should set flexGrow to match relative metric value", () => {
             expect(fixture.componentInstance.flexGrow).toEqual(mockItem.relativeMetricValue)
         })
