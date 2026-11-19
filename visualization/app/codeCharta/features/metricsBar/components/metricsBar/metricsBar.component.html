@@ -1,7 +1,5 @@
 <cc-layout-cell />
-<cc-bar-tools-cell>
-    <ng-content select="[barTools]"></ng-content>
-</cc-bar-tools-cell>
+<cc-bar-divider />
 <cc-area-segment></cc-area-segment>
 @if (!isRadialLayout()) {
     <cc-height-segment></cc-height-segment>
@@ -35,4 +33,9 @@
     <cc-edge-segment></cc-edge-segment>
 }
 
+<cc-bar-divider />
 <cc-labels-scenarios-segment></cc-labels-scenarios-segment>
+<cc-bar-divider />
+<cc-bar-tools-cell>
+    <ng-content select="[barTools]"></ng-content>
+</cc-bar-tools-cell>

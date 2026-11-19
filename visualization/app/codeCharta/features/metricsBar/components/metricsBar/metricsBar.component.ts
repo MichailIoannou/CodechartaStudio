@@ -6,6 +6,7 @@ import { METRICS_BAR_HEIGHT_CSS_VARIABLE } from "../../../../util/barLayout"
 import {
     AxisCardComponent,
     BAR_BOTTOM_ABOVE_FILE_EXTENSION_BAR,
+    BarDividerComponent,
     BarShellDirective,
     BarToolsCellComponent,
     HEIGHT_CSS_VARIABLE,
@@ -30,6 +31,7 @@ import { LinkColorHeightButtonComponent } from "../linkColorHeightButton/linkCol
     imports: [
         AreaSegmentComponent,
         AxisCardComponent,
+        BarDividerComponent,
         BarToolsCellComponent,
         ColorSegmentComponent,
         ColorSettingsPopoverComponent,

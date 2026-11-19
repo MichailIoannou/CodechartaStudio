@@ -8,6 +8,8 @@ type BarToolInputs = Partial<{
     tooltip: string | null
     disabled: boolean
     pressed: boolean | null
+    expanded: boolean | null
+    controls: string | null
     highlighted: boolean
     revealed: boolean
     testId: string | null
@@ -22,13 +24,22 @@ function tool(): HTMLButtonElement {
 }
 
 describe("BarToolComponent", () => {
-    it("should name the button by its label and show the label before the icon", async () => {
+    it("should show only its icon in a square button named by its label", async () => {
         // Act
         await renderTool()
 
         // Assert
-        expect(tool().textContent.trim()).toBe("Center map")
-        expect(tool().lastElementChild.className).toBe("fa fa-compass text-xs")
+        expect(tool().textContent.trim()).toBe("")
+        expect(tool().firstElementChild.className).toBe("fa fa-compass text-sm")
+        expect(tool().classList).toContain("btn-square")
+    })
+
+    it("should explain itself in its tooltip by its label unless given a tooltip", async () => {
+        // Act
+        await renderTool()
+
+        // Assert
+        expect(tool().getAttribute("title")).toBe("Center map")
     })
 
     it("should emit activated when the reader clicks it", async () => {
@@ -58,13 +69,14 @@ describe("BarToolComponent", () => {
         expect(activated).not.toHaveBeenCalled()
     })
 
-    it("should leave out the pressed state and the tooltip unless given", async () => {
+    it("should leave out the pressed and expanded states unless given", async () => {
         // Act
         await renderTool()
 
         // Assert
         expect(tool().hasAttribute("aria-pressed")).toBe(false)
-        expect(tool().hasAttribute("title")).toBe(false)
+        expect(tool().hasAttribute("aria-expanded")).toBe(false)
+        expect(tool().hasAttribute("aria-controls")).toBe(false)
     })
 
     it("should mark a pressed toggle as pressed and tint it", async () => {
@@ -74,7 +86,18 @@ describe("BarToolComponent", () => {
         // Assert
         expect(tool().getAttribute("aria-pressed")).toBe("true")
         expect(tool().getAttribute("title")).toBe("Disable flashlight hover effect")
-        expect(tool().classList).toContain("bg-primary/15")
+        expect(tool().classList).toContain("btn-active")
+        expect(tool().classList).not.toContain("btn-ghost")
+    })
+
+    it("should name the panel it opens and tint it while that panel is open", async () => {
+        // Act
+        await renderTool({ expanded: true, controls: "legend-panel" })
+
+        // Assert
+        expect(tool().getAttribute("aria-expanded")).toBe("true")
+        expect(tool().getAttribute("aria-controls")).toBe("legend-panel")
+        expect(tool().classList).toContain("btn-active")
     })
 
     it("should color a highlighted tool without tinting its background", async () => {
@@ -83,27 +106,27 @@ describe("BarToolComponent", () => {
 
         // Assert
         expect(tool().classList).toContain("text-secondary")
-        expect(tool().classList).not.toContain("bg-primary/15")
+        expect(tool().classList).not.toContain("btn-active")
     })
 
-    it("should collapse and make inert a tool that is not revealed", async () => {
+    it("should hide and make inert a tool that is not revealed", async () => {
         // Act
         const { fixture } = await renderTool({ revealed: false, testId: "center-map" })
 
         // Assert
         const host: HTMLElement = fixture.nativeElement
         expect(host.hasAttribute("inert")).toBe(true)
-        expect(host.style.gridTemplateColumns).toBe("0fr")
+        expect(host.classList).toContain("hidden")
         expect(screen.getByTestId("center-map")).toBe(tool())
     })
 
-    it("should open a revealed tool to its full width", async () => {
+    it("should show a revealed tool", async () => {
         // Act
         const { fixture } = await renderTool()
 
         // Assert
         const host: HTMLElement = fixture.nativeElement
         expect(host.hasAttribute("inert")).toBe(false)
-        expect(host.style.gridTemplateColumns).toBe("1fr")
+        expect(host.classList).not.toContain("hidden")
     })
 })

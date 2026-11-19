@@ -2,6 +2,7 @@
 export { ActionIconComponent } from "./components/actionIcon/actionIcon.component"
 export { AxisCardComponent } from "./components/axisCard/axisCard.component"
 export { BarDividerComponent } from "./components/barDivider/barDivider.component"
+export { BAR_CELL_CLASSES, openBarCellClasses } from "./components/barShell/barCell"
 export {
     BAR_BOTTOM_ABOVE_BOTTOM_BAR,
     BAR_BOTTOM_ABOVE_FILE_EXTENSION_BAR,
@@ -32,6 +33,7 @@ export { ExcludeGuard } from "./effects/addExcludedNodesIfNotResultsInEmptyMap/e
 export { getPartialDefaultState } from "./getPartialDefaultState"
 export { ToastService } from "./services/toast.service"
 export { SharedFocusStore } from "./stores/sharedFocus.store"
+export { injectIsAnyPopoverOpen } from "./util/injectIsAnyPopoverOpen"
 export { injectIsRadialLayout } from "./util/injectIsRadialLayout"
 export { parseChangedNumberInput, SETTINGS_INPUT_DEBOUNCE_MS } from "./util/settingsInput"
 export { clampToSidePanelWidth, SIDE_PANEL_WIDTH_PX } from "./util/sidePanelWidth"

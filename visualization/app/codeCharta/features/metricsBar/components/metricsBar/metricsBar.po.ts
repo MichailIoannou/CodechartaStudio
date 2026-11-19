@@ -54,6 +54,14 @@ export class MetricsBarPageObject {
         return this.page.getByTestId("metrics-bar-layout-cell")
     }
 
+    viewTools(): Locator {
+        return this.page.locator("cc-metrics-bar").getByRole("toolbar", { name: "View tools" })
+    }
+
+    legendTool(): Locator {
+        return this.page.locator("cc-metrics-bar").getByRole("button", { name: "Legend" })
+    }
+
     maxTreeMapFilesInput(): Locator {
         return this.page.getByTestId("metrics-bar-layout-picker").getByRole("spinbutton", { name: "Maximum TreeMap Files" })
     }

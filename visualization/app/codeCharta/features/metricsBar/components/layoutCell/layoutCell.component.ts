@@ -3,7 +3,13 @@ import { toSignal } from "@angular/core/rxjs-interop"
 import { LayoutAlgorithm } from "../../../../model/codeCharta.model"
 import { MapStateReadWindow } from "../../../../stores/mapState/mapState.read.facade"
 import { PreferencesReadWindow } from "../../../../stores/preferences/preferences.read.facade"
-import { SettingsPopoverShellComponent, SliderNumberInputComponent } from "../../../shared/facade"
+import {
+    BAR_CELL_CLASSES,
+    injectIsAnyPopoverOpen,
+    openBarCellClasses,
+    SettingsPopoverShellComponent,
+    SliderNumberInputComponent
+} from "../../../shared/facade"
 import { MetricsBarWriteStore } from "../../stores/metricsBar.write.store"
 import { LayoutGlyphComponent } from "./layoutGlyph.component"
 
@@ -23,7 +29,7 @@ const LAYOUT_DESCRIPTIONS: Record<LayoutAlgorithm, string> = {
     selector: "cc-layout-cell",
     templateUrl: "./layoutCell.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: "absolute bottom-full left-4" },
+    host: { class: `flex shrink-0 ${BAR_CELL_CLASSES}`, "[class]": "openClasses()" },
     imports: [LayoutGlyphComponent, SettingsPopoverShellComponent, SliderNumberInputComponent]
 })
 export class LayoutCellComponent {
@@ -31,6 +37,8 @@ export class LayoutCellComponent {
 
     readonly popoverId = "metrics-bar-layout-picker"
     readonly anchorName = "metrics-bar-layout-cell"
+    private readonly isPickerOpen = injectIsAnyPopoverOpen(() => [this.popoverId])
+    protected readonly openClasses = computed(() => openBarCellClasses(this.isPickerOpen()))
     readonly layoutOptions = Object.values(LayoutAlgorithm).map(layout => ({ layout, description: LAYOUT_DESCRIPTIONS[layout] }))
 
     readonly layoutAlgorithm = toSignal(inject(MapStateReadWindow).layoutAlgorithm$, { requireSync: true })

@@ -16,7 +16,7 @@ export const BAR_BOTTOM_ABOVE_FILE_EXTENSION_BAR =
 @Directive({
     selector: "[ccBarShell]",
     host: {
-        class: "fixed left-0 right-0 mx-auto flex items-stretch bg-base-100 rounded-box shadow-lg border border-base-300",
+        class: "fixed left-0 right-0 mx-auto flex items-stretch gap-1 p-1.5 bg-base-100 rounded-2xl shadow-lg border border-base-300",
         "[style.width]": "'max-content'",
         "[style.maxWidth]": "'min(95vw, 1200px)'",
         "[style.zIndex]": "50",

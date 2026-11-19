@@ -5,7 +5,7 @@ import { ChangeDetectionStrategy, Component } from "@angular/core"
     template: "<ng-content></ng-content>",
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
-        class: "absolute bottom-full right-4 flex h-7 items-center gap-0.5 rounded-t-md border border-b-0 border-base-300 bg-base-100 px-1",
+        class: "grid shrink-0 grid-cols-2 content-center gap-1 px-1 has-[cc-unfocus-tool[data-revealed]]:grid-cols-3",
         role: "toolbar",
         "aria-label": "View tools"
     }

@@ -1,7 +1,3 @@
-<cc-bar-tools-cell>
-    <cc-graph-view-tools></cc-graph-view-tools>
-</cc-bar-tools-cell>
-
 <cc-edge-types-segment></cc-edge-types-segment>
 
 <cc-edge-style-segment></cc-edge-style-segment>
@@ -15,3 +11,9 @@
 @if (hasPackages()) {
     <cc-hierarchy-segment></cc-hierarchy-segment>
 }
+
+<cc-bar-divider />
+<cc-bar-tools-cell>
+    <cc-graph-view-tools></cc-graph-view-tools>
+    <ng-content select="[barTools]"></ng-content>
+</cc-bar-tools-cell>

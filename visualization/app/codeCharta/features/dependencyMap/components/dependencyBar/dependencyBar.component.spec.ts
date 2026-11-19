@@ -361,7 +361,7 @@ describe("DependencyBarComponent", () => {
         expect(screen.getByTestId("dependency-bar-edges-segment").textContent).toContain("All")
     })
 
-    it("should carry the graph view tools in the tab on its edge", async () => {
+    it("should carry the graph view tools in its last cell", async () => {
         // Arrange
         const { fixture } = await renderBar()
 
@@ -370,6 +370,7 @@ describe("DependencyBarComponent", () => {
 
         // Assert
         expect(viewTools).not.toBeNull()
+        expect(viewTools.parentElement.nextElementSibling).toBeNull()
     })
 
     it("should offer the badges only for a map that tells its declarations, as All while every badge is shown", async () => {

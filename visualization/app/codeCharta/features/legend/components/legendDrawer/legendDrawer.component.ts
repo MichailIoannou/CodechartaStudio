@@ -9,34 +9,37 @@ import {
     input,
     OnDestroy,
     OnInit,
-    signal,
     TemplateRef
 } from "@angular/core"
-import { LEGEND_BARS_OFFSET } from "../../models/legendPosition"
-import { LegendToggleButtonComponent } from "./legendToggleButton.component"
+import { LEGEND_ABOVE_FLOATING_BAR } from "../../models/legendPosition"
+import { LEGEND_PANEL_ID, LegendDrawerStore } from "../../stores/legendDrawer.store"
+
+const CONTROLS_OF_THE_PANEL = `[aria-controls='${LEGEND_PANEL_ID}']`
 
 /**
- * The LEGEND tab at the right edge and the panel it opens. Each view puts its own legend inside as an
+ * The panel the Legend tool in the view's bar opens. Each view puts its own legend inside as an
  * `<ng-template>`, so the legend is only created while the panel is open instead of following every
- * state change behind a closed tab.
+ * state change behind a closed panel.
  */
 @Component({
     selector: "cc-legend-drawer",
     templateUrl: "./legendDrawer.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [LegendToggleButtonComponent, NgTemplateOutlet]
+    imports: [NgTemplateOutlet]
 })
 export class LegendDrawerComponent implements OnInit, OnDestroy {
     private readonly elementReference = inject(ElementRef<HTMLElement>)
+    private readonly drawerStore = inject(LegendDrawerStore)
 
     /** Whether the view shows its inspector, which takes the right edge. */
     readonly isMovedAsideByInspector = input(false)
 
     readonly legendContent = contentChild.required(TemplateRef)
 
-    readonly isOpen = signal(false)
+    readonly isOpen = this.drawerStore.isOpen
+    readonly legendPanelId = LEGEND_PANEL_ID
 
-    readonly panelBottom = `calc(${LEGEND_BARS_OFFSET} + 12px)`
+    readonly panelBottom = LEGEND_ABOVE_FLOATING_BAR
     readonly panelRight = computed(() => (this.isMovedAsideByInspector() ? "calc(var(--cc-inspector-width) + 40px)" : "40px"))
 
     private readonly mouseDownListener = (event: MouseEvent) => this.closeOnOutsideClick(event)
@@ -49,13 +52,13 @@ export class LegendDrawerComponent implements OnInit, OnDestroy {
         document.removeEventListener("mousedown", this.mouseDownListener)
     }
 
-    toggleIsOpen() {
-        this.isOpen.update(isOpen => !isOpen)
+    private closeOnOutsideClick(event: MouseEvent) {
+        if (this.isOpen() && event.target instanceof Element && !this.isInsideOrControlling(event.target)) {
+            this.drawerStore.close()
+        }
     }
 
-    private closeOnOutsideClick(event: MouseEvent) {
-        if (this.isOpen() && event.target instanceof Node && !this.elementReference.nativeElement.contains(event.target)) {
-            this.isOpen.set(false)
-        }
+    private isInsideOrControlling(target: Element) {
+        return this.elementReference.nativeElement.contains(target) || target.closest(CONTROLS_OF_THE_PANEL) !== null
     }
 }

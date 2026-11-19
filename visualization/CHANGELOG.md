@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 ### Changed
 
 - **One desktop window**: starting the desktop app a second time brings the running window to the front instead of opening another one.
+- **Refreshed metrics bar**: the bar under the map is one rounded panel that holds the layout picker, the metric controls, the view tools and a Legend button, with nothing sticking out of it.
 
 ## [2.11.0] - 2026-11-10
 

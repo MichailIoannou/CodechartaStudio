@@ -44,7 +44,7 @@ describe("DomainBarComponent", () => {
         jest.advanceTimersByTime(SETTINGS_INPUT_DEBOUNCE_MS)
     }
 
-    it("should carry the tools it is given in the tab on its edge", async () => {
+    it("should carry the tools it is given in its last cell", async () => {
         // Act
         const { container } = await setup(
             defaultWordCloudSettings,
@@ -52,7 +52,9 @@ describe("DomainBarComponent", () => {
         )
 
         // Assert
-        expect(container.querySelector("cc-bar-tools-cell").textContent).toContain("Screenshot")
+        const toolsCell = container.querySelector("cc-domain-bar > cc-bar-tools-cell")
+        expect(toolsCell.textContent).toContain("Screenshot")
+        expect(toolsCell.nextElementSibling).toBeNull()
     })
 
     it("should render one segment per settings area", async () => {

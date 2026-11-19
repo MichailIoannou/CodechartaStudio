@@ -1,7 +1,3 @@
-<cc-bar-tools-cell>
-    <ng-content select="[barTools]"></ng-content>
-</cc-bar-tools-cell>
-
 <cc-domain-segment #shape label="Shape" [value]="shapeLabel()" idPrefix="domain-bar-shape" minWidthClass="min-w-[100px]">
     <cc-shape-settings-popover [popoverId]="shape.popoverId()" [anchorName]="shape.anchorName()"></cc-shape-settings-popover>
 </cc-domain-segment>
@@ -17,3 +13,8 @@
 <cc-domain-segment #rotation label="Rotation" [value]="rotationRangeLabel()" idPrefix="domain-bar-rotation" minWidthClass="min-w-[110px]">
     <cc-rotation-settings-popover [popoverId]="rotation.popoverId()" [anchorName]="rotation.anchorName()"></cc-rotation-settings-popover>
 </cc-domain-segment>
+
+<cc-bar-divider />
+<cc-bar-tools-cell>
+    <ng-content select="[barTools]"></ng-content>
+</cc-bar-tools-cell>

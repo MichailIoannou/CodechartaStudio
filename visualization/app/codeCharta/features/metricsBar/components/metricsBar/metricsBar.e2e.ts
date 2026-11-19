@@ -128,17 +128,42 @@ test.describe("MetricsBar layout cell", () => {
         await expect(metricsBar.areaMetricSummary()).toContainText(bootMapTotal.toLocaleString("en-US"))
     })
 
-    test("should stay on the bar's top edge without making the bar taller", async ({ page }) => {
+    test("should sit inside the bar, with nothing sticking out of it", async ({ page }) => {
         // Arrange
         const metricsBar = new MetricsBarPageObject(page)
         const bar = await boundingBoxOf(page.locator("cc-metrics-bar"))
 
         // Act
-        const tab = await boundingBoxOf(metricsBar.layoutCell())
+        const cells = await Promise.all([metricsBar.layoutCell(), metricsBar.viewTools()].map(boundingBoxOf))
 
         // Assert
-        expect(tab.y + tab.height).toBeCloseTo(bar.y + 1, 0)
-        expect(tab.x).toBeGreaterThan(bar.x)
+        for (const cell of cells) {
+            expect(isInside(cell, bar)).toBe(true)
+        }
+    })
+})
+
+test.describe("MetricsBar legend tool", () => {
+    test.beforeEach(async ({ page }) => {
+        await goto(page)
+    })
+
+    test.afterEach(async ({ page }) => {
+        await clearIndexedDB(page)
+    })
+
+    test("should open the legend from the bar and close it again", async ({ page }) => {
+        // Arrange
+        const metricsBar = new MetricsBarPageObject(page)
+        await metricsBar.legendTool().click()
+        await expect(page.getByTestId("legend-panel")).toBeVisible()
+
+        // Act
+        await metricsBar.legendTool().click()
+
+        // Assert
+        await expect(page.getByTestId("legend-panel")).toHaveCount(0)
+        await expect(metricsBar.legendTool()).toHaveAttribute("aria-expanded", "false")
     })
 })
 
@@ -176,6 +201,12 @@ async function boundingBoxOf(locator: Locator): Promise<Box> {
         throw new Error("The element has not been laid out")
     }
     return box
+}
+
+function isInside(inner: Box, outer: Box) {
+    const isInsideHorizontally = inner.x >= outer.x && inner.x + inner.width <= outer.x + outer.width
+    const isInsideVertically = inner.y >= outer.y && inner.y + inner.height <= outer.y + outer.height
+    return isInsideHorizontally && isInsideVertically
 }
 
 function overlaps(first: Box, second: Box) {

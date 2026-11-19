@@ -1,12 +1,12 @@
-<div class="flex flex-col items-stretch gap-1.5 px-2 py-1 rounded-md transition-colors max-w-[220px] min-w-[160px]">
+<div class="flex min-w-[160px] max-w-[220px] flex-col items-stretch gap-1.5">
     @if (!isRadialLayout()) {
         <div class="flex flex-col gap-1" data-testid="metric-segment-labels">
             <div class="flex items-center justify-between gap-1">
-                <span class="text-[10px] uppercase tracking-wide opacity-70">Labels</span>
+                <span class="text-[10px] uppercase tracking-wide text-base-content/60">Labels</span>
                 <button
                     type="button"
-                    class="btn btn-ghost btn-xs btn-square"
-                    popovertarget="metric-settings-popover-labels"
+                    class="btn btn-ghost btn-xs btn-square rounded-lg"
+                    [attr.popovertarget]="labelSettingsPopoverId"
                     style="anchor-name: --metric-segment-labels"
                     data-anchor-name="metric-segment-labels"
                     title="Label Settings"
@@ -19,10 +19,10 @@
     }
     <div class="flex flex-col gap-1" data-testid="metric-segment-scenario">
         <div class="flex items-center justify-between gap-1">
-            <span class="text-[10px] uppercase tracking-wide opacity-70">Scenarios</span>
+            <span class="text-[10px] uppercase tracking-wide text-base-content/60">Scenarios</span>
             <button
                 type="button"
-                class="btn btn-ghost btn-xs btn-square"
+                class="btn btn-ghost btn-xs btn-square rounded-lg"
                 title="Save current state as scenario"
                 data-testid="metric-segment-scenario-save"
                 (click)="openSaveDialog()"
@@ -32,7 +32,7 @@
         </div>
         <button
             type="button"
-            class="text-sm font-semibold leading-tight text-center bg-transparent border-0 p-0 rounded-sm cursor-pointer hover:bg-base-200 whitespace-nowrap overflow-hidden text-ellipsis"
+            class="cursor-pointer truncate border-0 bg-transparent p-0 text-center text-sm font-semibold leading-tight"
             title="Open saved scenarios"
             (click)="openScenarioList()"
         >
@@ -42,7 +42,7 @@
 </div>
 
 @if (!isRadialLayout()) {
-    <cc-settings-popover-shell popoverId="metric-settings-popover-labels" anchorName="metric-segment-labels" widthClass="w-80">
+    <cc-settings-popover-shell [popoverId]="labelSettingsPopoverId" anchorName="metric-segment-labels" widthClass="w-80">
         <cc-label-settings-panel></cc-label-settings-panel>
     </cc-settings-popover-shell>
 }

@@ -24,4 +24,19 @@ describe("UnfocusToolComponent", () => {
         // Assert
         expect(screen.getByTestId("bar-unfocus").closest("cc-bar-tool").hasAttribute("inert")).toBe(true)
     })
+
+    it("should mark itself as revealed only while something is focused, so the tools make room for it", async () => {
+        // Arrange
+        const { fixture } = await render(UnfocusToolComponent, { inputs: { isFocused: false, testId: "bar-unfocus" } })
+        const host: HTMLElement = fixture.nativeElement
+        const whileUnfocused = host.hasAttribute("data-revealed")
+
+        // Act
+        fixture.componentRef.setInput("isFocused", true)
+        fixture.detectChanges()
+
+        // Assert
+        expect(whileUnfocused).toBe(false)
+        expect(host.hasAttribute("data-revealed")).toBe(true)
+    })
 })

@@ -77,20 +77,11 @@ describe("GraphViewToolsComponent", () => {
         expect(dispatch).toHaveBeenCalledWith(unfocusNode())
     })
 
-    it("should keep unfocus and the divider hidden while nothing is focused or moved", async () => {
+    it("should keep unfocus hidden while nothing is focused", async () => {
         // Act
         await renderTools()
 
         // Assert
         expect(isRevealed("dependency-bar-unfocus")).toBe(false)
-        expect(screen.queryByTestId("dependency-tools-divider")).toBeNull()
-    })
-
-    it("should draw a divider after the tools that undo something while one of them is revealed", async () => {
-        // Act
-        await renderTools({ isFocused: true })
-
-        // Assert
-        expect(screen.queryByTestId("dependency-tools-divider")).not.toBeNull()
     })
 })

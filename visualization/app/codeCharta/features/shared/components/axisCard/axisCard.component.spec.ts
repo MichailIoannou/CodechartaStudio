@@ -52,4 +52,26 @@ describe("AxisCardComponent", () => {
         // Assert
         expect(screen.getByTestId("metric-segment-area")).not.toBeNull()
     })
+
+    it("should highlight the card as a rounded cell while its settings popover is open", async () => {
+        // Arrange
+        const { fixture } = await render(
+            `<cc-axis-card label="Height" [hasCog]="true" cogPopoverId="height-settings"></cc-axis-card><div id="height-settings" popover></div>`,
+            { imports: [AxisCardComponent] }
+        )
+        const card: HTMLElement = fixture.nativeElement.querySelector("cc-axis-card")
+        const whileClosed = card.classList.contains("ring-1")
+
+        // Act
+        const opened = new Event("toggle")
+        Object.defineProperty(opened, "newState", { value: "open" })
+        document.getElementById("height-settings").dispatchEvent(opened)
+        fixture.detectChanges()
+
+        // Assert
+        expect(whileClosed).toBe(false)
+        expect(card.classList).toContain("rounded-xl")
+        expect(card.classList).toContain("ring-1")
+        expect(card.classList).toContain("bg-base-200")
+    })
 })

@@ -1,16 +1,18 @@
 <button
     type="button"
-    class="flex items-center gap-1.5 h-7 px-3 bg-base-100 border border-b-0 border-base-300 rounded-t-md text-xs font-semibold cursor-pointer hover:text-primary"
+    class="flex h-full w-full cursor-pointer flex-col items-stretch gap-1 text-left"
     [attr.popovertarget]="popoverId"
     [style.anchor-name]="'--' + anchorName"
     [attr.data-anchor-name]="anchorName"
     data-testid="metrics-bar-layout-cell"
     title="Change the map layout"
 >
-    <span class="text-[10px] font-normal uppercase tracking-wide opacity-70">Layout</span>
-    <cc-layout-glyph class="w-3.5 h-3.5" [layout]="layoutAlgorithm()" />
-    <span>{{ layoutAlgorithm() }}</span>
-    <i class="fa fa-caret-down text-[10px]" aria-hidden="true"></i>
+    <span class="flex min-h-6 items-center text-[10px] uppercase tracking-wide text-base-content/60">Layout</span>
+    <span class="flex items-center gap-2 text-sm font-semibold">
+        <cc-layout-glyph class="h-4 w-4 text-primary" [layout]="layoutAlgorithm()" />
+        <span class="max-w-[6.5rem] leading-tight max-lg:hidden">{{ layoutAlgorithm() }}</span>
+        <i class="fa fa-caret-down ml-auto text-[10px]" aria-hidden="true"></i>
+    </span>
 </button>
 
 <cc-settings-popover-shell

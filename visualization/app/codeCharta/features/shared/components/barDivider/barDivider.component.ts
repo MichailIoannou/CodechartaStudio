@@ -4,6 +4,6 @@ import { ChangeDetectionStrategy, Component } from "@angular/core"
     selector: "cc-bar-divider",
     template: "",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: "mx-0.5 h-3.5 w-px bg-base-300", "aria-hidden": "true" }
+    host: { class: "my-2 w-px shrink-0 bg-base-300", "aria-hidden": "true" }
 })
 export class BarDividerComponent {}
