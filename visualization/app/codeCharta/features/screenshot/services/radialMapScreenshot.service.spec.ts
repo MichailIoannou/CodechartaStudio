@@ -3,6 +3,8 @@ import { TestBed } from "@angular/core/testing"
 import { createPNGFileName } from "../../../model/files/files.helper"
 import { RadialChartRegistry } from "../../../renderer/radialMap/radialMapRegistry.facade"
 import { FilesRepo } from "../../../stores/fileStore/fileStore.facade"
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { themeById } from "../../../util/theme/themes"
 import { checkWriteToClipboardAllowed, setToClipboard } from "./clipboardWriter"
 import { RadialMapScreenshotService } from "./radialMapScreenshot.service"
 
@@ -11,10 +13,13 @@ jest.mock("./clipboardWriter", () => ({
     checkWriteToClipboardAllowed: jest.fn(() => true)
 }))
 
+const RENDERED_WIDTH = 4
+const EXPORT_PADDING = 16
+
 describe("RadialMapScreenshotService", () => {
     function configure(hasChart: boolean, encodedBlob: Blob | null = new Blob([], { type: "image/png" })) {
         const renderedCanvas = document.createElement("canvas")
-        renderedCanvas.width = 4
+        renderedCanvas.width = RENDERED_WIDTH
         renderedCanvas.height = 4
         jest.spyOn(renderedCanvas, "toDataURL").mockReturnValue("data:image/png;base64,aGk=")
         jest.spyOn(renderedCanvas, "toBlob").mockImplementation(callback => callback(encodedBlob))
@@ -65,6 +70,41 @@ describe("RadialMapScreenshotService", () => {
 
         // Assert
         expect(downloadNames).toEqual([createPNGFileName([], "map")])
+    })
+
+    it("should lay the map on the export background of a dark theme", async () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+        const service = configure(true)
+        const encodedWidths: number[] = []
+        jest.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockImplementation(function (this: HTMLCanvasElement) {
+            encodedWidths.push(this.width)
+            return "data:image/png;base64,aGk="
+        })
+        jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+
+        // Act
+        await service.makeScreenshotToFile()
+
+        // Assert
+        expect(encodedWidths).toEqual([RENDERED_WIDTH + 2 * EXPORT_PADDING])
+    })
+
+    it("should keep the map transparent in a theme without an export background", async () => {
+        // Arrange
+        const service = configure(true)
+        jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+        const encodedWidths: number[] = []
+        jest.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockImplementation(function (this: HTMLCanvasElement) {
+            encodedWidths.push(this.width)
+            return "data:image/png;base64,aGk="
+        })
+
+        // Act
+        await service.makeScreenshotToFile()
+
+        // Assert
+        expect(encodedWidths).toEqual([RENDERED_WIDTH])
     })
 
     it("should copy the sunburst to the clipboard as a png", async () => {

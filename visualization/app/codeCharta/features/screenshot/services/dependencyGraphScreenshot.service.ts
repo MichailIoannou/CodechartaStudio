@@ -21,6 +21,11 @@ export class DependencyGraphScreenshotService extends ChartScreenshotService {
 
     readonly subject = "dependency graph"
 
+    // The graph still draws its light palette, which is unreadable on a dark export background.
+    protected override exportBackground(): string | null {
+        return null
+    }
+
     canScreenshotBox(path: string): boolean {
         return this.chartRegistry.boxShots.pixelRectOf(path) !== null
     }

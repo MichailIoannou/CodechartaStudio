@@ -8,7 +8,7 @@ import { isPresentationModeSelector } from "./isPresentationMode/isPresentationM
 import { localSourceEnabledSelector } from "./localSourceEnabled/localSourceEnabled.selector"
 import { maxTreeMapFilesSelector } from "./maxTreeMapFiles/maxTreeMapFiles.selector"
 import { isRadialFolderNeutralSelector, radialFolderStyleSelector } from "./radialFolderStyle/radialFolderStyle.selector"
-import { radialFolderSwatchSelector, radialTintedFolderSwatchSelector } from "./radialFolderSwatch/radialFolderSwatch.selector"
+import { radialFolderSwatchInputsSelector } from "./radialFolderSwatch/radialFolderSwatch.selector"
 import { radialFolderTintSelector } from "./radialFolderTint/radialFolderTint.selector"
 import { radialFolderValueSelector } from "./radialFolderValue/radialFolderValue.selector"
 import { radialLevelsSelector } from "./radialLevels/radialLevels.selector"
@@ -39,8 +39,7 @@ export class PreferencesReadWindow {
     readonly radialFolderStyle$ = this.store.select(radialFolderStyleSelector)
     readonly radialFolderTint$ = this.store.select(radialFolderTintSelector)
     readonly isRadialFolderNeutral$ = this.store.select(isRadialFolderNeutralSelector)
-    readonly radialFolderSwatch$ = this.store.select(radialFolderSwatchSelector)
-    readonly radialTintedFolderSwatch$ = this.store.select(radialTintedFolderSwatchSelector)
+    readonly radialFolderSwatchInputs$ = this.store.select(radialFolderSwatchInputsSelector)
     readonly radialLevels$ = this.store.select(radialLevelsSelector)
 
     getPreferences(): Preferences {

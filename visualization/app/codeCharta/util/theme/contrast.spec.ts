@@ -1,4 +1,4 @@
-import { contrastRatio } from "./contrast"
+import { contrastRatio, lowestContrastAlongGradient } from "./contrast"
 
 describe("contrast", () => {
     it("should rate black on white 21", () => {
@@ -35,5 +35,29 @@ describe("contrast", () => {
 
         // Assert
         expect(darkOnLight).toBeCloseTo(lightOnDark)
+    })
+
+    it("should find the weakest point of a gradient that crosses the background", () => {
+        // Arrange
+        const darkStart = "#000000"
+        const lightEnd = "#ffffff"
+        const midGrey = "#808080"
+
+        // Act
+        const lowest = lowestContrastAlongGradient(darkStart, lightEnd, midGrey)
+
+        // Assert
+        expect(lowest).toBeCloseTo(1, 1)
+    })
+
+    it("should rate a flat gradient like its color", () => {
+        // Arrange
+        const color = "#1f2937"
+
+        // Act
+        const lowest = lowestContrastAlongGradient(color, color, "#ffffff")
+
+        // Assert
+        expect(lowest).toBeCloseTo(contrastRatio(color, "#ffffff"))
     })
 })

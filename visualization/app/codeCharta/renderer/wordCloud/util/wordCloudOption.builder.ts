@@ -1,5 +1,7 @@
 import { DomainWord } from "../../../model/codeCharta.model"
 import { WordCloudSettings, WordCloudShape, wordSizingValue } from "../../../model/wordCloud.model"
+import { activeRenderPalette } from "../../../util/theme/activeTheme"
+import { chartTooltipStyle } from "../../../util/theme/chartTooltipStyle"
 import { getWordCloudColors } from "./color.util"
 import { WordCloudDatum, WordCloudOption, WordCloudRenderContext } from "./wordCloudOption.model"
 import { CANVAS_FILL_RATIO, fitSizeRangeToContainer } from "./wordCloudSizeRange"
@@ -7,7 +9,6 @@ import { buildTooltipFormatter } from "./wordCloudTooltip"
 import { colorForWord } from "./wordCloudWordColor"
 
 const EMPHASIS_SHADOW_BLUR = 10
-const EMPHASIS_SHADOW_COLOR = "#333"
 const WORD_FONT_FAMILY = 'Roboto, "Helvetica Neue", sans-serif'
 const BLURRED_WORD_OPACITY = 0.55
 
@@ -22,7 +23,7 @@ export function buildWordCloudOption(
 
     return {
         aria: { enabled: true },
-        tooltip: { show: true, formatter: buildTooltipFormatter() },
+        tooltip: { show: true, formatter: buildTooltipFormatter(), ...chartTooltipStyle() },
         series: [
             {
                 type: "wordCloud",
@@ -41,7 +42,9 @@ export function buildWordCloudOption(
                 shrinkToFit: settings.shrinkToFit,
                 layoutAnimation: context.layoutAnimation ?? true,
                 textStyle: { fontFamily: WORD_FONT_FAMILY, fontWeight: "bold" },
-                emphasis: { textStyle: { textShadowBlur: EMPHASIS_SHADOW_BLUR, textShadowColor: EMPHASIS_SHADOW_COLOR } },
+                emphasis: {
+                    textStyle: { textShadowBlur: EMPHASIS_SHADOW_BLUR, textShadowColor: activeRenderPalette().wordCloud.emphasisShadow }
+                },
                 blur: { textStyle: { opacity: BLURRED_WORD_OPACITY } },
                 data: toWordCloudData(topWords, settings)
             }

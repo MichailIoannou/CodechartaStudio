@@ -3,6 +3,8 @@ import { TestBed } from "@angular/core/testing"
 import { of } from "rxjs"
 import { DependencyGraphChartRegistry, Rectangle } from "../../../renderer/dependencyGraph/dependencyGraphRegistry.facade"
 import { FilesRepo } from "../../../stores/fileStore/fileStore.facade"
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { themeById } from "../../../util/theme/themes"
 import { GlobalSettingsFacade } from "../../globalSettings/facade"
 import { ToastService } from "../../shared/facade"
 import * as clipboardWriter from "./clipboardWriter"
@@ -90,6 +92,21 @@ describe("DependencyGraphScreenshotService", () => {
 
         // Assert
         expect(downloadNames).toEqual(["_dependencies.png"])
+    })
+
+    it("should keep the graph transparent in a dark theme while the graph is drawn in light colors", async () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+        const { service } = configure()
+        recordDownloads()
+        const encode = jest.spyOn(HTMLCanvasElement.prototype, "toDataURL")
+
+        // Act
+        await service.makeScreenshotToFile()
+
+        // Assert
+        expect(encode.mock.calls.length).toBe(1)
+        expect(encode.mock.contexts[0]).toMatchObject({ width: CHART_WIDTH, height: CHART_HEIGHT })
     })
 
     describe("screenshotBox", () => {

@@ -1,3 +1,5 @@
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { themeById } from "../../../util/theme/themes"
 import { getWordCloudColors, interpolateColor } from "./color.util"
 
 describe("color.util", () => {
@@ -32,42 +34,23 @@ describe("color.util", () => {
     })
 
     describe("getWordCloudColors", () => {
-        afterEach(() => {
-            document.documentElement.style.removeProperty("--wordCloudColorStart")
-            document.documentElement.style.removeProperty("--wordCloudColorEnd")
-        })
-
-        it("should default to the word cloud brand gradient", () => {
-            // Act
-            const [start, end] = getWordCloudColors()
-
-            // Assert
-            expect(start).toBe("#e6007e")
-            expect(end).toBe("#0030ff")
-        })
-
-        it("should honor hex overrides from CSS custom properties", () => {
+        it("should take the gradient from the active theme", () => {
             // Arrange
-            document.documentElement.style.setProperty("--wordCloudColorStart", "#123456")
-            document.documentElement.style.setProperty("--wordCloudColorEnd", "#abcdef")
+            setActiveTheme(themeById("cc-dark"))
 
             // Act
             const [start, end] = getWordCloudColors()
 
             // Assert
-            expect(start).toBe("#123456")
-            expect(end).toBe("#abcdef")
+            expect([start, end]).toEqual(["#ff6ab8", "#7da2ff"])
         })
 
-        it("should ignore a non-hex override and keep the default color", () => {
-            // Arrange
-            document.documentElement.style.setProperty("--wordCloudColorStart", "rgb(1,2,3)")
-
+        it("should take the light gradient in the light theme", () => {
             // Act
-            const [start] = getWordCloudColors()
+            const [start, end] = getWordCloudColors()
 
             // Assert
-            expect(start).toBe("#e6007e")
+            expect([start, end]).toEqual(["#e6007e", "#0030ff"])
         })
     })
 })
