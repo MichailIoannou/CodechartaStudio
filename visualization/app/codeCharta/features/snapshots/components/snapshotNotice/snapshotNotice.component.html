@@ -1,0 +1,62 @@
+@if (notice(); as notice) {
+    <div
+        role="status"
+        class="alert w-96 max-w-[calc(100vw-2rem)] items-start text-sm shadow-lg"
+        [class.alert-info]="tone() === 'info'"
+        [class.alert-warning]="tone() === 'warning'"
+        [class.alert-error]="tone() === 'error'"
+        [attr.data-kind]="notice.kind"
+        data-testid="snapshot-notice"
+    >
+        <i class="fa-solid fa-fw mt-0.5" [class]="icon()"></i>
+        <div class="flex min-w-0 flex-col gap-2">
+            <p class="break-words" data-testid="snapshot-notice-text">@for (part of notice.parts; track $index) {<span [class.font-mono]="part.isSha">{{ part.text }}</span>}</p>
+            @if (notice.hint) {
+                @if (notice.kind === "running") {
+                    <p class="text-xs text-base-content/70" data-testid="snapshot-notice-hint">{{ notice.hint }}</p>
+                } @else {
+                    <p class="break-words text-xs" data-testid="snapshot-notice-hint">{{ notice.hint }}</p>
+                }
+            }
+            @if (problems(); as problems) {
+                <cc-preflight-problems [problems]="problems" />
+            }
+            <div class="flex flex-wrap justify-end gap-2">
+                @switch (notice.kind) {
+                    @case ("running") {
+                        <button type="button" class="btn btn-ghost btn-sm" data-testid="snapshot-notice-cancel" (click)="cancel()">
+                            <i class="fa-solid fa-stop fa-fw"></i>
+                            Cancel
+                        </button>
+                    }
+                    @case ("failed") {
+                        <button type="button" class="btn btn-ghost btn-sm" data-testid="snapshot-notice-log" (click)="showLog()">Show log</button>
+                        <button type="button" class="btn btn-primary btn-sm" data-testid="snapshot-notice-retry" (click)="retry()">Retry</button>
+                    }
+                    @default {
+                        @if (notice.action) {
+                            <button type="button" class="btn btn-primary btn-sm" data-testid="snapshot-notice-analyse" (click)="analyse()">
+                                <i class="fa-solid fa-play fa-fw"></i>
+                                {{ notice.action }}
+                            </button>
+                        }
+                    }
+                }
+            </div>
+        </div>
+        @if (notice.isDismissible) {
+            <button
+                type="button"
+                class="btn btn-square btn-ghost btn-xs"
+                title="Dismiss notice"
+                aria-label="Dismiss notice"
+                data-testid="snapshot-notice-dismiss"
+                (click)="dismiss()"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        }
+    </div>
+}
+
+<cc-analysis-log-dialog />

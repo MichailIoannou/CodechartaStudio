@@ -18,6 +18,14 @@ export class ProjectsFacade {
         return this.projects.showSnapshot(ref)
     }
 
+    loadSnapshot(ref: SnapshotRef): Promise<boolean> {
+        return this.projects.loadSnapshot(ref)
+    }
+
+    showMap(): void {
+        this.projects.showMap()
+    }
+
     refreshFolderSnapshots(folder: FolderRef): Promise<void> {
         return this.projects.refreshFolderSnapshots(folder)
     }

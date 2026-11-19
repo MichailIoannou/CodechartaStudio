@@ -11,6 +11,14 @@ export class SnapshotsPageObject {
         return this.page.getByTestId("workspace-status-menu")
     }
 
+    notice() {
+        return this.page.getByTestId("snapshot-notice")
+    }
+
+    async analyseFromTheNotice() {
+        await this.page.getByTestId("snapshot-notice-analyse").click()
+    }
+
     snapshotsDialog() {
         return this.page.getByTestId("snapshots-dialog")
     }

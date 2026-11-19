@@ -145,11 +145,36 @@
                 } @else if (!hasSnapshots()) {
                     <p class="px-2 py-1 text-sm text-base-content/60" data-testid="workspace-status-no-analysis">No analysis yet.</p>
                 }
+                @if (askedFor(); as asked) {
+                    <div class="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2 px-2 py-1 text-sm" data-testid="workspace-status-asked-for">
+                        <span class="text-base-content/60">Asked for</span>
+                        <span class="min-w-0 truncate">
+                            @if (asked.sha) {
+                                <span class="font-mono">{{ asked.sha }}</span>
+                            }
+                            @if (asked.isCurrentCheckout) {
+                                <span class="text-base-content/60" [class.ml-1]="asked.sha">{{ asked.sha ? "(current checkout)" : "current checkout" }}</span>
+                            }
+                        </span>
+                    </div>
+                }
                 <div class="flex flex-wrap gap-1 px-2 py-1">
-                    @if (!hasSnapshots() && !isAnalysingCheckout()) {
-                        <button type="button" class="btn btn-primary btn-xs" data-menu-item data-testid="workspace-status-analyse" (click)="analyseCurrentCheckout()">
+                    @if (target() && target()?.kind !== "workingTree") {
+                        <button type="button" class="btn btn-ghost btn-xs" data-menu-item data-testid="workspace-status-current-checkout" (click)="showCurrentCheckout()">
+                            Show current checkout
+                        </button>
+                    }
+                    @if (analyseLabel(); as label) {
+                        <button
+                            type="button"
+                            class="btn btn-primary btn-xs"
+                            title="Analyse the commit the map should show"
+                            data-menu-item
+                            data-testid="workspace-status-analyse"
+                            (click)="analyseTarget()"
+                        >
                             <i class="fa-solid fa-play fa-fw"></i>
-                            Analyse current checkout
+                            {{ label }}
                         </button>
                     }
                     <button type="button" class="btn btn-ghost btn-xs" data-menu-item data-testid="workspace-status-snapshots" (click)="openSnapshots()">

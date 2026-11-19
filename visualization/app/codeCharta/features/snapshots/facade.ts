@@ -1,5 +1,6 @@
 export { AnalysisLogDialogComponent } from "./components/analysisLogDialog/analysisLogDialog.component"
 export { PreflightProblemsComponent } from "./components/preflightProblems/preflightProblems.component"
+export { SnapshotNoticeComponent } from "./components/snapshotNotice/snapshotNotice.component"
 export { SnapshotsDialogComponent } from "./components/snapshotsDialog/snapshotsDialog.component"
 export { AnalysisJobsService } from "./services/analysisJobs.service"
 export { SnapshotCatalogService } from "./services/snapshotCatalog.service"

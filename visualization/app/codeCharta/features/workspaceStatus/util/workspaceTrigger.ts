@@ -1,9 +1,16 @@
 import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import type { ProjectFolder } from "../../../model/coreApi/ProjectFolder"
+import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import { branchLabel, counted, fileDate, longDate, shortDate } from "../../projects/facade"
 import { isUnboundImport, progressPercent, targetName } from "../../snapshots/facade"
+
+/** How far the snapshot in the map is from what the user asked for, as a badge and as words for the title. */
+export interface Staleness {
+    badge: TriggerBadge
+    phrase: string
+}
 
 /** What the trigger tells besides the folder: an analysis that just finished (for a moment) or one that failed. */
 export type RecentOutcome = "none" | "finished" | "failed"
@@ -17,6 +24,7 @@ export interface TriggerInput {
     activeJob: AnalysisJob | null
     outcome: RecentOutcome
     isCoreOffline: boolean
+    staleness: Staleness | null
 }
 
 /** The part after the branch: the commit in the map, what runs, or a short state. */
@@ -131,6 +139,9 @@ function badgeOf(input: TriggerInput): TriggerBadge | null {
     if (input.outcome === "failed") {
         return { text: "failed", tone: "error" }
     }
+    if (input.staleness) {
+        return input.staleness.badge
+    }
     if (input.shown?.dirty) {
         return { text: "dirty", tone: "warning" }
     }
@@ -181,7 +192,7 @@ function mapLine(input: TriggerInput): string {
         return `Imported snapshot — analysis time unknown${fileDateLine}\nImported ${longDate(shown.createdAt)}`
     }
     const commit = shown.shortCommit ? `${shown.shortCommit} ${shown.subject ?? ""}`.trim() : `snapshot from ${shortDate(shown.createdAt)}`
-    return `Map shows ${commit}`
+    return input.staleness ? `Map shows ${commit}, ${input.staleness.phrase}` : `Map shows ${commit}`
 }
 
 function activityLine(job: AnalysisJob | null): string | null {
@@ -206,6 +217,25 @@ function mapAriaOf(input: TriggerInput, mapPart: MapPart | null): string | null 
 function uncommittedOf(status: GitStatus): number {
     const { staged, unstaged, untracked, conflicted } = status.counts
     return staged + unstaged + untracked + conflicted
+}
+
+/** `wanted` names what the user asked for in a sentence: a short SHA or "the current checkout". */
+export function stalenessOf(resolution: SnapshotResolution | null, badge: TriggerBadge | null, wanted: string): Staleness | null {
+    if (!badge || !(resolution?.kind === "nearest" || resolution?.kind === "exact")) {
+        return null
+    }
+    return { badge, phrase: resolution.kind === "exact" ? "analysed with a different profile" : distancePhrase(resolution, wanted) }
+}
+
+function distancePhrase({ relation, behind, ahead }: Extract<SnapshotResolution, { kind: "nearest" }>, wanted: string): string {
+    switch (relation) {
+        case "ancestor":
+            return `${counted(behind, "commit")} behind ${wanted}`
+        case "descendant":
+            return `${counted(ahead, "commit")} ahead of ${wanted}`
+        case "diverged":
+            return `${counted(behind, "commit")} behind and ${ahead} ahead of ${wanted}`
+    }
 }
 
 export function uncommittedTitle(count: number): string {

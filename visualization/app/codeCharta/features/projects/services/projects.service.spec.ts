@@ -229,6 +229,37 @@ describe("ProjectsService", () => {
         expect(router.navigateByUrl).toHaveBeenLastCalledWith("/")
     })
 
+    it("should load a snapshot of the working folder without leaving the current view", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+
+        // Act
+        const isLoaded = await service.loadSnapshot(API_OLD.ref)
+
+        // Assert
+        expect(isLoaded).toBe(true)
+        expect(service.shownSnapshot()?.ref).toEqual(API_OLD.ref)
+        expect(router.navigateByUrl).not.toHaveBeenCalled()
+    })
+
+    it("should read the folder's snapshots again before loading one it does not know yet", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        const fresh = aSnapshot("p-billing", "f-api", "s-fresh", { shortCommit: "4444444" })
+        bridge.respondWith("snapshots.list", { snapshots: [fresh] })
+
+        // Act
+        const isLoaded = await service.loadSnapshot(fresh.ref)
+        const isOtherFolderLoaded = await service.loadSnapshot(WEB.ref)
+
+        // Assert
+        expect(isLoaded).toBe(true)
+        expect(isOtherFolderLoaded).toBe(false)
+        expect(loadedSnapshotIds()).toEqual([["s-fresh"]])
+    })
+
     it("should show the working folder when the given snapshot is not in the store", async () => {
         // Arrange
         const service = createService()

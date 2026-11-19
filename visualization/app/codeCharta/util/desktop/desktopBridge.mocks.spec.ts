@@ -891,6 +891,79 @@ describe("createFakeDesktopBridge", () => {
             expect(jobs).toEqual([])
         })
 
+        it("should resolve a target to its own snapshot, else through HEAD, else to none", async () => {
+            // Arrange
+            const analysed = {
+                ...aSnapshot("p-1", "f-1", "s-1", NOW),
+                source: "analysed" as const,
+                commit: COMMIT,
+                target: "commit" as const
+            }
+            const head = { kind: "branch" as const, name: "main", commit: COMMIT }
+            const status = {
+                head,
+                upstream: null,
+                counts: { staged: 0, unstaged: 0, untracked: 0, conflicted: 0 },
+                operationInProgress: null
+            }
+            const bridge = createFakeDesktopBridge({ snapshots: [analysed], gitStatuses: { "f-1": status } })
+
+            // Act
+            const commit = await answerValue(bridge, "snapshots.resolveForCommit", { ...FOLDER, target: { kind: "commit", sha: COMMIT } })
+            const workingTree = await answerValue(bridge, "snapshots.resolveForCommit", { ...FOLDER, target: { kind: "workingTree" } })
+            const other = await answerValue(bridge, "snapshots.resolveForCommit", {
+                ...FOLDER,
+                target: { kind: "commit", sha: "f".repeat(40) }
+            })
+            const empty = await answerValue(bridge, "snapshots.resolveForCommit", {
+                ...FOLDER,
+                folderId: "f-2",
+                target: { kind: "workingTree" }
+            })
+
+            // Assert
+            expect(commit).toEqual({ kind: "exact", snapshot: analysed, isCurrentProfile: true })
+            expect(workingTree).toEqual({ kind: "exact", snapshot: analysed, isCurrentProfile: true })
+            expect(other).toEqual({ kind: "none", reason: "UNRELATED" })
+            expect(empty).toEqual({ kind: "none", reason: "NO_SNAPSHOTS" })
+        })
+
+        it("should answer a scripted resolution until the job for its target finishes", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge({ resolutions: { "f-1/workingTree": { kind: "none", reason: "NO_COMMITS" } } })
+            const nearest = { kind: "none" as const, reason: "UNKNOWN_COMMIT" as const }
+            bridge.setResolution(FOLDER, { kind: "commit", sha: COMMIT }, nearest)
+            const seeded = await answerValue(bridge, "snapshots.resolveForCommit", { ...FOLDER, target: { kind: "workingTree" } })
+            const job = await enqueueCommit(bridge)
+
+            // Act
+            const scripted = await answerValue(bridge, "snapshots.resolveForCommit", { ...FOLDER, target: { kind: "commit", sha: COMMIT } })
+            bridge.completeJob(job.id)
+            const afterwards = await answerValue(bridge, "snapshots.resolveForCommit", {
+                ...FOLDER,
+                target: { kind: "commit", sha: COMMIT }
+            })
+
+            // Assert
+            expect(seeded).toEqual({ kind: "none", reason: "NO_COMMITS" })
+            expect(scripted).toEqual(nearest)
+            expect(afterwards).toMatchObject({ kind: "exact", snapshot: { commit: COMMIT }, isCurrentProfile: true })
+        })
+
+        it("should answer the newest snapshot of a plain folder as the latest", async () => {
+            // Arrange
+            const plain = aProject("p-1", [aFolder("f-1", { kind: "plain", git: null })])
+            const older = aSnapshot("p-1", "f-1", "s-old", "2026-01-01T00:00:00Z")
+            const newer = aSnapshot("p-1", "f-1", "s-new", "2026-02-01T00:00:00Z")
+            const bridge = createFakeDesktopBridge({ projects: [plain], snapshots: [older, newer] })
+
+            // Act
+            const resolution = await answerValue(bridge, "snapshots.resolveForCommit", { ...FOLDER, target: { kind: "workingTree" } })
+
+            // Assert
+            expect(resolution).toEqual({ kind: "latest", snapshot: newer, reason: "PLAIN_FOLDER" })
+        })
+
         it("should answer seeded jobs, a seeded snapshot log and a clean preflight", async () => {
             // Arrange
             const bridge = createFakeDesktopBridge({ snapshotLogs: { "s-1": "Map: out.cc.json.gz" } })

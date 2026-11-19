@@ -18,6 +18,7 @@ import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { Project } from "../../model/coreApi/Project"
 import type { ProjectView } from "../../model/coreApi/ProjectView"
 import type { ResolvedCommit } from "../../model/coreApi/ResolvedCommit"
+import type { SnapshotResolution } from "../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 import type { UpdateProjectParams } from "../../model/coreApi/UpdateProjectParams"
 import type { BridgeMethod, CoreState, DesktopBridge } from "./desktopBridge"
@@ -75,6 +76,8 @@ export interface FakeDesktopSeed {
     analysisJobs?: AnalysisJob[]
     snapshotLogs?: Record<string, string>
     failedJobLogs?: Record<string, string>
+    /** By `<folderId>/<sha or "workingTree">`; answered until an analysis of that target finishes. */
+    resolutions?: Record<string, SnapshotResolution>
     now?: string
 }
 
@@ -92,6 +95,7 @@ export interface FakeDesktopBridge extends DesktopBridge {
     reportProgress(jobId: string, progress: JobProgress): void
     completeJob(jobId: string, snapshot?: SnapshotSummary): void
     failJob(jobId: string, error: JobError, log?: string): void
+    setResolution(folder: FolderRef, target: AnalysisTarget, resolution: SnapshotResolution): void
 }
 
 interface FakeRequestParams extends Partial<UpdateProjectParams> {
@@ -153,6 +157,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         jobs: JSON.parse(JSON.stringify(seed.analysisJobs ?? [])) as AnalysisJob[],
         snapshotLogs: { ...seed.snapshotLogs },
         failedJobLogs: { ...seed.failedJobLogs },
+        resolutions: JSON.parse(JSON.stringify(seed.resolutions ?? {})) as Record<string, SnapshotResolution>,
         createdIds: 0
     }
     for (const [folderId, status] of Object.entries(seed.gitStatuses ?? {})) {
@@ -764,6 +769,49 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         }
     }
 
+    function resolutionKeyOf(folderId: string, target: AnalysisTarget) {
+        return `${folderId}/${targetKeyOf(target)}`
+    }
+
+    function setResolution(folder: FolderRef, target: AnalysisTarget, resolution: SnapshotResolution) {
+        store.resolutions[resolutionKeyOf(folder.folderId, target)] = JSON.parse(JSON.stringify(resolution))
+    }
+
+    function headCommitOf(folderId: string) {
+        return store.git[folderId]?.status?.head.commit ?? null
+    }
+
+    function snapshotFor(snapshots: SnapshotSummary[], folderId: string, target: AnalysisTarget) {
+        const workingTree = target.kind === "workingTree" ? snapshots.find(snapshot => snapshot.target === "workingTree") : undefined
+        const sha = target.kind === "commit" ? target.sha : headCommitOf(folderId)
+        return workingTree ?? snapshots.find(snapshot => sha !== null && snapshot.commit === sha)
+    }
+
+    function resolveForCommit(params: FakeRequestParams) {
+        const folderId = params.folderId ?? ""
+        const target = params.target as AnalysisTarget
+        const scripted = store.resolutions[resolutionKeyOf(folderId, target)]
+        if (scripted) {
+            return succeed(JSON.parse(JSON.stringify(scripted)))
+        }
+        const snapshots = snapshotsOf(params.projectId ?? "", folderId).sort((first, second) =>
+            second.createdAt.localeCompare(first.createdAt)
+        )
+        const folder = store.projects.find(project => project.id === params.projectId)?.folders.find(candidate => candidate.id === folderId)
+        const match = snapshotFor(snapshots, folderId, target)
+        if (snapshots.length === 0) {
+            return succeed({ kind: "none", reason: "NO_SNAPSHOTS" })
+        }
+        if (folder?.kind === "plain") {
+            return succeed({ kind: "latest", snapshot: JSON.parse(JSON.stringify(snapshots[0])), reason: "PLAIN_FOLDER" })
+        }
+        return succeed(
+            match
+                ? { kind: "exact", snapshot: JSON.parse(JSON.stringify(match)), isCurrentProfile: match.source === "analysed" }
+                : { kind: "none", reason: "UNRELATED" }
+        )
+    }
+
     function startJob(jobId: string) {
         const job = findJob(jobId)
         if (job) {
@@ -787,6 +835,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         }
         const summary: SnapshotSummary = JSON.parse(JSON.stringify(snapshot ?? analysedSnapshot(job)))
         store.snapshots.push(summary)
+        delete store.resolutions[resolutionKeyOf(job.folderId, job.target)]
         Object.assign(job, { state: "done", finishedAt: now, snapshotId: summary.ref.snapshotId })
         announceJob("analysis.finished", job)
         emit("snapshots.changed", { projectId: job.projectId, folderId: job.folderId })
@@ -835,6 +884,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "git.refsFingerprint": gitAnswer("git.refsFingerprint", repository => repository.refs?.fingerprint),
         "git.log": gitAnswer("git.log", gitLogPage),
         "snapshots.readLog": readSnapshotLog,
+        "snapshots.resolveForCommit": resolveForCommit,
         "analysis.preflight": () => succeed({ ok: true, problems: [] }),
         "analysis.enqueue": enqueueAnalysis,
         "analysis.cancel": cancelAnalysis,
@@ -892,6 +942,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         reportProgress,
         completeJob,
         failJob,
+        setResolution,
         protocolVersion: seed.protocolVersion ?? FALLBACK_PROTOCOL_VERSION,
         request: ((method: BridgeMethod, params: unknown, options?: unknown) =>
             recordAndAnswer(

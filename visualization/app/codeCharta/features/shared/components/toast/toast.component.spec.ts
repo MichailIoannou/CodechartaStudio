@@ -20,6 +20,24 @@ describe("ToastComponent", () => {
         expect(screen.getByText("no domain data")).toBeTruthy()
     })
 
+    it("should show projected persistent items before the messages", async () => {
+        // Arrange & Act
+        await render(`<cc-toast><p>persistent</p></cc-toast>`, {
+            imports: [ToastComponent],
+            providers: [
+                {
+                    provide: ToastService,
+                    useValue: { messages: () => [{ id: 0, text: "ordinary", severity: "info" as const }] }
+                }
+            ]
+        })
+
+        // Assert
+        const texts = Array.from(screen.getByRole("status").children).map(child => child.textContent?.trim())
+        expect(texts[0]).toBe("persistent")
+        expect(texts[1]).toContain("ordinary")
+    })
+
     it("should announce messages through an aria-live status region", async () => {
         // Arrange & Act
         await renderComponent({
