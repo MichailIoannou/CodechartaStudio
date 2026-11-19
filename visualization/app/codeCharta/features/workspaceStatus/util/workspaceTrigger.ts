@@ -1,8 +1,10 @@
 import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
+import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import type { ProjectFolder } from "../../../model/coreApi/ProjectFolder"
 import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
+import type { RunningGitOperation } from "../../gitHistory/facade"
 import { branchLabel, counted, fileDate, longDate, shortDate } from "../../projects/facade"
 import { isUnboundImport, progressPercent, targetName } from "../../snapshots/facade"
 
@@ -10,6 +12,32 @@ import { isUnboundImport, progressPercent, targetName } from "../../snapshots/fa
 export interface Staleness {
     badge: TriggerBadge
     phrase: string
+}
+
+/** A git operation of the working folder that the trigger shows instead of an analysis (design W1). */
+export interface GitActivity {
+    /** "Fetching", as the map part words it. */
+    label: string
+    icon: string
+    percent: number | null
+    /** git's own progress line, for the title. */
+    message: string | null
+}
+
+const GIT_ACTIVITIES: Partial<Record<RunningGitOperation["kind"], { label: string; icon: string }>> = {
+    fetch: { label: "Fetching", icon: "fa-solid fa-cloud-arrow-down motion-safe:animate-pulse" }
+}
+const FULL_PERCENT = 100
+
+/** Only the network operations design W1 words show here; quick local writes would only flicker. */
+export function gitActivityOf(running: RunningGitOperation | null, folder: FolderRef | null): GitActivity | null {
+    const activity = running ? GIT_ACTIVITIES[running.kind] : undefined
+    if (!running || !activity || running.repo.projectId !== folder?.projectId || running.repo.folderId !== folder.folderId) {
+        return null
+    }
+    const { done, total, message } = running.progress ?? { done: null, total: null, message: null }
+    const percent = done !== null && total ? Math.round((done / total) * FULL_PERCENT) : null
+    return { ...activity, percent, message: message || null }
 }
 
 /** What the trigger tells besides the folder: an analysis that just finished (for a moment) or one that failed. */
@@ -25,6 +53,8 @@ export interface TriggerInput {
     outcome: RecentOutcome
     isCoreOffline: boolean
     staleness: Staleness | null
+    /** Shown instead of a running analysis: the user waits for it. */
+    gitActivity?: GitActivity | null
 }
 
 /** The part after the branch: the commit in the map, what runs, or a short state. */
@@ -33,6 +63,8 @@ interface MapPart {
     text: string | null
     isAnalysing: boolean
     percent: number | null
+    /** The running git operation, worded ("Fetching"). */
+    activity?: string
 }
 
 type BadgeTone = "error" | "warning" | "ghost"
@@ -69,13 +101,13 @@ export function workspaceTrigger(input: TriggerInput): TriggerView {
     const branch = branchOf(input, status)
     return {
         icon: iconOf(input),
-        isSpinning: input.activeJob !== null && !input.isCoreOffline,
+        isSpinning: input.activeJob !== null && !input.isCoreOffline && !input.gitActivity,
         branch,
         isBranchLoading: input.folder.kind === "git" && input.gitStatus === undefined,
         mapPart,
         badge,
         fill: fillOf(input),
-        fillPercent: input.activeJob ? progressPercent(input.activeJob.progress) : null,
+        fillPercent: fillPercentOf(input),
         ahead: status?.upstream?.ahead ?? 0,
         behind: status?.upstream?.behind ?? 0,
         uncommitted: status ? uncommittedOf(status) : 0,
@@ -87,6 +119,9 @@ export function workspaceTrigger(input: TriggerInput): TriggerView {
 function iconOf(input: TriggerInput): string {
     if (input.isCoreOffline) {
         return "fa-solid fa-plug-circle-xmark"
+    }
+    if (input.gitActivity) {
+        return input.gitActivity.icon
     }
     if (input.activeJob) {
         return ""
@@ -112,6 +147,9 @@ function branchOf(input: TriggerInput, status: GitStatus | null): string | null 
 function mapPartOf(input: TriggerInput): MapPart | null {
     if (input.isCoreOffline) {
         return textPart("Core offline")
+    }
+    if (input.gitActivity) {
+        return { sha: null, text: null, isAnalysing: false, percent: input.gitActivity.percent, activity: input.gitActivity.label }
     }
     if (input.activeJob) {
         return { sha: null, text: null, isAnalysing: true, percent: progressPercent(input.activeJob.progress) }
@@ -139,6 +177,9 @@ function badgeOf(input: TriggerInput): TriggerBadge | null {
     if (input.outcome === "failed") {
         return { text: "failed", tone: "error" }
     }
+    if (input.gitActivity && input.activeJob) {
+        return { text: "+1", tone: "ghost" }
+    }
     if (input.staleness) {
         return input.staleness.badge
     }
@@ -152,10 +193,20 @@ function badgeOf(input: TriggerInput): TriggerBadge | null {
 }
 
 function fillOf(input: TriggerInput): FillKind {
+    if (input.gitActivity) {
+        return input.gitActivity.percent === null ? "indeterminate" : "determinate"
+    }
     if (input.activeJob) {
         return progressPercent(input.activeJob.progress) === null ? "indeterminate" : "determinate"
     }
     return input.outcome
+}
+
+function fillPercentOf(input: TriggerInput): number | null {
+    if (input.gitActivity) {
+        return input.gitActivity.percent
+    }
+    return input.activeJob ? progressPercent(input.activeJob.progress) : null
 }
 
 function titleOf(input: TriggerInput, status: GitStatus | null): string {
@@ -164,6 +215,7 @@ function titleOf(input: TriggerInput, status: GitStatus | null): string {
         `Working folder ${folder.label} (${folder.path})`,
         status ? branchLine(status) : null,
         mapLine(input),
+        gitActivityLine(input.gitActivity ?? null),
         activityLine(input.activeJob)
     ]
         .filter(Boolean)
@@ -195,6 +247,13 @@ function mapLine(input: TriggerInput): string {
     return input.staleness ? `Map shows ${commit}, ${input.staleness.phrase}` : `Map shows ${commit}`
 }
 
+function gitActivityLine(activity: GitActivity | null): string | null {
+    if (!activity) {
+        return null
+    }
+    return activity.message ? `${activity.label} — ${activity.message}` : `${activity.label}…`
+}
+
 function activityLine(job: AnalysisJob | null): string | null {
     if (!job) {
         return null
@@ -206,6 +265,10 @@ function activityLine(job: AnalysisJob | null): string | null {
 function mapAriaOf(input: TriggerInput, mapPart: MapPart | null): string | null {
     if (mapPart?.sha) {
         return `map shows ${mapPart.sha}`
+    }
+    if (mapPart?.activity) {
+        const label = mapPart.activity.toLowerCase()
+        return mapPart.percent === null ? label : `${label} ${mapPart.percent} percent`
     }
     if (input.activeJob) {
         const name = targetName(input.activeJob.target)

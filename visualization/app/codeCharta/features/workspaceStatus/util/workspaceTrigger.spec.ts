@@ -1,7 +1,7 @@
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import { aFolder, aSnapshot } from "../../projects/projects.mocks"
 import { aJob } from "../../snapshots/snapshots.mocks"
-import { stalenessOf, TriggerInput, uncommittedTitle, workspaceTrigger } from "./workspaceTrigger"
+import { gitActivityOf, stalenessOf, TriggerInput, uncommittedTitle, workspaceTrigger } from "./workspaceTrigger"
 
 const STATUS: GitStatus = {
     head: { kind: "branch", name: "feature/invoice-rounding", commit: "a".repeat(40) },
@@ -32,6 +32,62 @@ function input(overrides: Partial<TriggerInput> = {}): TriggerInput {
 }
 
 describe("workspaceTrigger", () => {
+    describe("git activity", () => {
+        const FOLDER = { projectId: "p", folderId: "f-api" }
+        const FETCHING = {
+            label: "Fetching",
+            icon: "fa-solid fa-cloud-arrow-down motion-safe:animate-pulse",
+            percent: 45,
+            message: "Receiving objects: 45%"
+        }
+
+        it("should word a fetch of the working folder with its percent, and only that", () => {
+            // Arrange
+            const running = {
+                repo: FOLDER,
+                kind: "fetch" as const,
+                operationId: "git-operation-1",
+                progress: { message: "Receiving objects: 45%", done: 45, total: 100 }
+            }
+
+            // Act
+            const activities = [
+                gitActivityOf(running, FOLDER),
+                gitActivityOf({ ...running, progress: null }, FOLDER),
+                gitActivityOf({ ...running, kind: "switch" }, FOLDER),
+                gitActivityOf(running, { ...FOLDER, folderId: "f-web" }),
+                gitActivityOf(null, FOLDER)
+            ]
+
+            // Assert
+            expect(activities).toEqual([FETCHING, { ...FETCHING, percent: null, message: null }, null, null, null])
+        })
+
+        it("should show a fetch instead of a running analysis, with a +1 badge", () => {
+            // Arrange
+            const job = aJob("job-1", { state: "running", progress: { mode: "determinate", percent: 42 } })
+
+            // Act
+            const view = workspaceTrigger(input({ gitActivity: FETCHING, activeJob: job }))
+            const sweeping = workspaceTrigger(input({ gitActivity: { ...FETCHING, percent: null, message: null } }))
+
+            // Assert
+            expect(view).toMatchObject({
+                icon: FETCHING.icon,
+                isSpinning: false,
+                mapPart: { activity: "Fetching", percent: 45 },
+                badge: { text: "+1", tone: "ghost" },
+                fill: "determinate",
+                fillPercent: 45
+            })
+            expect(view.title).toContain("Fetching — Receiving objects: 45%")
+            expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, fetching 45 percent, +1")
+            expect(sweeping).toMatchObject({ fill: "indeterminate", fillPercent: null })
+            expect(sweeping.title).toContain("Fetching…")
+            expect(sweeping.ariaLabel).toBe("Branch feature/invoice-rounding, fetching")
+        })
+    })
+
     it("should show the branch, its counts and the commit in the map while idle", () => {
         // Act
         const view = workspaceTrigger(input())

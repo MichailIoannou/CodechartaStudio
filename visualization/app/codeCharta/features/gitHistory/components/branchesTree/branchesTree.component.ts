@@ -1,21 +1,26 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core"
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal } from "@angular/core"
 import { relativeTime } from "../../../../util/wording"
 import { failureOf, readyValueOf } from "../../model/loadState"
+import { BranchActionsService } from "../../services/branchActions.service"
 import { GitLogService } from "../../services/gitLog.service"
 import { GitRepositoryService } from "../../services/gitRepository.service"
 import { HistoryLayoutService } from "../../services/historyLayout.service"
 import { ALL_BRANCHES_ROW_ID, BranchRef, BranchRow, branchRows, buildBranchTree, hasAnyRef } from "../../util/branchTree"
 import { gitErrorSentence } from "../../util/gitErrorText"
+import { BranchContextMenuComponent, BranchMenuTarget } from "../branchContextMenu/branchContextMenu.component"
 
 const ROW_ID_PREFIX = "cc-branch-row-"
 const ROW_INDENT_REM = 0.75
 const ROW_PADDING_REM = 0.5
 const SCOPED_ROW_CLASS = "bg-primary/20 font-semibold"
 const ACTIVE_ROW_CLASS = "group-focus-visible:outline"
+/** Where a menu opened from the keyboard appears: inset from the row's left edge, under the row. */
+const KEYBOARD_MENU_INSET_PX = 24
 
 @Component({
     selector: "cc-branches-tree",
     templateUrl: "./branchesTree.component.html",
+    imports: [BranchContextMenuComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "flex min-h-0 flex-1 flex-col" }
 })
@@ -23,6 +28,8 @@ export class BranchesTreeComponent {
     private readonly repository = inject(GitRepositoryService)
     private readonly log = inject(GitLogService)
     private readonly layout = inject(HistoryLayoutService)
+    private readonly actions = inject(BranchActionsService)
+    private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
 
     readonly filter = signal("")
     private readonly uncappedIds = signal<ReadonlySet<string>>(new Set())
@@ -48,6 +55,7 @@ export class BranchesTreeComponent {
     })
     readonly activeDescendant = computed(() => ROW_ID_PREFIX + this.activeRowId())
     readonly scopedRefNames = this.log.scopedRefNames
+    readonly menuTarget = signal<BranchMenuTarget | null>(null)
 
     rowElementId(row: BranchRow): string {
         return ROW_ID_PREFIX + row.id
@@ -94,6 +102,29 @@ export class BranchesTreeComponent {
         }
     }
 
+    /** Design H7: a double-click on a local branch switches to it. */
+    switchTo(row: BranchRow) {
+        if (row.kind === "ref" && row.ref.local && !row.ref.local.isCurrent) {
+            void this.actions.switchTo(row.ref.local)
+        }
+    }
+
+    openMenuWithMouse(row: BranchRow, event: MouseEvent) {
+        if (row.kind !== "ref") {
+            return
+        }
+        event.preventDefault()
+        this.activeRowId.set(row.id)
+        this.menuTarget.set({ anchor: { x: event.clientX, y: event.clientY }, ref: row.ref, isFromKeyboard: false })
+    }
+
+    closeMenu(isFocusReturned: boolean) {
+        this.menuTarget.set(null)
+        if (isFocusReturned) {
+            this.hostElement.nativeElement.querySelector<HTMLElement>("[role=tree]")?.focus()
+        }
+    }
+
     retry() {
         void this.repository.refresh("manual")
     }
@@ -122,9 +153,22 @@ export class BranchesTreeComponent {
             case "Enter":
                 this.activate(row, event)
                 return true
+            case "ContextMenu":
+                return this.openMenuAtRow(row)
+            case "F10":
+                return event.shiftKey && this.openMenuAtRow(row)
             default:
                 return false
         }
+    }
+
+    private openMenuAtRow(row: BranchRow): boolean {
+        const rowBox = document.getElementById(this.rowElementId(row))?.getBoundingClientRect()
+        if (row.kind !== "ref" || !rowBox) {
+            return false
+        }
+        this.menuTarget.set({ anchor: { x: rowBox.left + KEYBOARD_MENU_INSET_PX, y: rowBox.bottom }, ref: row.ref, isFromKeyboard: true })
+        return true
     }
 
     private expandOrEnter(row: BranchRow, next: BranchRow | undefined): boolean {

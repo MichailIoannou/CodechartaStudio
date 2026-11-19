@@ -141,4 +141,88 @@ describe("GitApiService", () => {
         // Assert
         expect(stopListening()).toBeUndefined()
     })
+
+    it("should run a write operation under the given operation id", async () => {
+        // Arrange
+        const bridge: FakeDesktopBridge = createFakeDesktopBridge({ responses: { "git.fetch": { updatedRefs: 0, refs: null } } })
+        const api = apiWith(bridge)
+
+        // Act
+        await api.fetch({ repo, prune: true }, "git-operation-1")
+        await api.switchBranch({ repo, target: { kind: "local", refName: "refs/heads/main" } }, "git-operation-2")
+
+        // Assert
+        expect(bridge.calls.filter(call => call.name === "request").map(call => call.args)).toEqual([
+            ["git.fetch", { repo, prune: true }, { operationId: "git-operation-1" }],
+            ["git.switch", { repo, target: { kind: "local", refName: "refs/heads/main" } }, { operationId: "git-operation-2" }]
+        ])
+    })
+
+    it("should send every branch operation to its core method", async () => {
+        // Arrange
+        const bridge: FakeDesktopBridge = createFakeDesktopBridge()
+        const api = apiWith(bridge)
+
+        // Act
+        await api.createBranch({ repo, name: "x", startPoint: "a".repeat(40), checkout: false }, "op-1")
+        await api.renameBranch({ repo, refName: "refs/heads/x", newName: "y" }, "op-2")
+        await api.deleteBranch({ repo, target: { kind: "local", refName: "refs/heads/y", force: false } }, "op-3")
+        await api.setUpstream({ repo, refName: "refs/heads/y", upstreamRefName: null }, "op-4")
+
+        // Assert
+        const methods = bridge.calls.filter(call => call.name === "request").map(call => call.args[0])
+        expect(methods).toEqual(["git.branchCreate", "git.branchRename", "git.branchDelete", "git.setUpstream"])
+    })
+
+    it("should answer and cancel prompts and cancel operations through the bridge", async () => {
+        // Arrange
+        const bridge: FakeDesktopBridge = createFakeDesktopBridge({ responses: { "prompt.answer": null, "prompt.cancel": null } })
+        const api = apiWith(bridge)
+
+        // Act
+        const answered = await api.answerPrompt("p1", "secret-passphrase")
+        await api.cancelPrompt("p2")
+        await api.cancel("op-1")
+
+        // Assert
+        expect(answered.ok).toBe(true)
+        expect(bridge.calls.map(call => [call.name, call.args[0]])).toEqual([
+            ["request", "prompt.answer"],
+            ["request", "prompt.cancel"],
+            ["cancel", "op-1"]
+        ])
+    })
+
+    it("should pass prompts, closed prompts and progress to their listeners", () => {
+        // Arrange
+        const bridge = createFakeDesktopBridge()
+        const api = apiWith(bridge)
+        const listeners = { requested: jest.fn(), closed: jest.fn(), progress: jest.fn() }
+        const prompt = { promptId: "p1", requestId: "op-1", repositoryLabel: "billing-api", kind: "secret", message: "Password: " }
+
+        // Act
+        api.onPromptRequested(listeners.requested)
+        api.onPromptClosed(listeners.closed)
+        api.onProgress(listeners.progress)
+        bridge.emit("prompt.requested", prompt)
+        bridge.emit("prompt.closed", { promptId: "p1" })
+        bridge.emit("core.progress", { requestId: "op-1", message: "Receiving objects", done: 1, total: 2 })
+
+        // Assert
+        expect(listeners.requested).toHaveBeenCalledWith(prompt)
+        expect(listeners.closed).toHaveBeenCalledWith({ promptId: "p1" })
+        expect(listeners.progress).toHaveBeenCalledWith({ requestId: "op-1", message: "Receiving objects", done: 1, total: 2 })
+    })
+
+    it("should neither listen nor cancel without the desktop bridge", async () => {
+        // Arrange
+        const api = apiWith(null)
+
+        // Act
+        const stops = [api.onPromptRequested(jest.fn()), api.onPromptClosed(jest.fn()), api.onProgress(jest.fn())]
+
+        // Assert
+        expect(stops.map(stop => stop())).toEqual([undefined, undefined, undefined])
+        await expect(api.cancel("op-1")).resolves.toBeUndefined()
+    })
 })

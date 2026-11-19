@@ -2,13 +2,30 @@
     <ng-content />
     @for (message of messages(); track message.id) {
         <div
-            class="alert shadow-lg"
+            class="alert w-96 max-w-[calc(100vw-2rem)] items-start shadow-lg"
             [class.alert-info]="message.severity === 'info'"
             [class.alert-success]="message.severity === 'success'"
             [class.alert-warning]="message.severity === 'warning'"
             [class.alert-error]="message.severity === 'error'"
         >
-            <span>{{ message.text }}</span>
+            <div class="flex min-w-0 flex-col gap-2">
+                <span class="whitespace-pre-line break-words">{{ message.text }}</span>
+                @if (message.details && isExpanded(message.id)) {
+                    <pre class="max-h-40 overflow-auto whitespace-pre-wrap font-mono text-xs" data-testid="toast-details">{{ message.details }}</pre>
+                }
+                @if (message.details || message.action) {
+                    <div class="flex gap-2">
+                        @if (message.details) {
+                            <button type="button" class="btn btn-ghost btn-sm" [attr.aria-expanded]="isExpanded(message.id)" (click)="toggleDetails(message.id)">
+                                Details
+                            </button>
+                        }
+                        @if (message.action; as action) {
+                            <button type="button" class="btn btn-sm" (click)="runAction(message.id, action)">{{ action.label }}</button>
+                        }
+                    </div>
+                }
+            </div>
             <button class="btn btn-circle btn-ghost btn-xs" (click)="dismiss(message.id)" aria-label="Dismiss notification">✕</button>
         </div>
     }

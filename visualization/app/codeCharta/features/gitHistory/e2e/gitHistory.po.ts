@@ -51,6 +51,42 @@ export class GitHistoryPageObject {
         return this.page.getByTestId("history-search")
     }
 
+    syncButton() {
+        return this.page.getByTestId("sync-button-main")
+    }
+
+    cancelSync() {
+        return this.page.getByTestId("sync-button-cancel")
+    }
+
+    workspaceStatus() {
+        return this.page.getByTestId("workspace-status-trigger")
+    }
+
+    confirmDialog() {
+        return this.page.getByTestId("git-confirm-dialog")
+    }
+
+    async confirm(answer: "yes" | "verb") {
+        await this.page.getByTestId(`git-confirm-${answer}`).click()
+    }
+
+    credentialPrompt() {
+        return this.page.getByTestId("credential-prompt")
+    }
+
+    credentialInput() {
+        return this.page.getByTestId("credential-prompt-input")
+    }
+
+    branchDialog() {
+        return this.page.getByTestId("branch-dialog")
+    }
+
+    toasts() {
+        return this.page.locator("cc-toast .alert")
+    }
+
     async open() {
         await this.tab().click()
         await this.repository().waitFor({ state: "visible" })

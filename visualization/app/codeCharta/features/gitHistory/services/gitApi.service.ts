@@ -1,16 +1,25 @@
 import { Injectable, inject } from "@angular/core"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
+import type { GitBranchCreateParams } from "../../../model/coreApi/GitBranchCreateParams"
+import type { GitBranchDeleteParams } from "../../../model/coreApi/GitBranchDeleteParams"
+import type { GitBranchRenameParams } from "../../../model/coreApi/GitBranchRenameParams"
+import type { GitFetchParams } from "../../../model/coreApi/GitFetchParams"
 import type { GitLogParams } from "../../../model/coreApi/GitLogParams"
+import type { GitSetUpstreamParams } from "../../../model/coreApi/GitSetUpstreamParams"
+import type { GitSwitchParams } from "../../../model/coreApi/GitSwitchParams"
+import type { ProgressParams } from "../../../model/coreApi/ProgressParams"
+import type { PromptClosed } from "../../../model/coreApi/PromptClosed"
+import type { PromptRequested } from "../../../model/coreApi/PromptRequested"
 import type { RepositoryChanged } from "../../../model/coreApi/RepositoryChanged"
-import type { BridgeMethod, BridgeParams, BridgeResult } from "../../../util/desktop/desktopBridge"
+import type { BridgeMethod, BridgeParams, BridgeResult, DesktopEventName, DesktopEventPayload } from "../../../util/desktop/desktopBridge"
 import { DESKTOP_BRIDGE } from "../../../util/desktop/desktopBridge.token"
 import { GitResult, gitErrorFromThrown, gitErrorOf } from "../model/gitError"
 
-type GitMethod = Extract<BridgeMethod, `git.${string}`>
+type GitMethod = Extract<BridgeMethod, `git.${string}` | `prompt.${string}`>
 
 const WITHOUT_BRIDGE = "Git is only available in the desktop app."
 
-/** The only caller of the desktop bridge for `git.*`. */
+/** The only caller of the desktop bridge for `git.*` and `prompt.*`; it never keeps or logs what it passes on. */
 @Injectable({ providedIn: "root" })
 export class GitApiService {
     private readonly bridge = inject(DESKTOP_BRIDGE)
@@ -47,16 +56,74 @@ export class GitApiService {
         return this.call("git.measureDistances", { repo, target, candidates })
     }
 
-    onRepositoryChanged(handler: (change: RepositoryChanged) => void): () => void {
-        return this.bridge?.subscribe("repository.changed", handler) ?? (() => undefined)
+    fetch(params: GitFetchParams, operationId: string) {
+        return this.call("git.fetch", params, operationId)
     }
 
-    private async call<Method extends GitMethod>(method: Method, params: BridgeParams<Method>): Promise<GitResult<BridgeResult<Method>>> {
+    switchBranch(params: GitSwitchParams, operationId: string) {
+        return this.call("git.switch", params, operationId)
+    }
+
+    createBranch(params: GitBranchCreateParams, operationId: string) {
+        return this.call("git.branchCreate", params, operationId)
+    }
+
+    renameBranch(params: GitBranchRenameParams, operationId: string) {
+        return this.call("git.branchRename", params, operationId)
+    }
+
+    deleteBranch(params: GitBranchDeleteParams, operationId: string) {
+        return this.call("git.branchDelete", params, operationId)
+    }
+
+    setUpstream(params: GitSetUpstreamParams, operationId: string) {
+        return this.call("git.setUpstream", params, operationId)
+    }
+
+    answerPrompt(promptId: string, answer: string) {
+        return this.call("prompt.answer", { promptId, answer })
+    }
+
+    cancelPrompt(promptId: string) {
+        return this.call("prompt.cancel", { promptId })
+    }
+
+    async cancel(operationId: string): Promise<void> {
+        await this.bridge?.cancel(operationId)
+    }
+
+    onRepositoryChanged(handler: (change: RepositoryChanged) => void): () => void {
+        return this.listen("repository.changed", handler)
+    }
+
+    onPromptRequested(handler: (prompt: PromptRequested) => void): () => void {
+        return this.listen("prompt.requested", handler)
+    }
+
+    onPromptClosed(handler: (closed: PromptClosed) => void): () => void {
+        return this.listen("prompt.closed", handler)
+    }
+
+    onProgress(handler: (progress: ProgressParams) => void): () => void {
+        return this.listen("core.progress", handler)
+    }
+
+    private listen<Event extends DesktopEventName>(event: Event, handler: (payload: DesktopEventPayload<Event>) => void): () => void {
+        return this.bridge?.subscribe(event, handler) ?? (() => undefined)
+    }
+
+    private async call<Method extends GitMethod>(
+        method: Method,
+        params: BridgeParams<Method>,
+        operationId?: string
+    ): Promise<GitResult<BridgeResult<Method>>> {
         if (!this.bridge) {
             return { ok: false, error: gitErrorFromThrown(new Error(WITHOUT_BRIDGE)) }
         }
         try {
-            const answer = await this.bridge.request(method, params)
+            const answer = await (operationId === undefined
+                ? this.bridge.request(method, params)
+                : this.bridge.request(method, params, { operationId }))
             return "error" in answer ? { ok: false, error: gitErrorOf(answer.error) } : answer
         } catch (thrown) {
             return { ok: false, error: gitErrorFromThrown(thrown) }

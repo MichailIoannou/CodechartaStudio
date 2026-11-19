@@ -19,7 +19,7 @@ import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import { DesktopEnvironment } from "../../../../util/desktop/desktopEnvironment.service"
 import { shortSha } from "../../../../util/wording"
 import { DesktopToolsService } from "../../../desktopTools/facade"
-import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
+import { GitOperationService, GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
 import { changesSentence, ProjectsFacade, shortDate } from "../../../projects/facade"
 import {
     AnalysisJobsService,
@@ -30,7 +30,7 @@ import {
     SnapshotViewService,
     targetName
 } from "../../../snapshots/facade"
-import { RecentOutcome, stalenessOf, uncommittedTitle, workspaceTrigger } from "../../util/workspaceTrigger"
+import { gitActivityOf, RecentOutcome, stalenessOf, uncommittedTitle, workspaceTrigger } from "../../util/workspaceTrigger"
 import { AnalysisActivityComponent } from "../analysisActivity/analysisActivity.component"
 
 const FINISHED_TINT_MS = 1500
@@ -47,6 +47,7 @@ const OFFLINE_STATES: ReadonlySet<string> = new Set(["restarting", "unavailable"
 export class WorkspaceStatusComponent {
     private readonly projects = inject(ProjectsFacade)
     private readonly gitRepository = inject(GitRepositoryService)
+    private readonly gitOperations = inject(GitOperationService)
     private readonly jobsService = inject(AnalysisJobsService)
     private readonly catalog = inject(SnapshotCatalogService)
     private readonly view = inject(SnapshotViewService)
@@ -81,6 +82,7 @@ export class WorkspaceStatusComponent {
         return shown?.ref.folderId === this.folder()?.id ? shown : null
     })
     readonly hasSnapshots = computed(() => this.catalog.snapshots(this.folder()?.id ?? "").length > 0)
+    readonly gitActivity = computed(() => gitActivityOf(this.gitOperations.running(), this.workingRef()))
     readonly isCoreOffline = computed(() => OFFLINE_STATES.has(this.environment.coreState().state))
     readonly triggerView = computed(() => {
         const folder = this.folder()
@@ -213,7 +215,8 @@ export class WorkspaceStatusComponent {
             activeJob: this.activeJob(),
             outcome: this.outcome(),
             isCoreOffline: this.isCoreOffline(),
-            staleness: this.staleness()
+            staleness: this.staleness(),
+            gitActivity: this.gitActivity()
         })
     }
 

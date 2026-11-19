@@ -59,6 +59,34 @@ describe("ToastService", () => {
         expect(toastService.messages()).toEqual([])
     })
 
+    it("should keep an error until it is dismissed", () => {
+        // Arrange
+        toastService.show("Git failed", "error")
+
+        // Act
+        jest.advanceTimersByTime(60_000)
+
+        // Assert
+        expect(toastService.messages().map(message => message.text)).toEqual(["Git failed"])
+    })
+
+    it("should carry the details and the follow-up action of a message", () => {
+        // Arrange
+        const run = jest.fn()
+
+        // Act
+        toastService.show("Git failed", "error", { details: "fatal: no remote", action: { label: "Fetch", run } })
+
+        // Assert
+        expect(toastService.messages()[0]).toEqual({
+            id: 0,
+            text: "Git failed",
+            severity: "error",
+            details: "fatal: no remote",
+            action: { label: "Fetch", run }
+        })
+    })
+
     it("should dismiss only the requested message when dismiss is called", () => {
         // Arrange
         const keptId = toastService.show("keep me")

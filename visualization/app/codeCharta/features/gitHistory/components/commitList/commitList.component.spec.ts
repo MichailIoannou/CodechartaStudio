@@ -596,7 +596,7 @@ describe("CommitListComponent", () => {
             expect(TestBed.inject(CommitSelectionService).selectedSha()).toBe(START.sha)
             expect(menu.style.left).toBe("40px")
             expect(menu.style.top).toBe("60px")
-            expect(menuLabels()).toEqual(["Analyse This Commit", "Copy SHA", "Copy Subject"])
+            expect(menuLabels()).toEqual(["Analyse This Commit", "Copy SHA", "Copy Subject", "New Branch Here…"])
         })
 
         it("should keep two selected commits on a right-click inside the selection", async () => {
@@ -612,7 +612,7 @@ describe("CommitListComponent", () => {
 
             // Assert
             expect(TestBed.inject(CommitSelectionService).selection()?.items).toHaveLength(2)
-            expect(menuLabels()).toEqual(["Compare", "Copy SHA", "Copy Subject"])
+            expect(menuLabels()).toEqual(["Compare", "Copy SHA", "Copy Subject", "New Branch Here…"])
         })
 
         it("should open the menu at the focused row from the keyboard and give the focus back on Escape", async () => {

@@ -159,3 +159,125 @@ test.describe("History", () => {
         await expect(page.getByText("Commit history is available in the desktop app.")).toBeVisible()
     })
 })
+
+test.describe("History writes", () => {
+    const commits = [aLogCommit("a", "Fix invoice rounding", ["b"]), aLogCommit("b", "Start the invoice module")]
+
+    test("should fetch after the hooks notice, show its progress in the workspace status and cancel it", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const progress = { message: "Receiving objects: 45% (9/20)", done: 45, total: 100 }
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, slow: { "git.fetch": { progress } } } }))
+        await goto(page)
+        await history.open()
+
+        // Act
+        await history.syncButton().click()
+        await expect(history.confirmDialog()).toContainText("Git runs this repository's hooks and filters")
+        await history.confirm("yes")
+
+        // Assert
+        await expect(history.syncButton()).toHaveText("Fetching…")
+        await expect(history.syncButton()).toBeDisabled()
+        await expect(history.workspaceStatus()).toContainText(/Fetching ·\s*45 %/)
+        await history.cancelSync().click()
+        await expect(history.syncButton()).toHaveText("Fetch")
+        await expect(history.workspaceStatus()).not.toContainText("Fetching")
+    })
+
+    test("should ask for a passphrase over any view and send it once", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const prompts = [{ kind: "secret" as const, message: 'Enter passphrase for "/home/mia/.ssh/id_ed25519": ' }]
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, slow: { "git.fetch": { prompts } } } }))
+        await goto(page)
+        await history.open()
+        await history.syncButton().click()
+        await history.confirm("yes")
+
+        // Act
+        await expect(history.credentialPrompt()).toContainText("Enter passphrase for")
+        await page.goto(`${CC_URL}#/metrics`)
+        await expect(history.credentialPrompt()).toBeVisible()
+        await history.credentialInput().fill("correct horse")
+        await history.credentialInput().press("Enter")
+
+        // Assert
+        await expect(history.credentialPrompt()).toBeHidden()
+        const answers = await page.evaluate(() => {
+            const bridge = (window as unknown as { codeChartaDesktop: { calls: { args: unknown[] }[] } }).codeChartaDesktop
+            return bridge.calls.filter(call => call.args[0] === "prompt.answer").length
+        })
+        expect(answers).toBe(1)
+        await expect(history.toasts().filter({ hasText: "Already up to date" })).toBeVisible()
+    })
+
+    test("should create a branch from a commit's menu and switch to it from the branch menu", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits } }))
+        await goto(page)
+        await history.open()
+
+        // Act
+        await history.commitRows().nth(1).click({ button: "right" })
+        await page.getByText("New Branch Here…").click()
+        await history.branchDialog().getByTestId("branch-dialog-name").fill("feature/tax-tables")
+        await history.branchDialog().getByTestId("branch-dialog-submit").click()
+        await history.confirm("yes")
+        await history.branchRow("refs/heads/feature/tax-tables").click({ button: "right" })
+        await page.getByTestId("branch-context-menu").getByText("Switch To").click()
+        await expect(history.confirmDialog()).toContainText("Switch 'billing-api' from 'feature/invoice-rounding' to 'feature/tax-tables'?")
+        await history.confirm("yes")
+
+        // Assert
+        await expect(history.currentBranch()).toContainText("feature/tax-tables")
+        await expect(history.branchRow("refs/heads/feature/tax-tables").locator(".fa-check")).toBeVisible()
+    })
+
+    test("should show git's files when it refuses to switch", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const detail =
+            "error: Your local changes to the following files would be overwritten by checkout:\n\tsrc/billing/invoice.ts\nAborting"
+        const refusal = anErrorPayload("LOCAL_CHANGES_WOULD_BE_OVERWRITTEN", "git refused.", { detail })
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, failures: { "git.switch": refusal } } }))
+        await goto(page)
+        await history.open()
+
+        // Act
+        await history.branchRow("refs/heads/main").dblclick()
+        await history.confirm("yes")
+        await history.confirm("yes")
+
+        // Assert
+        const toast = history.toasts().filter({ hasText: "Git did not switch" })
+        await expect(toast).toContainText("src/billing/invoice.ts")
+        await toast.getByRole("button", { name: "Details" }).click()
+        await expect(toast).toContainText("Aborting")
+        await expect(history.currentBranch()).toContainText("feature/invoice-rounding")
+    })
+})
+
+test.describe("Show in map", () => {
+    test("should show a commit's analysis in the map from its details and on double-click", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const commits = [aLogCommit("a", "Fix invoice rounding", ["c"]), aLogCommit("c", "Release 2.4.0")]
+        const release = aSnapshot("p-billing", "f-api", "s-release", { commit: "c".repeat(40), shortCommit: "ccccccc", target: "commit" })
+        const seed = { ...billingSeed({ "f-api": { commits } }), snapshots: [release], snapshotMaps: { "s-release": SAMPLE_MAP } }
+        await standInForTheDesktopBridge(page, seed)
+        await goto(page)
+        await history.open()
+
+        // Act
+        await history.commitRows().nth(1).click()
+        const firstAction = history.commitDetails().getByRole("button").filter({ hasText: "Show in map" })
+        await expect(firstAction).toBeVisible()
+        await history.commitRows().nth(1).dblclick()
+
+        // Assert
+        await expect(page).toHaveURL(/#\/$/)
+        await expect(history.workspaceStatus()).toContainText("ccccccc")
+    })
+})

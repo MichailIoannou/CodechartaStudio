@@ -36,6 +36,8 @@
             [attr.aria-expanded]="row.kind === 'group' || row.kind === 'folder' ? row.isExpanded : null"
             [attr.data-row-id]="row.id"
             (click)="activate(row, $event)"
+            (dblclick)="switchTo(row)"
+            (contextmenu)="openMenuWithMouse(row, $event)"
         >
             @switch (row.kind) {
                 @case ("all") {
@@ -100,3 +102,6 @@
         <p class="px-2 text-xs text-base-content/60">No branch matches '{{ filter().trim() }}'.</p>
     }
 </div>
+@if (menuTarget(); as target) {
+    <cc-branch-context-menu [target]="target" (closed)="closeMenu($event)" />
+}

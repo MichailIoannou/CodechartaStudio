@@ -798,6 +798,11 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 5. **Renderer prompt and operations.** `credentialPrompt.service.ts`, `credentialPromptDialog` in `views/codeCharta.component.html`, `gitOperation.service.ts` (fresh `operationId`, `running: Signal<{ repositoryId; label; progress } | null>`, cancel, refresh afterwards).
    - Tests: dialog shows the message verbatim; password input for secret, text for text; yes/no for confirm; input cleared after answering; `prompt.cancel` on Cancel and Escape; second prompt queued; closes on `prompt.closed`; stays open across view switches; refresh after an operation, also after failure; cancel goes through `bridge.cancel(operationId)` (`core.cancel`).
    - Commit: `feat(visualization): answer git credential prompts in a dialog`
+   - As built: `running: Signal<{ repo; kind; operationId; progress } | null>` (the label is the caller's: the sync
+     button and the workspace status word it from `kind`); the dialog's title is Title Case "Git Needs Your Input"
+     (design H16). The shell maps `prompt.requested.requestId` to the caller's `operationId` like `core.progress`
+     (`electron/shellPolicy.js pageNotificationOf`); a prompt of a request without an operation id reaches the page with
+     `requestId: null` instead of being dropped, since git waits for its answer.
 
 ### M8 — Fetch and branches (M)
 
@@ -811,6 +816,11 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
    - Tests: switch confirmation names both branches and the folder; No sends nothing; refusal shows git's files; second confirmation before force delete; remote named on remote delete; name validated while typing; progress and Cancel while fetching; other actions disabled while one runs; hooks notice once per repository and session.
    - Commit: `feat(visualization): fetch and manage branches from history`
    - Changelog: extend with `, and lets you fetch, switch, create, rename and delete branches`.
+   - As built (design H5/H10/H14/H15 over this text): one `cc-sync-button` (`components/syncButton`) instead of
+     `syncButtons`, Fetch only until M11; branch menu `components/branchContextMenu` with `util/branchMenu.ts`; dialogs
+     `components/branchDialog` (New Branch, Rename Branch, Set Upstream, Check Out as New Local Branch) and
+     `components/gitConfirmDialog` (H15) hosted in the History panel; `services/branchActions.service.ts` runs them;
+     name rules in `util/branchName.ts`; the hooks notice is part of `GitOperationService.run`.
 
 ### M9 — Changes and diff (M)
 

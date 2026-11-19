@@ -3,12 +3,14 @@ import { shortSha } from "../../../../util/wording"
 import { readyValueOf } from "../../model/loadState"
 import { GitLogService } from "../../services/gitLog.service"
 import { GitRepositoryService } from "../../services/gitRepository.service"
+import { SyncButtonComponent } from "../syncButton/syncButton.component"
 
 const OPERATION_BADGES: Partial<Record<string, string>> = { merge: "merging", rebase: "rebasing" }
 
 @Component({
     selector: "cc-history-toolbar",
     templateUrl: "./historyToolbar.component.html",
+    imports: [SyncButtonComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "flex min-h-10 items-center gap-2 whitespace-nowrap border-b border-base-300 px-2 py-1" }
 })
