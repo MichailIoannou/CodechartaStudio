@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, effect, inject, OnDestr
 import { toSignal } from "@angular/core/rxjs-interop"
 import { BAR_GAP_PX } from "../../../../util/barLayout"
 import { ContainerSizeObserver } from "../../../../util/containerSizeObserver"
-import { BAR_BOTTOM_ABOVE_BOTTOM_BAR, BarShellDirective, BarToolsTabComponent } from "../../../shared/facade"
+import { BAR_BOTTOM_ABOVE_BOTTOM_BAR, BarShellDirective, BarToolsCellComponent } from "../../../shared/facade"
 import { DependencyMapReadStore } from "../../stores/dependencyMap.read.store"
 import { DependencyMapViewStore } from "../../stores/dependencyMapView.store"
 import { BoxBadgesSegmentComponent } from "../boxBadgesSegment/boxBadgesSegment.component"
@@ -17,7 +17,7 @@ import { HierarchySegmentComponent } from "../hierarchySegment/hierarchySegment.
     templateUrl: "./dependencyBar.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        BarToolsTabComponent,
+        BarToolsCellComponent,
         BoxBadgesSegmentComponent,
         EdgeTypesSegmentComponent,
         EdgeStyleSegmentComponent,

@@ -59,7 +59,7 @@ test.describe("MetricsBar", () => {
     })
 })
 
-test.describe("MetricsBar layout tab", () => {
+test.describe("MetricsBar layout cell", () => {
     test.beforeEach(async ({ page }) => {
         await goto(page)
     })
@@ -68,7 +68,7 @@ test.describe("MetricsBar layout tab", () => {
         await clearIndexedDB(page)
     })
 
-    test("should switch the map layout and name it on the tab", async ({ page }) => {
+    test("should switch the map layout and name it on the cell", async ({ page }) => {
         // Arrange
         const metricsBar = new MetricsBarPageObject(page)
         await metricsBar.openLayoutPicker()
@@ -77,7 +77,7 @@ test.describe("MetricsBar layout tab", () => {
         await metricsBar.pickLayout("StreetMap")
 
         // Assert
-        await expect(metricsBar.layoutTab()).toContainText("StreetMap")
+        await expect(metricsBar.layoutCell()).toContainText("StreetMap")
         await expect(page.locator("[data-testid='metrics-bar-layout-picker'] button[data-layout='StreetMap']")).toHaveAttribute(
             "aria-pressed",
             "true"
@@ -134,7 +134,7 @@ test.describe("MetricsBar layout tab", () => {
         const bar = await boundingBoxOf(page.locator("cc-metrics-bar"))
 
         // Act
-        const tab = await boundingBoxOf(metricsBar.layoutTab())
+        const tab = await boundingBoxOf(metricsBar.layoutCell())
 
         // Assert
         expect(tab.y + tab.height).toBeCloseTo(bar.y + 1, 0)

@@ -366,7 +366,7 @@ describe("DependencyBarComponent", () => {
         const { fixture } = await renderBar()
 
         // Act
-        const viewTools = fixture.nativeElement.querySelector("cc-bar-tools-tab cc-graph-view-tools")
+        const viewTools = fixture.nativeElement.querySelector("cc-bar-tools-cell cc-graph-view-tools")
 
         // Assert
         expect(viewTools).not.toBeNull()

@@ -9,7 +9,7 @@
     (activated)="resetLayout()"
 ></cc-bar-tool>
 @if (hasSomethingToUndo()) {
-    <cc-bar-tools-divider data-testid="dependency-tools-divider"></cc-bar-tools-divider>
+    <cc-bar-divider data-testid="dependency-tools-divider"></cc-bar-divider>
 }
 <cc-bar-tool label="Show whole graph" icon="fa-solid fa-expand" testId="dependency-reset-view" (activated)="showWholeGraph()"></cc-bar-tool>
 <cc-toolbox-screenshot-button view="dependencies"></cc-toolbox-screenshot-button>

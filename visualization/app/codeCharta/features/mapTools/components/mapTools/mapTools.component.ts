@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from "@angular/core"
 import { SCREENSHOT_CAPTURE, ScreenshotButtonComponent, ScreenshotService } from "../../../screenshot/facade"
-import { BarToolsDividerComponent, FloatingMenuAnchor, UnfocusToolComponent } from "../../../shared/facade"
+import { BarDividerComponent, FloatingMenuAnchor, UnfocusToolComponent } from "../../../shared/facade"
 import { MapToolsReadStore } from "../../stores/mapTools.read.store"
 import { MapToolsWriteStore } from "../../stores/mapTools.write.store"
 import { CenterMapButtonComponent } from "../centerMapButton/centerMapButton.component"
@@ -11,7 +11,7 @@ import { PresentationModeButtonComponent } from "../presentationModeButton/prese
     selector: "cc-map-tools",
     templateUrl: "./mapTools.component.html",
     imports: [
-        BarToolsDividerComponent,
+        BarDividerComponent,
         CenterMapButtonComponent,
         CenterMapZoomMenuComponent,
         PresentationModeButtonComponent,

@@ -51,7 +51,7 @@ describe("MetricsBarComponent", () => {
         })
 
         // Assert
-        expect(container.querySelector("cc-bar-tools-tab").textContent).toContain("Center map")
+        expect(container.querySelector("cc-bar-tools-cell").textContent).toContain("Center map")
     })
 
     it("should render scenario, area, height, color and labels segments by default", async () => {
@@ -63,7 +63,7 @@ describe("MetricsBarComponent", () => {
         expect(screen.getByTestId("metric-segment-color")).not.toBeNull()
         expect(screen.getByTestId("metric-segment-labels")).not.toBeNull()
         expect(screen.queryByTestId("metric-segment-edges")).toBeNull()
-        expect(screen.getByTestId("metrics-bar-layout-tab")).not.toBeNull()
+        expect(screen.getByTestId("metrics-bar-layout-cell")).not.toBeNull()
     })
 
     it("should leave out height, edges and labels while the sunburst is shown", async () => {
@@ -103,12 +103,12 @@ describe("MetricsBarComponent", () => {
         expect(screen.queryByTestId("metric-segment-folders")).toBeNull()
     })
 
-    it("should keep the layout tab on the bar while the sunburst is shown", async () => {
+    it("should keep the layout cell on the bar while the sunburst is shown", async () => {
         // Arrange & Act
         await setup({ isRadialLayout: true })
 
         // Assert
-        expect(screen.getByTestId("metrics-bar-layout-tab")).not.toBeNull()
+        expect(screen.getByTestId("metrics-bar-layout-cell")).not.toBeNull()
     })
 
     it("should swap color metric segment for color settings segment in delta state", async () => {

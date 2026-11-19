@@ -1,14 +1,14 @@
 // Reusable presentational UI kit — the public surface other features compose in their templates.
 export { ActionIconComponent } from "./components/actionIcon/actionIcon.component"
 export { AxisCardComponent } from "./components/axisCard/axisCard.component"
+export { BarDividerComponent } from "./components/barDivider/barDivider.component"
 export {
     BAR_BOTTOM_ABOVE_BOTTOM_BAR,
     BAR_BOTTOM_ABOVE_FILE_EXTENSION_BAR,
     BarShellDirective
 } from "./components/barShell/barShell.directive"
 export { BarToolComponent } from "./components/barTool/barTool.component"
-export { BarToolsDividerComponent } from "./components/barToolsDivider/barToolsDivider.component"
-export { BarToolsTabComponent } from "./components/barToolsTab/barToolsTab.component"
+export { BarToolsCellComponent } from "./components/barToolsCell/barToolsCell.component"
 export { BootLoadingIndicatorComponent } from "./components/bootLoadingIndicator/bootLoadingIndicator.component"
 export { ColumnResizeHandleDirective } from "./components/columnResizeHandle/columnResizeHandle.directive"
 export { ConfirmDialogComponent } from "./components/confirmDialog/confirmDialog.component"

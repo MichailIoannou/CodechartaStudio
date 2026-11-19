@@ -50,8 +50,8 @@ export class MetricsBarPageObject {
         return this.page.locator(`[data-testid='${this.areaSegmentTestId}'] cc-metric-meta-value`)
     }
 
-    layoutTab(): Locator {
-        return this.page.getByTestId("metrics-bar-layout-tab")
+    layoutCell(): Locator {
+        return this.page.getByTestId("metrics-bar-layout-cell")
     }
 
     maxTreeMapFilesInput(): Locator {
@@ -63,7 +63,7 @@ export class MetricsBarPageObject {
     }
 
     async openLayoutPicker() {
-        await this.layoutTab().click()
+        await this.layoutCell().click()
         await this.page.getByTestId("metrics-bar-layout-picker").waitFor({ state: "visible", timeout: 10_000 })
     }
 

@@ -20,17 +20,17 @@ const LAYOUT_DESCRIPTIONS: Record<LayoutAlgorithm, string> = {
 }
 
 @Component({
-    selector: "cc-layout-tab",
-    templateUrl: "./layoutTab.component.html",
+    selector: "cc-layout-cell",
+    templateUrl: "./layoutCell.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "absolute bottom-full left-4" },
     imports: [LayoutGlyphComponent, SettingsPopoverShellComponent, SliderNumberInputComponent]
 })
-export class LayoutTabComponent {
+export class LayoutCellComponent {
     private readonly writeStore = inject(MetricsBarWriteStore)
 
     readonly popoverId = "metrics-bar-layout-picker"
-    readonly anchorName = "metrics-bar-layout-tab"
+    readonly anchorName = "metrics-bar-layout-cell"
     readonly layoutOptions = Object.values(LayoutAlgorithm).map(layout => ({ layout, description: LAYOUT_DESCRIPTIONS[layout] }))
 
     readonly layoutAlgorithm = toSignal(inject(MapStateReadWindow).layoutAlgorithm$, { requireSync: true })

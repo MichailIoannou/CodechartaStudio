@@ -7,7 +7,7 @@ import {
     AxisCardComponent,
     BAR_BOTTOM_ABOVE_FILE_EXTENSION_BAR,
     BarShellDirective,
-    BarToolsTabComponent,
+    BarToolsCellComponent,
     HEIGHT_CSS_VARIABLE,
     injectIsRadialLayout,
     PublishesHeightDirective
@@ -20,7 +20,7 @@ import { EdgeSegmentComponent } from "../edgeSegment/edgeSegment.component"
 import { FoldersSegmentComponent } from "../foldersSegment/foldersSegment.component"
 import { HeightSegmentComponent } from "../heightSegment/heightSegment.component"
 import { LabelsScenariosSegmentComponent } from "../labelsScenariosSegment/labelsScenariosSegment.component"
-import { LayoutTabComponent } from "../layoutTab/layoutTab.component"
+import { LayoutCellComponent } from "../layoutCell/layoutCell.component"
 import { LinkColorHeightButtonComponent } from "../linkColorHeightButton/linkColorHeightButton.component"
 
 @Component({
@@ -30,14 +30,14 @@ import { LinkColorHeightButtonComponent } from "../linkColorHeightButton/linkCol
     imports: [
         AreaSegmentComponent,
         AxisCardComponent,
-        BarToolsTabComponent,
+        BarToolsCellComponent,
         ColorSegmentComponent,
         ColorSettingsPopoverComponent,
         EdgeSegmentComponent,
         FoldersSegmentComponent,
         HeightSegmentComponent,
         LabelsScenariosSegmentComponent,
-        LayoutTabComponent,
+        LayoutCellComponent,
         LinkColorHeightButtonComponent
     ],
     hostDirectives: [BarShellDirective, PublishesHeightDirective],

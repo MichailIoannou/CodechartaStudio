@@ -52,7 +52,7 @@ describe("DomainBarComponent", () => {
         )
 
         // Assert
-        expect(container.querySelector("cc-bar-tools-tab").textContent).toContain("Screenshot")
+        expect(container.querySelector("cc-bar-tools-cell").textContent).toContain("Screenshot")
     })
 
     it("should render one segment per settings area", async () => {

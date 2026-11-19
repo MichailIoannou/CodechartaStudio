@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from "@angular/core"
 
 @Component({
-    selector: "cc-bar-tools-tab",
+    selector: "cc-bar-tools-cell",
     template: "<ng-content></ng-content>",
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
@@ -10,4 +10,4 @@ import { ChangeDetectionStrategy, Component } from "@angular/core"
         "aria-label": "View tools"
     }
 })
-export class BarToolsTabComponent {}
+export class BarToolsCellComponent {}
