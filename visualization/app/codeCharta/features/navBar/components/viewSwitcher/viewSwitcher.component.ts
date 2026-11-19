@@ -16,12 +16,19 @@ interface ViewTab {
     title: string
     /** The metrics route is the empty default path, which every other route would otherwise match too. */
     matchesExactly: boolean
+    hasModes: boolean
 }
 
 const VIEW_TABS: readonly ViewTab[] = [
-    { view: "metrics", label: "Metric", title: "Show the 3D metrics map", matchesExactly: true },
-    { view: "domain", label: "Domain", title: "Show the domain-language word cloud", matchesExactly: false },
-    { view: "dependencies", label: "Dependencies", title: "Show the dependency graph, arranged by level", matchesExactly: false }
+    { view: "metrics", label: "Metric", title: "Show the 3D metrics map", matchesExactly: true, hasModes: true },
+    { view: "domain", label: "Domain", title: "Show the domain-language word cloud", matchesExactly: false, hasModes: true },
+    {
+        view: "dependencies",
+        label: "Dependencies",
+        title: "Show the dependency graph, arranged by level",
+        matchesExactly: false,
+        hasModes: true
+    }
 ]
 
 @Component({
@@ -44,6 +51,7 @@ export class ViewSwitcherComponent {
     readonly availableTabs = computed(() => VIEW_TABS.filter(tab => this.isViewAvailable[tab.view]()))
     readonly activeView = toSignal(inject(ActiveViewStore).activeView$, { requireSync: true })
     readonly routeLinks = routeLinks
+    readonly isModeBarHandleShown = computed(() => hasModes(this.activeView()))
 
     readonly previewedView = signal<ViewId | null>(null)
 
@@ -55,7 +63,7 @@ export class ViewSwitcherComponent {
 
     openModeBar(view: ViewId) {
         this.cancelPendingClose()
-        this.previewedView.set(view)
+        this.previewedView.set(hasModes(view) ? view : null)
     }
 
     cancelPendingClose() {
@@ -83,4 +91,8 @@ export class ViewSwitcherComponent {
         this.cancelPendingClose()
         this.previewedView.set(null)
     }
+}
+
+function hasModes(view: ViewId): boolean {
+    return VIEW_TABS.find(tab => tab.view === view)?.hasModes ?? false
 }
