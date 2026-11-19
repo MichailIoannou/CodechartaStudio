@@ -58,7 +58,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M11 Pull, push, abort | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
 | 05-M0 Spikes on a real Windows machine | spike | done (Linux); Windows items W1–W5 open for owner | owner hardware (W1–W5) | feature/studio-05-m0 | 071cfd98a |
-| 05-M1 Run one analysis from the core | core | todo | plan 04 core | — | — |
+| 05-M1 Run one analysis from the core | core | in progress (from feature/studio-04-m11) | — | feature/studio-05-m1 | — |
 | 05-M2 Snapshot records | core | todo | 05-M1 | — | — |
 | 05-M3 Queue, preflight, RPC, CLI | core | todo | 05-M2 | — | — |
 | 05-M4 Analyse from the UI, browse snapshots | UI | todo | 05-M3; 04 UI | — | — |
@@ -251,6 +251,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 05-M0 Linux spikes recorded; 02-M5 merged, web e2e running; 05-M1 started from feature/studio-04-m11.
 - 2026-11-19: 04-M11 core verified on a scratch merge (clippy and cargo test with and without features: 578/582, cargo-deny, contract drift, format, lint, tsc, npm test 661/661). Plan 04 core complete. 05-M0 Linux spikes started.
 - 2026-11-19: 02-M4 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 661/661, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 157/157). 02-M5 started without the quick toggle (OD10).
 - 2026-11-19: 04-M10 core verified on a scratch merge (clippy and cargo test with and without features: 557/561, cargo-deny, contract drift, format, lint, tsc, npm test 661/661). 02-M4 merged; web e2e running. 04-M11 core started.
