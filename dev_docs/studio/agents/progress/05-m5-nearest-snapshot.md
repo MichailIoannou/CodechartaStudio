@@ -34,7 +34,7 @@ repository (build with `git fast-import`). Gates with and without `--all-feature
 
 - [x] 1. Nearest resolution
 - [x] 2. RPC and CLI
-- [ ] 2. Fake bridge (later)
+- [x] 2. Fake bridge
 - [ ] 3–7. Renderer (later)
 
 ## Notes
@@ -117,3 +117,11 @@ Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), git 2.56, nod
 - Plan 06: `GitService::rev_list_with_parents` streams without `--date-order` (fast first line, no topological
   order); `rev_list` keeps `--date-order`. "Use nearest" for a missing comparison side can call the same method.
 
+
+### 2. Fake bridge (renderer half, branch `feature/studio-05-m5-ui` from `feature/studio-stack`)
+- `snapshots.resolveForCommit` in the stand-in bridge: a scripted answer (seed `resolutions` by
+  `<folderId>/<sha | workingTree>`, or `setResolution(folder, target, resolution)`) wins until an analysis of that
+  target finishes (`completeJob` drops it, so the re-resolution after a finished job answers exact). Unscripted: no
+  snapshots → `none NO_SNAPSHOTS`; plain folder → `latest` (newest, `PLAIN_FOLDER`); otherwise the target's own
+  snapshot (working tree: a working-tree snapshot, else the one at the seeded HEAD) as `exact`
+  (`isCurrentProfile` = analysed), else `none UNRELATED`. The factory body stays self-contained.
