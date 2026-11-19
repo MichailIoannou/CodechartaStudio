@@ -1,5 +1,5 @@
 const path = require("node:path")
-const { isColorScheme, isReadableMapPath, isWindowBackgroundColor, toDialogOptions } = require("./shellPolicy")
+const { isColorScheme, isWindowBackgroundColor, toDialogOptions } = require("./shellPolicy")
 
 const SHELL_SETTINGS_FILE = "shell.json"
 const FILE_PICKER = ["openFile"]
@@ -70,35 +70,6 @@ function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, request
         return resolved.ok ? showInFileManager({ fs, shell }, resolved.value.path) : resolved
     }
 
-    async function readMapFile(mapPath) {
-        try {
-            return { ok: true, value: await fs.promises.readFile(mapPath) }
-        } catch {
-            return failure("IO", "The map file could not be read.")
-        }
-    }
-
-    async function readSnapshotMap({ target }) {
-        const snapshotMap = {
-            kind: "snapshotMap",
-            projectId: target?.projectId,
-            folderId: target?.folderId,
-            snapshotId: target?.snapshotId
-        }
-        const resolved = await requestCore("shell.resolvePath", { target: snapshotMap })
-        if (!resolved.ok) {
-            return resolved
-        }
-        const paths = await requestCore("paths.get", {})
-        if (!paths.ok) {
-            return paths
-        }
-        const allowed = { allowedRoots: [dataDir, paths.value.storeRoot], platform }
-        return isReadableMapPath(resolved.value.path, allowed)
-            ? readMapFile(resolved.value.path)
-            : failure("NOT_ALLOWED", "The file is not a stored map.")
-    }
-
     async function setWindowBackground({ color }) {
         if (!isWindowBackgroundColor(color)) {
             return failure("BAD_REQUEST", "The colour must be written as #rrggbb.")
@@ -130,7 +101,6 @@ function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, request
         },
         shellActions: {
             reveal,
-            readSnapshotMap,
             setWindowBackground,
             setColorScheme,
             restartCore: async () => {

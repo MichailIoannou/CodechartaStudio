@@ -4,9 +4,11 @@ import { provideRouter } from "@angular/router"
 import { State } from "@ngrx/store"
 import { provideMockStore } from "@ngrx/store/testing"
 import { render } from "@testing-library/angular"
+import { FILE_STATES } from "../../../../mocks/dataMocks"
 import { isDeltaStateSelector } from "../../../../stores/fileStore/store/isDeltaState.selector"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
 import { Export3DMapDialogComponent, Export3DMapDialogStore } from "../../../3dPrint/facade"
+import { ProjectSwitcherComponent, ProjectsFacade } from "../../../projects/facade"
 import { UploadFilesService } from "../../services/uploadFiles.service"
 import { NavBarComponent } from "./navBar.component"
 
@@ -14,6 +16,9 @@ import { NavBarComponent } from "./navBar.component"
 class Export3DMapDialogStubComponent {
     readonly closed = output<void>()
 }
+
+@Component({ selector: "cc-project-switcher", template: "" })
+class ProjectSwitcherStubComponent {}
 
 describe("NavBarComponent", () => {
     const providersFor = (isDeltaState: boolean) => [
@@ -114,5 +119,73 @@ describe("NavBarComponent", () => {
 
         // Assert
         expect(container.querySelectorAll("cc-export-3D-map-dialog").length).toBe(0)
+    })
+
+    describe("in the desktop app", () => {
+        const desktopProvidersFor = ({ hasFiles = false, isDeltaState = false, hasActiveProject = false } = {}) => [
+            provideMockStore({
+                initialState: { ...defaultState, files: hasFiles ? FILE_STATES : [] },
+                selectors: [{ selector: isDeltaStateSelector, value: isDeltaState }]
+            }),
+            { provide: State, useValue: { getValue: () => defaultState } },
+            { provide: ProjectsFacade, useValue: { isDesktop: signal(true), hasActiveProject: signal(hasActiveProject) } },
+            provideRouter([])
+        ]
+
+        beforeEach(() => {
+            TestBed.overrideComponent(NavBarComponent, {
+                remove: { imports: [ProjectSwitcherComponent] },
+                add: { imports: [ProjectSwitcherStubComponent] }
+            })
+        })
+
+        it("should render the upload button in the web build", async () => {
+            // Arrange & Act
+            const { container } = await render(NavBarComponent, { providers: providersFor(false) })
+
+            // Assert
+            expect(container.querySelectorAll("cc-nav-bar-folder-button").length).toBe(1)
+            expect(container.querySelectorAll("cc-project-switcher").length).toBe(0)
+        })
+
+        it("should render the project switcher in desktop", async () => {
+            // Arrange & Act
+            const { container } = await render(NavBarComponent, {
+                providers: desktopProvidersFor({ hasFiles: true, hasActiveProject: true })
+            })
+
+            // Assert
+            expect(container.querySelectorAll("cc-project-switcher").length).toBe(1)
+            expect(container.querySelectorAll("cc-nav-bar-folder-button").length).toBe(0)
+            expect(container.querySelectorAll("cc-map-selector").length).toBe(0)
+            expect(container.querySelectorAll("cc-view-switcher").length).toBe(1)
+        })
+
+        it("should hide the view switcher while no map is loaded", async () => {
+            // Arrange & Act
+            const { container } = await render(NavBarComponent, { providers: desktopProvidersFor() })
+
+            // Assert
+            expect(container.querySelectorAll("cc-view-switcher").length).toBe(0)
+            expect(container.querySelectorAll("cc-map-selector").length).toBe(0)
+        })
+
+        it("should offer the map selector for the sample maps when no project is open", async () => {
+            // Arrange & Act
+            const { container } = await render(NavBarComponent, { providers: desktopProvidersFor({ hasFiles: true }) })
+
+            // Assert
+            expect(container.querySelectorAll("cc-map-selector").length).toBe(1)
+        })
+
+        it("should offer the delta selector in compare mode", async () => {
+            // Arrange & Act
+            const { container } = await render(NavBarComponent, {
+                providers: desktopProvidersFor({ hasFiles: true, isDeltaState: true, hasActiveProject: true })
+            })
+
+            // Assert
+            expect(container.querySelectorAll("cc-delta-selector").length).toBe(1)
+        })
     })
 })

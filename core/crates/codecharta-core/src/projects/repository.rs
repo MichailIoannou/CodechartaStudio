@@ -221,6 +221,8 @@ impl<'deps> ProjectRepository<'deps> {
         ProjectSummary {
             id: id.clone(),
             name: stored_name.unwrap_or_else(|| id.to_string()),
+            updated_at: None,
+            folders: Vec::new(),
             folder_count: 0,
             missing_folder_count: 0,
             snapshot_count: 0,

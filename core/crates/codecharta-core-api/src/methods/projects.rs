@@ -173,16 +173,30 @@ pub struct Project {
     pub view: ProjectView,
 }
 
-/// `problem` names why a project could not be read; the list shows it instead of failing.
+/// `problem` names why a project could not be read; the list shows it instead of failing, with no
+/// folders and no `updatedAt`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectSummary {
     pub id: ProjectId,
     pub name: String,
+    pub updated_at: Option<String>,
+    pub folders: Vec<ProjectSummaryFolder>,
     pub folder_count: u32,
     pub missing_folder_count: u32,
     pub snapshot_count: u32,
     pub problem: Option<String>,
+}
+
+/// A folder as the project list names it: enough to choose it, without git facts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectSummaryFolder {
+    pub id: FolderId,
+    pub label: Label,
+    pub role: FolderRole,
+    pub kind: FolderKind,
+    pub status: FolderStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

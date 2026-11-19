@@ -1,0 +1,75 @@
+@if (rows().length === 0) {
+    <p class="py-4 text-center text-sm text-base-content/60" data-testid="folder-list-empty">
+        No folders yet. Add the repository folder first; forks and helper folders can follow.
+    </p>
+} @else {
+    <ul class="flex flex-col gap-1" data-testid="folder-list">
+        @for (row of rows(); track row.key) {
+            <li class="flex flex-col rounded-md px-2 py-1 hover:bg-base-200" [attr.data-testid]="'folder-row-' + row.key">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-fw text-base-content/70" [class.fa-code-branch]="row.kind === 'git'" [class.fa-folder]="row.kind === 'plain'"></i>
+                    <input
+                        type="text"
+                        class="input input-ghost input-sm min-w-0 flex-1 font-medium"
+                        aria-label="Folder label"
+                        [attr.maxlength]="labelMaxLength"
+                        [value]="editedLabels()[row.key]"
+                        (input)="editLabel(row, $any($event.target).value)"
+                        (blur)="commitLabel(row)"
+                        (keydown.enter)="$event.preventDefault(); commitLabel(row)"
+                    />
+                    @if (row.isMissing) {
+                        <span class="badge badge-warning badge-xs">missing</span>
+                    }
+                    <select
+                        class="select select-bordered select-xs w-24"
+                        [attr.aria-label]="'Role of ' + row.label"
+                        [value]="row.role"
+                        (change)="changeRole(row, $any($event.target).value)"
+                    >
+                        @for (option of roles; track option.role) {
+                            <option [value]="option.role" [selected]="option.role === row.role">{{ option.label }}</option>
+                        }
+                    </select>
+                    <span class="badge badge-ghost badge-sm w-12">{{ row.kind }}</span>
+                    @if (managesSavedFolders()) {
+                        @if (row.isMissing) {
+                            <button type="button" class="btn btn-xs" (click)="relink.emit(row)">Re-link…</button>
+                        } @else {
+                            <button
+                                type="button"
+                                class="btn btn-ghost btn-xs btn-square"
+                                [attr.aria-label]="'Refresh git facts of ' + row.label"
+                                [title]="'Refresh git facts of ' + row.label"
+                                (click)="refresh.emit(row)"
+                            >
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                        }
+                    }
+                    <button
+                        type="button"
+                        class="btn btn-ghost btn-xs btn-square"
+                        [attr.aria-label]="'Remove folder ' + row.label"
+                        [title]="'Remove folder ' + row.label"
+                        (click)="remove.emit(row)"
+                    >
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                @if (problems()[row.key]; as problem) {
+                    <span class="pl-8 text-xs text-error">{{ problem }}</span>
+                }
+                <span class="truncate pl-8 text-xs text-base-content/60" [title]="row.path">
+                    <span class="font-mono">{{ row.path }}</span>
+                    @if (row.remote) {
+                        · {{ row.remote }}
+                    }
+                    @if (row.hint) {
+                        · {{ row.hint }}
+                    }
+                </span>
+            </li>
+        }
+    </ul>
+}

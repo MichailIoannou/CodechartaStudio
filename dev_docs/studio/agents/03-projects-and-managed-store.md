@@ -197,7 +197,8 @@ pub struct AnalysisProfile { exclude: Vec<String> /* ≤ 50 × ≤ 200 chars, no
 pub struct ProjectView { working_folder_id: Option<FolderId>, shown_snapshot_id_by_folder: BTreeMap<FolderId, SnapshotId> }   // OD1
 pub struct Project { id: ProjectId, name: ProjectName, description: Option<Description>, created_at: String, updated_at: String,
     folders: Vec<ProjectFolder>, analysis_profile: AnalysisProfile, view: ProjectView }
-pub struct ProjectSummary { id: ProjectId, name: String, folder_count: u32, missing_folder_count: u32, snapshot_count: u32, problem: Option<String> }
+pub struct ProjectSummary { id: ProjectId, name: String, updated_at: Option<String>, folders: Vec<ProjectSummaryFolder>, folder_count: u32, missing_folder_count: u32, snapshot_count: u32, problem: Option<String> }
+pub struct ProjectSummaryFolder { id: FolderId, label: Label, role: FolderRole, kind: FolderKind, status: FolderStatus }   // design 03 deviation 3 (03-M5)
 
 pub struct PickedFolder { pick_token: PickToken, path: String, suggested_label: String, kind: FolderKind, git: Option<FolderGitFacts> }
 pub struct NewFolder { pick_token: PickToken, label: Label, role: FolderRole }

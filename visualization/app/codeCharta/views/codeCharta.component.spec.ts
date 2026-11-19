@@ -1,35 +1,35 @@
 import { TestBed } from "@angular/core/testing"
-import { LoadFilesUseCase } from "../load/load.facade"
+import { ProjectsBootService } from "../features/projects/facade"
 import { CodeChartaComponent } from "./codeCharta.component"
 
 describe("codeChartaComponent", () => {
     beforeEach(() => {
         TestBed.configureTestingModule({
             imports: [CodeChartaComponent],
-            providers: [{ provide: LoadFilesUseCase, useValue: { loadOnBoot: jest.fn() } }]
+            providers: [{ provide: ProjectsBootService, useValue: { boot: jest.fn() } }]
         })
     })
 
-    it("should load the files on initialization", () => {
+    it("should boot through the projects boot on initialization", () => {
         // Arrange
-        const mockedLoadFilesUseCase = {
-            loadOnBoot: jest.fn().mockResolvedValue(undefined)
-        } as unknown as LoadFilesUseCase
-        const codeChartaComponent = new CodeChartaComponent(mockedLoadFilesUseCase)
+        const mockedProjectsBoot = {
+            boot: jest.fn().mockResolvedValue(undefined)
+        } as unknown as ProjectsBootService
+        const codeChartaComponent = new CodeChartaComponent(mockedProjectsBoot)
 
         // Act
         codeChartaComponent.ngOnInit()
 
         // Assert
-        expect(mockedLoadFilesUseCase.loadOnBoot).toHaveBeenCalled()
+        expect(mockedProjectsBoot.boot).toHaveBeenCalled()
     })
 
     it("should set isInitialized on angulars init event after the files are loaded", async () => {
         // Arrange
-        const mockedLoadFilesUseCase = {
-            loadOnBoot: jest.fn().mockResolvedValue(undefined)
-        } as unknown as LoadFilesUseCase
-        const codeChartaComponent = new CodeChartaComponent(mockedLoadFilesUseCase)
+        const mockedProjectsBoot = {
+            boot: jest.fn().mockResolvedValue(undefined)
+        } as unknown as ProjectsBootService
+        const codeChartaComponent = new CodeChartaComponent(mockedProjectsBoot)
 
         // Act
         expect(codeChartaComponent.isInitialized()).toBe(false)
@@ -43,10 +43,10 @@ describe("codeChartaComponent", () => {
 
     it("should set isInitialized even when the load rejects", async () => {
         // Arrange
-        const mockedLoadFilesUseCase = {
-            loadOnBoot: jest.fn().mockRejectedValue(new Error("boom"))
-        } as unknown as LoadFilesUseCase
-        const codeChartaComponent = new CodeChartaComponent(mockedLoadFilesUseCase)
+        const mockedProjectsBoot = {
+            boot: jest.fn().mockRejectedValue(new Error("boom"))
+        } as unknown as ProjectsBootService
+        const codeChartaComponent = new CodeChartaComponent(mockedProjectsBoot)
 
         // Act
         codeChartaComponent.ngOnInit()

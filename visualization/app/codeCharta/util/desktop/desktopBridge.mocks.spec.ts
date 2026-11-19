@@ -209,13 +209,11 @@ describe("createFakeDesktopBridge", () => {
         const folder = await bridge.pickFolder({ title: "Folder" })
         const file = await bridge.pickFile({ title: "File" })
         const chosen = await bridge.chooseStoreRoot({ title: "Store" })
-        const map = await bridge.readSnapshotMap({ projectId: "p", folderId: "f", snapshotId: "s" })
 
         // Assert
         expect(folder).toBe("/projects/app")
         expect(file).toBeNull()
         expect(chosen).toEqual({ ok: true, value: null })
-        expect(map.ok).toBe(false)
     })
 
     it("should create and list a project", async () => {
@@ -233,7 +231,16 @@ describe("createFakeDesktopBridge", () => {
         ])
         expect(created.view.workingFolderId).toBe(created.folders[0].id)
         expect(listed.projects).toEqual([
-            { id: created.id, name: "Billing", folderCount: 1, missingFolderCount: 0, snapshotCount: 0, problem: null }
+            {
+                id: created.id,
+                name: "Billing",
+                updatedAt: NOW,
+                folders: [{ id: created.folders[0].id, label: "billing", role: "primary", kind: "git", status: "ok" }],
+                folderCount: 1,
+                missingFolderCount: 0,
+                snapshotCount: 0,
+                problem: null
+            }
         ])
         expect(fetched).toEqual(created)
     })
@@ -249,7 +256,11 @@ describe("createFakeDesktopBridge", () => {
 
         // Assert
         expect(listed.projects).toEqual([
-            { id: "p-1", name: "p-1", folderCount: 2, missingFolderCount: 1, snapshotCount: 1, problem: null }
+            expect.objectContaining({ id: "p-1", name: "p-1", folderCount: 2, missingFolderCount: 1, snapshotCount: 1, problem: null })
+        ])
+        expect(listed.projects[0].folders.map(folder => [folder.id, folder.role, folder.status])).toEqual([
+            ["f-1", "primary", "ok"],
+            ["f-2", "helper", "missing"]
         ])
         expect(fetched.folders.map(folder => [folder.status, folder.snapshotCount])).toEqual([
             ["ok", 1],
@@ -464,6 +475,57 @@ describe("createFakeDesktopBridge", () => {
 
         // Assert
         expect(created.folders).toEqual([expect.objectContaining({ path: "/downloads/out", kind: "plain" })])
+    })
+
+    it("should answer the seeded git status and log of a folder and refuse an unseeded one", async () => {
+        // Arrange
+        const status = {
+            head: { kind: "branch" as const, name: "main", commit: "a".repeat(40) },
+            upstream: null,
+            counts: { staged: 0, unstaged: 0, untracked: 0, conflicted: 0 },
+            operationInProgress: null
+        }
+        const commit = {
+            sha: "a".repeat(40),
+            parents: [],
+            authorName: "Mia",
+            authorEmail: "mia@example.com",
+            authoredAt: 1,
+            committedAt: 1,
+            subject: "Start"
+        }
+        const bridge = createFakeDesktopBridge({ gitStatuses: { "f-1": status }, gitLogs: { "f-1": [commit] } })
+        const repo = { projectId: "p-1", folderId: "f-1" }
+
+        // Act
+        const answeredStatus = await answerValue(bridge, "git.status", { repo })
+        const log = await answerValue(bridge, "git.log", { repo, scope: { kind: "head" }, filter: null, cursor: null })
+        const unseeded = await bridge.request("git.status", { repo: { projectId: "p-1", folderId: "f-2" } })
+
+        // Assert
+        expect(answeredStatus).toEqual(status)
+        expect(log).toEqual({ commits: [commit], nextCursor: null, isGraphAvailable: true })
+        expect(unseeded).toEqual({ ok: false, error: expect.objectContaining({ code: "NOT_A_REPOSITORY" }) })
+    })
+
+    it("should sum the map sizes of each folder as its store usage", async () => {
+        // Arrange
+        const project = aProject("p-1", [aFolder("f-1"), aFolder("f-2", { role: "helper" })])
+        const snapshots = [aSnapshot("p-1", "f-1", "s-1", NOW), aSnapshot("p-1", "f-1", "s-2", NOW)]
+        const bridge = createFakeDesktopBridge({ projects: [project], snapshots })
+
+        // Act
+        const usage = await answerValue(bridge, "snapshots.usage", { projectId: "p-1" })
+
+        // Assert
+        const bytes = snapshots[0].mapBytes
+        expect(usage).toEqual({
+            totalBytes: 2 * bytes,
+            folders: [
+                { folderId: "f-1", snapshotCount: 2, bytes: 2 * bytes },
+                { folderId: "f-2", snapshotCount: 0, bytes: 0 }
+            ]
+        })
     })
 
     it("should read a seeded map in chunks", async () => {
