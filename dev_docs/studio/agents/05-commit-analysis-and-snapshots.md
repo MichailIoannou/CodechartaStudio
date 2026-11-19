@@ -255,6 +255,8 @@ pub async fn list_codecharta_worktrees(git: &GitService, repo: &Path) -> Result<
 pub async fn remove_orphans(git: &GitService, repo: &Path, before: &[Worktree], sha: &Sha) -> Result<(), GitError>;
 ```
 
+As built (05-M1): `run_ccsh(&ProcessRunner, &CcshRun { launch, argv, cwd, log_file, timeout }, &RunHooks { on_progress }, &CancellationToken) -> Result<CcshRunResult { end: RunEnd, stdout, stderr }, JobError>`; `ProgressParser::push(&str)`; `classify_failure(&CcshRunResult) -> Option<JobError>` (`None` for a cancel) plus `classify_start_failure(&CoreError)`; progress follows only the `Files` unit (most advanced bar, 05-M0 finding 5), not the `unit:total` sum below.
+
 - stdout/stderr are decoded as UTF-8 (lossy), appended to `run.log` as they arrive (stderr `\r` replaced by `\n`, consecutive progress lines of one tracker collapsed to the last) and kept in memory capped at the last 256 KiB each (`MAX_CAPTURED_BYTES`).
 - **Progress**: buffer stderr; split on `\r` and `\n`; match `(\d{1,3})% \[=*> *\] *(\d+)/(\d+) (.+?), ETA: (?:N/A|\d{2,}:\d{2}:\d{2})` (`regex` crate). Trackers are keyed by `unit:total`. Overall percent = `floor(100 * Σparsed / Σtotal)` over all trackers seen, never decreasing, capped at 99 until the process exits. Before the first match, and for any phase without a bar (git log, checkout, merge, write), the job is `Indeterminate`.
 - **Watchdogs**: total run time 30 min (`ANALYSIS_TIMEOUT`); if stdout ever contains `Select an analyser to execute` or `Unknown command:` the run is killed and fails with `InteractiveTrap`.

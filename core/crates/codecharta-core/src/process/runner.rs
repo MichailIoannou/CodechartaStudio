@@ -22,7 +22,7 @@ pub const DEFAULT_MAX_OUTPUT_BYTES: u64 = 16 * MEBIBYTE;
 pub const MAX_OUTPUT_CEILING_BYTES: u64 = 256 * MEBIBYTE;
 const TERMINATE_GRACE: Duration = Duration::from_secs(3);
 /// Exit code reported for a child that ended by a signal and has no exit code of its own.
-const NO_EXIT_CODE: i32 = -1;
+pub const NO_EXIT_CODE: i32 = -1;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 

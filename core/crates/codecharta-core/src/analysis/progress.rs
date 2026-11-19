@@ -71,6 +71,10 @@ impl ProgressParser {
     }
 }
 
+pub fn is_progress_bar(segment: &str) -> bool {
+    parse_bar(segment).is_some()
+}
+
 /// An unfinished segment counts only once its ETA is complete, so a cut-off count is never read.
 fn percent_of_segment(segment: &str) -> Option<u8> {
     let bar = parse_bar(segment)?;

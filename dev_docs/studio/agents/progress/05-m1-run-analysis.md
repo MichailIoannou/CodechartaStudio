@@ -1,6 +1,6 @@
 ---
 name: 05-M1 run one analysis from the core
-state: progress
+state: complete
 version: 1
 ---
 
@@ -39,7 +39,7 @@ Gates with and without `--all-features`.
 - [x] 4. Progress
 - [x] 5. fake-ccsh
 - [x] 6. Launcher
-- [ ] 7. Runner
+- [x] 7. Runner
 
 ## Notes
 
@@ -182,3 +182,57 @@ reached through `TargetOs::Windows` in unit tests; nothing Windows-specific ran.
 - Extra tests: `should_refuse_java_that_is_too_old_or_missing`, `should_refuse_a_missing_or_too_old_ccsh`,
   `should_accept_any_argument_for_java_direct`, `should_resolve_java_direct_through_a_symlinked_gradle_install_on_unix`,
   `should_use_the_override_without_a_tools_report`.
+
+### 7. Runner
+- `analysis/runner.rs`: `run_ccsh(&ProcessRunner, &CcshRun { launch, argv, cwd, log_file, timeout }, &RunHooks {
+  on_progress }, &CancellationToken) -> Result<CcshRunResult, JobError>`, `ANALYSIS_TIMEOUT` (30 min),
+  `MAX_CAPTURED_BYTES` (256 KiB per stream, kept from the end on a char boundary). **Deviation:** the plan's
+  `run_ccsh(launch, argv, cwd, hooks, cancel)` with a `LogSink` became a run description plus the runner
+  (≤ 4 parameters; the log is a file path; the timeout is injectable so tests need not wait 30 min).
+- Only plan 01's `ProcessRunner` starts the process (`OutputMode::Stream`, `max_output_bytes` =
+  `MAX_OUTPUT_CEILING_BYTES` 256 MiB, `cwd` = job folder, `tool` = java for java-direct else ccsh); no process-tree
+  code here. The runner's tree stop (SIGTERM → 3 s → SIGKILL on unix, job object on Windows) handles cancel,
+  timeout and the interactive watchdog. `process::runner::NO_EXIT_CODE` was made `pub` to tell a signal
+  (`RunEnd::Signalled`) from an exit.
+- Interactive watchdog: stdout containing `Select an analyser to execute` or `Unknown command:` cancels a child
+  token of the caller's token → `RunEnd::InteractiveTrap`. Caller's cancel → `RunEnd::Cancelled`; runner timeout →
+  `TimedOut`; output cap → `OutputTooLarge`; spawn failure → `Err(classify_start_failure)`; a cmd-shim refusal
+  (`check_arguments`) fails before anything starts.
+- stdout is cleaned with `strip_control_characters` before capture, log and marker search; stderr goes to
+  `ProgressParser`, each rise is passed to `on_progress` as `Determinate { percent }` (≤ 100 calls per run, so no
+  throttle here; the 250 ms notification throttle belongs to M3).
+- `analysis/run_log.rs` (private): `run.log` gets stdout as it came and stderr cut into lines at `\r`/`\n`, with
+  each run of consecutive progress bars collapsed to its last bar (`progress::is_progress_bar`). Written with
+  `std::fs` (tokio's `fs` feature is not enabled in the workspace); a failed write is a `tracing::warn`, not a job
+  failure; failing to create the log is `STORE_WRITE_FAILED`.
+- Tests (`tests/analysis_run.rs`, fake-ccsh): the six plan names plus `should_report_the_exit_code_of_a_failed_run`
+  and `should_report_a_missing_executable_as_ccsh_not_found`; unit tests `should_keep_only_the_end_of_a_long_stream_on_a_char_boundary`,
+  `should_map_runner_outcomes_to_run_ends`. Cancel: the fake writes its pid, the test cancels, the run ends
+  `Cancelled` well within 8 s and the pid is gone.
+- **Real-ccsh scratch test ran** (`tests/analysis_real_ccsh.rs`, returns early with a stderr note when
+  `analysis/build/install/codecharta-analysis/bin/ccsh[.bat]` or java on `PATH` is missing): ccsh 2.4.0 on
+  OpenJDK 27, java-direct (unix), a two-file `TempRepo`, `--commit=<sha>`, job folder `job dir` (with a space),
+  `-Djava.io.tmpdir=<job dir>/tmp`: exit 0 in about 1 s, `Map: <job dir>/afdb82c.map.cc.json.gz` (prefix of the
+  sha, file exists), `Not in the map: svn history: left out with --commit, which reads a git commit`, progress
+  hook `0 → 50 → 99`, `Map:` in `run.log`. ccsh removed its own worktree; the temp dir kept
+  `codecharta-tree-sitter-<user>/` (tree-sitter's native library cache), which goes away with the job folder.
+
+### What 05-M2 / 05-M3 must know
+- M2 `service.rs`: create `<snapshotsDir>/.tmp-<jobId>` (plan 03's `StorePaths::staging_dir` exists), pass
+  `worktree_temp_dir = <job>/tmp` (only java-direct honours it; executable/cmd-shim leave the worktree in the
+  system temp dir), `output_base = <job>/map`, `log_file = <job>/run.log`, `cwd = <job>`. After exit 0 check the
+  `Map:` file and that its name starts with a prefix of the requested sha (05-M0 design 4); otherwise call
+  `classify_failure` (it answers `NO_OUTPUT` for exit 0). `classify_failure` returns `None` for a cancel.
+- M2 janitor: match orphans by base name `codecharta-worktree-*` + HEAD sha (works in every launch mode), remove
+  with `git worktree remove -f -f`, then `prune` (05-M0 item 4).
+- M2 record: `profile_hash(&validate_profile(&project.analysis_profile)?)`; the record's `analysis.profile`
+  gets `{ without, exclude, extraArgs: [] }`.
+- M3: `AnalysisErrorCode`, `JobError`, `JobProgress` are in `codecharta_core_api::methods::analysis` already
+  (SCREAMING_SNAKE_CASE, append-only, incl. `CRASHED` and `OUTPUT_TOO_LARGE`); registering the first `analysis.*`
+  method exports them into the TypeScript contract. Decide `analysis.progress` vs plan 01/04's `core.progress`;
+  throttle notifications there (250 ms). The protocol test needs fake-ccsh from another package (see task 5) and a
+  way to point the core at it — there is no `CODECHARTA_CCSH_PATH`; a custom tool path in the settings works, but
+  `tools.setPath` runs `--version` (fake-ccsh answers like ccsh 2.4.0) and java-direct is chosen only for a Gradle
+  layout, so a bare fake-ccsh runs as `Executable`.
+- Windows: `tests/ccsh_launch_windows.rs` and the `.cmd`/`.bat` resolution are unverified on a real machine (05-M0
+  W1/W2 still open).
