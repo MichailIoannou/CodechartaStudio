@@ -28,7 +28,7 @@ record plan corrections in this file's Notes instead.
 ## Steps
 
 - [x] 1. Builders, Nord, VS Light
-- [ ] 2. Smoke e2e over every theme
+- [x] 2. Smoke e2e over every theme
 - [ ] 3. Remaining four schemes (data only)
 - [x] 4. Quick toggle — dropped by OD10
 - [ ] 5. Eyeball pass and changelog
@@ -47,3 +47,9 @@ Branch `feature/studio-02-m5` from `feature/studio-integration`. `npm ci` was ne
 - Registry order (= stylesheet order, checked by `themes.spec.ts`): cc-dark, cc-light, nord, one-dark, vs-dark,
   vs-light, darcula, rider-day (the picker groups by scheme, so the design's picker order results).
 
+
+### 2. Smoke e2e
+- `theme.e2e.ts` loops over `THEMES` (imported from `util/theme/themes`): picks the theme by label, expects
+  `html[data-theme]`, the map corner pixel equal to `render.map.background`, the nav bar's computed
+  background different from its text colour, then visits Domain and Dependencies; no console error in the
+  whole run. `ThemePickerPageObject.navBarColors()` is new.

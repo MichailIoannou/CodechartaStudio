@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test"
 import { clearIndexedDB, goto, readPersistedPreference } from "../../../../playwright.helper"
+import { THEMES } from "../../../util/theme/themes"
+import { ViewSwitcherPageObject } from "../../navBar/components/viewSwitcher/viewSwitcher.po"
 import { ThemePickerPageObject } from "../components/themePicker/themePicker.po"
 
 test.describe("Theme", () => {
@@ -81,4 +83,33 @@ test.describe("Theme", () => {
         await expect(themePicker.documentRoot()).toHaveAttribute("data-theme", "cc-light")
         await expect(page.getByTestId("theme-picker-current")).toHaveText("Currently: CodeCharta Light")
     })
+
+    for (const theme of THEMES) {
+        test(`should draw every view in ${theme.label} without errors`, async ({ page }) => {
+            // Arrange
+            const errors: string[] = []
+            page.on("console", message => {
+                if (message.type() === "error") {
+                    errors.push(message.text())
+                }
+            })
+            const themePicker = new ThemePickerPageObject(page)
+            const viewSwitcher = new ViewSwitcherPageObject(page)
+            await goto(page)
+
+            // Act
+            await themePicker.pick(theme.label)
+            await expect(themePicker.documentRoot()).toHaveAttribute("data-theme", theme.id)
+            await expect.poll(() => themePicker.mapCornerColor()).toBe(theme.render.map.background)
+            const navBar = await themePicker.navBarColors()
+            await viewSwitcher.switchToDomain()
+            await expect(page.locator("cc-word-cloud canvas")).toBeVisible()
+            await viewSwitcher.switchToDependencies()
+            await expect(page.locator("cc-dependency-graph canvas").first()).toBeVisible()
+
+            // Assert
+            expect(navBar.background).not.toBe(navBar.text)
+            expect(errors).toEqual([])
+        })
+    }
 })
