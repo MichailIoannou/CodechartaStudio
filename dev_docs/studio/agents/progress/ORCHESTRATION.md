@@ -10,6 +10,16 @@ orchestrator after every change of state. Another machine continues from this fi
 - Each milestone runs on `feature/studio-<plan>-<milestone>` (e.g. `feature/studio-01-m1`), branched
   from the current tip of `feature/studio-integration`, and is merged back into it after verification.
 - Spikes run on throwaway branches; only their progress file is kept.
+- **`feature/studio-stack`** (worktree `.claude/worktrees/studio-stack`, created 2026-11-19) =
+  `feature/studio-integration` + the verified core stack (`feature/studio-06-m5`, i.e. 03-M2 … 06-M5). It
+  exists because the stack cannot be merged into integration while the main checkout holds uncommitted
+  owner edits to plan 03. **UI milestones that need the plan 03–06 core branch from `feature/studio-stack`
+  and merge back into it.** When the owner's edits are committed, merge `feature/studio-stack` into
+  `feature/studio-integration` (fast path; resolve progress-file add/add conflicts with the stack's
+  versions). Verified at 491068258: cargo fmt/clippy/test with and without features 833/837, cargo-deny,
+  contract drift, format, lint, tsc, npm test 663/663, build, test:electron 45/45, e2e:desktop 10/10.
+- Builds: Rust output goes to the main checkout's `core/target` (real disk) via `CARGO_TARGET_DIR`; never
+  under `/tmp` (16 GB RAM tmpfs — filled once on 2026-11-19).
 
 ## Design gate
 
@@ -303,6 +313,10 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: owner asked why no custom UI was being built in parallel. Orchestrator error: UI agents were
+  only allowed to start from `feature/studio-integration`, which lacked the unmerged core stack. Fixed by
+  creating `feature/studio-stack` (verified, see Branching) and starting the UI lane from it. `/tmp` (tmpfs)
+  filled from the shared cargo target in the scratchpad; moved to `core/target` on disk.
 - 2026-11-19, end of session: 06-M5 core verified on a scratch merge (clippy and cargo test with and without
   features: 833/837, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). **No allowed work
   remains**: every core-only task that can run on Linux without `gh`/`glab` is verified, and every UI
