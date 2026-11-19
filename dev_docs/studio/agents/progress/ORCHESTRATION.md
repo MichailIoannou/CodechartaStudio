@@ -33,8 +33,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M0 Spike | spike | done | — | feature/studio-02-m0 | f0d4006c9 |
 | 02-M1 Dark by default | UI | done | — | feature/studio-02-m1 | 5fadc0ca3 (merged db5d2dc60) |
 | 02-M2 No-flash boot | UI | done | — | feature/studio-02-m2 | bcd46657d (merged 407d7551e) |
-| 02-M3 Radial map and word cloud | UI | in progress | — | feature/studio-02-m3 | — |
-| 02-M4 Dependency graph, color-range diagram | UI | todo | 02-M3 | — | — |
+| 02-M3 Radial map and word cloud | UI | done | — | feature/studio-02-m3 | 45090be56 (merged 660082556) |
+| 02-M4 Dependency graph, color-range diagram | UI | in progress | — | feature/studio-02-m4 | — |
 | 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | todo | 02-M4 | — | — |
 | 02-M6 Native window appearance | UI | todo | plan 01 | — | — |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
@@ -184,6 +184,11 @@ the milestone is started.
   (checked). New codes `BRANCH_EXISTS`, `BRANCH_NOT_FULLY_MERGED`, `BRANCH_CHECKED_OUT_ELSEWHERE`,
   `LOCAL_CHANGES_WOULD_BE_OVERWRITTEN`, `OPERATION_IN_PROGRESS`, `AUTHENTICATION_REQUIRED`,
   `NETWORK_UNAVAILABLE`.
+- 02-M3 (see `02-m3-radial-wordcloud.md`): radial folder swatches now computed in the components
+  (memoised selectors could not follow a theme change); `DependencyGraphScreenshotService.exportBackground()`
+  returns `null` until M4; `lowestContrastAlongGradient` added; `--wordCloudColor*` CSS variables removed.
+  Dark tinted folders fade to a murky burgundy (as planned); a lighter `radial.tintTarget` is the knob if
+  the owner dislikes it.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -215,6 +220,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19: 02-M3 verified on the merged integration branch in a scratch worktree (format, lint, tsc, npm test 659/659, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 157/157). 02-M4 started.
 - 2026-11-19: 04-M8 core verified on a scratch merge (clippy and cargo test with and without features: 502/506, cargo-deny, contract drift, format, lint, tsc, npm test 659/659). 02-M3 merged; its web e2e is running. 04-M9 core started.
 - 2026-11-19: 04-M7 core half verified after the fix on a scratch merge (clippy and cargo test with and without features: 471/475, cargo-deny, contract drift, format, lint, tsc, test:electron 42/42, npm test 658/658). 04-M8 core started.
 - 2026-11-19: 02-M2 verified on the merged integration branch in a scratch worktree (owner was running the app from the main checkout): format, lint, tsc, npm test 658/658, build, test:electron 42/42, e2e:desktop 10/10, web e2e:ci 156/156. 04-M7 core half sent back: featureless clippy fails (see deviations).
