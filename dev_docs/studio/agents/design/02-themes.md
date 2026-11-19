@@ -113,9 +113,12 @@ Studio (dark, one rounded rectangle, nothing protrudes):
 ╰───────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-- **Shell** (`ccBarShell`, unchanged position, width and z-index): `rounded-2xl border border-base-300
+- **Shell** (`ccBarShell`, unchanged z-index): `rounded-2xl border border-base-300
   bg-base-100 shadow-lg p-1.5 gap-1 items-stretch`. Sections are separated by `w-px bg-base-300 my-2`
   dividers, not by borders on the cards.
+- **Position** (owner answer O7, option A): the bar is centred in the free map area between the open
+  explorer and the open inspector, not on the window, so the wider bar is never covered by a panel.
+  Collapsed panels give their width back. The legend drawer opens above the bar (O6).
 - **Cells** (axis cards, labels/scenarios, layout): `rounded-xl px-3 py-2 hover:bg-base-200
   transition-colors`; open popover → `bg-base-200 ring-1 ring-primary/40`. Inside unchanged: the
   `text-[10px] uppercase tracking-wide text-base-content/60` label with the cog (`btn btn-ghost btn-xs
@@ -144,7 +147,8 @@ Studio (dark, one rounded rectangle, nothing protrudes):
   then the tools grid becomes `grid-cols-1`; the bar never scrolls or wraps.
 - **Keyboard**: unchanged order (layout, area, height, link, color, edges, labels, scenarios, tools);
   every icon-only button has `title` = `aria-label`.
-- **Domain bar** (`features/domainBar`) uses the same shell and gets the same shape and tools cell.
+- **Domain bar** (`features/domainBar`) and **dependency bar** use the same shell and get the same
+  shape and tools cell; the dependency view's rotated LEGEND tab also becomes a Legend tool (O6).
 
 ## T5 File extension bar, blended edges (owner decision OD7)
 

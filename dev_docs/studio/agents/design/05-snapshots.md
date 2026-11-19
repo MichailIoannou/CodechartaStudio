@@ -307,7 +307,8 @@ next to the export dialog host. Opened from W1 "Snapshots…", P3 "Snapshots…"
   "Analyse several…" (S7); they act on the folder chosen in the "folder" select at the right
   (`select select-sm`, defaults to the active folder; "All" only filters the list). Disabled with
   title for plain folders where they do not apply ("Not a git repository").
-- Footer: "This project's analyses use 61.2 MB." (`snapshots.usage`), "Clean up…" (S8), "Close".
+- Footer: "This project's analyses use 61.2 MB." (`snapshots.usage`), "Clean up…" (S8, cleans up the
+  working folder; its `title` says "Clean up the analyses of billing-api"), "Close".
 - **Delete confirmation** (deleteConfirmDialog pattern): title "Delete Analysis"; "Move the analysis
   of a1b2c3d (Fix invoice rounding) to the recycle bin?" (imported: "Move the imported snapshot
   'export-2024.cc.json' to the recycle bin? It can only be restored from the recycle bin.") Cancel /
@@ -316,7 +317,10 @@ next to the export dialog host. Opened from W1 "Snapshots…", P3 "Snapshots…"
 - States: loading per folder (skeleton rows); folder with no snapshots `text-sm text-base-content/60`
   "No analyses yet." + "Analyse current checkout"; bridge error per folder `alert alert-error
   text-xs` + "Retry"; delete refused while running: toast (warning) "This analysis is still being
-  written. Try again when it has finished."; many rows: dialog body `max-h-[70vh] overflow-y-auto`.
+  written. Try again when it has finished."; recycle bin failed (`RECYCLE_FAILED`, delete or clean-up):
+  the dialog closes its confirmation and shows an error toast (stays until dismissed, principles §3)
+  "Could not move the analysis to the recycle bin. Nothing was deleted." (clean-up: "…the analyses…")
+  with **Details** (the core's message); no "Delete permanently" offer; many rows: dialog body `max-h-[70vh] overflow-y-auto`.
 - Keyboard: initial focus on the first header button; rows are focusable (`tabindex="0"`) so their
   actions become visible on focus; Delete key on a focused row opens the delete confirmation.
 
@@ -384,25 +388,25 @@ About 14 minutes (based on earlier analyses of this folder).
 
 ## S8 Clean-up dialog
 
-Native dialog, `modal-box max-w-xl`, title "Clean Up Analyses".
+Native dialog, `modal-box max-w-xl`, title "Clean Up Analyses — billing-api". It cleans up the
+working folder only (owner answer O4.3); a project-wide clean-up may come later.
 
 ```
-Keep  [ 50 ] newest commit analyses per folder
-      [  3 ] newest working-tree analyses per folder
+Keep  [ 50 ] newest commit analyses
+      [  3 ] newest working-tree analyses
       ☑ Analyses of branch tips and tags
 Always kept: the analysis shown in the map, imported snapshots.
 ──────────────────────────────────────────────
-Moves 37 analyses (812 MB) to the recycle bin:
- ▸ billing-api — 30 analyses, 701 MB            (collapse, lists commit + date + size)
- ▸ billing-web — 7 analyses, 111 MB
-                                 [Cancel] [Move 37 to recycle bin]
+Moves 30 analyses (701 MB) of billing-api to the recycle bin:
+ ▸ 30 analyses, 701 MB                          (collapse, lists commit + date + size)
+                                 [Cancel] [Move 30 to recycle bin]
 ```
 
-- Inputs refresh the plan (`snapshots.planPrune`) after 300 ms. Nothing to remove: "Nothing to clean
+- One `snapshots.planPrune` / `prune` call for the working folder. Inputs refresh the plan after 300 ms. Nothing to remove: "Nothing to clean
   up with these settings." and the primary button disabled.
 - Primary `btn btn-error`; no second confirmation (the list *is* the confirmation, plan).
-- Progress: button `loading`; result toast (success) "Moved 37 analyses (812 MB) to the recycle bin."
-  Failure: `alert alert-error` in the dialog.
+- Progress: button `loading`; result toast (success) "Moved 30 analyses (701 MB) to the recycle bin."
+  Failure: `alert alert-error` in the dialog; the recycle bin failing is the error toast below.
 
 ## S9 Analysis log dialog
 

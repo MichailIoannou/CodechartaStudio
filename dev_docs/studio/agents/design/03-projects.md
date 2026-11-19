@@ -381,6 +381,8 @@ fixed).
   - hint present, not resolved: `btn btn-link btn-sm` "Look for commit `<hash>` in another folder…" →
     folder picker → added to the project → `projects.resolveCommit`; success turns it into the checked
     option above; failure: `text-xs text-warning` "Commit `<hash>` is not in '<folder>' either."
+    If picking the folder created a new project and the user then cancels the dialog, that project is
+    removed again (owner answer O5 addendum); nothing the user did not confirm is kept.
   - no hint: nothing.
 - **Duplicate** (`duplicateOf`): `alert alert-info text-sm` "This file was already imported into
   'billing'." Primary button becomes "Show existing snapshot".

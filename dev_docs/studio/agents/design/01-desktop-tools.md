@@ -78,12 +78,14 @@ Second line = purpose + problem:
 | State | Problem text appended after " — " |
 |---|---|
 | missing | "not found on PATH or in the usual folders. Install it, or choose the executable." |
+| custom path missing | "Custom path not found: <path>" |
 | too old | "version <v> is older than <minimum>." |
 | failed | "found, but it did not report a version: <detail first line>" |
 
-- "Choose…" → `DesktopToolsService.chooseExecutable(tool)` (native picker in the shell). Cancelled:
-  nothing changes. The chosen file fails the check: toast (error) "<file name> is not a working
-  <tool>: <message>" and the old row stays (plan: a failed choose keeps the old report).
+- "Choose…" → `DesktopToolsService.chooseExecutable(tool)` (native picker titled "Choose <tool>",
+  e.g. "Choose git"; Windows filter "Programs" `exe, cmd, bat`). Cancelled: nothing changes. The
+  chosen file fails the check: toast (error) "The chosen file is not a working <tool>: <message>" and
+  the old row stays (plan: a failed choose keeps the old report).
 - "Use default" → `useDefault(tool)`; no confirmation (reversible).
 - The links in other areas' hints ("Open desktop tools") open this dialog and scroll D1 into view
   with the failing row focused (D5). Data need: the settings button component exposes an
