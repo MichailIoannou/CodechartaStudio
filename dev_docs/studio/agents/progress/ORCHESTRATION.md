@@ -54,7 +54,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M4 Dependency graph, color-range diagram | UI | done | — | feature/studio-02-m4 | ddf7e6b7f (merged 2daeb8b08) |
 | 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | done | — | feature/studio-02-m5 | 057018bc9 (merged a0827d426) |
 | 02-M6 Native window appearance | UI | done | — | feature/studio-02-m6 | b0e051814 (merged 7523f1965) |
-| 02-M7 Metrics bar, file extension bar, toasts (OD6, OD7, OD8; new) | UI | in progress again: implementing owner answer O7 = A (bar centred between explorer and inspector; #4557's test changed; mouse clicks restored) | — | feature/studio-02-m7 | 7d2564686 (not merged) |
+| 02-M7 Metrics bar, file extension bar, toasts (OD6, OD7, OD8; new) | UI | option A committed; merge into the stack after the running stack e2e | — | feature/studio-02-m7 | fb2af451a (not merged) |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
 | 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | done on `feature/studio-stack` (part B via feature/studio-03-shell); integration merge pending | integration merge: owner's uncommitted plan 03 edit | feature/studio-03-m2, feature/studio-03-shell | 598d6ffd7 (merged into stack e8de7965e) |
@@ -382,6 +382,12 @@ the milestone is started.
   path, regular file, native confirmation (checked).
   Designer follow-ups named in the answers: T4 in `02-themes.md`, `05-snapshots.md` (recycle failure state,
   working-folder clean-up), `03-projects.md` (cancel removes the project).
+- 02-M7 option A (see `02-m7-metrics-bar.md`): panels publish `--cc-bar-inset-left/right`; bars centre between them,
+  min 30rem, slide over 300 ms; cells shrink and truncate; layout name icon-only below 1280 px; #4557's test now
+  asserts centring in the free space. **Known limit (for the designer, to be added to `open-questions.md` once the
+  owner's pending edits there are committed):** at ~900 px with both panels open only 236 px are free; the bar stops
+  at 30rem and its right part (tools incl. Legend) lies under the inspector until it closes; Layout and metric cells
+  stay reachable. Options: a compact bar mode, or a z-order change.
 
 ## Known environment issues (not caused by the milestones)
 
