@@ -9,6 +9,7 @@ const CORE_FAILURE_WINDOW_MS = 60_000
 const MAX_OPERATION_ID_LENGTH = 64
 const MAP_FILE_ENDINGS = [".cc.json", ".cc.json.gz"]
 const MAX_MAP_CHUNK_BYTES = 32 * 1024 * 1024
+const MAX_DROPPED_FILE_BYTES = 4 * 1024 * 1024 * 1024
 const COLOR_SCHEMES = ["light", "dark", "system"]
 const WINDOW_BACKGROUND_COLOR = /^#[0-9a-fA-F]{6}$/
 const FILTER_EXTENSION = /^(\*|[A-Za-z0-9]+)$/
@@ -120,6 +121,19 @@ function isReadableMapPath(filePath, { allowedRoots, platform }) {
     return isInsideARoot && MAP_FILE_ENDINGS.some(ending => filePath.toLowerCase().endsWith(ending))
 }
 
+function isDroppedMapPath(filePath, platform) {
+    const pathFlavour = platform === "win32" ? path.win32 : path.posix
+    return (
+        typeof filePath === "string" &&
+        pathFlavour.isAbsolute(filePath) &&
+        MAP_FILE_ENDINGS.some(ending => filePath.toLowerCase().endsWith(ending))
+    )
+}
+
+function isDroppedFileSize(sizeBytes) {
+    return Number.isSafeInteger(sizeBytes) && sizeBytes <= MAX_DROPPED_FILE_BYTES
+}
+
 function isMapChunkRange({ offset, length }) {
     const isWholeBytes = value => Number.isSafeInteger(value) && value >= 0
     return isWholeBytes(offset) && isWholeBytes(length) && length > 0 && length <= MAX_MAP_CHUNK_BYTES
@@ -159,6 +173,8 @@ module.exports = {
     isRendererMethod,
     isColorScheme,
     isComposedMethod,
+    isDroppedFileSize,
+    isDroppedMapPath,
     isInsideFolder,
     isMapChunkRange,
     isTrustedSender,

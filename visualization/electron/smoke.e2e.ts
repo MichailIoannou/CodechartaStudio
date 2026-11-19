@@ -17,6 +17,7 @@ const BRIDGE_KEYS = [
     "cancel",
     "chooseStoreRoot",
     "chooseToolExecutable",
+    "openDroppedFile",
     "pickFile",
     "pickFolder",
     "protocolVersion",
@@ -358,4 +359,39 @@ test("should copy the store into a picked folder and serve it without a restart"
     expect(observed.refusedCode).toBe("NOT_ALLOWED")
     await access(join(chosenFolder, "store.json"))
     await access(join(userDataDir, "store", "store.json"))
+})
+
+test("should inspect a dropped cc.json file once the native confirmation is accepted", async () => {
+    // Arrange
+    const page = await bootedWindow()
+    const droppedFile = join(userDataDir, "dropped", "sample1.cc.json")
+    await mkdir(join(userDataDir, "dropped"), { recursive: true })
+    await copyFile(SAMPLE_MAP, droppedFile)
+    await desktopApp.evaluate(({ dialog }) => {
+        ;(globalThis as any).confirmations = []
+        dialog.showMessageBox = (async (_window: unknown, options: { message: string }) => {
+            ;(globalThis as any).confirmations.push(options.message)
+            return { response: 0, checkboxChecked: false }
+        }) as any
+    })
+    await page.evaluate(() => {
+        const input = document.createElement("input")
+        input.type = "file"
+        input.id = "smoke-dropped-file"
+        document.body.append(input)
+    })
+    await page.setInputFiles("#smoke-dropped-file", droppedFile)
+
+    // Act
+    const picked = await page.evaluate(async () => {
+        const input = document.getElementById("smoke-dropped-file") as HTMLInputElement
+        const answer = await (window as any).codeChartaDesktop.openDroppedFile((input.files as FileList)[0])
+        return answer.value
+    })
+
+    // Assert
+    expect(picked).toMatchObject({ fileName: "sample1.cc.json", containingFolder: { suggestedName: "dropped" } })
+    expect(await desktopApp.evaluate(() => (globalThis as any).confirmations)).toEqual([
+        `Open 'sample1.cc.json' from '${join(userDataDir, "dropped")}'?`
+    ])
 })

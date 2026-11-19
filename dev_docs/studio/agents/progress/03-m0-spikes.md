@@ -29,7 +29,7 @@ validated newtypes. Plan says Windows; Linux results first, Windows open for the
 - [ ] 2. Unload all files and load again
 - [x] 3. Scratch Rust items (Linux)
 - [ ] 3. Scratch Rust items (Windows) — needs owner hardware
-- [ ] 4. Drag and drop path
+- [x] 4. Drag and drop path (Linux; run in 03-M6)
 
 ## Notes
 
@@ -264,6 +264,23 @@ the imports. Fallback to `specta` is not needed. A `Uint8Array` override only ma
 6. `rootCommits` of a shallow repository are graft points: do not store them as roots. Strip URL credentials. Treat `HEAD`/empty as no branch whatever the exit code.
 7. Reconcile plan 03 decisions 1 and 7 with plan 01 `pickFolder` (returns a path) and `readSnapshotMap` (whole file) once 01-M3 lands; shell-composed methods in `core-api/src/shell.rs` do not exist.
 8. `paths.setStoreRoot` already exists and moves nothing; decide whether `store.changeRoot` replaces or wraps it.
+
+## Item 4 — `webUtils.getPathForFile` in the sandboxed preload (Linux, run in 03-M6) — works
+
+Run on 2026-11-19 by the 03-M6 agent: Arch Linux, Electron 44.9.1 (Chrome 152), Playwright `_electron`.
+Scratch app outside the repository: a window with `sandbox: true`, `contextIsolation: true`,
+`nodeIntegration: false` and a preload that only does `require("electron")` and exposes
+`pathOf: file => webUtils.getPathForFile(file)` through `contextBridge`.
+
+- `webUtils.getPathForFile` exists in the sandboxed preload (`typeof … === "function"`).
+- A `File` backed by a real file (chosen through `<input type="file">` with Playwright's `setInputFiles`),
+  put into a `DataTransfer` and delivered in a `drop` event, answers its absolute path in the drop handler.
+- A `File` made up in the page (`new File(["{}"], "made-up.cc.json")`) answers `""`, so page content cannot
+  invent a path through this call; the shell still treats every dropped path as untrusted.
+- Not covered: a real drag from the desktop file manager (Playwright cannot start an OS drag), Windows and
+  macOS. The 03-M6 smoke test drives the same preload function with an input-backed `File`.
+
+Verdict: the spike passes on Linux; 03-M6 task 5 (drag and drop) was built.
 
 ## Item 3 — Windows (open, for the owner)
 

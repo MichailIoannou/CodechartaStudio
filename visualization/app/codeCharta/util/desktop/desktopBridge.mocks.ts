@@ -20,6 +20,7 @@ type FakeAnswerKey =
     | "pickFile"
     | "chooseToolExecutable"
     | "chooseStoreRoot"
+    | "openDroppedFile"
     | "reveal"
     | "setWindowBackground"
     | "setColorScheme"
@@ -622,6 +623,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         chooseToolExecutable: (tool, options) =>
             recordAndAnswer("chooseToolExecutable", "chooseToolExecutable", () => succeed(null), tool, options),
         chooseStoreRoot: options => recordAndAnswer("chooseStoreRoot", "chooseStoreRoot", () => succeed(null), options),
+        openDroppedFile: file => recordAndAnswer("openDroppedFile", "openDroppedFile", pickImportFile, file),
         reveal: target => recordAndAnswer("reveal", "reveal", () => succeed(null), target),
         setWindowBackground: color => recordAndAnswer("setWindowBackground", "setWindowBackground", () => succeed(null), color),
         setColorScheme: scheme => recordAndAnswer("setColorScheme", "setColorScheme", () => succeed(null), scheme),

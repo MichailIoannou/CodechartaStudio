@@ -6,7 +6,7 @@ const contract = require("./coreMethods.generated.json")
 const { CoreClient } = require("./coreClient")
 const { createProjectsShell } = require("./projectsShell")
 const { createShellActions, readShellSettings, runAction } = require("./shellActions")
-const { createSnapshotsShell } = require("./snapshotsShell")
+const { createDropShell, createSnapshotsShell } = require("./snapshotsShell")
 const policy = require("./shellPolicy")
 
 const CHANNELS = {
@@ -217,7 +217,8 @@ function registerIpcHandlers() {
     })
     handleTrusted(CHANNELS.request, relayRequest)
     handleTrusted(CHANNELS.cancel, relayCancel)
-    handleTrusted(CHANNELS.dialog, (_sender, payload) => runAction(dialogActions, payload))
+    const allDialogActions = { ...dialogActions, ...createDropShell(shellPorts()) }
+    handleTrusted(CHANNELS.dialog, (_sender, payload) => runAction(allDialogActions, payload))
     handleTrusted(CHANNELS.shell, (_sender, payload) => runAction(shellActions, payload))
 }
 

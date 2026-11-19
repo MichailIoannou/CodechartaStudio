@@ -5,6 +5,8 @@ const {
     describeTrustedPage,
     isRendererEvent,
     isComposedMethod,
+    isDroppedFileSize,
+    isDroppedMapPath,
     isRendererMethod,
     isTrustedSender,
     isReadableMapPath,
@@ -404,5 +406,26 @@ describe("shell actions", () => {
             badExtension: null,
             notAList: null
         })
+    })
+})
+
+describe("dropped files", () => {
+    test("should accept only absolute cc.json paths of a readable size", () => {
+        // Arrange
+        const candidates = [
+            ["/home/mia/a1b2c3d.app.cc.json.gz", "linux"],
+            ["C:\\Users\\mia\\map.CC.JSON", "win32"],
+            ["map.cc.json", "linux"],
+            ["/home/mia/map.json", "linux"],
+            [42, "linux"]
+        ]
+
+        // Act
+        const accepted = candidates.map(([filePath, platform]) => isDroppedMapPath(filePath, platform))
+        const sizes = [0, 4 * 1024 * 1024 * 1024, 4 * 1024 * 1024 * 1024 + 1, Number.NaN].map(isDroppedFileSize)
+
+        // Assert
+        assert.deepEqual(accepted, [true, true, false, false, false])
+        assert.deepEqual(sizes, [true, true, false, false])
     })
 })

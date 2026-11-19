@@ -86,6 +86,7 @@ export interface DesktopBridge {
     pickFile(options: FilePickerOptions): Promise<string | null>
     chooseToolExecutable(tool: ToolId, options: FilePickerOptions): Promise<CoreResult<ToolsReport | null>>
     chooseStoreRoot(options: FolderPickerOptions): Promise<CoreResult<PathsInfo | null>>
+    openDroppedFile(file: File): Promise<CoreResult<PickedImportFile | null>>
     reveal(target: ShellPathTarget): Promise<CoreResult<null>>
     setWindowBackground(color: string): Promise<CoreResult<null>>
     setColorScheme(scheme: "light" | "dark" | "system"): Promise<CoreResult<null>>

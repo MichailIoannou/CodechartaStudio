@@ -17,6 +17,18 @@ describe("OpenFileService", () => {
         expect(service.pending()).toBeNull()
     })
 
+    it("should keep nothing when the dropped file is not confirmed", async () => {
+        // Arrange
+        await setUpProjects({})
+        const service = TestBed.inject(OpenFileService)
+
+        // Act
+        await service.openDropped(new File(["{}"], "map.CC.JSON"))
+
+        // Assert
+        expect(service.pending()).toBeNull()
+    })
+
     it("should resolve no commit when the file name has no hint", async () => {
         // Arrange
         const testBed = await setUpProjects({ pickedImportFile: aPickedImportFile("Downloads") })

@@ -9,10 +9,12 @@ import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
 import type { BridgeMethod, BridgeParams, BridgeResult } from "../../../util/desktop/desktopBridge"
 import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.service"
 import { valueOrThrow } from "../../../util/desktop/desktopResult"
+import { ToastService } from "../../shared/facade"
 import { defaultRoleFor } from "../util/folderRole"
 import { ProjectsService } from "./projects.service"
 
 const PICKER_FILTERS = [{ name: "cc.json files", extensions: ["json", "gz"] }]
+const MAP_FILE_ENDINGS = [".cc.json", ".cc.json.gz"]
 
 export type OpenFileMode = "open" | "import"
 
@@ -34,6 +36,7 @@ export interface CommitSearch {
 export class OpenFileService {
     private readonly environment = inject(DesktopEnvironment)
     private readonly projects = inject(ProjectsService)
+    private readonly toastService = inject(ToastService)
     private readonly pendingFile = signal<PendingFile | null>(null)
 
     readonly pending = this.pendingFile.asReadonly()
@@ -44,6 +47,17 @@ export class OpenFileService {
 
     async pickToImport(target: FolderRef): Promise<void> {
         await this.pick("import", target)
+    }
+
+    async openDropped(file: File): Promise<void> {
+        if (!MAP_FILE_ENDINGS.some(ending => file.name.toLowerCase().endsWith(ending))) {
+            this.toastService.show("Only .cc.json and .cc.json.gz files can be opened.", "warning")
+            return
+        }
+        const picked = valueOrThrow(await this.environment.requireBridge().openDroppedFile(file))
+        if (picked) {
+            this.pendingFile.set({ mode: "open", picked, importTarget: null })
+        }
     }
 
     async pickAgain(): Promise<void> {

@@ -1,6 +1,10 @@
 const { FILE_PICKER, NOTHING_CHOSEN, failure, pickPath } = require("./shellActions")
 const { readRange, realPathOrNull } = require("./shellFiles")
-const { isMapChunkRange, isReadableMapPath, toDialogOptions } = require("./shellPolicy")
+const path = require("node:path")
+const { isDroppedFileSize, isDroppedMapPath, isMapChunkRange, isReadableMapPath, toDialogOptions } = require("./shellPolicy")
+
+const OPEN_BUTTON = 0
+const CANCEL_BUTTON = 1
 
 function snapshotRefOf(params) {
     return { projectId: params?.projectId, folderId: params?.folderId, snapshotId: params?.snapshotId }
@@ -53,4 +57,44 @@ function createSnapshotsShell({ dialog, fs, getWindow, requestCore, platform }) 
     }
 }
 
-module.exports = { createSnapshotsShell }
+async function regularFileSize(fs, filePath) {
+    try {
+        const stats = await fs.promises.stat(filePath)
+        return stats.isFile() ? stats.size : null
+    } catch {
+        return null
+    }
+}
+
+function createDropShell({ dialog, fs, getWindow, requestCore, platform }) {
+    async function refusalOf(droppedPath) {
+        if (!isDroppedMapPath(droppedPath, platform)) {
+            return failure("BAD_REQUEST", "Only .cc.json and .cc.json.gz files can be opened.")
+        }
+        const sizeBytes = await regularFileSize(fs, droppedPath)
+        if (sizeBytes === null) {
+            return failure("BAD_REQUEST", "The dropped item is not a file that can be read.")
+        }
+        return isDroppedFileSize(sizeBytes) ? null : failure("BAD_REQUEST", "The dropped file is too large to open.")
+    }
+
+    async function isConfirmed(droppedPath) {
+        const pathFlavour = platform === "win32" ? path.win32 : path.posix
+        const message = `Open '${pathFlavour.basename(droppedPath)}' from '${pathFlavour.dirname(droppedPath)}'?`
+        const options = { type: "question", buttons: ["Open", "Cancel"], defaultId: OPEN_BUTTON, cancelId: CANCEL_BUTTON, message }
+        const { response } = await dialog.showMessageBox(getWindow(), options)
+        return response === OPEN_BUTTON
+    }
+
+    async function openDroppedFile({ path: droppedPath }) {
+        const refusal = await refusalOf(droppedPath)
+        if (refusal) {
+            return refusal
+        }
+        return (await isConfirmed(droppedPath)) ? requestCore("snapshots.inspectImportFile", { path: droppedPath }) : NOTHING_CHOSEN
+    }
+
+    return { openDroppedFile }
+}
+
+module.exports = { createDropShell, createSnapshotsShell }
