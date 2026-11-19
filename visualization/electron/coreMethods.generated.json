@@ -47,6 +47,7 @@
     "snapshots.prune",
     "compare.resolve",
     "compare.changedFiles",
+    "hosting.status",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",

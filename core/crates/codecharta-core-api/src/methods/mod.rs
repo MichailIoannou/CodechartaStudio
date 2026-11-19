@@ -2,6 +2,7 @@ pub mod analysis;
 pub mod compare;
 pub mod core;
 pub mod git;
+pub mod hosting;
 pub mod paths;
 pub mod projects;
 pub mod prompt;

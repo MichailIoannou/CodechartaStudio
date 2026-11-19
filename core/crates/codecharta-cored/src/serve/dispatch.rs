@@ -23,6 +23,7 @@ use codecharta_core_api::methods::git::{
     GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
     GitUnstageMethod, GitWorkingTreeMethod,
 };
+use codecharta_core_api::methods::hosting::HostingStatusMethod;
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
 use codecharta_core_api::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
@@ -49,8 +50,8 @@ use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
 use super::{
-    analysis_routes, compare_routes, git_routes, projects_routes, prompt_routes, snapshots_routes,
-    store_routes, tools_routes,
+    analysis_routes, compare_routes, git_routes, hosting_routes, projects_routes, prompt_routes,
+    snapshots_routes, store_routes, tools_routes,
 };
 
 pub type DispatchResult = Result<Value, ResponseError>;
@@ -234,6 +235,10 @@ const ROUTES: &[Route] = &[
     Route {
         name: CompareChangedFiles::NAME,
         handler: compare_routes::changed_files,
+    },
+    Route {
+        name: HostingStatusMethod::NAME,
+        handler: hosting_routes::status,
     },
     Route {
         name: AnalysisPreflight::NAME,

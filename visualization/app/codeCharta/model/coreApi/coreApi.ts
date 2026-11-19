@@ -59,6 +59,8 @@ import type { GitUnstageParams } from "./GitUnstageParams"
 import type { GitWorkingTree } from "./GitWorkingTree"
 import type { HelloParams } from "./HelloParams"
 import type { HelloResult } from "./HelloResult"
+import type { HostingStatus } from "./HostingStatus"
+import type { HostingStatusParams } from "./HostingStatusParams"
 import type { ImportSnapshotParams } from "./ImportSnapshotParams"
 import type { InspectFolderParams } from "./InspectFolderParams"
 import type { InspectImportFileParams } from "./InspectImportFileParams"
@@ -213,6 +215,7 @@ export type CoreMethods = {
     "snapshots.prune": { params: PruneParams; result: PruneResult }
     "compare.resolve": { params: ResolveComparisonParams; result: ResolvedComparison }
     "compare.changedFiles": { params: ChangedFilesParams; result: ChangedFilesResult }
+    "hosting.status": { params: HostingStatusParams; result: HostingStatus }
     "analysis.preflight": { params: PreflightParams; result: PreflightResult }
     "analysis.enqueue": { params: EnqueueParams; result: EnqueueResult }
     "analysis.cancel": { params: JobRefParams; result: null }
@@ -304,6 +307,7 @@ export const RENDERER_METHODS = [
     "snapshots.prune",
     "compare.resolve",
     "compare.changedFiles",
+    "hosting.status",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",

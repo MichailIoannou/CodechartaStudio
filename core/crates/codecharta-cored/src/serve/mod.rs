@@ -3,6 +3,7 @@ mod compare_routes;
 pub mod dispatch;
 pub mod framing;
 mod git_routes;
+mod hosting_routes;
 pub mod output;
 mod projects_routes;
 mod prompt_routes;

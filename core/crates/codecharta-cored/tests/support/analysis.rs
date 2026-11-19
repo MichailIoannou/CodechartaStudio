@@ -106,7 +106,7 @@ impl TestRepository {
             .env("GIT_CONFIG_NOSYSTEM", "1");
     }
 
-    fn git(&self, args: &[&str]) -> String {
+    pub fn git(&self, args: &[&str]) -> String {
         let mut command = Command::new("git");
         self.isolate(&mut command);
         let output = command

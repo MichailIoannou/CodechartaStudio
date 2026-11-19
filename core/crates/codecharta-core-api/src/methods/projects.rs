@@ -5,6 +5,7 @@ use ts_rs::TS;
 
 use crate::ids::{FolderId, ProjectId, SnapshotId};
 use crate::methods::core::EmptyParams;
+use crate::methods::hosting::HostingOverride;
 use crate::registry::method;
 use crate::values::{
     CommitHash, Description, ExcludePattern, FullCommit, Label, PickToken, ProjectName,
@@ -145,6 +146,10 @@ pub struct ProjectFolder {
     pub status: FolderStatus,
     pub relationships: Vec<FolderRelationship>,
     pub snapshot_count: u32,
+    /// The provider the user chose for a host the core does not recognise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub hosting: Option<HostingOverride>,
 }
 
 /// The user works in one folder at a time (owner decision OD1); each folder remembers what it showed.
@@ -267,6 +272,9 @@ pub struct UpdateFolderParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub role: Option<FolderRole>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub hosting: Option<HostingOverride>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

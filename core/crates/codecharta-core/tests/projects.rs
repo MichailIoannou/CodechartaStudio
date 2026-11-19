@@ -394,6 +394,7 @@ async fn should_refuse_to_leave_a_project_without_a_primary_folder() {
     let changes = FolderChanges {
         label: Some(Label::try_from("renamed").unwrap()),
         role: Some(FolderRole::Helper),
+        hosting: None,
     };
 
     // Act

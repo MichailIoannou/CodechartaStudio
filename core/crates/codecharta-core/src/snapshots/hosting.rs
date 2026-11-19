@@ -9,6 +9,7 @@ use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 
 use crate::git::runner::ProcessFuture;
+use crate::hosting::{RemoteRef, parse_remote_url};
 use crate::snapshots::record::{HostingProvider, HostingRecord, PullRequestRecord};
 use crate::tools::{ToolRunOptions, Tools};
 
@@ -17,13 +18,8 @@ pub const HOSTING_BUDGET: Duration = Duration::from_secs(10);
 const PREFERRED_REMOTE: &str = "origin";
 const GITHUB_HOST: &str = "github.com";
 const GITLAB_HOST_MARKER: &str = "gitlab";
-const GIT_SUFFIX: &str = ".git";
-const SCHEME_SEPARATOR: &str = "://";
 const PATH_SEPARATOR: char = '/';
-const USER_SEPARATOR: char = '@';
-const PORT_SEPARATOR: char = ':';
 const GITHUB_PATH_SEGMENTS: usize = 2;
-const MIN_PATH_SEGMENTS: usize = 2;
 const GH_SEARCH_ARGS: [&str; 5] = ["pr", "list", "--state", "all", "--search"];
 const GH_OUTPUT_ARGS: [&str; 4] = [
     "--json",
@@ -101,46 +97,14 @@ pub fn hosting_of(remotes: &[GitRemote]) -> Option<(HostingProvider, String)> {
         .iter()
         .find(|remote| remote.name == PREFERRED_REMOTE)
         .or_else(|| remotes.first())?;
-    let (host, path) = host_and_path(&remote.url)?;
-    let segments: Vec<&str> = path.split(PATH_SEPARATOR).collect();
-    let is_named = segments.len() >= MIN_PATH_SEGMENTS && !segments.contains(&"");
-    if !is_named {
-        return None;
-    }
+    let RemoteRef { host, repository } = parse_remote_url(&remote.url)?;
     if host == GITHUB_HOST {
-        let is_owner_and_repository = segments.len() == GITHUB_PATH_SEGMENTS;
-        return is_owner_and_repository.then_some((HostingProvider::Github, path));
+        let is_owner_and_repository =
+            repository.split(PATH_SEPARATOR).count() == GITHUB_PATH_SEGMENTS;
+        return is_owner_and_repository.then_some((HostingProvider::Github, repository));
     }
     host.contains(GITLAB_HOST_MARKER)
-        .then_some((HostingProvider::Gitlab, path))
-}
-
-/// `scheme://[user@]host[:port]/path` or scp-like `[user@]host:path`; the host in lower case, the path
-/// without slashes around it and without `.git`.
-fn host_and_path(url: &str) -> Option<(String, String)> {
-    let (authority, path) = match url.split_once(SCHEME_SEPARATOR) {
-        Some((_, rest)) => {
-            let (authority, path) = rest.split_once(PATH_SEPARATOR)?;
-            (without_port(authority), path)
-        }
-        None => url.split_once(PORT_SEPARATOR)?,
-    };
-    let host = authority
-        .rsplit_once(USER_SEPARATOR)
-        .map_or(authority, |(_, host)| host);
-    let path = path.trim_matches(PATH_SEPARATOR);
-    let path = path.strip_suffix(GIT_SUFFIX).unwrap_or(path);
-    if host.is_empty() || host.contains(PATH_SEPARATOR) {
-        return None;
-    }
-    Some((host.to_ascii_lowercase(), path.to_string()))
-}
-
-fn without_port(authority: &str) -> &str {
-    authority
-        .rsplit_once(PORT_SEPARATOR)
-        .filter(|(_, port)| port.bytes().all(|byte| byte.is_ascii_digit()))
-        .map_or(authority, |(host, _)| host)
+        .then_some((HostingProvider::Gitlab, repository))
 }
 
 async fn pull_requests(

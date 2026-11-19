@@ -88,6 +88,7 @@ fn to_project_folder(
         added_at: folder.added_at,
         relationships,
         snapshot_count,
+        hosting: folder.hosting,
     }
 }
 

@@ -4,6 +4,7 @@ pub mod config;
 pub mod error;
 pub mod folders;
 pub mod git;
+pub mod hosting;
 pub mod ids;
 pub mod process;
 pub mod projects;
