@@ -70,7 +70,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 06-M2 Entry points | UI | todo | 06-M1 | — | — |
 | 06-M3 Missing snapshots and staleness | UI (no core tasks) | todo | 06-M1 UI; core stack merge | — | — |
 | 06-M4 Changed files | core + UI | core task 1 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: 06-M3 | feature/studio-06-m4 | 919fb2972 (verified, not merged) |
-| 06-M5 PRs and merge requests | core + UI | in progress (core tasks 1, 4; from feature/studio-06-m4) | tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner); UI: core stack merge | feature/studio-06-m5 | — |
+| 06-M5 PRs and merge requests | core + UI | core tasks 1, 4 verified, **merge pending** (top of the unmerged stack); tasks 2, 3, 8 blocked; UI todo | merge: as 03-M2; tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner); UI: core stack merge | feature/studio-06-m5 | fc5e4f3a1 (verified, not merged) |
 | 06-M6 Polish and stretch | UI | todo | 06-M5 | — | — |
 
 The core/UI split of mixed milestones is provisional; it is confirmed against the plan text when
@@ -266,6 +266,12 @@ the milestone is started.
   `core/target` (up to 15 GB each). Clean, fully committed agent worktrees were removed (branches kept) and
   remaining `core/target` dirs deleted: 139 GB free. From now on core agents use a shared `CARGO_TARGET_DIR`
   in the scratchpad, and verified worktrees are cleaned right away.
+- 06-M5 core (see `06-m5-prs-core.md` on `feature/studio-06-m5`): `hosting.status`; queued
+  `hosting.fetchChangeRequestHead` writes only `refs/codecharta/pr/<n>` (GitLab `mr/<n>`); `compare.resolve`
+  gains a `changeRequest` intent (`alreadyMerged`, `baseMode: mergeBase`, `pullRequest` head label); a head
+  not in the clone is the new error `HEAD_NOT_LOCAL`; a missing base branch is `UNKNOWN_REVISION` (the plan's
+  base-branch fetch is not built); folder record gains an optional `hosting` override (cannot be cleared
+  yet); new codes `REF_NOT_ON_REMOTE`, `HEAD_NOT_LOCAL`.
 
 ## Known environment issues (not caused by the milestones)
 
@@ -297,6 +303,18 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19, end of session: 06-M5 core verified on a scratch merge (clippy and cargo test with and without
+  features: 833/837, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). **No allowed work
+  remains**: every core-only task that can run on Linux without `gh`/`glab` is verified, and every UI
+  milestone left needs the core stack in the integration branch.
+  - Unmerged verified core stack (merge in this order, or just `feature/studio-06-m5`, which contains all of
+    them; resolve add/add conflicts on progress files with the branch versions): 03-M2, 03-M3, 04-M1, 04-M2,
+    04-M7 core, 04-M8 core, 04-M9 core, 04-M10 core, 04-M11 core, 05-M1, 05-M2, 05-M3 core, 05-M5 core,
+    05-M6 core, 06-M1 core, 06-M4 core, 06-M5 core. Blocked only by the owner's uncommitted edit to
+    `03-projects-and-managed-store.md` in the main checkout (03-M2 edits the same file).
+  - After the merge: re-run all gates on integration (incl. build, e2e:ci, e2e:desktop), then the UI lane can
+    run 03-M2/M3 part B, 03-M4..M7, 04-M3..M6 and the UI halves of 04-M7..M11, 05-M4..M7, 06-M1..M6, and the
+    fake-bridge tasks (04-M1 seed, 05-M3 task 5, 05-M5 task 2).
 - 2026-11-19: disk full; cleaned agent worktrees (139 GB free). 06-M4 core verified on a scratch merge (clippy and cargo test with and without features: 800/804, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 06-M5 core tasks 1 and 4 started.
 - 2026-11-19: 06-M1 core verified on a scratch merge (clippy and cargo test with and without features: 789/793, cargo-deny, contract drift, format, lint, tsc, npm test 663/663). 06-M3 has no core tasks. 06-M4 core started.
 - 2026-11-19: 06-M0 recorded as blocked (no gh/glab, Windows, needs projects UI); 06-M1 core tasks 1–3 started with provisional size limits.
