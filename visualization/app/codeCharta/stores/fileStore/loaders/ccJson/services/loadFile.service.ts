@@ -12,7 +12,7 @@ import { loadFilesValidationToErrorDialog } from "./loadFilesValidationToErrorDi
 export const NO_FILES_LOADED_ERROR_MESSAGE = "File(s) could not be loaded"
 export const FILES_ALREADY_LOADED_ERROR_MESSAGE = "File(s) are already loaded"
 
-interface LoadFilesOptions {
+export interface LoadFilesOptions {
     replaceLoadedFiles?: boolean
 }
 

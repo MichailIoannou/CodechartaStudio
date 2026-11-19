@@ -1,5 +1,6 @@
 export type { NameDataPair } from "../../model/codeCharta.api.model"
 export { sampleFile1, sampleFile2 } from "./loaders/ccJson/sampleFiles"
+export type { LoadFilesOptions } from "./loaders/ccJson/services/loadFile.service"
 export { LoadFileService, NO_FILES_LOADED_ERROR_MESSAGE } from "./loaders/ccJson/services/loadFile.service"
 export { buildHtmlMessage } from "./loaders/ccJson/services/loadFilesValidationToErrorDialog"
 export { getCCFile, getContentChecksum, parseCcFileBytes } from "./loaders/ccJson/util/ccFileHelper"

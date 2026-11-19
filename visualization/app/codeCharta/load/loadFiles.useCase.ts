@@ -11,6 +11,7 @@ import {
     getContentChecksum,
     getNameDataPair,
     LoadFileService,
+    LoadFilesOptions,
     NameDataPair,
     NO_FILES_LOADED_ERROR_MESSAGE,
     RestoredSettings,
@@ -19,7 +20,7 @@ import {
     setIsLoadingFile,
     UrlExtractor
 } from "../stores/fileStore/fileStore.facade"
-import { clearLoadPhase, setLoadPhase } from "../util/busy/loadPhase"
+import { clearLoadPhase, describeFileBeingRead, setLoadPhase } from "../util/busy/loadPhase"
 import { ErrorDialogService } from "../util/errorDialog/errorDialog.service"
 import { fileRoot } from "../util/fileRoot"
 import { nextPaint } from "../util/nextPaint"
@@ -27,6 +28,7 @@ import { NO_URL_METRICS, UrlMetricSelection } from "../util/queryParameter/query
 import { QueryParamsService } from "../util/queryParameter/queryParams.service"
 import { LoadInitialFileStore } from "./loadInitialFile.store"
 import { CcStatePersistence, PersistedCcStateRead } from "./services/ccStatePersistence"
+import { asNothingLoaded, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad, readProjectSnapshots } from "./services/projectSnapshotReader"
 
 const URL_LOAD_ERROR_TITLE = "File(s) could not be loaded from the given file URL parameter. Loaded sample files instead."
 const INDEXED_DB_LOAD_ERROR_TITLE = "Previously loaded files and settings could not be restored. Loaded sample files instead."
@@ -35,6 +37,8 @@ const MISSING_PROPERTIES_ERROR_TITLE =
 
 const RESTORING_SESSION_PHASE = "Restoring your session"
 const BUILDING_MAP_PHASE = "Building the map"
+
+type ProvenanceOptions = Parameters<LoadFilesUseCase["provenance"]>[1]
 
 @Injectable({ providedIn: "root" })
 export class LoadFilesUseCase {
@@ -97,6 +101,44 @@ export class LoadFilesUseCase {
         }
     }
 
+    async loadProjectSnapshots(
+        snapshots: ProjectSnapshotToLoad[],
+        options: { discardMetricSelection?: boolean } = {}
+    ): Promise<ProjectSnapshotsLoadResult> {
+        this.store.dispatch(setIsLoadingFile({ value: true }))
+        return this.readAndCommitProjectSnapshots(snapshots, {
+            areSampleFiles: false,
+            forceDefaultMetrics: options.discardMetricSelection
+        })
+    }
+
+    private async readAndCommitProjectSnapshots(
+        snapshots: ProjectSnapshotToLoad[],
+        provenanceOptions: ProvenanceOptions
+    ): Promise<ProjectSnapshotsLoadResult> {
+        const { nameDataPairs, result } = await readProjectSnapshots(snapshots, (snapshot, position) =>
+            setLoadPhase(describeFileBeingRead(snapshot.displayName, position, snapshots.length))
+        )
+        if (nameDataPairs.length === 0) {
+            this.stopLoadingIndicator()
+            return result
+        }
+        setLoadPhase(BUILDING_MAP_PHASE)
+        await nextPaint()
+        try {
+            this.commit(nameDataPairs, this.provenance("project", provenanceOptions), { replaceLoadedFiles: true })
+            return result
+        } catch {
+            this.stopLoadingIndicator()
+            return asNothingLoaded(result)
+        }
+    }
+
+    private stopLoadingIndicator(): void {
+        this.store.dispatch(setIsLoadingFile({ value: false }))
+        clearLoadPhase()
+    }
+
     private async loadFromUrl(persisted: PersistedCcStateRead): Promise<void> {
         const urlMetrics = this.urlMetrics()
 
@@ -151,9 +193,9 @@ export class LoadFilesUseCase {
     }
 
     /** `filesLoaded` goes last, in the same task as the setFiles it triggers: the reconciliation picks it out of that burst. */
-    private commit(nameDataPairs: NameDataPair[], provenance: FilesLoadedPayload): void {
+    private commit(nameDataPairs: NameDataPair[], provenance: FilesLoadedPayload, ...loadOptions: [LoadFilesOptions?]): void {
         try {
-            this.loadFileService.loadFiles(nameDataPairs)
+            this.loadFileService.loadFiles(nameDataPairs, ...loadOptions)
         } catch (error) {
             if ((error as Error).message === NO_FILES_LOADED_ERROR_MESSAGE) {
                 // Nothing was written to the store. The caller falls back to the sample files.

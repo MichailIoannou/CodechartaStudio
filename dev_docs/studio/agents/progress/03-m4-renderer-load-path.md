@@ -38,7 +38,7 @@ on project switches is plan 06's.
 - [x] 3. Root names
 - [x] 4. Replace in one step
 - [x] 5. IndexedDB filter
-- [ ] 6. Load project snapshots
+- [x] 6. Load project snapshots
 - [ ] 7. Boot from project
 
 ## Notes
@@ -52,9 +52,18 @@ on project switches is plan 06's.
   the plan names them.
 - Task 1: `applySavedSettingsUpFront(savedCcState)` returns `{ restoredSettings, missingProperties }`;
   `provenance()` takes `forceDefaultMetrics` (default `source === "reset"`).
-- Task 4: `LoadFilesOptions` stays module-private in `loadFile.service.ts` (nothing outside needs the name).
+- Task 4/6: `LoadFilesOptions` is exported as a type through `fileStore.facade.ts`; `commit` takes it as an
+  optional rest tuple so existing calls still reach `loadFiles(nameDataPairs)` with one argument (existing
+  specs assert `toHaveBeenCalledWith(pairs)`, which a trailing `undefined` would break).
 - Task 5 deviation: "not due when nothing is persistable and nothing is persisted" is narrowed to "files are
   loaded, all of them project maps, and nothing is persisted", so an empty file list keeps today's web
   behaviour (due while nothing was persisted yet). `persistableFiles` reads `fileState.file?.fileMeta?` because
   existing specs (and the `removeFilesFromState` empty-list state) hand in file states without a file.
+- Task 6: reading, root renaming and checksum grouping live in `load/services/projectSnapshotReader.ts`
+  (`readProjectSnapshots`, types `ProjectSnapshotToLoad`, `LoadedSnapshotFacts`, `ProjectSnapshotsLoadResult`,
+  re-exported as types from `load.facade.ts`). `LoadedSnapshotFacts.rootName` is the map's **original** root
+  name (what `snapshots.recordMapFacts` should record). A `readBytes` rejection counts as unreadable. When
+  `LoadFileService` rejects every map (validation errors, its own dialog shows) the result reports them as
+  unreadable and the indicator is cleared; a partial validation failure still lists the rejected map under
+  `loaded` (not distinguished in M4).
 
