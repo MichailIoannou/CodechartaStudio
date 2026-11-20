@@ -4,16 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CodeCharta is a code visualization tool that generates 3D treemap visualizations of codebases. It consists of two main components:
+CodeCharta is a code visualization tool that generates 3D treemap visualizations of codebases. It consists of three main components:
 
 - **Analysis (Kotlin/Java)**: CLI tool (`ccsh`) that parses source code, imports metrics from external tools, and generates `.cc.json` files
 - **Visualization (TypeScript/Angular)**: Web and desktop application that renders `.cc.json` files as interactive 3D treemaps using Three.js
+- **Core (Rust)**: headless `codecharta-core` executable in `core/` that the desktop app starts and talks to with JSON-RPC over stdio; it owns everything in the desktop app that is not presentation (see `core/README.md`)
 
 ## Requirements
 
 - Java >= 22 to run `ccsh`; the build compiles with JDK 25, which Gradle downloads when it is missing
 - Node >= 22.19 (working on the visualization needs 22.x from 22.22.3, 24.x from 24.15, or >= 26)
 - Git (with bash utilities for Windows)
+- Rust stable >= 1.95 with `rustfmt` and `clippy` (via rustup, which reads `core/rust-toolchain.toml`), to work on `core/`
 
 ## Common Development Commands
 
@@ -112,6 +114,11 @@ npm run e2e:ci
 # Run e2e tests in watch mode
 npm run e2e:auto
 
+# Desktop shell (electron/): unit tests with node --test, and the Playwright smoke suite against the
+# built app and core/target/debug (requires `cargo build` in core/ and `npm run build` first)
+npm run test:electron
+npm run e2e:desktop
+
 # Start desktop client (requires build first)
 npm run start
 
@@ -120,7 +127,30 @@ npm run package
 
 # Generate JSON schema from TypeScript types
 npm run schema:generate
+
+# Regenerate the core contract (model/coreApi/, electron/coreMethods.generated.json) from core/
+npm run contract
 ```
+
+### Core (Rust)
+
+```bash
+cd core
+
+cargo build                                               # target/debug/codecharta-core
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-features                                 # --all-features adds the test-only protocol methods
+cargo run -p codecharta-cored -- --data-dir /tmp/cc serve # JSON-RPC on stdin/stdout
+cargo run -p codecharta-cored -- doctor                   # which git, ccsh, java, gh, glab were found
+```
+
+Child processes (git, ccsh, …) start only through `Tools::run` / `ProcessRunner` in `codecharta-core`
+(`process/`, `tools/`); tests use the `cc-fake-tool` binary and `tests/support` (`TempRepo`, `fake_tool`).
+
+A new protocol method or event goes into `codecharta-core-api` first, then `npm run contract` (from
+`visualization/`), then the library code in `codecharta-core`, then the dispatch arm in `codecharta-cored`.
+Commit the regenerated contract with the change; CI fails on drift.
 
 ## Architecture Overview
 
@@ -269,7 +299,7 @@ Each state slice has dedicated actions, reducers, and selectors. Effects (`state
 ```
 
 - Types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`
-- Scopes: `analysis`, `visualization`, `docker`, `gh-pages`, `docs`, `readme`, `stg`, `config`
+- Scopes: `analysis`, `visualization`, `core`, `docker`, `gh-pages`, `docs`, `readme`, `stg`, `config`
 - Use imperative mood: "Add feature" not "Added feature"
 - Limit subject line to 72 characters
 - Breaking changes: Use `!` before `:` (e.g., `feat!: breaking change`)
@@ -289,9 +319,13 @@ npm run format:check
 npm test                            # unit tests with the coverage gate
 npm run lint                        # dependency-cruiser, component styles, knip
 npx tsc --noEmit -p tsconfig.json   # neither Jest nor the build type-checks spec files
+npm run test:electron               # when electron/ changed; plus `npm run build && npm run e2e:desktop`
 
 # analysis/, when Kotlin changed
 ./gradlew ktlintCheck test
+
+# core/, when Rust changed; then `npm run contract` in visualization/ must leave `git status` clean
+cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
 ```
 
 ### Pull Requests
@@ -486,6 +520,12 @@ npm run e2e:auto
 - UI components: `visualization/app/codeCharta/features/`
 - Layout algorithms: `visualization/app/codeCharta/renderer/threeViewer/algorithm/`
 - Model types: `visualization/app/codeCharta/model/codeCharta.model.ts`
+- Generated core contract (do not edit): `visualization/app/codeCharta/model/coreApi/`, `visualization/electron/coreMethods.generated.json`
+
+### Core
+- Protocol types, method registry, contract generator: `core/crates/codecharta-core-api/`
+- Domain logic: `core/crates/codecharta-core/`
+- Executable (`serve`, CLI), framing and dispatch: `core/crates/codecharta-cored/`
 
 ## CI/CD (GitHub Actions)
 
@@ -494,6 +534,10 @@ Workflows in `.github/workflows/`:
 - **test.yml**: Runs on every PR push
   - Unit and E2E tests
   - Sonar analysis (publishes to SonarCloud)
+
+- **test_core.yml**: Runs when `core/` or the generated contract changes
+  - `cargo fmt`, `clippy` and tests on Linux, Windows and macOS
+  - Contract drift: `npm run contract` must reproduce the committed files
 
 - **release-analysis.yml**: Analysis deployment
   - Publishes to npm

@@ -823,6 +823,16 @@
     {
       "annotationRefs": ["ALLOWED"],
       "deprecated": false,
+      "family": "Unicode-3-0",
+      "id": "Unicode-3.0",
+      "name": "Unicode License v3",
+      "osi": true,
+      "reference": "https://spdx.org/licenses/Unicode-3.0.html",
+      "usagePolicy": "allow"
+    },
+    {
+      "annotationRefs": ["ALLOWED"],
+      "deprecated": false,
       "family": "Unlicense",
       "id": "Unlicense",
       "name": "The Unlicense",

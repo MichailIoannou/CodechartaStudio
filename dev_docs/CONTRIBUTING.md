@@ -61,7 +61,7 @@ To unify the appearance of all commit messages we only accept commit messages wi
 - - `[ 'build', 'chore', 'ci', 'docs', 'feat', 'fix', 'perf', 'refactor', 'revert', 'style', 'test' ]`
 - Use an exclamation mark in front of the `:` to indicate a major breaking change
 - `<scope>` can be present and contain a list of the following targets:
-- - `[ 'analysis', 'visualization', 'docker', 'gh-pages', 'docs', 'readme', 'stg', 'config' ]`
+- - `[ 'analysis', 'visualization', 'core', 'docker', 'gh-pages', 'docs', 'readme', 'stg', 'config' ]`
 - The subject line always uses the **imperative mood** and is able to **complete the following sentence**:
   > If applied, this commit will ...
 
