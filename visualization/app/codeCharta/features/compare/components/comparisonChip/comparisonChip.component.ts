@@ -1,22 +1,35 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, HostListener, inject, signal } from "@angular/core"
 import { CopyToClipboardService } from "../../../../util/copyToClipboard.service"
 import { ToastService } from "../../../shared/facade"
-import type { LoadedSide, ResolvedComparison } from "../../model/compare.model"
+import type { ComparedChangeRequest, LoadedSide, ResolvedComparison } from "../../model/compare.model"
+import { gitChangeLine } from "../../selectors/deltaChangeSummary"
+import { changeRequestLabel } from "../../services/changeRequestText"
 import { CompareService } from "../../services/compare.service"
-import { rangeText, refName, sideCaption, staleBadge, staleTitle } from "../../services/comparisonText"
+import { rangeText, refName, sideCaption, staleBadge, staleCount, staleTitle } from "../../services/comparisonText"
 import { CompareStore } from "../../stores/compare.store"
 
 interface BaseModeBadge {
     text: string
+    /** The first line of the caret menu once the badge left the chip (design C2, space priority step 1). */
+    menuText: string
     title: string
 }
 
 interface ChipSide {
     caption: string
+    /** Starts with "Base:" or "Head:", which say the side once the captions are hidden. */
+    title: string
     shortCommit: string
     label: string | null
     staleBadge: string | null
+    staleCount: string | null
     staleTitle: string
+}
+
+interface ChipChangeRequest {
+    label: string
+    url: string | null
+    title: string
 }
 
 @Component({
@@ -38,6 +51,13 @@ export class ComparisonChipComponent {
     readonly base = computed(() => chipSideOf("base", this.store.state().base))
     readonly head = computed(() => chipSideOf("head", this.store.state().head))
     readonly baseModeBadge = computed(() => baseModeBadgeOf(this.store.state().resolved))
+    readonly changeRequest = computed(() => chipChangeRequestOf(this.store.state().changeRequest))
+    readonly gitLine = computed(() => {
+        const changedFiles = this.store.state().changedFiles
+        return changedFiles !== null && changedFiles !== "loading" && changedFiles.source === "git"
+            ? gitChangeLine(changedFiles.files)
+            : null
+    })
 
     @HostListener("document:click", ["$event"])
     closeMenuOnOutsideClick(event: MouseEvent): void {
@@ -68,11 +88,12 @@ export class ComparisonChipComponent {
 
     async copyAsText(): Promise<void> {
         this.isMenuOpen.set(false)
-        const { base, head, resolved } = this.store.state()
+        const { base, head, resolved, changeRequest } = this.store.state()
         if (!(base && head)) {
             return
         }
-        const text = rangeText(resolved?.baseTip ?? base.requested, head.requested, resolved?.baseMode ?? "tip")
+        const range = rangeText(resolved?.baseTip ?? base.requested, head.requested, resolved?.baseMode ?? "tip")
+        const text = changeRequest?.url ? `${range} ${changeRequest.url}` : range
         await this.clipboard.copy(text)
         this.toastService.show(`Copied ${text}`)
     }
@@ -91,18 +112,32 @@ function baseModeBadgeOf(resolved: ResolvedComparison | null): BaseModeBadge | n
     const head = refName(resolved.head.requested)
     const target = refName(resolved.baseTip ?? resolved.base.requested)
     return resolved.baseMode === "mergeBase"
-        ? { text: "since merge base", title: `Changes on '${head}' since it left '${target}'` }
-        : { text: "tip vs tip", title: "Everything that differs between the two tips" }
+        ? { text: "since merge base", menuText: "Since the merge base", title: `Changes on '${head}' since it left '${target}'` }
+        : { text: "tip vs tip", menuText: "Tip vs tip", title: "Everything that differs between the two tips" }
 }
 
-function chipSideOf(caption: string, side: LoadedSide | null): ChipSide | null {
-    return side
-        ? {
-              caption,
-              shortCommit: side.requested.shortCommit,
-              label: sideCaption(side.requested),
-              staleBadge: staleBadge(side),
-              staleTitle: side.relation ? staleTitle(side) : ""
-          }
-        : null
+function chipChangeRequestOf(changeRequest: ComparedChangeRequest | null): ChipChangeRequest | null {
+    if (!changeRequest) {
+        return null
+    }
+    const label = changeRequestLabel(changeRequest.provider, changeRequest.number)
+    const noun = changeRequest.provider === "gitlab" ? "Merge request" : "Pull request"
+    return { label, url: changeRequest.url, title: `${noun} ${label}` }
+}
+
+function chipSideOf(caption: "base" | "head", side: LoadedSide | null): ChipSide | null {
+    if (!side) {
+        return null
+    }
+    const label = sideCaption(side.requested)
+    const titleCaption = caption === "base" ? "Base:" : "Head:"
+    return {
+        caption,
+        title: [titleCaption, side.requested.shortCommit, label].filter(Boolean).join(" "),
+        shortCommit: side.requested.shortCommit,
+        label,
+        staleBadge: staleBadge(side),
+        staleCount: staleCount(side),
+        staleTitle: side.relation ? staleTitle(side) : ""
+    }
 }

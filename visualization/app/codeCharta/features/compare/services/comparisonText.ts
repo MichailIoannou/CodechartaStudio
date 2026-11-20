@@ -37,9 +37,16 @@ export function refName(commit: ComparedCommit): string {
     return commit.label.kind === "commit" ? commit.shortCommit : commit.label.name
 }
 
-/** The name shown beside the short commit, or null for a plain commit. */
+/** The name shown beside the short commit, or null for a plain commit; a request reads "PR #123" or "MR !123". */
 export function sideCaption(commit: ComparedCommit): string | null {
-    return commit.label.kind === "commit" ? null : commit.label.name
+    switch (commit.label.kind) {
+        case "commit":
+            return null
+        case "pullRequest":
+            return `${commit.label.name.startsWith("!") ? "MR" : "PR"} ${commit.label.name}`
+        default:
+            return commit.label.name
+    }
 }
 
 export function rangeText(base: ComparedCommit, head: ComparedCommit, baseMode: BaseMode): string {
@@ -122,6 +129,20 @@ export function staleBadge({ relation, behind, ahead }: Pick<LoadedSide, "relati
             return `ahead by ${ahead}`
         case "diverged":
             return `diverged ${behind}↓ ${ahead}↑`
+        default:
+            return null
+    }
+}
+
+/** The stale badge shortened to its number once the chip has little room (design C2, space priority step 3). */
+export function staleCount({ relation, behind, ahead }: Pick<LoadedSide, "relation" | "behind" | "ahead">): string | null {
+    switch (relation) {
+        case "ancestor":
+            return `${behind}`
+        case "descendant":
+            return `${ahead}`
+        case "diverged":
+            return `${behind}↓ ${ahead}↑`
         default:
             return null
     }
