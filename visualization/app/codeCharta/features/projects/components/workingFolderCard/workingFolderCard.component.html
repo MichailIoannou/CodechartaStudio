@@ -29,20 +29,28 @@
             <dd class="truncate" [title]="branch()">{{ branch() }}</dd>
             @if (upstream(); as upstream) {
                 <dt class="text-base-content/60">Upstream</dt>
-                <dd class="min-w-0">
+                <dd class="flex min-w-0 flex-col gap-1" data-testid="working-folder-upstream">
                     @if (upstream.name) {
                         <span class="truncate" [title]="upstream.name">{{ upstream.name }}</span>
                     }
-                    @if (upstream.sentence) {
-                        <span class="text-base-content/70">{{ upstream.name ? " · " : "" }}{{ upstream.sentence }}</span>
-                    } @else {
-                        @if (upstream.toPush > 0) {
-                            <span class="whitespace-nowrap"> · <i class="fa-solid fa-arrow-up"></i> {{ upstream.toPush }} to push</span>
+                    <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        @if (upstream.sentence) {
+                            <span class="text-base-content/70">{{ upstream.sentence }}</span>
+                        } @else {
+                            <span class="flex flex-wrap gap-x-1">
+                                @if (upstream.toPush > 0) {
+                                    <span class="whitespace-nowrap"><i class="fa-solid fa-arrow-up"></i> {{ upstream.toPush }} to push</span>
+                                }
+                                @if (upstream.toPush > 0 && upstream.toPull > 0) {
+                                    <span aria-hidden="true">·</span>
+                                }
+                                @if (upstream.toPull > 0) {
+                                    <span class="whitespace-nowrap"><i class="fa-solid fa-arrow-down"></i> {{ upstream.toPull }} to pull</span>
+                                }
+                            </span>
                         }
-                        @if (upstream.toPull > 0) {
-                            <span class="whitespace-nowrap"> · <i class="fa-solid fa-arrow-down"></i> {{ upstream.toPull }} to pull</span>
-                        }
-                    }
+                        <cc-sync-button />
+                    </span>
                 </dd>
             }
             @if (changes(); as changes) {

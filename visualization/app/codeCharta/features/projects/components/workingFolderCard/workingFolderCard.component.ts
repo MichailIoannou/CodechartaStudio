@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from "@angular/core"
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
-import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
+import { GitRepositoryService, isGitStatus, SyncButtonComponent } from "../../../gitHistory/facade"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, changesSentence, relativeTime, remoteDisplay, shortSha, upstreamState } from "../../util/folderWording"
 
 @Component({
     selector: "cc-working-folder-card",
     templateUrl: "./workingFolderCard.component.html",
+    imports: [SyncButtonComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "flex min-w-0 flex-col gap-2 rounded-[10px] bg-base-100 p-4" }
 })

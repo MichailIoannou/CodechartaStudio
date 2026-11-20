@@ -1,8 +1,13 @@
+import type { Provider } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { screen, within } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import type { GitStatus } from "../../../../model/coreApi/GitStatus"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
+import { WORKING_FOLDER_SOURCE } from "../../../gitHistory/facade"
+import { aLocalBranch, anUpstream, aRefs, aRepositoryInfo } from "../../../gitHistory/services/gitApi.mocks"
+import { GitConfirmationService } from "../../../gitHistory/services/gitConfirmation.service"
+import { ProjectsFacade } from "../../../projects/facade"
 import { aFolder, aProject, aSnapshot } from "../../../projects/projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../../projects/projectsTestBed.mocks"
 import { BatchAnalysisDialogService, SnapshotsDialogService } from "../../../snapshots/facade"
@@ -21,20 +26,28 @@ const STATUS: GitStatus = {
     counts: { staged: 1, unstaged: 2, untracked: 0, conflicted: 0 },
     operationInProgress: null
 }
+const REFS = aRefs({
+    localBranches: [aLocalBranch("main", { isCurrent: true, upstream: anUpstream("origin/main", { behind: 2 }) })],
+    remotes: [{ name: "origin", url: "https://example.com/acme/billing-api.git" }]
+})
+const GIT_OF_THE_WORKING_FOLDER: Provider[] = [{ provide: WORKING_FOLDER_SOURCE, useExisting: ProjectsFacade }]
 const FAILURE = { code: "JAVA_TOO_OLD" as const, message: "Java 21 is too old.", hint: "CodeCharta needs Java 22 or newer." }
 
 describe("WorkspaceStatusComponent", () => {
     let testBed: ProjectsTestBed
 
-    async function renderStatus(seed: FakeDesktopSeed = {}) {
+    async function renderStatus(seed: FakeDesktopSeed = {}, providers: Provider[] = []) {
         HTMLDialogElement.prototype.showModal = jest.fn()
-        testBed = await setUpProjects({
-            projects: [BILLING],
-            activeProjectId: "p-billing",
-            snapshots: [SHOWN],
-            gitStatuses: { "f-api": STATUS },
-            ...seed
-        })
+        testBed = await setUpProjects(
+            {
+                projects: [BILLING],
+                activeProjectId: "p-billing",
+                snapshots: [SHOWN],
+                gitStatuses: { "f-api": STATUS },
+                ...seed
+            },
+            { providers }
+        )
         await testBed.projects.showWorkingFolder()
         const fixture = TestBed.createComponent(WorkspaceStatusComponent)
         fixture.autoDetectChanges()
@@ -267,6 +280,42 @@ describe("WorkspaceStatusComponent", () => {
         expect(git).toMatch(/^main ?→ origin\/main ?0 2 3 uncommitted \(1 staged\)$/)
         expect(TestBed.inject(SnapshotsDialogService).isOpen()).toBe(true)
         expect(screen.queryByTestId("workspace-status-menu")).toBeNull()
+    })
+
+    it("should pull with the sync button of its git section", async () => {
+        // Arrange
+        await renderStatus({ git: { "f-api": { info: aRepositoryInfo(), refs: REFS } } }, GIT_OF_THE_WORKING_FOLDER)
+        jest.spyOn(TestBed.inject(GitConfirmationService), "ask").mockResolvedValue(true)
+        const menu = await openMenu()
+        const main = within(within(menu).getByTestId("workspace-status-sync")).getByTestId("sync-button-main")
+        const title = main.title
+
+        // Act
+        await userEvent.click(main)
+        await settle()
+
+        // Assert
+        expect(title).toBe("Pull 2 commits from origin/main (fast-forward only)")
+        expect(testBed.bridge.calls.filter(call => call.args[0] === "git.pull").map(call => call.args[1])).toEqual([
+            expect.objectContaining({ repo: { projectId: "p-billing", folderId: "f-api" }, mode: "ffOnly" })
+        ])
+    })
+
+    it("should keep its dropdown open while an action is chosen from the sync menu", async () => {
+        // Arrange
+        await renderStatus({ git: { "f-api": { info: aRepositoryInfo(), refs: REFS } } }, GIT_OF_THE_WORKING_FOLDER)
+        jest.spyOn(TestBed.inject(GitConfirmationService), "ask").mockResolvedValue(true)
+        const menu = await openMenu()
+
+        // Act
+        await userEvent.click(within(menu).getByTestId("sync-button-caret"))
+        await settle()
+        await userEvent.click(within(screen.getByTestId("sync-menu")).getByText("Fetch"))
+        await settle()
+
+        // Assert
+        expect(testBed.bridge.calls.some(call => call.args[0] === "git.fetch")).toBe(true)
+        expect(screen.getByTestId("workspace-status-menu")).toBeTruthy()
     })
 
     it("should word a plain working folder", async () => {

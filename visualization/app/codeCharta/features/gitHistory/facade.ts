@@ -1,6 +1,8 @@
 export { CredentialPromptDialogComponent } from "./components/credentialPromptDialog/credentialPromptDialog.component"
+export { GitDialogsComponent } from "./components/gitDialogs/gitDialogs.component"
 export { GitHistoryPanelComponent } from "./components/gitHistoryPanel/gitHistoryPanel.component"
 export { RefPickerComponent } from "./components/refPicker/refPicker.component"
+export { SyncButtonComponent } from "./components/syncButton/syncButton.component"
 export type { CommitSelection } from "./model/commitSelection"
 export { isGitStatus } from "./model/folderGitStatus"
 export { ANALYSED_COMMITS, AnalysedCommitMarker, AnalysedCommitsProvider } from "./ports/analysedCommits.port"

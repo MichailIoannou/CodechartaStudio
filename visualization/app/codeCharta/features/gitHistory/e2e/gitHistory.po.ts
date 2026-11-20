@@ -84,6 +84,10 @@ export class GitHistoryPageObject {
         return this.page.getByTestId("workspace-status-trigger")
     }
 
+    workspaceStatusMenu() {
+        return this.page.getByTestId("workspace-status-menu")
+    }
+
     confirmDialog() {
         return this.page.getByTestId("git-confirm-dialog")
     }
