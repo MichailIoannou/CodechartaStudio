@@ -32,6 +32,7 @@ cargo run -p codecharta-cored -- projects create --name demo --folder .[=<label>
 cargo run -p codecharta-cored -- projects add-folder --project <id> --path <dir> [--label <l>] [--role fork]
 cargo run -p codecharta-cored -- snapshots list --project <id> --folder <id> [--json]   # newest first; reads only
 cargo run -p codecharta-cored -- snapshots import --project <id> --folder <id> --file map.cc.json [--bind-to-commit <sha>]
+cargo run -p codecharta-cored -- git status --path <dir> [--json]   # or --project <id> --folder <id>; also git branches
 ```
 
 The `projects` and `snapshots` commands exit 0 when done, 1 when the core refused (`<ERROR_CODE>: <message>`

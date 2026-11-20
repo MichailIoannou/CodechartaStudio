@@ -118,8 +118,8 @@ async fn should_resolve_a_short_hash_to_its_commit() {
     // Assert
     assert_eq!(resolved.commit.as_str(), commit);
     assert_eq!(resolved.subject, "Add a");
-    assert_eq!(resolved.author_name, "Ada Tester");
-    assert!(resolved.author_date.starts_with("2026-01-02T03:04:05"));
+    assert_eq!(resolved.author_name, "Ada Author");
+    assert!(resolved.author_date.starts_with("2023-11-14T22:13:20"));
     assert!(commit.starts_with(&resolved.short_commit));
 }
 

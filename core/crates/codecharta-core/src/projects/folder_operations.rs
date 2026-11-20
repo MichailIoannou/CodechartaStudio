@@ -9,6 +9,7 @@ use codecharta_core_api::values::{CommitHash, Label};
 
 use crate::error::{CoreError, CoreResult};
 use crate::folders::inspector::{inspect_folder, resolve_commit};
+use crate::git::GitFolder;
 use crate::path_to_wire;
 use crate::projects::derived::status_of;
 use crate::projects::folders::{
@@ -117,6 +118,21 @@ impl ProjectRepository<'_> {
             path: PathBuf::from(&folder.path),
             kind: folder.kind,
             status: status_of(folder),
+        })
+    }
+
+    /// The folder git runs in; `FOLDER_UNAVAILABLE` while it is missing on disk.
+    pub fn git_folder(&self, target: &FolderRef) -> CoreResult<GitFolder> {
+        let folder = self.resolve_folder(target)?;
+        if folder.status != FolderStatus::Ok {
+            return Err(CoreError::FolderUnavailable(format!(
+                "The folder {} is missing.",
+                folder.path.display()
+            )));
+        }
+        Ok(GitFolder {
+            path: folder.path,
+            repo: Some(target.clone()),
         })
     }
 

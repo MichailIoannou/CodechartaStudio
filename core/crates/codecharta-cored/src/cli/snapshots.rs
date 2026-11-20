@@ -13,6 +13,7 @@ use codecharta_core_api::methods::snapshots::{SnapshotSource, SnapshotSummary};
 use codecharta_core_api::values::FullCommit;
 use serde::Serialize;
 
+use super::arguments::{parse_folder_id, parse_project_id};
 use super::output::{exit_code_of, print_json};
 
 const UNKNOWN: &str = "-";
@@ -143,14 +144,6 @@ fn print_import(outcome: &ImportOutcome, json: bool) -> CoreResult<()> {
     }
     println!("{}", outcome.snapshot.snapshot_ref.snapshot_id);
     Ok(())
-}
-
-fn parse_project_id(value: &str) -> Result<ProjectId, String> {
-    ProjectId::try_from(value).map_err(|error| error.to_string())
-}
-
-fn parse_folder_id(value: &str) -> Result<FolderId, String> {
-    FolderId::try_from(value).map_err(|error| error.to_string())
 }
 
 fn parse_full_commit(value: &str) -> Result<FullCommit, String> {

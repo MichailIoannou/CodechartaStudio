@@ -215,13 +215,13 @@ async fn should_record_git_facts_when_bound_to_an_existing_commit() {
     let git = &record["git"];
     assert_eq!(git["commit"], commit.as_str());
     assert_eq!(git["subject"], "Add b");
-    assert_eq!(git["authorName"], "Ada Tester");
+    assert_eq!(git["authorName"], "Ada Author");
     assert_eq!(git["parents"], serde_json::json!([parent]));
     assert!(
         git["commitDate"]
             .as_str()
             .unwrap()
-            .starts_with("2026-01-02T03:04:05")
+            .starts_with("2023-11-14T22:14:20")
     );
     assert_eq!(git["dirty"], false);
     assert_eq!(git["branchesAtRun"], serde_json::json!([]));

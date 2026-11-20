@@ -4,6 +4,7 @@ pub mod ids;
 pub mod methods;
 pub mod protocol;
 pub mod registry;
+pub mod secret;
 pub mod values;
 
 /// Bumped only for incompatible changes; the shell refuses a core that answers another version.

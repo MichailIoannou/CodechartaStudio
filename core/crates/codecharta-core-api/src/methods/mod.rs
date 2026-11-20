@@ -1,6 +1,8 @@
 pub mod core;
+pub mod git;
 pub mod paths;
 pub mod projects;
+pub mod prompt;
 pub mod shell;
 pub mod snapshots;
 pub mod store;

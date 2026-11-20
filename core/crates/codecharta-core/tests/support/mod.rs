@@ -5,10 +5,11 @@
 )]
 
 pub mod git_fixture;
+pub mod git_operations;
 pub mod recycler;
 pub mod store_workspace;
 
-pub use git_fixture::TempRepo;
+pub use git_fixture::{RecordingGit, TempRepo};
 pub use recycler::RecordingRecycler;
 pub use store_workspace::{StoreWorkspace, folder_ref};
 
@@ -38,7 +39,7 @@ const EXECUTABLE_BUSY_PAUSE: Duration = Duration::from_millis(10);
 /// A child that another test thread forks while the copy is being written inherits the copy's write
 /// handle until it execs, and executing the copy fails with "text file busy" meanwhile. Once one run
 /// succeeds nobody holds that handle any more, so later runs cannot hit it.
-fn wait_until_executable(installed: &Path) {
+pub fn wait_until_executable(installed: &Path) {
     for _ in 0..EXECUTABLE_BUSY_RETRIES {
         match std::process::Command::new(installed)
             .arg("--version")

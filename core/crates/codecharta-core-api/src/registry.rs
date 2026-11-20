@@ -5,12 +5,24 @@ use ts_rs::{Config, ExportError, TS};
 
 use crate::events::CoreProgress;
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
+use crate::methods::git::{
+    GitAbortOperationMethod, GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod,
+    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitMethod,
+    GitDiffFileMethod, GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod,
+    GitMeasureDistancesMethod, GitMergeBaseMethod, GitPullMethod, GitPushMethod, GitRefsAtMethod,
+    GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
+    GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
+    GitUnstageMethod, GitWorkingTreeMethod, RepositoryChangedEvent,
+};
 use crate::methods::paths::{PathsGet, PathsResetStoreRoot};
 use crate::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
     ProjectsGetActive, ProjectsInspectFolder, ProjectsList, ProjectsRefreshFolder,
     ProjectsRelinkFolder, ProjectsRemoveFolder, ProjectsResolveCommit, ProjectsSetActive,
     ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
+};
+use crate::methods::prompt::{
+    PromptAnswerMethod, PromptCancelMethod, PromptClosedEvent, PromptRequestedEvent,
 };
 use crate::methods::shell::ShellResolvePath;
 use crate::methods::snapshots::{
@@ -150,9 +162,44 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<SnapshotsImport>(),
     MethodSpec::of::<SnapshotsMove>(),
     MethodSpec::of::<SnapshotsDelete>(),
+    MethodSpec::of::<GitRepositoryInfoMethod>(),
+    MethodSpec::of::<GitStatusMethod>(),
+    MethodSpec::of::<GitBranchesMethod>(),
+    MethodSpec::of::<GitRefsFingerprintMethod>(),
+    MethodSpec::of::<GitLogMethod>(),
+    MethodSpec::of::<GitCommitDetailsMethod>(),
+    MethodSpec::of::<GitResolveCommitMethod>(),
+    MethodSpec::of::<GitRevListCountMethod>(),
+    MethodSpec::of::<GitMergeBaseMethod>(),
+    MethodSpec::of::<GitIsAncestorMethod>(),
+    MethodSpec::of::<GitMeasureDistancesMethod>(),
+    MethodSpec::of::<GitRefsAtMethod>(),
+    MethodSpec::of::<GitChangedFilesMethod>(),
+    MethodSpec::of::<GitFetchMethod>(),
+    MethodSpec::of::<GitSwitchMethod>(),
+    MethodSpec::of::<GitBranchCreateMethod>(),
+    MethodSpec::of::<GitBranchRenameMethod>(),
+    MethodSpec::of::<GitBranchDeleteMethod>(),
+    MethodSpec::of::<GitSetUpstreamMethod>(),
+    MethodSpec::of::<GitWorkingTreeMethod>(),
+    MethodSpec::of::<GitDiffFileMethod>(),
+    MethodSpec::of::<GitStageMethod>(),
+    MethodSpec::of::<GitUnstageMethod>(),
+    MethodSpec::of::<GitDiscardMethod>(),
+    MethodSpec::of::<GitCommitMethod>(),
+    MethodSpec::of::<GitPullMethod>(),
+    MethodSpec::of::<GitPushMethod>(),
+    MethodSpec::of::<GitAbortOperationMethod>(),
+    MethodSpec::of::<PromptAnswerMethod>(),
+    MethodSpec::of::<PromptCancelMethod>(),
 ];
 
-pub const EVENTS: &[EventSpec] = &[EventSpec::of::<CoreProgress>()];
+pub const EVENTS: &[EventSpec] = &[
+    EventSpec::of::<CoreProgress>(),
+    EventSpec::of::<RepositoryChangedEvent>(),
+    EventSpec::of::<PromptRequestedEvent>(),
+    EventSpec::of::<PromptClosedEvent>(),
+];
 
 pub const CLIENT_NOTIFICATIONS: &[EventSpec] = &[EventSpec::of::<CoreCancel>()];
 

@@ -8,6 +8,15 @@ use codecharta_core_api::events::{CoreProgress, ProgressParams};
 use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
+use codecharta_core_api::methods::git::{
+    GitAbortOperationMethod, GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod,
+    GitBranchesMethod, GitChangedFilesMethod, GitCommitDetailsMethod, GitCommitMethod,
+    GitDiffFileMethod, GitDiscardMethod, GitFetchMethod, GitIsAncestorMethod, GitLogMethod,
+    GitMeasureDistancesMethod, GitMergeBaseMethod, GitPullMethod, GitPushMethod, GitRefsAtMethod,
+    GitRefsFingerprintMethod, GitRepositoryInfoMethod, GitResolveCommitMethod,
+    GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
+    GitUnstageMethod, GitWorkingTreeMethod,
+};
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot};
 use codecharta_core_api::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
@@ -15,6 +24,7 @@ use codecharta_core_api::methods::projects::{
     ProjectsRelinkFolder, ProjectsRemoveFolder, ProjectsResolveCommit, ProjectsSetActive,
     ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
 };
+use codecharta_core_api::methods::prompt::{PromptAnswerMethod, PromptCancelMethod};
 use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
 use codecharta_core_api::methods::snapshots::{
     SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
@@ -31,7 +41,9 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
-use super::{projects_routes, snapshots_routes, store_routes, tools_routes};
+use super::{
+    git_routes, projects_routes, prompt_routes, snapshots_routes, store_routes, tools_routes,
+};
 
 pub type DispatchResult = Result<Value, ResponseError>;
 pub type HandlerFuture<'core> = Pin<Box<dyn Future<Output = DispatchResult> + Send + 'core>>;
@@ -186,6 +198,126 @@ const ROUTES: &[Route] = &[
     Route {
         name: SnapshotsDelete::NAME,
         handler: snapshots_routes::delete,
+    },
+    Route {
+        name: GitRepositoryInfoMethod::NAME,
+        handler: git_routes::repository_info,
+    },
+    Route {
+        name: GitStatusMethod::NAME,
+        handler: git_routes::status,
+    },
+    Route {
+        name: GitBranchesMethod::NAME,
+        handler: git_routes::branches,
+    },
+    Route {
+        name: GitRefsFingerprintMethod::NAME,
+        handler: git_routes::refs_fingerprint,
+    },
+    Route {
+        name: GitLogMethod::NAME,
+        handler: git_routes::log,
+    },
+    Route {
+        name: GitCommitDetailsMethod::NAME,
+        handler: git_routes::commit_details,
+    },
+    Route {
+        name: GitResolveCommitMethod::NAME,
+        handler: git_routes::resolve_commit,
+    },
+    Route {
+        name: GitRevListCountMethod::NAME,
+        handler: git_routes::rev_list_count,
+    },
+    Route {
+        name: GitMergeBaseMethod::NAME,
+        handler: git_routes::merge_base,
+    },
+    Route {
+        name: GitIsAncestorMethod::NAME,
+        handler: git_routes::is_ancestor,
+    },
+    Route {
+        name: GitMeasureDistancesMethod::NAME,
+        handler: git_routes::measure_distances,
+    },
+    Route {
+        name: GitRefsAtMethod::NAME,
+        handler: git_routes::refs_at,
+    },
+    Route {
+        name: GitChangedFilesMethod::NAME,
+        handler: git_routes::changed_files,
+    },
+    Route {
+        name: GitFetchMethod::NAME,
+        handler: git_routes::fetch,
+    },
+    Route {
+        name: GitSwitchMethod::NAME,
+        handler: git_routes::switch,
+    },
+    Route {
+        name: GitBranchCreateMethod::NAME,
+        handler: git_routes::branch_create,
+    },
+    Route {
+        name: GitBranchRenameMethod::NAME,
+        handler: git_routes::branch_rename,
+    },
+    Route {
+        name: GitBranchDeleteMethod::NAME,
+        handler: git_routes::branch_delete,
+    },
+    Route {
+        name: GitSetUpstreamMethod::NAME,
+        handler: git_routes::set_upstream,
+    },
+    Route {
+        name: GitWorkingTreeMethod::NAME,
+        handler: git_routes::working_tree,
+    },
+    Route {
+        name: GitDiffFileMethod::NAME,
+        handler: git_routes::diff_file,
+    },
+    Route {
+        name: GitStageMethod::NAME,
+        handler: git_routes::stage,
+    },
+    Route {
+        name: GitUnstageMethod::NAME,
+        handler: git_routes::unstage,
+    },
+    Route {
+        name: GitDiscardMethod::NAME,
+        handler: git_routes::discard,
+    },
+    Route {
+        name: GitCommitMethod::NAME,
+        handler: git_routes::commit,
+    },
+    Route {
+        name: GitPullMethod::NAME,
+        handler: git_routes::pull,
+    },
+    Route {
+        name: GitPushMethod::NAME,
+        handler: git_routes::push,
+    },
+    Route {
+        name: GitAbortOperationMethod::NAME,
+        handler: git_routes::abort_operation,
+    },
+    Route {
+        name: PromptAnswerMethod::NAME,
+        handler: prompt_routes::answer,
+    },
+    Route {
+        name: PromptCancelMethod::NAME,
+        handler: prompt_routes::cancel,
     },
 ];
 
