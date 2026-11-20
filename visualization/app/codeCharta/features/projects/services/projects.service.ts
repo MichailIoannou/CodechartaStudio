@@ -328,6 +328,11 @@ export class ProjectsService {
         return this.request("projects.pickFolder", { title })
     }
 
+    async readSourceFile(folder: FolderRef, relativePath: string): Promise<Uint8Array | null> {
+        const sourceFile = await this.request("projects.readSourceFile", { ...folder, relativePath })
+        return sourceFile?.bytes ?? null
+    }
+
     async revealFolder(folderId: string): Promise<void> {
         try {
             await this.request("projects.revealFolder", this.folderRef(folderId))

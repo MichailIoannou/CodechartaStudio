@@ -107,6 +107,8 @@ export interface FakeDesktopSeed {
     pickedFolders?: PickedFolder[]
     pickedImportFile?: PickedImportFile
     snapshotMaps?: Record<string, number[]>
+    /** By `<folderId>/<relativePath>`: what `projects.readSourceFile` reads; every other file is not found. */
+    sourceFiles?: Record<string, string>
     /** By folder id. */
     git?: Record<string, FakeGitRepository>
     /** Shorthands for `git` with only a status or only commits. */
@@ -159,6 +161,7 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     offset?: number
     length?: number
     repo?: FolderRef
+    relativePath?: string
     sha?: string
     revision?: string
     scope?: GitLogParams["scope"]
@@ -223,6 +226,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         pickedImportFiles: new Map<string, PickedImportFile>(),
         importedContent: new Map<string, FolderRef & { snapshotId: string }>(),
         snapshotMaps: { ...seed.snapshotMaps },
+        sourceFiles: { ...seed.sourceFiles },
         git: JSON.parse(JSON.stringify(seed.git ?? {})) as Record<string, FakeGitRepository>,
         commits: { ...seed.commits },
         jobs: JSON.parse(JSON.stringify(seed.analysisJobs ?? [])) as AnalysisJob[],
@@ -641,6 +645,11 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         const map = store.snapshotMaps[snapshotId]
         const offset = params.offset ?? 0
         return succeed({ bytes: new Uint8Array(map.slice(offset, offset + (params.length ?? 0))), offset, totalBytes: map.length })
+    }
+
+    function readSourceFile(params: FakeRequestParams) {
+        const key = `${params.folderId}/${params.relativePath}`
+        return succeed(Object.hasOwn(store.sourceFiles, key) ? { bytes: new TextEncoder().encode(store.sourceFiles[key]) } : null)
     }
 
     function storeUsage(params: FakeRequestParams) {
@@ -1470,7 +1479,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "projects.setActive": setActive,
         "projects.setView": setView,
         "projects.pickFolder": pickProjectFolder,
-        "projects.readSourceFile": () => succeed(null),
+        "projects.readSourceFile": readSourceFile,
         "projects.revealFolder": () => succeed(null),
         "projects.resolveCommit": resolveCommit,
         "snapshots.list": listSnapshots,
