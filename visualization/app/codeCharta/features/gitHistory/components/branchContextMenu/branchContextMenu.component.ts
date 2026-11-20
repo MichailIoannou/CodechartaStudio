@@ -5,6 +5,7 @@ import type { GitRemoteBranch } from "../../../../model/coreApi/GitRemoteBranch"
 import { ContextMenuItemComponent, FloatingMenuAnchor, FloatingMenuComponent } from "../../../shared/facade"
 import { BranchActionsService } from "../../services/branchActions.service"
 import { GitOperationService } from "../../services/gitOperation.service"
+import { SyncActionsService } from "../../services/syncActions.service"
 import { BranchMenuAction, BranchMenuItem, branchMenuItems } from "../../util/branchMenu"
 import type { BranchRef } from "../../util/branchTree"
 
@@ -25,6 +26,7 @@ const STEPS: Readonly<Record<string, number>> = { ArrowDown: 1, ArrowUp: -1 }
 })
 export class BranchContextMenuComponent {
     private readonly actions = inject(BranchActionsService)
+    private readonly sync = inject(SyncActionsService)
     private readonly operations = inject(GitOperationService)
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
     private readonly injector = inject(Injector)
@@ -89,6 +91,12 @@ export class BranchContextMenuComponent {
                 break
             case "setUpstream":
                 this.actions.openDialog({ kind: "setUpstream", branch })
+                break
+            case "push":
+                void this.sync.push(branch)
+                break
+            case "forcePush":
+                void this.sync.forcePush(branch)
                 break
         }
     }

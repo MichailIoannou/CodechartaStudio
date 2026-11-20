@@ -1,0 +1,18 @@
+@if (notice(); as notice) {
+    <div role="status" class="alert alert-warning mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="history-operation-notice">
+        <span class="flex-1" data-testid="history-operation-notice-text">{{ notice.text }}</span>
+        @if (notice.abortable; as operation) {
+            <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                data-testid="history-operation-abort"
+                [disabled]="isBusy()"
+                [title]="isBusy() ? waitingTitle : ''"
+                (click)="abort()"
+            >
+                Abort {{ operation }}…
+            </button>
+        }
+        <button type="button" class="btn btn-ghost btn-xs" data-testid="history-operation-refresh" (click)="refresh()">Refresh</button>
+    </div>
+}

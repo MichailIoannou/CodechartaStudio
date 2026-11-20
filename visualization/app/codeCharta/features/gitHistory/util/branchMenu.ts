@@ -1,6 +1,16 @@
 import type { BranchRef } from "./branchTree"
+import { forcePushReasonOf, pushReasonOf } from "./syncState"
 
-export type BranchMenuAction = "switch" | "newBranch" | "rename" | "delete" | "setUpstream" | "checkOutAsNew" | "deleteRemote"
+export type BranchMenuAction =
+    | "switch"
+    | "newBranch"
+    | "rename"
+    | "delete"
+    | "setUpstream"
+    | "push"
+    | "forcePush"
+    | "checkOutAsNew"
+    | "deleteRemote"
 
 export interface BranchMenuItem {
     action: BranchMenuAction
@@ -21,6 +31,8 @@ const ITEMS: Readonly<Record<BranchMenuAction, ItemTemplate>> = {
     rename: { action: "rename", label: "Rename…", icon: "fa-solid fa-i-cursor", hint: "" },
     delete: { action: "delete", label: "Delete…", icon: "fa-solid fa-trash", hint: "" },
     setUpstream: { action: "setUpstream", label: "Set Upstream…", icon: "fa-solid fa-link", hint: "" },
+    push: { action: "push", label: "Push", icon: "fa-solid fa-arrow-up", hint: "" },
+    forcePush: { action: "forcePush", label: "Force Push (with Lease)…", icon: "fa-solid fa-arrow-up", hint: "" },
     checkOutAsNew: {
         action: "checkOutAsNew",
         label: "Check Out as New Local Branch…",
@@ -30,10 +42,10 @@ const ITEMS: Readonly<Record<BranchMenuAction, ItemTemplate>> = {
     deleteRemote: { action: "deleteRemote", label: "Delete from Remote…", icon: "fa-solid fa-trash", hint: "" }
 }
 
-/** Design H10 branch menu, without the entries of later milestones (Push, Force Push, Compare with…). */
+/** Design H10 branch menu, without Compare with… of area 06. */
 const ACTIONS_BY_KIND: Readonly<Record<"current" | BranchRef["kind"], readonly BranchMenuAction[]>> = {
-    current: ["rename", "setUpstream"],
-    local: ["switch", "newBranch", "rename", "delete", "setUpstream"],
+    current: ["rename", "push", "setUpstream"],
+    local: ["switch", "newBranch", "rename", "delete", "setUpstream", "push", "forcePush"],
     remote: ["checkOutAsNew", "newBranch", "deleteRemote"],
     tag: ["newBranch"]
 }
@@ -46,7 +58,14 @@ export function branchMenuItems(ref: BranchRef, isBusy: boolean): BranchMenuItem
     const worktreePath = ref.local?.checkedOutInOtherWorktree ?? null
     return ACTIONS_BY_KIND[kind].map(action => {
         const worktreeReason = worktreePath && WORKTREE_BOUND.has(action) ? `Checked out in ${worktreePath}` : null
-        const disabledReason = isBusy ? WAITING_FOR_OPERATION : worktreeReason
+        const disabledReason = isBusy ? WAITING_FOR_OPERATION : (worktreeReason ?? syncReasonOf(action, ref))
         return { ...ITEMS[action], disabledReason }
     })
+}
+
+function syncReasonOf(action: BranchMenuAction, ref: BranchRef): string | null {
+    if (action === "push") {
+        return pushReasonOf(ref.local)
+    }
+    return action === "forcePush" ? forcePushReasonOf(ref.local) : null
 }

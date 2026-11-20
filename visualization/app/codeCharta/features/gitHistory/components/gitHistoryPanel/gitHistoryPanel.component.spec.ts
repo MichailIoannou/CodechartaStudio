@@ -213,6 +213,16 @@ describe("GitHistoryPanelComponent", () => {
         expect(screen.queryByTestId("history-shallow-notice")).toBeNull()
     })
 
+    it("should show the merge in progress above the panes", async () => {
+        // Arrange & Act
+        await renderPanel({
+            git: { "f-api": { info: aRepositoryInfo(), status: aStatusOn("main", { operationInProgress: "merge" }), refs: aRefs() } }
+        })
+
+        // Assert
+        expect(screen.getByTestId("history-operation-notice").textContent).toContain("Merging into 'main'.")
+    })
+
     it("should refresh on F5 inside the history without letting the key through", async () => {
         // Arrange
         const { bridge, fixture } = await renderPanel()

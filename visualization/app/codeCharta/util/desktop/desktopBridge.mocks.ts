@@ -104,7 +104,7 @@ interface FakeGitRepository {
     diffs?: Record<string, GitDiff>
     /** What `git.pull` answers for a mode instead of pulling. */
     pullRefusals?: Partial<Record<GitPullMode, ErrorPayload>>
-    /** The paths a merge or rebase pull stops on; the merge or rebase then stays in progress. */
+    /** The paths a merge or rebase pull stops on; the merge or rebase then stays in progress. Without them every mode moves the branch onto its upstream. */
     pullConflicts?: string[]
 }
 
@@ -1094,9 +1094,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         if (mode !== "ffOnly" && conflicts.length > 0) {
             return stopOnConflicts(repository, mode, conflicts)
         }
-        if (mode === "ffOnly") {
-            moveCurrentBranch(repository, branch, remote.commit)
-        }
+        moveCurrentBranch(repository, branch, remote.commit)
         track(repository, branch, { ...branch.upstream, behind: 0 })
         return null
     }

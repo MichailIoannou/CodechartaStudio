@@ -25,7 +25,9 @@ export interface GitActivity {
 }
 
 const GIT_ACTIVITIES: Partial<Record<RunningGitOperation["kind"], { label: string; icon: string }>> = {
-    fetch: { label: "Fetching", icon: "fa-solid fa-cloud-arrow-down motion-safe:animate-pulse" }
+    fetch: { label: "Fetching", icon: "fa-solid fa-cloud-arrow-down motion-safe:animate-pulse" },
+    pull: { label: "Pulling", icon: "fa-solid fa-arrow-down motion-safe:animate-pulse" },
+    push: { label: "Pushing", icon: "fa-solid fa-arrow-up motion-safe:animate-pulse" }
 }
 const FULL_PERCENT = 100
 

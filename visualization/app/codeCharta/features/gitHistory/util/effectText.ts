@@ -1,3 +1,5 @@
+import type { GitAbortableOperation } from "../../../model/coreApi/GitAbortableOperation"
+import type { GitPullMode } from "../../../model/coreApi/GitPullMode"
 import { counted } from "../../../util/wording"
 
 /** A confirmation as design H15 words it; `verb` marks a destructive one (Cancel + verb), else it is No / Yes. */
@@ -109,4 +111,73 @@ function namedFiles(paths: readonly string[]): string {
     const rest = paths.length - named.length
     const parts = rest > 0 ? [...named, `${rest} more`] : named
     return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`
+}
+
+/** A question design H15 answers with one of several actions besides Cancel; none of them is the default. */
+export interface GitChoice<Value extends string> {
+    title: string
+    text: string
+    options: readonly { value: Value; label: string }[]
+}
+
+export interface Divergence {
+    branch: string
+    upstream: string
+    /** Null when git could not count the commits. */
+    ahead: number | null
+    behind: number | null
+}
+
+export function pullChoice({ branch, upstream, ahead, behind }: Divergence): GitChoice<Exclude<GitPullMode, "ffOnly">> {
+    const counts = ahead !== null && behind !== null ? ` (${ahead} local, ${behind} remote commits)` : ""
+    return {
+        title: "Branches Have Diverged",
+        text: `'${branch}' and '${upstream}' have diverged${counts}. Choose how to combine them:`,
+        options: [
+            { value: "merge", label: "Merge" },
+            { value: "rebase", label: "Rebase my commits" }
+        ]
+    }
+}
+
+export interface ForcePushEffect {
+    upstream: string
+    remoteSha: string
+    branch: string
+    localSha: string
+    /** The remote's commits the branch does not have. */
+    removed: number
+}
+
+export function forcePushConfirmation({ upstream, remoteSha, branch, localSha, removed }: ForcePushEffect): GitConfirmation {
+    const fate = removed === 1 ? "is not in your branch is removed" : "are not in your branch are removed"
+    return {
+        title: "Force Push",
+        text:
+            `Replace '${upstream}' (at ${remoteSha}) with your '${branch}' (at ${localSha})? ${counted(removed, "commit")} on the remote that ` +
+            `${fate} from it. The push fails if the remote moved since ${remoteSha}.`,
+        verb: "Force push"
+    }
+}
+
+/** `branch` is null while git has no branch checked out, as during a rebase. */
+export function abortConfirmation(operation: GitAbortableOperation, branch: string | null): GitConfirmation {
+    const target = branch ? quoted(branch) : "the branch"
+    return {
+        title: operation === "merge" ? "Abort Merge" : "Abort Rebase",
+        text: `Abort the ${operation} and return ${target} to the state before the pull? Changes made while resolving are lost.`,
+        verb: `Abort ${operation}`
+    }
+}
+
+export function pullResult(commits: number): string {
+    return commits === 0 ? "Already up to date" : `Pulled ${counted(commits, "commit")}`
+}
+
+export function pushResult(commits: number, upstream: string): string {
+    return `Pushed ${counted(commits, "commit")} to ${upstream}`
+}
+
+export function publishResult(branch: string, remote: string): string {
+    return `Published '${branch}' to ${remote}`
 }
