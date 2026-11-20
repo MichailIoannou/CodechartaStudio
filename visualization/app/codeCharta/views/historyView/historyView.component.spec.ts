@@ -5,7 +5,7 @@ import { provideRouter } from "@angular/router"
 import { render, screen } from "@testing-library/angular"
 import { GitHistoryPanelComponent } from "../../features/gitHistory/facade"
 import { GlobalConfigurationOpener } from "../../features/globalSettings/facade"
-import { RelinkFolderComponent } from "../../features/projects/facade"
+import { ProjectsFacade, RelinkFolderComponent } from "../../features/projects/facade"
 import { routePaths } from "../../routing/routePaths"
 import { createFakeDesktopBridge } from "../../util/desktop/desktopBridge.mocks"
 import { DESKTOP_BRIDGE } from "../../util/desktop/desktopBridge.token"
@@ -13,6 +13,11 @@ import { HistoryViewComponent } from "./historyView.component"
 
 const openConfiguration = jest.fn()
 const startRelink = jest.fn()
+const projectsFacade = {
+    activeProject: () => ({ id: "p-billing" }),
+    chooseFolder: jest.fn().mockResolvedValue(undefined),
+    openFolderMenu: jest.fn()
+}
 
 @Component({ selector: "cc-relink-folder", template: "" })
 class RelinkFolderStubComponent {
@@ -29,7 +34,8 @@ describe("HistoryViewComponent", () => {
             providers: [
                 provideRouter([{ path: routePaths.metrics, children: [] }]),
                 { provide: DESKTOP_BRIDGE, useValue: isDesktop ? createFakeDesktopBridge() : null },
-                { provide: GlobalConfigurationOpener, useValue: { openGlobalConfiguration: openConfiguration } }
+                { provide: GlobalConfigurationOpener, useValue: { openGlobalConfiguration: openConfiguration } },
+                { provide: ProjectsFacade, useValue: projectsFacade }
             ]
         })
     }
@@ -37,6 +43,8 @@ describe("HistoryViewComponent", () => {
     beforeEach(() => {
         openConfiguration.mockReset()
         startRelink.mockReset()
+        projectsFacade.chooseFolder.mockClear()
+        projectsFacade.openFolderMenu.mockClear()
     })
 
     it("should explain that commit history needs the desktop app in the web build", async () => {
@@ -80,5 +88,29 @@ describe("HistoryViewComponent", () => {
 
         // Assert
         expect(startRelink).toHaveBeenCalledWith({ id: "f-api", label: "billing-api" })
+    })
+
+    it("should make the folder the panel names the working folder of the active project", async () => {
+        // Arrange
+        const { fixture } = await renderView({ isDesktop: true })
+        const panel = fixture.debugElement.query(By.directive(GitHistoryPanelComponent)).componentInstance as GitHistoryPanelComponent
+
+        // Act
+        panel.workInFolder.emit({ id: "f-web", label: "billing-web" })
+
+        // Assert
+        expect(projectsFacade.chooseFolder).toHaveBeenCalledWith({ projectId: "p-billing", folderId: "f-web" })
+    })
+
+    it("should open the project menu when the panel asks to choose the working folder", async () => {
+        // Arrange
+        const { fixture } = await renderView({ isDesktop: true })
+        const panel = fixture.debugElement.query(By.directive(GitHistoryPanelComponent)).componentInstance as GitHistoryPanelComponent
+
+        // Act
+        panel.chooseWorkingFolder.emit()
+
+        // Assert
+        expect(projectsFacade.openFolderMenu).toHaveBeenCalled()
     })
 })

@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from "@angular/core"
 import { ToastAction, ToastService } from "../../services/toast.service"
+import { CopyCommandComponent } from "../copyCommand/copyCommand.component"
 
 @Component({
     selector: "cc-toast",
     templateUrl: "./toast.component.html",
+    imports: [CopyCommandComponent],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ToastComponent {

@@ -119,6 +119,24 @@ describe("ToastComponent", () => {
         expect(details.getAttribute("aria-expanded")).toBe("false")
     })
 
+    it("should show each command as an always visible copy block", async () => {
+        // Arrange
+        const commands = ['git config --global user.name "Your Name"', 'git config --global user.email "you@example.com"']
+
+        // Act
+        await renderComponent({
+            messages: (() => [
+                { id: 4, text: "Git does not know who you are.", severity: "error" as const, commands, details: "fatal" }
+            ]) as unknown as ToastService["messages"]
+        })
+
+        // Assert
+        expect(screen.getAllByTestId("copy-command").map(block => block.textContent?.trim())).toEqual(commands)
+        expect(screen.getAllByRole("button", { name: "Copy command" })).toHaveLength(2)
+        expect(screen.queryByTestId("toast-details")).toBe(null)
+        expect(screen.getAllByTestId("copy-command")[0].closest(".alert")?.classList).toContain("grid-cols-[minmax(0,1fr)_auto]")
+    })
+
     it("should stack the messages at the top right just below the nav bar", async () => {
         // Act
         await renderComponent({ messages: (() => []) as ToastService["messages"] })

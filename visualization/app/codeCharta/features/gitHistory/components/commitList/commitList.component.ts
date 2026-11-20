@@ -39,6 +39,8 @@ const WIDE_LABEL_LIMIT = 3
 const NARROW_LABEL_LIMIT = 1
 /** Room for the `+n` beside the drawn lanes. */
 const HIDDEN_LANES_ROOM_PX = 24
+/** The column header "Graph" needs this much, even when one lane is narrower. */
+const GRAPH_HEADER_MIN_PX = 52
 /** Where a menu opened from the keyboard appears: inset from the row's left edge, under the row. */
 const KEYBOARD_MENU_INSET_PX = 24
 const COMMIT_COLUMN = "minmax(0,1fr)"
@@ -157,7 +159,8 @@ export class CommitListComponent {
     })
     private readonly graphColumnWidth = computed(() => {
         const laneCount = maxLaneCount(this.log.graphRows())
-        return graphWidthFor(Math.max(1, laneCount)) + (laneCount > MAX_DRAWN_LANES ? HIDDEN_LANES_ROOM_PX : 0)
+        const lanesWidth = graphWidthFor(Math.max(1, laneCount)) + (laneCount > MAX_DRAWN_LANES ? HIDDEN_LANES_ROOM_PX : 0)
+        return Math.max(GRAPH_HEADER_MIN_PX, lanesWidth)
     })
     readonly firstPageFailure = computed(() => {
         const failure = failureOf(this.log.page())

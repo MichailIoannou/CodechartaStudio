@@ -1,5 +1,10 @@
 @if (isDesktop()) {
-    <cc-git-history-panel (relinkFolder)="relink.start($event)" (openDesktopTools)="openDesktopTools()" />
+    <cc-git-history-panel
+        (relinkFolder)="relink.start($event)"
+        (openDesktopTools)="openDesktopTools()"
+        (workInFolder)="workIn($event)"
+        (chooseWorkingFolder)="chooseWorkingFolder()"
+    />
     <cc-relink-folder #relink />
 } @else {
     <div class="flex h-full flex-col items-center justify-center gap-3" data-testid="history-desktop-only">

@@ -11,6 +11,8 @@ export interface ToastOptions {
     /** The full technical message, shown on "Details". */
     readonly details?: string
     readonly action?: ToastAction
+    /** Shell commands the user must run, each shown as a copy block. */
+    readonly commands?: readonly string[]
 }
 
 export interface ToastMessage extends ToastOptions {

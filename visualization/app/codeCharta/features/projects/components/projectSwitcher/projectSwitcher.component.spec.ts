@@ -197,6 +197,19 @@ describe("ProjectSwitcherComponent", () => {
         expect(document.activeElement).toBe(trigger)
     })
 
+    it("should open with the working folder focused when another view asks to choose the working folder", async () => {
+        // Arrange
+        await renderSwitcher()
+
+        // Act
+        testBed.projects.requestFolderMenu()
+        await settle()
+
+        // Assert
+        expect(screen.getByTestId("project-switcher-menu")).not.toBeNull()
+        expect((document.activeElement as HTMLElement).dataset.testid).toBe("project-switcher-folder-billing-api")
+    })
+
     it("should expand and collapse a project with the arrow keys", async () => {
         // Arrange
         await renderSwitcher()

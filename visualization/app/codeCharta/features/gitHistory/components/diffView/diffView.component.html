@@ -9,6 +9,13 @@
                 <div class="skeleton h-4 w-full"></div>
             }
         </div>
+    } @else if (isTooLarge()) {
+        <div class="flex flex-1 flex-col items-center justify-center gap-2 p-4" data-testid="diff-too-large">
+            <p class="max-w-lg text-center text-sm text-base-content/60">
+                This diff is too large to show (over 4 MB). Run this in a terminal to see it:
+            </p>
+            <cc-copy-command class="max-w-lg" [command]="terminalDiffCommand()" />
+        </div>
     } @else if (failure(); as sentence) {
         <div role="alert" class="alert alert-error m-2 flex px-2 py-1 text-xs" data-testid="diff-failure">
             <span class="flex-1">{{ sentence }}</span>

@@ -14,6 +14,7 @@ export { BootLoadingIndicatorComponent } from "./components/bootLoadingIndicator
 export { ColumnResizeHandleDirective } from "./components/columnResizeHandle/columnResizeHandle.directive"
 export { ConfirmDialogComponent } from "./components/confirmDialog/confirmDialog.component"
 export { ContextMenuItemComponent } from "./components/contextMenuItem/contextMenuItem.component"
+export { CopyCommandComponent } from "./components/copyCommand/copyCommand.component"
 export { ErrorDialogComponent } from "./components/errorDialog/errorDialog.component"
 export { FloatingMenuAnchor, FloatingMenuComponent } from "./components/floatingMenu/floatingMenu.component"
 export { InlineColorPickerComponent } from "./components/inlineColorPicker/inlineColorPicker.component"

@@ -89,6 +89,10 @@ describe("ChangesPanelComponent", () => {
             "deleted legacy.ts src/old",
             "untracked notes.md"
         ])
+        const softBadges = screen
+            .getAllByTestId("change-row")
+            .map(element => element.querySelector(".badge")?.classList.contains("badge-soft"))
+        expect(softBadges).toEqual([false, true, true, true, true, true])
         expect(groupActions()).toEqual(["Unstage all", "Stage all"])
     })
 

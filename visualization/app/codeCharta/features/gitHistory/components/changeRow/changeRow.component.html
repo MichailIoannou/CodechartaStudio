@@ -1,4 +1,9 @@
-<span class="badge badge-soft badge-xs w-16 shrink-0 justify-center font-normal" [class]="badge().toneClass" [title]="badge().title ?? ''">{{
+<span
+    class="badge badge-xs w-16 shrink-0 justify-center font-normal"
+    [class]="badge().toneClass"
+    [class.badge-soft]="!badge().isSolid"
+    [title]="badge().title ?? ''"
+>{{
     badge().label
 }}</span>
 <span class="truncate" [title]="row().entry.path">{{ name() }}</span>

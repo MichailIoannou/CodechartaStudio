@@ -48,13 +48,13 @@ describe("changedFileText", () => {
             entryBadgeOf({ kind: "conflicted", change: "modified" }),
             entryBadgeOf({ kind: "untracked", change: "added" }),
             entryBadgeOf({ kind: "staged", change: "deleted" })
-        ].map(badge => [badge.label, badge.toneClass])
+        ].map(badge => [badge.label, badge.toneClass, badge.isSolid ?? false])
 
         // Assert
         expect(labels).toEqual([
-            ["conflict", "badge-warning"],
-            ["untracked", "badge-ghost"],
-            ["deleted", "badge-error"]
+            ["conflict", "badge-warning", true],
+            ["untracked", "badge-ghost", false],
+            ["deleted", "badge-error", false]
         ])
     })
 

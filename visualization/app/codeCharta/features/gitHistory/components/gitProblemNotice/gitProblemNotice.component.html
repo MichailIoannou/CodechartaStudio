@@ -2,19 +2,7 @@
     <i class="fa-solid fa-triangle-exclamation text-2xl text-warning"></i>
     <p class="text-sm">{{ notice().text }}</p>
     @if (notice().command; as command) {
-        <div class="flex max-w-full items-center gap-1 rounded-md bg-base-200 px-2 py-1 font-mono text-xs">
-            <code class="truncate" [title]="command">{{ command }}</code>
-            <button
-                type="button"
-                class="btn btn-ghost btn-xs btn-square"
-                title="Copy command"
-                aria-label="Copy command"
-                data-testid="git-problem-copy-command"
-                (click)="copyCommand(command)"
-            >
-                <i [class]="clipboard.copied() ? 'fa-solid fa-check' : 'fa-regular fa-copy'"></i>
-            </button>
-        </div>
+        <cc-copy-command [command]="command" />
     }
     @switch (notice().action) {
         @case ("openDesktopTools") {
@@ -22,6 +10,14 @@
         }
         @case ("relinkFolder") {
             <button type="button" class="btn btn-sm" (click)="relinkFolder.emit()">Re-link folder…</button>
+        }
+        @case ("workInFolder") {
+            @if (notice().workInFolder; as folder) {
+                <button type="button" class="btn btn-sm" (click)="workInFolder.emit(folder)">Work in '{{ folder.label }}'</button>
+            }
+        }
+        @case ("chooseWorkingFolder") {
+            <button type="button" class="btn btn-sm" (click)="chooseWorkingFolder.emit()">Choose working folder…</button>
         }
     }
 </div>

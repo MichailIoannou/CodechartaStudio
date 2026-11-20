@@ -144,6 +144,44 @@ describe("GitHistoryPanelComponent", () => {
         expect(relink).toHaveBeenCalledWith({ id: "f-api", label: "billing-api" })
     })
 
+    it("should offer the one other git folder of the project when the working folder is not a repository", async () => {
+        // Arrange
+        const project = aProject("p-billing", [
+            API_FOLDER,
+            aFolder("f-web", { label: "billing-web" }),
+            aFolder("f-docs", { kind: "plain" })
+        ])
+        provideGitHistory({ git: { "f-api": { failures: { "git.repositoryInfo": anErrorPayload("NOT_A_REPOSITORY") } } } }, project)
+        const { fixture, detectChanges } = await render(GitHistoryPanelComponent)
+        await settleGit()
+        detectChanges()
+        const workIn = jest.fn()
+        fixture.componentInstance.workInFolder.subscribe(workIn)
+
+        // Act
+        fireEvent.click(screen.getByRole("button", { name: "Work in 'billing-web'" }))
+
+        // Assert
+        expect(workIn).toHaveBeenCalledWith({ id: "f-web", label: "billing-web" })
+    })
+
+    it("should ask to choose the working folder when the project has several other git folders", async () => {
+        // Arrange
+        const project = aProject("p-billing", [API_FOLDER, aFolder("f-web"), aFolder("f-app"), aFolder("f-gone", { status: "missing" })])
+        provideGitHistory({ git: { "f-api": { failures: { "git.repositoryInfo": anErrorPayload("NOT_A_REPOSITORY") } } } }, project)
+        const { fixture, detectChanges } = await render(GitHistoryPanelComponent)
+        await settleGit()
+        detectChanges()
+        const choose = jest.fn()
+        fixture.componentInstance.chooseWorkingFolder.subscribe(choose)
+
+        // Act
+        fireEvent.click(screen.getByRole("button", { name: "Choose working folder…" }))
+
+        // Assert
+        expect(choose).toHaveBeenCalled()
+    })
+
     it("should pass on the request for the desktop tools", async () => {
         // Arrange
         const { fixture } = await renderPanel({

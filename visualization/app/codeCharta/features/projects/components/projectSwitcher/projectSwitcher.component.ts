@@ -1,5 +1,16 @@
 import { NgTemplateOutlet } from "@angular/common"
-import { ChangeDetectionStrategy, Component, computed, ElementRef, HostListener, inject, signal, viewChild } from "@angular/core"
+import {
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    ElementRef,
+    effect,
+    HostListener,
+    inject,
+    signal,
+    untracked,
+    viewChild
+} from "@angular/core"
 import type { FolderRef } from "../../../../model/coreApi/FolderRef"
 import type { ProjectSummary } from "../../../../model/coreApi/ProjectSummary"
 import type { ProjectSummaryFolder } from "../../../../model/coreApi/ProjectSummaryFolder"
@@ -74,6 +85,17 @@ export class ProjectSwitcherComponent {
     )
     readonly hasNoProjects = computed(() => this.projects.projects().length === 0 && !this.activeProject())
 
+    constructor() {
+        let answeredRequest = this.projects.folderMenuRequest()
+        effect(() => {
+            const request = this.projects.folderMenuRequest()
+            if (request !== answeredRequest) {
+                answeredRequest = request
+                untracked(() => this.openFocusingWorkingFolder())
+            }
+        })
+    }
+
     toggle() {
         if (this.isOpen()) {
             this.close()
@@ -84,10 +106,7 @@ export class ProjectSwitcherComponent {
 
     openWithKeyboard(event: Event) {
         event.preventDefault()
-        if (!this.isOpen()) {
-            this.open()
-        }
-        setTimeout(() => this.focusWorkingFolderOrFirstItem())
+        this.openFocusingWorkingFolder()
     }
 
     async chooseFolder(entry: MenuFolder) {
@@ -152,6 +171,13 @@ export class ProjectSwitcherComponent {
         if (this.isOpen() && !this.hostElement.nativeElement.contains(event.target as Node)) {
             this.close()
         }
+    }
+
+    private openFocusingWorkingFolder() {
+        if (!this.isOpen()) {
+            this.open()
+        }
+        setTimeout(() => this.focusWorkingFolderOrFirstItem())
     }
 
     private open() {

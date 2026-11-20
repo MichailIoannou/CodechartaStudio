@@ -337,3 +337,34 @@
 :root {
     --cc-inspector-width: 20rem;
 }
+
+/* Lanes of the commit graph (History). Dark themes map them to their tokens; light themes use darker fixed values,
+   because cc-light's primary, secondary and info are similar blues and its success and warning are pale on white. */
+:root {
+    --cc-lane-1: var(--color-primary);
+    --cc-lane-2: var(--color-accent);
+    --cc-lane-3: var(--color-success);
+    --cc-lane-4: var(--color-secondary);
+    --cc-lane-5: var(--color-warning);
+    --cc-lane-6: var(--color-info);
+    --cc-lane-7: var(--color-error);
+    --cc-lane-8: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+}
+
+[data-theme="cc-light"],
+[data-theme="vs-light"],
+[data-theme="rider-day"] {
+    --cc-lane-1: #0374c9;
+    --cc-lane-2: #c2410c;
+    --cc-lane-3: #15803d;
+    --cc-lane-4: #7e22ce;
+    --cc-lane-5: #b91c1c;
+    --cc-lane-6: #0f766e;
+    --cc-lane-7: #b45309;
+    --cc-lane-8: #6b7280;
+}
+
+[data-theme="vs-light"],
+[data-theme="rider-day"] {
+    --cc-lane-1: var(--color-primary);
+}

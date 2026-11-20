@@ -2,15 +2,16 @@ import { ChangeDetectionStrategy, Component, computed, input } from "@angular/co
 import { GraphRow, WORKING_TREE_COLOR } from "../../util/graphLayout"
 import { GRAPH_ROW_HEIGHT, rowGeometry, workingTreeGeometry } from "../../util/graphRowGeometry"
 
+/** `--cc-lane-1` … `--cc-lane-8` are set per theme in tailwind.css; neighbouring lanes never share a hue. */
 const LANE_COLOR_CLASSES = [
-    "text-primary",
-    "text-secondary",
-    "text-accent",
-    "text-info",
-    "text-success",
-    "text-warning",
-    "text-error",
-    "text-base-content/60"
+    "text-(--cc-lane-1)",
+    "text-(--cc-lane-2)",
+    "text-(--cc-lane-3)",
+    "text-(--cc-lane-4)",
+    "text-(--cc-lane-5)",
+    "text-(--cc-lane-6)",
+    "text-(--cc-lane-7)",
+    "text-(--cc-lane-8)"
 ]
 const WORKING_TREE_COLOR_CLASS = "text-warning"
 

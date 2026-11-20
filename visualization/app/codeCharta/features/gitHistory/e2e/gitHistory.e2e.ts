@@ -171,6 +171,63 @@ test.describe("History", () => {
         await expect(page.getByTestId("desktop-tool-git").getByRole("button", { name: "Choose…" })).toBeFocused()
     })
 
+    test("should list the refs, label them on their commits and copy a commit's SHA from its menu", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
+        const commits = [
+            aLogCommit("a", "Fix invoice rounding", ["b"]),
+            aLogCommit("b", "Release 2.4.0", ["d"]),
+            aLogCommit("d", "Start the invoice module")
+        ]
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits } }))
+        await goto(page)
+        await history.open()
+
+        // Act
+        await history.branchRow("tags").click()
+        await history.commitRows().nth(1).click({ button: "right" })
+        await history.commitContextMenu().getByText("Copy SHA").click()
+
+        // Assert
+        await expect(history.workspaceStatus()).toContainText("feature/invoice-rounding")
+        await expect(history.branchRow("refs/heads/main")).toBeVisible()
+        await expect(history.branchRow("refs/remotes/fork/main")).toBeVisible()
+        await expect(history.branchRow("refs/tags/v2.4.0")).toBeVisible()
+        await expect(history.commitRows().nth(1).getByTestId("ref-label").first()).toHaveText("feature/invoice-rounding")
+        await expect(history.commitRows().nth(2).getByTestId("ref-label")).toHaveText(["v2.3.0"])
+        await expect(history.commitRows().nth(2).getByTestId("ref-label-overflow")).toHaveAttribute("title", /v2\.4\.0/)
+        await expect(history.toasts().filter({ hasText: "Copied bbbbbbb" })).toBeVisible()
+        expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("b".repeat(40))
+    })
+
+    test("should offer to work in the project's other git folder when the working folder is not a repository", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const web = aFolder("f-web", { label: "billing-web", path: "/work/billing-web" })
+        const project = { ...BILLING, folders: [...BILLING.folders, web] }
+        const notARepository = anErrorPayload("NOT_A_REPOSITORY", "not a git repository")
+        const seed = billingSeed({ "f-api": { failures: { "git.repositoryInfo": notARepository } } })
+        await standInForTheDesktopBridge(page, {
+            ...seed,
+            projects: [project],
+            snapshots: [...(seed.snapshots ?? []), aSnapshot("p-billing", "f-web", "s-web", { shortCommit: "9f8e7d6" })],
+            snapshotMaps: { ...seed.snapshotMaps, "s-web": SAMPLE_MAP },
+            git: { ...seed.git, "f-web": { info: aRepositoryInfo(), status: aStatusOn("main"), refs: BILLING_REFS } }
+        })
+        await goto(page)
+        await history.open()
+
+        // Act
+        await expect(history.problemNotice()).toContainText("'billing-api' is not a git repository.")
+        await history.problemNotice().getByRole("button", { name: "Work in 'billing-web'" }).click()
+
+        // Assert
+        await expect(history.repository()).toHaveText("billing-web")
+        await expect(history.problemNotice()).toBeHidden()
+        await expect(page).toHaveURL(/#\/history/)
+    })
+
     test("should offer no history without a bridge and explain the desktop app at its address", async ({ page }) => {
         // Arrange
         const history = new GitHistoryPageObject(page)
@@ -366,6 +423,51 @@ test.describe("History changes", () => {
         await toast.getByRole("button", { name: "Details" }).click()
         await expect(toast).toContainText("lint: 3 problems in src/app.ts")
         await expect(history.commitSummary()).toHaveValue("Add the currency table")
+    })
+
+    test("should give the identity commands as copy blocks when git does not know the user", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
+        const failures = {
+            "git.commit": anErrorPayload("IDENTITY_UNKNOWN", "Author identity unknown", { detail: "*** Please tell me who you are." })
+        }
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, changes, failures } }))
+        await goto(page)
+        await history.open()
+        await history.changesTab().click()
+        await history.commitSummary().fill("Add the currency table")
+        await history.commitButton().click()
+        await history.confirm("yes")
+        const toast = history.toasts().filter({ hasText: "Git does not know who you are." })
+
+        // Act
+        await toast.getByRole("button", { name: "Copy command" }).first().click()
+
+        // Assert
+        await expect(toast.getByTestId("copy-command")).toHaveText([
+            'git config --global user.name "Your Name"',
+            'git config --global user.email "you@example.com"'
+        ])
+        await expect(toast.getByRole("button", { name: "Copy command" }).first().locator("i")).toHaveClass(/fa-check/)
+        expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('git config --global user.name "Your Name"')
+    })
+
+    test("should give the git command for a diff too large to show", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const failures = { "git.diffFile": anErrorPayload("OUTPUT_TOO_LARGE", "The diff is larger than 4 MiB.") }
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, changes, failures } }))
+        await goto(page)
+        await history.open()
+        await history.changesTab().click()
+
+        // Act
+        await history.changeRow("staged:src/billing/currency.ts").click()
+
+        // Assert
+        await expect(history.diffView()).toContainText("This diff is too large to show (over 4 MB). Run this in a terminal to see it:")
+        await expect(history.diffView().getByTestId("copy-command")).toHaveText("git diff --cached -- src/billing/currency.ts")
     })
 })
 

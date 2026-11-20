@@ -1,6 +1,12 @@
 <cc-history-toolbar />
 @if (problemNotice(); as notice) {
-    <cc-git-problem-notice [notice]="notice" (relinkFolder)="relinkWorkingFolder()" (openDesktopTools)="openDesktopTools.emit()" />
+    <cc-git-problem-notice
+        [notice]="notice"
+        (relinkFolder)="relinkWorkingFolder()"
+        (openDesktopTools)="openDesktopTools.emit()"
+        (workInFolder)="workInFolder.emit($event)"
+        (chooseWorkingFolder)="chooseWorkingFolder.emit()"
+    />
 } @else {
     @if (isShallowNoticeShown()) {
         <div role="status" class="alert alert-info mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="history-shallow-notice">

@@ -18,4 +18,30 @@ describe("ProjectsFacade", () => {
         expect(whileOpen).toBe(true)
         expect(facade.hasActiveProject()).toBe(false)
     })
+
+    it("should switch the working folder as the project menu does", async () => {
+        // Arrange
+        const project = aProject("p-1", [aFolder("f-1"), aFolder("f-2")])
+        await setUpProjects({ projects: [project], activeProjectId: "p-1" })
+        const facade = TestBed.inject(ProjectsFacade)
+
+        // Act
+        await facade.chooseFolder({ projectId: "p-1", folderId: "f-2" })
+
+        // Assert
+        expect(facade.workingFolder()?.id).toBe("f-2")
+    })
+
+    it("should ask the project menu to open for choosing the working folder", async () => {
+        // Arrange
+        const { projects } = await setUpProjects({ projects: [aProject("p-1", [aFolder("f-1")])], activeProjectId: "p-1" })
+        const facade = TestBed.inject(ProjectsFacade)
+        const before = projects.folderMenuRequest()
+
+        // Act
+        facade.openFolderMenu()
+
+        // Assert
+        expect(projects.folderMenuRequest()).toBe(before + 1)
+    })
 })
