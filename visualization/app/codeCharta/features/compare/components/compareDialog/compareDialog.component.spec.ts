@@ -382,6 +382,26 @@ describe("CompareDialogComponent", () => {
             expect(screen.getByTestId("change-requests-number-entry")).toBeTruthy()
         })
 
+        it("should open the desktop tools from the install hint and unmount them once closed", async () => {
+            // Arrange
+            await renderDialog({}, {}, WITH_REMOTE, providersWith(new FakeHostingGateway()))
+            const before = screen.queryByText("Global Configuration")
+
+            // Act
+            await userEvent.click(screen.getByTestId("change-requests-open-tools"))
+            await settle()
+            const whileOpen = screen.queryByText("Global Configuration")
+            const configuration = whileOpen?.closest("dialog") as HTMLDialogElement
+            configuration.close()
+            await settle()
+
+            // Assert
+            expect(before).toBeNull()
+            expect(whileOpen).not.toBeNull()
+            expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled()
+            expect(screen.queryByText("Global Configuration")).toBeNull()
+        })
+
         it("should switch to the recent comparisons", async () => {
             // Arrange
             await renderDialog({}, {}, WITH_REMOTE, providersWith(new FakeHostingGateway()))
