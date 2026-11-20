@@ -17,7 +17,15 @@ import type { GitRefs } from "../../../../model/coreApi/GitRefs"
 import { shortSha } from "../../../../util/wording"
 import { ANALYSED_COMMITS } from "../../ports/analysedCommits.port"
 import { GitApiService } from "../../services/gitApi.service"
-import { commitMatches, RefOption, RefResolution, refOptionGroups, resolveRefText } from "../../util/refOptions"
+import {
+    commitMatches,
+    isSnapshotOption,
+    RefOption,
+    RefPickerSnapshot,
+    RefResolution,
+    refOptionGroups,
+    resolveRefText
+} from "../../util/refOptions"
 import { parseRefRange, RefRange } from "../../util/refRange"
 
 export const COMMIT_SEARCH_DELAY_MS = 250
@@ -26,7 +34,9 @@ const OPTION_ICONS: Readonly<Record<RefOption["kind"], string>> = {
     branch: "fa-solid fa-code-branch",
     remoteBranch: "fa-solid fa-cloud",
     tag: "fa-solid fa-tag",
-    commit: "fa-solid fa-circle-dot"
+    commit: "fa-solid fa-circle-dot",
+    workingTree: "fa-solid fa-pen",
+    imported: "fa-solid fa-file-import"
 }
 const ROW_CLASS = "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-base-200"
 const ACTIVE_ROW_CLASS = "bg-primary/20"
@@ -56,6 +66,8 @@ export class RefPickerComponent {
     readonly label = input.required<string>()
     readonly defaultBranch = input<string | null>(null)
     readonly testId = input("ref-picker")
+    /** Working-tree and imported snapshots to offer in a "Snapshots" group after the refs. */
+    readonly snapshots = input<readonly RefPickerSnapshot[]>([])
     readonly textChange = output<string>()
     readonly rangePasted = output<RefRange>()
     readonly resolvedChange = output<RefResolution | null>()
@@ -66,7 +78,7 @@ export class RefPickerComponent {
     readonly activeIndex = signal(-1)
     readonly groups = computed(() => {
         const refs = this.refs()
-        return refs ? refOptionGroups(refs, this.text(), this.foundCommits(), this.defaultBranch()) : []
+        return refs ? refOptionGroups(refs, this.text(), this.foundCommits(), this.defaultBranch(), this.snapshots()) : []
     })
     readonly options = computed(() => this.groups().flatMap(group => group.options))
     readonly activeOption = computed(() => this.options()[this.activeIndex()] ?? null)
@@ -80,7 +92,7 @@ export class RefPickerComponent {
     })
     readonly resolution = computed(() => {
         const refs = this.refs()
-        return refs ? resolveRefText(refs, this.text(), [...this.knownCommits().values()]) : null
+        return refs ? resolveRefText(refs, this.text(), [...this.knownCommits().values()], this.snapshots()) : null
     })
     private readonly analysedShas = computed(() => {
         const markers = this.markers?.markersFor(this.repo())() ?? new Map()
@@ -99,8 +111,13 @@ export class RefPickerComponent {
         inject(DestroyRef).onDestroy(() => clearTimeout(this.searchTimer))
     }
 
-    isAnalysed(sha: string): boolean {
-        return this.analysedShas().has(sha)
+    /** A snapshot is an analysis itself. */
+    isAnalysed(option: Pick<RefOption, "kind" | "sha">): boolean {
+        return isSnapshotOption(option) || this.analysedShas().has(option.sha)
+    }
+
+    hasShortSha(option: Pick<RefOption, "kind">): boolean {
+        return option.kind !== "commit" && !isSnapshotOption(option)
     }
 
     optionId(option: RefOption): string {

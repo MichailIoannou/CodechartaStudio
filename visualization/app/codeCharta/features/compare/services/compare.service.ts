@@ -12,7 +12,8 @@ import type {
     FolderRef,
     LoadedSide,
     ResolvedComparison,
-    ResolvedSide
+    ResolvedSide,
+    SideInput
 } from "../model/compare.model"
 import { IDLE_COMPARISON } from "../model/compare.model"
 import { ANALYSIS_GATEWAY, CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
@@ -21,8 +22,9 @@ import { CompareReadStore } from "../stores/compare.read.store"
 import { CompareStore } from "../stores/compare.store"
 import { CompareWriteStore } from "../stores/compare.write.store"
 import { ChangedFilesService } from "./changedFiles.service"
-import { refName } from "./comparisonText"
+import { refName, sideName } from "./comparisonText"
 import { batchOutcome, folderOfSide, missingSidesOf, pendingJobIds, queuedAnalysis, withFailures } from "./missingSides"
+import type { SnapshotSideInput } from "./snapshotSides"
 
 const METRIC_VIEW_TOAST = "Compare runs in the metric view — the domain and dependency views show a single map."
 const TREEMAP_TOAST = "Switched to the treemap layout — the radial layouts show a single map."
@@ -41,6 +43,9 @@ export interface TypedSides {
     unresolved: string[]
     /** The head's folder when it is another folder of the project than the base's. */
     headFolder?: ComparedFolder
+    /** Set for a side picked from the "Snapshots" group: that snapshot instead of the typed text. */
+    baseSnapshot?: SnapshotSideInput | null
+    headSnapshot?: SnapshotSideInput | null
 }
 
 /** The snapshot a side would show (its own, else its nearest) and how many commits that is away from it. */
@@ -288,10 +293,10 @@ export class CompareService {
         }
     }
 
-    /** As the user named the sides: a merge-base comparison by the tip its base came from. */
+    /** As the user named the sides: a merge-base comparison by the tip its base came from; a snapshot side has no name to type again. */
     private rememberComparison(): void {
         const { resolved } = this.store.state()
-        if (!resolved) {
+        if (!resolved || resolved.base.requested.kind !== "commit" || resolved.head.requested.kind !== "commit") {
             return
         }
         const base = resolved.baseTip ?? resolved.base.requested
@@ -339,7 +344,7 @@ function shownSideOf({ requested, status }: ResolvedSide): ShownSide | null {
 }
 
 function unreadable(side: ShownSide): CompareError {
-    return { kind: "loadFailed", message: `the analysis of ${side.snapshot.shortCommit ?? side.requested.shortCommit} could not be read.` }
+    return { kind: "loadFailed", message: `the analysis of ${side.snapshot.shortCommit ?? sideName(side.requested)} could not be read.` }
 }
 
 function loadErrorOf(error: unknown): CompareError {
@@ -347,9 +352,18 @@ function loadErrorOf(error: unknown): CompareError {
     return compareError.kind === "coreError" ? { kind: "loadFailed", message: compareError.message } : compareError
 }
 
-function explicitIntent(folder: FolderRef, { base, head, baseMode, headFolder }: TypedSides): CompareIntent {
-    const side = (sideFolder: FolderRef, name: string) => ({ folder: sideFolder, rev: { kind: "rev" as const, name: name.trim() } })
-    return { kind: "explicit", base: side(folder, base), head: side(headFolder?.ref ?? folder, head), baseMode }
+function explicitIntent(folder: FolderRef, sides: TypedSides): CompareIntent {
+    const headFolder = sides.headFolder?.ref ?? folder
+    return {
+        kind: "explicit",
+        base: sideInputOf(folder, sides.base, sides.baseSnapshot),
+        head: sideInputOf(headFolder, sides.head, sides.headSnapshot),
+        baseMode: sides.baseMode
+    }
+}
+
+function sideInputOf(folder: FolderRef, typed: string, snapshot: SnapshotSideInput | null | undefined): SideInput {
+    return { folder, rev: snapshot ?? { kind: "rev", name: typed.trim() } }
 }
 
 function typedSidesErrorOf(error: unknown, folder: ComparedFolder, sides: TypedSides): CompareError {

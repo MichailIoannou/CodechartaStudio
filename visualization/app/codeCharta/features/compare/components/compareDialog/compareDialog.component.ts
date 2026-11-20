@@ -21,9 +21,10 @@ import { BaseModeRepo } from "../../repos/baseMode.repo"
 import { RecentComparison, RecentComparisonsRepo } from "../../repos/recentComparisons.repo"
 import { ChangeRequestService } from "../../services/changeRequest.service"
 import { changeRequestLabel, segmentLabelOf } from "../../services/changeRequestText"
-import { CompareService } from "../../services/compare.service"
+import { CompareService, TypedSides } from "../../services/compare.service"
 import { errorSentence, rangeOf, refName, resolveOutcome } from "../../services/comparisonText"
 import { HostingCheckService } from "../../services/hostingCheck.service"
+import { snapshotInputOf, snapshotOptionsOf } from "../../services/snapshotSides"
 import { CompareStore } from "../../stores/compare.store"
 import { ChangeRequestListComponent } from "../changeRequestList/changeRequestList.component"
 import { ComparePreparationComponent } from "../comparePreparation/comparePreparation.component"
@@ -100,6 +101,11 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         },
         { equal: (first, second) => first?.projectId === second?.projectId && first?.folderId === second?.folderId }
     )
+    readonly baseSnapshots = computed(() => snapshotOptionsOf(this.projects.snapshotsByFolder()[this.folderId()] ?? []))
+    readonly headSnapshots = computed(() => {
+        const headFolderId = this.headRepo()?.folderId ?? ""
+        return snapshotOptionsOf(this.projects.snapshotsByFolder()[headFolderId] ?? [])
+    })
     readonly defaultBranch = computed(() => this.folder()?.git?.defaultBranch ?? null)
     readonly headDefaultBranch = computed(() => (this.headFolder() ?? this.folder())?.git?.defaultBranch ?? null)
     readonly showsBaseMode = computed(() => NAMED_REF_KINDS.has(this.baseResolution()?.kind ?? ""))
@@ -148,6 +154,13 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
             const repo = this.repo()
             if (repo) {
                 untracked(() => void this.hostingCheck.check(repo))
+            }
+        })
+        effect(() => {
+            for (const folder of [this.repo(), this.headRepo()]) {
+                if (folder) {
+                    untracked(() => void this.projects.refreshFolderSnapshots(folder).catch(() => undefined))
+                }
             }
         })
     }
@@ -230,7 +243,8 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
                 head: this.head(),
                 baseMode: this.showsBaseMode() ? this.baseMode() : "tip",
                 unresolved,
-                ...(headFolder && headRepo ? { headFolder: { ref: headRepo, label: headFolder.label } } : {})
+                ...(headFolder && headRepo ? { headFolder: { ref: headRepo, label: headFolder.label } } : {}),
+                ...this.pickedSnapshots()
             }
         )
     }
@@ -255,6 +269,13 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
 
     close(): void {
         this.dialog().nativeElement.close()
+    }
+
+    /** Only the sides picked from the "Snapshots" group. */
+    private pickedSnapshots(): Pick<TypedSides, "baseSnapshot" | "headSnapshot"> {
+        const baseSnapshot = snapshotInputOf(this.baseResolution())
+        const headSnapshot = snapshotInputOf(this.headResolution())
+        return { ...(baseSnapshot ? { baseSnapshot } : {}), ...(headSnapshot ? { headSnapshot } : {}) }
     }
 
     /** A comparison across two folders, changed through the chip, keeps its head folder. */

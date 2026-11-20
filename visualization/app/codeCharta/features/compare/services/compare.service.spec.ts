@@ -687,6 +687,42 @@ describe("CompareService", () => {
         })
     })
 
+    describe("against a snapshot without a commit", () => {
+        it("should send a picked snapshot as that snapshot and not remember the comparison", async () => {
+            // Arrange
+            const resolved = aResolvedComparison()
+            const workingTree = {
+                ...resolved.head.requested,
+                kind: "workingTree" as const,
+                commit: null,
+                shortCommit: null,
+                snapshotId: "s-wt"
+            }
+            core.resolution = { ...resolved, head: { ...resolved.head, requested: workingTree } }
+
+            // Act
+            await service.compareSides(COMPARED_FOLDER, {
+                base: "main",
+                head: "Working tree (4 Nov 09:12)",
+                baseMode: "tip",
+                unresolved: [],
+                headSnapshot: { kind: "workingTree", snapshotId: "s-wt" }
+            })
+
+            // Assert
+            expect(core.intents).toEqual([
+                {
+                    kind: "explicit",
+                    base: { folder: FOLDER, rev: { kind: "rev", name: "main" } },
+                    head: { folder: FOLDER, rev: { kind: "workingTree", snapshotId: "s-wt" } },
+                    baseMode: "tip"
+                }
+            ])
+            expect(compareStore.state().phase).toBe("active")
+            expect(TestBed.inject(RecentComparisonsRepo).read(FOLDER.projectId)).toEqual([])
+        })
+    })
+
     describe("swap and exit", () => {
         beforeEach(async () => {
             await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })

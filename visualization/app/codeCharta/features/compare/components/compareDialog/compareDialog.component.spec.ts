@@ -8,8 +8,8 @@ import { createFakeDesktopBridge } from "../../../../util/desktop/desktopBridge.
 import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
 import { GlobalConfigurationOpener } from "../../../globalSettings/facade"
 import { ProjectsFacade } from "../../../projects/facade"
-import { aFolder, aProject } from "../../../projects/projects.mocks"
-import type { CompareState } from "../../model/compare.model"
+import { aFolder, aProject, aSnapshot } from "../../../projects/projects.mocks"
+import type { CompareState, SnapshotSummary } from "../../model/compare.model"
 import { HOSTING_GATEWAY } from "../../ports/compareGateways"
 import {
     aCommitSnapshot,
@@ -48,7 +48,10 @@ describe("CompareDialogComponent", () => {
 
     beforeEach(() => {
         localStorage.clear()
+        snapshotsByFolder = {}
     })
+
+    let snapshotsByFolder: Record<string, SnapshotSummary[]> = {}
 
     async function renderDialog(prefill = {}, state: Partial<CompareState> = {}, project = BILLING, extraProviders: Provider[] = []) {
         service = { compareSides: jest.fn().mockResolvedValue(undefined), continueWithShownSnapshots: jest.fn(), cancel: jest.fn() }
@@ -62,7 +65,15 @@ describe("CompareDialogComponent", () => {
             providers: [
                 { provide: CompareService, useValue: service },
                 { provide: DESKTOP_BRIDGE, useValue: bridge },
-                { provide: ProjectsFacade, useValue: { activeProject: signal(project), workingFolder: signal(project.folders[1]) } },
+                {
+                    provide: ProjectsFacade,
+                    useValue: {
+                        activeProject: signal(project),
+                        workingFolder: signal(project.folders[1]),
+                        snapshotsByFolder: signal(snapshotsByFolder),
+                        refreshFolderSnapshots: jest.fn().mockResolvedValue(undefined)
+                    }
+                },
                 ...extraProviders
             ]
         })
@@ -147,6 +158,37 @@ describe("CompareDialogComponent", () => {
         expect(screen.getByTestId("compare-recent-row").textContent).toContain("billing-api → billing-fork")
         expect((screen.getByTestId("compare-across-folders") as HTMLInputElement).checked).toBe(true)
         expect((screen.getByTestId("compare-head-folder") as HTMLSelectElement).value).toBe("f-fork")
+    })
+
+    it("should offer the folder's working-tree and imported snapshots and compare against the picked one", async () => {
+        // Arrange
+        snapshotsByFolder = {
+            "f-fork": [
+                aSnapshot("p-billing", "f-fork", "s-working-tree", { target: "workingTree", createdAt: "2026-11-04T09:12:00Z" }),
+                aSnapshot("p-billing", "f-fork", "s-imported", { source: "imported", originalFileName: "export-2024.cc.json" }),
+                aCommitSnapshot(BASE_SHA)
+            ]
+        }
+        await renderDialog()
+
+        // Act
+        await userEvent.type(input("compare-base"), "main")
+        await userEvent.click(input("compare-head"))
+        await settle()
+        const offered = screen.getAllByTestId("compare-head-option").map(option => option.textContent?.trim())
+        await userEvent.click(screen.getByText("export-2024.cc.json"))
+        await settle()
+        await userEvent.click(screen.getByTestId("compare-submit"))
+
+        // Assert
+        expect(offered).toEqual(
+            expect.arrayContaining([expect.stringContaining("Working tree (4 Nov"), expect.stringContaining("export-2024.cc.json")])
+        )
+        expect(screen.getByTestId("compare-head-resolved").textContent).toContain("analysed")
+        expect(service.compareSides).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ head: "export-2024.cc.json", headSnapshot: { kind: "imported", snapshotId: "s-imported" } })
+        )
     })
 
     it("should fill both sides from a recent comparison", async () => {

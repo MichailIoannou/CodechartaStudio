@@ -12,5 +12,5 @@ export { GitHistoryAvailability } from "./services/gitHistoryAvailability.servic
 export { GitOperationService, RunningGitOperation } from "./services/gitOperation.service"
 export { GitRepositoryService } from "./services/gitRepository.service"
 export { changeBadgeOf, displayNameOf } from "./util/changedFileText"
-export type { RefResolution } from "./util/refOptions"
+export type { RefPickerSnapshot, RefResolution } from "./util/refOptions"
 export { parseRefRange, RefRange } from "./util/refRange"

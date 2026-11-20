@@ -284,6 +284,29 @@ describe("ComparisonChipComponent", () => {
         expect(store.dialogPrefill()).toEqual({ folder: FOLDER, base: "main", head: "main", headFolder: FORK })
     })
 
+    it("should show a working-tree head by its label, without a commit or a stale badge", async () => {
+        // Arrange
+        const workingTree = {
+            ...HEAD,
+            requested: {
+                ...HEAD.requested,
+                kind: "workingTree" as const,
+                commit: null,
+                shortCommit: null,
+                snapshotId: "s-wt",
+                label: { kind: "workingTree" as const, name: "working tree" }
+            }
+        }
+
+        // Act
+        await renderChip("active", null, workingTree)
+
+        // Assert
+        expect(screen.getByTestId("comparison-head").textContent).toMatch(/head\s*working tree\s*$/)
+        expect(screen.getByTestId("comparison-head").getAttribute("title")).toBe("Head: working tree")
+        expect(screen.getByTestId("comparison-head").querySelector(".font-mono")).toBeNull()
+    })
+
     it("should copy the range as text", async () => {
         // Arrange
         await renderChip()

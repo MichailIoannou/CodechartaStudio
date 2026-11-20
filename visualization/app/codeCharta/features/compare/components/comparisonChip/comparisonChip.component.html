@@ -4,8 +4,8 @@
         <span class="flex min-w-0 items-center gap-2 px-2 text-sm" data-testid="comparison-no-differences">
             <i class="fa-solid fa-equals fa-fw text-base-content/60"></i>
             <span class="truncate"
-                >No metric differences between <span class="font-mono">{{ base()?.shortCommit }}</span> and
-                <span class="font-mono">{{ head()?.shortCommit }}</span></span
+                >No metric differences between <span [class.font-mono]="base()?.shortCommit">{{ base()?.name }}</span> and
+                <span [class.font-mono]="head()?.shortCommit">{{ head()?.name }}</span></span
             >
         </span>
         @if (gitLine(); as gitLine) {
@@ -33,7 +33,9 @@
                     (click)="change()"
                 >
                     <span class="hidden text-xs text-base-content/60 2xl:inline" data-testid="comparison-caption">{{ side.caption }}</span>
-                    <span class="shrink-0 font-mono">{{ side.shortCommit }}</span>
+                    @if (side.shortCommit) {
+                        <span class="shrink-0 font-mono">{{ side.shortCommit }}</span>
+                    }
                     @if (side.label) {
                         <span class="min-w-16 truncate">{{ side.label }}</span>
                     }

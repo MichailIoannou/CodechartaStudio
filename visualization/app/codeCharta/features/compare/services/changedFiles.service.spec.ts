@@ -46,6 +46,28 @@ describe("ChangedFilesService", () => {
         expect(filter()).toEqual({ source: "git", paths: ["/root/src/a.ts", "/root/src/b.ts"] })
     })
 
+    it("should list changed files from metrics when a side has no commit", async () => {
+        // Arrange
+        core.changedFilesAnswer = GIT_LIST
+        const resolved = aResolvedComparison()
+        const workingTree = {
+            ...resolved.head.requested,
+            kind: "workingTree" as const,
+            commit: null,
+            shortCommit: null,
+            snapshotId: "s-wt"
+        }
+
+        // Act
+        await service.load({ ...resolved, head: { ...resolved.head, requested: workingTree } }, () => true)
+        service.setOnlyChangedFiles(true)
+
+        // Assert
+        expect(core.changedFilesRequests).toEqual([])
+        expect(compareStore.state().changedFiles).toEqual({ source: "unavailable", files: [] })
+        expect(filter()).toEqual({ source: "metrics" })
+    })
+
     it("should filter by metric changes while git cannot list the files", async () => {
         // Arrange
         await service.load(aResolvedComparison(), () => true)

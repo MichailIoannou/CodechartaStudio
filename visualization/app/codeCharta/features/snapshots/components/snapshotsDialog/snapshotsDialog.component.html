@@ -183,6 +183,17 @@
 <ng-template #rowActions let-row>
     <div class="col-span-full hidden justify-end gap-1 pt-1 group-hover:flex group-focus-within:flex">
         <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-open" (click)="openSnapshot(row)">Open</button>
+        @for (action of row.actions; track action.id) {
+            <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                data-testid="snapshots-action"
+                [title]="action.hoverHint"
+                (click)="runAction(action, row)"
+            >
+                {{ action.label }}
+            </button>
+        }
         @if (row.reanalyse) {
             <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-reanalyse" (click)="reanalyse(row)">Re-analyse</button>
             <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-show-log" (click)="logDialog.open({ kind: 'snapshot', snapshot: row.snapshot, folderLabel: row.folder.label })">

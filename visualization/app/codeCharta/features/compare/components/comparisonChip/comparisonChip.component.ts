@@ -6,7 +6,7 @@ import type { ComparedChangeRequest, LoadedSide, ResolvedComparison } from "../.
 import { gitChangeLine } from "../../selectors/deltaChangeSummary"
 import { changeRequestLabel } from "../../services/changeRequestText"
 import { CompareService } from "../../services/compare.service"
-import { rangeText, refName, sideCaption, staleBadge, staleCount, staleTitle } from "../../services/comparisonText"
+import { rangeText, refName, shownSideCaption, sideName, staleBadge, staleCount, staleTitle } from "../../services/comparisonText"
 import { CompareStore } from "../../stores/compare.store"
 
 interface BaseModeBadge {
@@ -20,7 +20,10 @@ interface ChipSide {
     caption: string
     /** Starts with "Base:" or "Head:", which say the side once the captions are hidden. */
     title: string
-    shortCommit: string
+    /** Null for a working-tree or imported snapshot, which has no commit. */
+    shortCommit: string | null
+    /** The short commit, else the snapshot's label: how a sentence names the side. */
+    name: string
     label: string | null
     staleBadge: string | null
     staleCount: string | null
@@ -145,13 +148,14 @@ function chipSideOf(caption: "base" | "head", side: LoadedSide | null, folderLab
     if (!side) {
         return null
     }
-    const label = sideCaption(side.requested)
+    const label = shownSideCaption(side)
     const titleCaption = caption === "base" ? "Base:" : "Head:"
     const inFolder = folderLabel ? `in ${folderLabel}` : null
     return {
         caption,
         title: [titleCaption, side.requested.shortCommit, label, inFolder].filter(Boolean).join(" "),
         shortCommit: side.requested.shortCommit,
+        name: side.requested.shortCommit ?? label ?? sideName(side.requested),
         label,
         staleBadge: staleBadge(side),
         staleCount: staleCount(side),

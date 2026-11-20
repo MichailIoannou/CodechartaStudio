@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from "@angular/core"
+import { sideName } from "../../services/comparisonText"
 import { CompareStore } from "../../stores/compare.store"
 
 /** Says which commit the delta colours subtract from which, during a project comparison only. */
@@ -7,7 +8,8 @@ import { CompareStore } from "../../stores/compare.store"
     template: `
         @if (sides(); as sides) {
             <span class="text-xs text-base-content/70" data-testid="comparison-legend-caption"
-                >Δ = head <span class="font-mono">{{ sides.head }}</span> − base <span class="font-mono">{{ sides.base }}</span></span
+                >Δ = head <span [class.font-mono]="sides.isHeadACommit">{{ sides.head }}</span> − base
+                <span [class.font-mono]="sides.isBaseACommit">{{ sides.base }}</span></span
             >
         }
     `,
@@ -19,6 +21,14 @@ export class ComparisonLegendCaptionComponent {
 
     readonly sides = computed(() => {
         const { base, head } = this.store.state()
-        return this.store.isActive() && base && head ? { base: base.requested.shortCommit, head: head.requested.shortCommit } : null
+        if (!(this.store.isActive() && base && head)) {
+            return null
+        }
+        return {
+            base: sideName(base.requested),
+            head: sideName(head.requested),
+            isBaseACommit: base.requested.shortCommit !== null,
+            isHeadACommit: head.requested.shortCommit !== null
+        }
     })
 }

@@ -5,3 +5,4 @@ export { ComparisonLegendCaptionComponent } from "./components/comparisonLegendC
 export { provideCompareForGitHistory } from "./gitHistory/provideCompareForGitHistory"
 export { provideChangesExplorerMode } from "./provideChangesExplorerMode"
 export { CompareFacade } from "./services/compareFacade"
+export { provideCompareForSnapshots } from "./snapshots/provideCompareForSnapshots"
