@@ -2,13 +2,14 @@ import { Provider, signal } from "@angular/core"
 import { fireEvent, render, screen } from "@testing-library/angular"
 import { BRANCH_ACTIONS, BranchAction } from "../../ports/branchActions.port"
 import { BranchActionsService } from "../../services/branchActions.service"
-import { aLocalBranch, aRefs, aRemoteBranch, aTag } from "../../services/gitApi.mocks"
+import { aLocalBranch, anUpstream, aRefs, aRemoteBranch, aTag } from "../../services/gitApi.mocks"
 import { GitOperationService } from "../../services/gitOperation.service"
 import { GitRepositoryService } from "../../services/gitRepository.service"
+import { SyncActionsService } from "../../services/syncActions.service"
 import type { BranchRef } from "../../util/branchTree"
 import { BranchContextMenuComponent, BranchMenuTarget } from "./branchContextMenu.component"
 
-const FEATURE = aLocalBranch("feature/x")
+const FEATURE = aLocalBranch("feature/x", { upstream: anUpstream("origin/feature/x", { ahead: 2, behind: 1 }) })
 const REMOTE = aRemoteBranch("origin", "feature/y")
 const TAG = aTag("v2.4.0")
 const REFS = aRefs({ localBranches: [aLocalBranch("main", { isCurrent: true }), FEATURE], remoteBranches: [REMOTE], tags: [TAG] })
@@ -26,6 +27,7 @@ describe("BranchContextMenuComponent", () => {
         deleteRemote: jest.fn(),
         openDialog: jest.fn()
     }
+    const sync = { push: jest.fn(), forcePush: jest.fn() }
     const isBusy = signal(false)
 
     const repo = { projectId: "p-billing", folderId: "f-api" }
@@ -39,6 +41,7 @@ describe("BranchContextMenuComponent", () => {
             on: { closed },
             providers: [
                 { provide: BranchActionsService, useValue: actions },
+                { provide: SyncActionsService, useValue: sync },
                 { provide: GitOperationService, useValue: { isBusy } },
                 { provide: GitRepositoryService, useValue: { activeRepository: signal(repo) } },
                 ...extraProviders
@@ -55,13 +58,23 @@ describe("BranchContextMenuComponent", () => {
         const { closed } = await renderMenu(LOCAL_REF)
 
         // Act
-        for (const label of ["Switch To", "New Branch from Here…", "Rename…", "Delete…", "Set Upstream…"]) {
+        for (const label of [
+            "Switch To",
+            "New Branch from Here…",
+            "Rename…",
+            "Delete…",
+            "Set Upstream…",
+            "Push",
+            "Force Push (with Lease)…"
+        ]) {
             click(label)
         }
 
         // Assert
         expect(actions.switchTo).toHaveBeenCalledWith(FEATURE)
         expect(actions.deleteLocal).toHaveBeenCalledWith(FEATURE)
+        expect(sync.push).toHaveBeenCalledWith(FEATURE)
+        expect(sync.forcePush).toHaveBeenCalledWith(FEATURE)
         expect(actions.openDialog.mock.calls).toEqual([
             [{ kind: "create", startPoint: FEATURE.commit, subject: "Release 2.4.0" }],
             [{ kind: "rename", branch: FEATURE }],
@@ -165,7 +178,7 @@ describe("BranchContextMenuComponent", () => {
 
         // Assert
         expect(firstFocused).toBe("Switch To")
-        expect(afterUp).toBe("Set Upstream…")
+        expect(afterUp).toBe("Force Push (with Lease)…")
         expect(closed).toHaveBeenCalledWith(true)
     })
 

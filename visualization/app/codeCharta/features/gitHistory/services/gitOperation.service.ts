@@ -20,6 +20,9 @@ export type GitOperationKind =
     | "unstage"
     | "discard"
     | "commit"
+    | "pull"
+    | "push"
+    | "abort"
 
 interface GitOperationProgress {
     message: string
@@ -40,7 +43,7 @@ export interface GitOperationRequest<Value> {
     send(operationId: string): Promise<GitResult<Value>>
 }
 
-const NETWORK_OPERATIONS: ReadonlySet<GitOperationKind> = new Set(["fetch", "deleteRemoteBranch"])
+const NETWORK_OPERATIONS: ReadonlySet<GitOperationKind> = new Set(["fetch", "deleteRemoteBranch", "pull", "push"])
 
 /** Runs one git write at a time under a fresh operation id, with its progress, and re-reads the repository afterwards. */
 @Injectable({ providedIn: "root" })

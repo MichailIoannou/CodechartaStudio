@@ -8,6 +8,7 @@
         (chooseWorkingFolder)="chooseWorkingFolder.emit()"
     />
 } @else {
+    <cc-operation-state-banner />
     @if (isShallowNoticeShown()) {
         <div role="status" class="alert alert-info mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="history-shallow-notice">
             <span class="flex-1">Shallow clone: history is cut off, counts are lower bounds.</span>

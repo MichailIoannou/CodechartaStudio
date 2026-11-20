@@ -1,4 +1,5 @@
 import {
+    abortConfirmation,
     amendPushedConfirmation,
     commitResult,
     deleteLocalConfirmation,
@@ -6,7 +7,12 @@ import {
     deleteUnmergedConfirmation,
     discardConfirmation,
     fetchResult,
+    forcePushConfirmation,
     HOOKS_NOTICE,
+    publishResult,
+    pullChoice,
+    pullResult,
+    pushResult,
     renameEffect,
     switchConfirmation
 } from "./effectText"
@@ -112,5 +118,90 @@ describe("effectText", () => {
             `Discard changes to 'f0.ts', 'f1.ts', 'f2.ts', 'f3.ts', 'f4.ts', 'f5.ts', 'f6.ts', 'f7.ts', 'f8.ts', 'f9.ts' and 1 more${tail}`
         ])
         expect(discardConfirmation(["a"])).toEqual(expect.objectContaining({ title: "Discard Changes", verb: "Discard" }))
+    })
+
+    it("should name both branches and count their commits when they have diverged", () => {
+        // Arrange & Act
+        const choice = pullChoice({ branch: "main", upstream: "origin/main", ahead: 2, behind: 3 })
+
+        // Assert
+        expect(choice).toEqual({
+            title: "Branches Have Diverged",
+            text: "'main' and 'origin/main' have diverged (2 local, 3 remote commits). Choose how to combine them:",
+            options: [
+                { value: "merge", label: "Merge" },
+                { value: "rebase", label: "Rebase my commits" }
+            ]
+        })
+    })
+
+    it("should leave the counts out of the pull choice when git could not count them", () => {
+        // Arrange & Act
+        const choice = pullChoice({ branch: "main", upstream: "origin/main", ahead: null, behind: null })
+
+        // Assert
+        expect(choice.text).toBe("'main' and 'origin/main' have diverged. Choose how to combine them:")
+    })
+
+    it("should name both commits and the commits a force push removes", () => {
+        // Arrange & Act
+        const many = forcePushConfirmation({
+            upstream: "origin/feature/x",
+            remoteSha: "abc1234",
+            branch: "feature/x",
+            localSha: "def5678",
+            removed: 2
+        })
+        const one = forcePushConfirmation({ upstream: "origin/x", remoteSha: "abc1234", branch: "x", localSha: "def5678", removed: 1 })
+
+        // Assert
+        expect(many).toEqual({
+            title: "Force Push",
+            text:
+                "Replace 'origin/feature/x' (at abc1234) with your 'feature/x' (at def5678)? 2 commits on the remote that are not in your " +
+                "branch are removed from it. The push fails if the remote moved since abc1234.",
+            verb: "Force push"
+        })
+        expect(one.text).toContain("1 commit on the remote that is not in your branch is removed from it.")
+    })
+
+    it("should ask before aborting a merge or a rebase and name the branch", () => {
+        // Arrange & Act
+        const merge = abortConfirmation("merge", "main")
+        const rebase = abortConfirmation("rebase", null)
+
+        // Assert
+        expect(merge).toEqual({
+            title: "Abort Merge",
+            text: "Abort the merge and return 'main' to the state before the pull? Changes made while resolving are lost.",
+            verb: "Abort merge"
+        })
+        expect(rebase).toEqual({
+            title: "Abort Rebase",
+            text: "Abort the rebase and return the branch to the state before the pull? Changes made while resolving are lost.",
+            verb: "Abort rebase"
+        })
+    })
+
+    it("should word the results of pull, push and publish", () => {
+        // Arrange & Act
+        const results = [
+            pullResult(3),
+            pullResult(1),
+            pullResult(0),
+            pushResult(2, "origin/feature/x"),
+            pushResult(1, "origin/x"),
+            publishResult("feature/x", "origin")
+        ]
+
+        // Assert
+        expect(results).toEqual([
+            "Pulled 3 commits",
+            "Pulled 1 commit",
+            "Already up to date",
+            "Pushed 2 commits to origin/feature/x",
+            "Pushed 1 commit to origin/x",
+            "Published 'feature/x' to origin"
+        ])
     })
 })

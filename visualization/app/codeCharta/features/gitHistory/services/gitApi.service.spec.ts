@@ -215,6 +215,27 @@ describe("GitApiService", () => {
         ])
     })
 
+    it("should send pull, push and abort under their operation ids", async () => {
+        // Arrange
+        const bridge: FakeDesktopBridge = createFakeDesktopBridge()
+        const api = apiWith(bridge)
+        const pull = { repo, mode: "ffOnly" as const }
+        const push = { repo, branchRefName: "refs/heads/main", remote: "origin", setUpstream: false, forceWithLeaseExpected: null }
+        const abort = { repo, operation: "merge" as const }
+
+        // Act
+        await api.pull(pull, "op-1")
+        await api.push(push, "op-2")
+        await api.abortOperation(abort, "op-3")
+
+        // Assert
+        expect(bridge.calls.filter(call => call.name === "request").map(call => call.args)).toEqual([
+            ["git.pull", pull, { operationId: "op-1" }],
+            ["git.push", push, { operationId: "op-2" }],
+            ["git.abortOperation", abort, { operationId: "op-3" }]
+        ])
+    })
+
     it("should answer and cancel prompts and cancel operations through the bridge", async () => {
         // Arrange
         const bridge: FakeDesktopBridge = createFakeDesktopBridge({ responses: { "prompt.answer": null, "prompt.cancel": null } })

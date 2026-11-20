@@ -20,6 +20,20 @@
             </div>
         }
     }
+    @if (choice(); as choice) {
+        <div class="modal-box">
+            <h2 id="cc-git-confirm-title" class="mb-2 text-lg font-bold">{{ choice.title }}</h2>
+            <p class="py-2" data-testid="git-confirm-text">{{ choice.text }}</p>
+            <div class="modal-action">
+                <button #firstButton type="button" class="btn" data-testid="git-confirm-cancel" (click)="answer(false)">Cancel</button>
+                @for (option of choice.options; track option.value) {
+                    <button type="button" class="btn" [attr.data-testid]="'git-choice-' + option.value" (click)="pick(option.value)">
+                        {{ option.label }}
+                    </button>
+                }
+            </div>
+        </div>
+    }
     <form method="dialog" class="modal-backdrop">
         <button>close</button>
     </form>

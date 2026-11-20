@@ -866,12 +866,22 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
    - Tests: fast-forward-only by default; rebase / merge offered only after `notFastForward`; conflicted files listed with a confirmed Abort; publish without upstream; Pull offered after a rejected push; force-push text with both SHAs and that SHA sent; ahead/behind badges.
    - Commit: `feat(visualization): pull and push from history`
    - Changelog: rewrite to `- **Git**: a project folder that is a git repository gets a History view with its branches, tags and commit graph, a search, the changed files of each commit, and a Changes tab to stage, commit, pull and push; git asks for passwords and passphrases in a CodeCharta dialog and nothing is stored.`
+   - As built: one contextual `cc-sync-button` (design H5, OD3) instead of `syncButtons`; the pull choice is a
+     choice question of `cc-git-confirm-dialog` (`GitConfirmationService.choose`), the force push a destructive
+     confirmation there; `services/syncActions.service.ts`, `components/operationStateBanner`, `util/syncState.ts`,
+     `util/operationNotice.ts`. The existing Git history changelog entry was extended instead of rewritten. Details in
+     `progress/04-M11-pull-push.md`.
 
 ### M12 — Workflow end-to-end, docs; stash (stretch) (M)
 
 1. **e2e** `gitWorkflow.e2e.ts` (extra `data-testid`: `changes-tab`, `change-row`, `stage-button`, `discard-button`, `diff-view`, `commit-subject`, `commit-button`, `sync-fetch`, `sync-pull`, `sync-push`, `credential-prompt`). Scenarios: stage and commit (row moves to Staged, commit clears the box); discard asks and names the file; passphrase prompt (fake emits `prompt.requested`, OK sends `prompt.answer`); rebase / merge offered after a non-fast-forward pull; force push needs its own confirmation. Commit: `test(visualization): cover the git workflow end to end`
 2. **Docs.** `visualization/README.md`: git actions, hooks note, credentials (credential helper, askpass dialog, nothing stored, ssh-agent / Pageant recommended), identity instructions, out of scope. Commit: `docs(visualization): document the git workflow`
 3. **Stretch: stash.** `stash.rs`, RPC, a "Stash" menu in the Changes tab. Tests (fixture): stash and pop including untracked when asked; stash kept when pop conflicts. Commits: `feat(core): stash and pop changes`, `feat(visualization): stash and pop from the changes tab`.
+4. As built: `gitWorkflow.e2e.ts` covers the pull and push scenarios; the stage, commit, discard and passphrase
+   scenarios were already in `gitHistory.e2e.ts` (04-M7..M10) and stay there. The plan's extra `data-testid`s are the
+   existing ones (`history-tab-changes`, `data-row-key`, `diff-view`, `commit-summary`, `commit-button`,
+   `credential-prompt`) plus `sync-button-main` and `sync-menu-<action>` for the one sync button. Stash not built (no
+   core support). Details in `progress/04-M12-workflow-e2e.md`.
 
 ## 6. Rules, security and manual verification
 

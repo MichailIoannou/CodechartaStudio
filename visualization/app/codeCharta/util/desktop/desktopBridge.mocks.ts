@@ -6,15 +6,20 @@ import type { ErrorCode } from "../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
 import type { FolderRef } from "../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../model/coreApi/FolderRole"
+import type { GitAbortableOperation } from "../../model/coreApi/GitAbortableOperation"
 import type { GitCommitDetails } from "../../model/coreApi/GitCommitDetails"
 import type { GitCommitSummary } from "../../model/coreApi/GitCommitSummary"
 import type { GitDiff } from "../../model/coreApi/GitDiff"
 import type { GitEntryKind } from "../../model/coreApi/GitEntryKind"
 import type { GitFileChange } from "../../model/coreApi/GitFileChange"
+import type { GitLocalBranch } from "../../model/coreApi/GitLocalBranch"
 import type { GitLogParams } from "../../model/coreApi/GitLogParams"
+import type { GitPullMode } from "../../model/coreApi/GitPullMode"
 import type { GitRefs } from "../../model/coreApi/GitRefs"
+import type { GitRemoteBranch } from "../../model/coreApi/GitRemoteBranch"
 import type { GitRepositoryInfo } from "../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../model/coreApi/GitStatus"
+import type { GitUpstream } from "../../model/coreApi/GitUpstream"
 import type { GitWorkingTreeEntry } from "../../model/coreApi/GitWorkingTreeEntry"
 import type { HostingOverride } from "../../model/coreApi/HostingOverride"
 import type { JobError } from "../../model/coreApi/JobError"
@@ -66,6 +71,9 @@ type FakeGitMethod =
     | "git.discard"
     | "git.commit"
     | "git.isAncestor"
+    | "git.pull"
+    | "git.push"
+    | "git.abortOperation"
 
 /**
  * A write that does not answer at once: it reports its progress and asks its prompts under the caller's operation id,
@@ -97,6 +105,10 @@ interface FakeGitRepository {
     areChangesTruncated?: boolean
     /** By `<kind>:<path>`; a listed row without one answers an empty diff. */
     diffs?: Record<string, GitDiff>
+    /** What `git.pull` answers for a mode instead of pulling. */
+    pullRefusals?: Partial<Record<GitPullMode, ErrorPayload>>
+    /** The paths a merge or rebase pull stops on; the merge or rebase then stays in progress. Without them every mode moves the branch onto its upstream. */
+    pullConflicts?: string[]
 }
 
 export interface FakeDesktopSeed {
@@ -194,6 +206,12 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     policy?: PrunePolicy
     snapshotIds?: string[]
     hosting?: HostingOverride
+    mode?: GitPullMode
+    branchRefName?: string
+    remote?: string
+    setUpstream?: boolean
+    forceWithLeaseExpected?: string | null
+    operation?: GitAbortableOperation
 }
 
 type FakeGitTarget =
@@ -1094,6 +1112,110 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return reached.some(commit => commit.sha === params.ancestor)
     }
 
+    function currentBranchOf(repository: FakeGitRepository) {
+        return repository.refs?.localBranches.find(branch => branch.isCurrent)
+    }
+
+    function remoteBranchOf(repository: FakeGitRepository, refName: string | undefined) {
+        return repository.refs?.remoteBranches.find(branch => branch.refName === refName)
+    }
+
+    function track(repository: FakeGitRepository, branch: GitLocalBranch, upstream: GitUpstream) {
+        branch.upstream = upstream
+        if (branch.isCurrent && repository.status) {
+            repository.status.upstream = upstream
+        }
+    }
+
+    function moveCurrentBranch(repository: FakeGitRepository, branch: GitLocalBranch, commit: string) {
+        branch.commit = commit
+        if (repository.refs && repository.status) {
+            repository.refs.head = { kind: "branch", name: branch.name, commit }
+            repository.status.head = repository.refs.head
+        }
+    }
+
+    function pull(repository: FakeGitRepository, params: FakeRequestParams) {
+        const mode = params.mode ?? "ffOnly"
+        const refusal = repository.pullRefusals?.[mode]
+        if (refusal) {
+            return { ok: false as const, error: refusal }
+        }
+        const branch = currentBranchOf(repository)
+        const remote = remoteBranchOf(repository, branch?.upstream?.refName)
+        if (!branch?.upstream || !remote) {
+            return refuse("NO_UPSTREAM", "There is no tracking information for the current branch.")
+        }
+        const conflicts = repository.pullConflicts ?? []
+        if (mode !== "ffOnly" && conflicts.length > 0) {
+            return stopOnConflicts(repository, mode, conflicts)
+        }
+        moveCurrentBranch(repository, branch, remote.commit)
+        track(repository, branch, { ...branch.upstream, behind: 0 })
+        return null
+    }
+
+    function stopOnConflicts(repository: FakeGitRepository, mode: GitAbortableOperation, paths: string[]) {
+        if (repository.status) {
+            repository.status.operationInProgress = mode
+        }
+        const conflicted = paths.map(path => ({
+            path,
+            previousPath: null,
+            kind: "conflicted" as const,
+            change: "modified" as const,
+            conflict: "UU"
+        }))
+        repository.changes = [...(repository.changes ?? []), ...conflicted]
+        countChanges(repository)
+        return refuse("CONFLICTS", `CONFLICT (content): Merge conflict in ${paths[0]}`)
+    }
+
+    function push(repository: FakeGitRepository, params: FakeRequestParams) {
+        const branch = localBranchOf(repository, params.branchRefName ?? "")
+        if (!branch || !repository.refs) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no branch ${params.branchRefName}.`)
+        }
+        const lease = params.forceWithLeaseExpected ?? null
+        const destination =
+            remoteBranchOf(repository, branch.upstream?.refName) ?? publishedBranch(repository.refs, branch, params.remote ?? "")
+        if (lease === null && (branch.upstream?.behind ?? 0) > 0) {
+            return refuse("PUSH_REJECTED", `!\t${branch.refName}\t[rejected] (non-fast-forward)`)
+        }
+        if (lease !== null && lease !== destination.commit) {
+            return refuse("STALE_PUSH_LEASE", `!\t${branch.refName}\t[rejected] (stale info)`)
+        }
+        destination.commit = branch.commit
+        if (branch.upstream || params.setUpstream) {
+            track(repository, branch, upstreamOf(destination))
+        }
+        return null
+    }
+
+    function publishedBranch(refs: GitRefs, branch: GitLocalBranch, remote: string): GitRemoteBranch {
+        const published = {
+            refName: `refs/remotes/${remote}/${branch.name}`,
+            remote,
+            name: `${remote}/${branch.name}`,
+            branchName: branch.name,
+            commit: branch.commit,
+            lastCommit: branch.lastCommit
+        }
+        refs.remoteBranches.push(published)
+        return published
+    }
+
+    function abortOperation(repository: FakeGitRepository, params: FakeRequestParams) {
+        const status = repository.status
+        if (!status || status.operationInProgress !== params.operation) {
+            return refuse("NOT_ALLOWED", `No ${params.operation} is in progress.`)
+        }
+        status.operationInProgress = null
+        repository.changes = (repository.changes ?? []).filter(entry => entry.kind !== "conflicted")
+        countChanges(repository)
+        return null
+    }
+
     function slowOperationOf(method: BridgeMethod, params: unknown) {
         const folderId = (params as FakeRequestParams | undefined)?.repo?.folderId ?? ""
         return Object.hasOwn(store.git, folderId) ? store.git[folderId].slow?.[method as FakeGitMethod] : undefined
@@ -1647,6 +1769,9 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "git.discard": workingTreeWrite("git.discard", discardChanges),
         "git.commit": gitWrite("git.commit", commitChanges),
         "git.isAncestor": gitAnswer("git.isAncestor", isAncestor),
+        "git.pull": gitWrite("git.pull", pull),
+        "git.push": gitWrite("git.push", push),
+        "git.abortOperation": gitWrite("git.abortOperation", abortOperation),
         "prompt.answer": answerPrompt,
         "prompt.cancel": cancelPrompt
     }

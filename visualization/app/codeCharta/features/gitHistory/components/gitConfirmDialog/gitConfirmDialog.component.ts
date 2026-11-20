@@ -3,7 +3,8 @@ import { GitConfirmationService } from "../../services/gitConfirmation.service"
 
 /**
  * Design H15: a destructive confirmation in the `deleteConfirmDialog` layout (Cancel focused, the verb in
- * `btn-error`), every other one in the `ConfirmDialogComponent` layout (No / Yes). Escape and the backdrop decline.
+ * `btn-error`), a choice as Cancel (focused) and its options with none as default, every other one in the
+ * `ConfirmDialogComponent` layout (No / Yes). Escape and the backdrop decline.
  */
 @Component({
     selector: "cc-git-confirm-dialog",
@@ -16,18 +17,23 @@ export class GitConfirmDialogComponent {
     private readonly firstButton = viewChild<ElementRef<HTMLButtonElement>>("firstButton")
 
     readonly confirmation = this.confirmations.current
+    readonly choice = this.confirmations.currentChoice
 
     constructor() {
-        effect(() => this.showOrClose(this.confirmation() !== null))
+        effect(() => this.showOrClose(this.confirmation() !== null || this.choice() !== null))
     }
 
     answer(isConfirmed: boolean) {
         this.confirmations.answer(isConfirmed)
     }
 
+    pick(value: string) {
+        this.confirmations.pick(value)
+    }
+
     /** Escape and the backdrop close the native dialog without an answer. */
     onClosed() {
-        if (this.confirmation()) {
+        if (this.confirmation() || this.choice()) {
             this.answer(false)
         }
     }

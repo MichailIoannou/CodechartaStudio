@@ -3,20 +3,32 @@
         type="button"
         class="btn btn-sm btn-outline join-item gap-1.5 border-base-300 font-normal"
         data-testid="sync-button-main"
-        [disabled]="isBusy()"
+        [disabled]="isMainDisabled()"
         [title]="mainTitle()"
         [attr.aria-label]="label()"
-        (click)="fetch()"
+        (click)="runMain()"
     >
-        <i class="fa-solid fa-rotate fa-fw"></i>
+        <i class="fa-fw {{ action().icon }}"></i>
         <span class="hidden xl:inline">{{ label() }}</span>
+        @if (!running()) {
+            @if (action().behind !== null) {
+                <span class="inline-flex items-center gap-0.5 text-xs tabular-nums" data-testid="sync-button-behind"
+                    ><i class="fa-solid fa-arrow-down"></i>{{ action().behind }}</span
+                >
+            }
+            @if (action().ahead !== null) {
+                <span class="inline-flex items-center gap-0.5 text-xs tabular-nums" data-testid="sync-button-ahead"
+                    ><i class="fa-solid fa-arrow-up"></i>{{ action().ahead }}</span
+                >
+            }
+        }
     </button>
-    @if (isFetching()) {
+    @if (running(); as running) {
         <button
             type="button"
             class="btn btn-sm btn-outline btn-square join-item border-base-300"
-            title="Cancel the fetch"
-            aria-label="Cancel the fetch"
+            [title]="'Cancel the ' + running.noun"
+            [attr.aria-label]="'Cancel the ' + running.noun"
             data-testid="sync-button-cancel"
             (click)="cancel()"
         >
@@ -41,10 +53,15 @@
 </div>
 @if (menuAnchor(); as anchor) {
     <cc-floating-menu class="w-max min-w-64 max-w-[32rem]" data-testid="sync-menu" [anchor]="anchor" (dismissed)="closeMenu()">
-        <cc-context-menu-item icon="fa-solid fa-rotate" hoverHint="Fetch from all remotes" (itemClick)="fetch()">Fetch</cc-context-menu-item>
-        <cc-context-menu-item icon="fa-solid fa-rotate" (itemClick)="fetch(true)">Fetch and Remove Deleted Branches</cc-context-menu-item>
-        @if (currentBranch()) {
-            <cc-context-menu-item icon="fa-solid fa-link" (itemClick)="setUpstream()">Set Upstream…</cc-context-menu-item>
+        @for (item of menuItems(); track item.action) {
+            <cc-context-menu-item
+                [icon]="item.icon"
+                [hoverHint]="item.hint"
+                [disabledReason]="item.disabledReason"
+                [attr.data-testid]="'sync-menu-' + item.action"
+                (itemClick)="runMenuItem(item)"
+                >{{ item.label }}</cc-context-menu-item
+            >
         }
     </cc-floating-menu>
 }

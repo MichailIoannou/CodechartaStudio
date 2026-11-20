@@ -78,4 +78,29 @@ describe("GitFailureReport", () => {
         // Assert
         expect(toasts()).toEqual([])
     })
+
+    it("should offer the follow-up of the failure when the caller can run it", async () => {
+        // Arrange
+        const report = await createReport()
+        const pull = jest.fn()
+
+        // Act
+        report.report(anError("PUSH_REJECTED"), {}, { pull })
+        toasts()[0].action?.run()
+
+        // Assert
+        expect(toasts()[0].action?.label).toBe("Pull")
+        expect(pull).toHaveBeenCalledTimes(1)
+    })
+
+    it("should offer no follow-up the caller cannot run", async () => {
+        // Arrange
+        const report = await createReport()
+
+        // Act
+        report.report(anError("STALE_PUSH_LEASE"), {}, { pull: jest.fn() })
+
+        // Assert
+        expect(toasts()[0].action).toBeUndefined()
+    })
 })

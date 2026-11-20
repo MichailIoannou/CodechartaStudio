@@ -19,6 +19,7 @@ import { DiffViewComponent } from "../diffView/diffView.component"
 import { GitConfirmDialogComponent } from "../gitConfirmDialog/gitConfirmDialog.component"
 import { GitProblemNoticeComponent } from "../gitProblemNotice/gitProblemNotice.component"
 import { HistoryToolbarComponent } from "../historyToolbar/historyToolbar.component"
+import { OperationStateBannerComponent } from "../operationStateBanner/operationStateBanner.component"
 
 const COMMIT_GRAPH_COMMAND = "git commit-graph write --reachable"
 
@@ -43,7 +44,8 @@ export interface FolderToRelink {
         BranchDialogComponent,
         GitConfirmDialogComponent,
         ChangesPanelComponent,
-        DiffViewComponent
+        DiffViewComponent,
+        OperationStateBannerComponent
     ],
     providers: [CopyToClipboardService],
     changeDetection: ChangeDetectionStrategy.OnPush,

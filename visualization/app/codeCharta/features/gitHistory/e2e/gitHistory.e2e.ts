@@ -246,12 +246,24 @@ test.describe("History", () => {
 
 test.describe("History writes", () => {
     const commits = [aLogCommit("a", "Fix invoice rounding", ["b"]), aLogCommit("b", "Start the invoice module")]
+    const inSyncUpstream = anUpstream("origin/feature/invoice-rounding")
+    /** A branch level with its upstream, so the sync button's main part fetches. */
+    const inSync = {
+        status: aStatusOn("feature/invoice-rounding", {
+            upstream: inSyncUpstream,
+            counts: { staged: 0, unstaged: 3, untracked: 0, conflicted: 0 }
+        }),
+        refs: {
+            ...BILLING_REFS,
+            localBranches: BILLING_REFS.localBranches.map(branch => (branch.isCurrent ? { ...branch, upstream: inSyncUpstream } : branch))
+        }
+    }
 
     test("should fetch after the hooks notice, show its progress in the workspace status and cancel it", async ({ page }) => {
         // Arrange
         const history = new GitHistoryPageObject(page)
         const progress = { message: "Receiving objects: 45% (9/20)", done: 45, total: 100 }
-        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, slow: { "git.fetch": { progress } } } }))
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, ...inSync, slow: { "git.fetch": { progress } } } }))
         await goto(page)
         await history.open()
 
@@ -273,7 +285,7 @@ test.describe("History writes", () => {
         // Arrange
         const history = new GitHistoryPageObject(page)
         const prompts = [{ kind: "secret" as const, message: 'Enter passphrase for "/home/mia/.ssh/id_ed25519": ' }]
-        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, slow: { "git.fetch": { prompts } } } }))
+        await standInForTheDesktopBridge(page, billingSeed({ "f-api": { commits, ...inSync, slow: { "git.fetch": { prompts } } } }))
         await goto(page)
         await history.open()
         await history.syncButton().click()

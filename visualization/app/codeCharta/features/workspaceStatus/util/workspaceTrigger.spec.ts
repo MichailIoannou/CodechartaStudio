@@ -63,6 +63,20 @@ describe("workspaceTrigger", () => {
             expect(activities).toEqual([FETCHING, { ...FETCHING, percent: null, message: null }, null, null, null])
         })
 
+        it("should word a pull and a push with their own icons", () => {
+            // Arrange
+            const running = { repo: FOLDER, operationId: "git-operation-1", progress: null }
+
+            // Act
+            const activities = (["pull", "push"] as const).map(kind => gitActivityOf({ ...running, kind }, FOLDER))
+
+            // Assert
+            expect(activities).toEqual([
+                { label: "Pulling", icon: "fa-solid fa-arrow-down motion-safe:animate-pulse", percent: null, message: null },
+                { label: "Pushing", icon: "fa-solid fa-arrow-up motion-safe:animate-pulse", percent: null, message: null }
+            ])
+        })
+
         it("should show a fetch instead of a running analysis, with a +1 badge", () => {
             // Arrange
             const job = aJob("job-1", { state: "running", progress: { mode: "determinate", percent: 42 } })

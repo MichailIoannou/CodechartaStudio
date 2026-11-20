@@ -82,6 +82,22 @@ export function gitErrorCommands(error: GitError): string[] {
     return error.code === "IDENTITY_UNKNOWN" ? [...IDENTITY_COMMANDS] : []
 }
 
+/** The one follow-up action design H6 offers in the toast of a failure. */
+export interface GitFollowUp {
+    kind: "pull" | "fetch" | "publish"
+    label: string
+}
+
+const FOLLOW_UPS: Partial<Record<GitError["code"], GitFollowUp>> = {
+    PUSH_REJECTED: { kind: "pull", label: "Pull" },
+    STALE_PUSH_LEASE: { kind: "fetch", label: "Fetch" },
+    NO_UPSTREAM: { kind: "publish", label: "Publish branch" }
+}
+
+export function gitErrorFollowUp(error: GitError): GitFollowUp | null {
+    return FOLLOW_UPS[error.code] ?? null
+}
+
 export function gitErrorSentence(error: GitError, context: GitErrorContext = {}): string {
     return contextSentenceOf(error, context) ?? plainSentenceOf(error)
 }
@@ -104,6 +120,10 @@ function plainSentenceOf(error: GitError): string {
             return "Nothing to commit. Stage files first."
         case "HOOK_FAILED":
             return "A git hook stopped the operation."
+        case "PUSH_REJECTED":
+            return "The remote has commits you do not have. Pull first, then push."
+        case "STALE_PUSH_LEASE":
+            return "The remote branch moved since you last fetched. Fetch, review, and try again."
         default:
             return `Git failed: ${error.message}`
     }
@@ -122,6 +142,8 @@ function contextSentenceOf(error: GitError, context: GitErrorContext): string | 
             return branch && worktreePath ? `'${branch}' is checked out in another worktree (${worktreePath}).` : null
         case "BRANCH_EXISTS":
             return branch ? `A branch named '${branch}' already exists.` : null
+        case "NO_UPSTREAM":
+            return branch ? `'${branch}' has no upstream branch.` : null
         case "AUTHENTICATION_REQUIRED":
             return remote
                 ? `Git could not sign in to '${remote}'. Check your credential helper or ssh key; CodeCharta asks only when git asks.`
