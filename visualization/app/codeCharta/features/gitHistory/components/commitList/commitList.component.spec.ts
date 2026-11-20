@@ -158,6 +158,15 @@ describe("CommitListComponent", () => {
         expect(screen.getAllByTestId("graph-head-ring")).toHaveLength(1)
     })
 
+    it("should keep the graph column wide enough for its header when there is one lane", async () => {
+        // Arrange & Act
+        await renderList(seedOf([RELEASE, START]))
+
+        // Assert
+        const columns = screen.getByTestId("commit-list-header").style.gridTemplateColumns
+        expect(columns.split(" ")[0]).toBe("52px")
+    })
+
     it("should show one label and the rest as a count in a narrow pane", async () => {
         // Arrange
         sizeViewport({ width: 500, height: 280 })
