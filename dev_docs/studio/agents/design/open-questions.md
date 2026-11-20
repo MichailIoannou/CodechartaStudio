@@ -267,3 +267,11 @@ answer that differs means the named file is changed, nothing else.
        publish instead? Force Push is disabled when nothing on the remote would be replaced. OK?
      - wording supplied: "HEAD is detached: switch to a branch first", "This repository has no remote",
        "The remote has no commits that your branch lacks — use Push". Approve or replace?
+  7. Sync button outside the History (`progress/04-sync-placements.md`):
+     - a pull started from the workspace status or the project overview can stop on conflicts; the H6
+       toast then says "The notice above the list says how to finish or abort", but that notice exists only
+       in the History. "Open History" follow-up in the toast, other text, or a merge/rebase state with Abort
+       in W1 and the card?
+     - answering a confirmation (a click on the modal) closes the W1 dropdown like any outside click, so
+       "Pulling…" is then visible only on the trigger. Should the dropdown stay open?
+     - the "Open History" buttons next to the sync button in the W1 and P3 mock-ups are not built yet.

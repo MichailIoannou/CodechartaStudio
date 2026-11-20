@@ -443,6 +443,12 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-21: merged the H5 sync-button placements (workspace status, project overview; git dialogs hosted
+  once in the app shell). Gates at b0372ec10: format, lint, tsc, npm test 798/798 (6509 tests), build,
+  test:electron, e2e:desktop 18/18, web e2e 218/218. Designer questions added to O9 (item 7). The owner pushed
+  the six stacked branches; their CI failures (desktop smoke timing, core tests on macOS and Windows) are
+  fixed in a separate session, whose fixes `feature/studio-next` must take before it becomes a PR. 06-M6 running.
+
 - 2026-11-21: merged 06-M4/M5 UI (+ 06-M2 open entries, C2) with an orchestrator fix: compare opens the desktop
   tools through the shared `GlobalConfigurationOpener` instead of a second dialog (7ff85ace5 and its test update); then
   04-M11 UI + 04-M12. Gates at e8e5bd3b0: format, lint, tsc, npm test 797/797 (6504 tests), build,
