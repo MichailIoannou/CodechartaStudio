@@ -1,8 +1,13 @@
 import { createSelector } from "@ngrx/store"
 import { CodeMapNode } from "../../../model/codeCharta.model"
-import { flattenMatcherSelector, flattenMetricRulesSelector } from "../../../stores/sharedView/sharedView.read.facade"
+import {
+    changedFilesFilterSelector,
+    flattenMatcherSelector,
+    flattenMetricRulesSelector
+} from "../../../stores/sharedView/sharedView.read.facade"
 import { isLeaf } from "../../../util/codeMapHelper"
 import { createMetricRuleMatcher } from "../../../util/metricRule/metricRuleMatcher"
+import { createChangedFilesMatcher } from "../../../util/nodeRules/changedFilesMatcher"
 import { nodeMetricDataSelector } from "../nodeMetricData/nodeMetricData.selector"
 
 export type FlattenPredicate = (node: CodeMapNode) => boolean
@@ -16,9 +21,12 @@ export const flattenPredicateSelector = createSelector(
     flattenMatcherSelector,
     flattenMetricRulesSelector,
     nodeMetricDataSelector,
-    (flattenMatcher, flattenMetricRules, nodeMetricData): FlattenPredicate => {
+    changedFilesFilterSelector,
+    (flattenMatcher, flattenMetricRules, nodeMetricData, changedFilesFilter): FlattenPredicate => {
         const metricsOnMap = new Set(nodeMetricData.map(({ name }) => name))
         const metricRuleMatcher = createMetricRuleMatcher(flattenMetricRules, metricsOnMap)
-        return node => flattenMatcher.isFlattened(node.path) || (isLeaf(node) && metricRuleMatcher.matches(node.attributes))
+        const isUnchanged = createChangedFilesMatcher(changedFilesFilter)
+        return node =>
+            flattenMatcher.isFlattened(node.path) || (isLeaf(node) && (metricRuleMatcher.matches(node.attributes) || isUnchanged(node)))
     }
 )

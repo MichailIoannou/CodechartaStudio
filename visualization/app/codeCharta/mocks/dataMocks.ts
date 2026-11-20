@@ -1976,7 +1976,8 @@ export const STATE: CcState = {
         hoveredFileExtensions: [],
         keptHighlightPaths: [],
         selectedNodePath: null,
-        rightClickedNodeData: null
+        rightClickedNodeData: null,
+        changedFilesFilter: null
     },
     preferences: {
         isColorMetricLinkedToHeightMetric: false,
@@ -2155,7 +2156,8 @@ export const DEFAULT_STATE: CcState = {
         hoveredFileExtensions: [],
         keptHighlightPaths: [],
         selectedNodePath: null,
-        rightClickedNodeData: null
+        rightClickedNodeData: null,
+        changedFilesFilter: null
     },
     metricsLensSource: {
         attributeTypes: {},

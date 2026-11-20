@@ -70,8 +70,46 @@ export class ComparePageObject {
         await this.page.getByTestId("commit-context-menu").getByRole("button", { name: item }).click()
     }
 
+    async chooseFromTheBranchMenu(branchRow: Locator, item: string) {
+        await branchRow.click({ button: "right" })
+        await this.page.getByTestId("branch-context-menu").getByRole("button", { name: item }).click()
+    }
+
+    changeRequestsNotInstalled() {
+        return this.page.getByTestId("change-requests-not-installed")
+    }
+
+    async openPullRequestByNumber(number: string) {
+        await this.page.getByTestId("change-requests-number").fill(number)
+        await this.page.getByTestId("change-requests-open").click()
+    }
+
+    pullRequestBadge() {
+        return this.page.getByTestId("comparison-pull-request")
+    }
+
     async leave() {
         await this.page.getByTestId("comparison-actions").click()
         await this.page.getByTestId("comparison-leave").click()
+    }
+
+    async openTheChangesMode() {
+        await this.page.getByTestId("explorer-mode-changes").click()
+    }
+
+    changeRows() {
+        return this.page.getByTestId("changes-row")
+    }
+
+    changesSource() {
+        return this.page.getByTestId("changes-source")
+    }
+
+    async showOnlyChangedFiles() {
+        await this.page.getByTestId("changes-only-changed").click()
+    }
+
+    flattenedCount() {
+        return this.page.locator("cc-explorer-count-chip").filter({ hasText: "Flattened" })
     }
 }

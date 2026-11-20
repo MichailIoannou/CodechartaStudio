@@ -3,7 +3,7 @@ import { toSignal } from "@angular/core/rxjs-interop"
 import { EXPLORER_CONDITIONAL_MODES, ExplorerMode } from "../sidebarExplorer/facade"
 import { ClusterExplorerReadStore } from "./stores/clusterExplorer.read.store"
 
-const CLUSTERS_EXPLORER_MODE: ExplorerMode = {
+export const CLUSTERS_EXPLORER_MODE: ExplorerMode = {
     id: "clusters",
     label: "Clusters",
     icon: "fa-solid fa-users",
@@ -15,6 +15,7 @@ const CLUSTERS_EXPLORER_MODE: ExplorerMode = {
 export function provideClustersExplorerMode(): Provider {
     return {
         provide: EXPLORER_CONDITIONAL_MODES,
+        multi: true,
         useFactory: () => {
             const hasClusterings = toSignal(inject(ClusterExplorerReadStore).hasClusterings$, { requireSync: true })
             return computed(() => (hasClusterings() ? [CLUSTERS_EXPLORER_MODE] : []))

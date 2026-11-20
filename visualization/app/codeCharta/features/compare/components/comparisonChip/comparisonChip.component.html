@@ -1,4 +1,5 @@
 <div class="flex min-w-0 items-center gap-1" role="group" aria-label="Comparison" data-testid="comparison-chip">
+    <div class="flex min-w-0 items-center gap-1 overflow-hidden" data-testid="comparison-parts">
     @if (isNoDifferences()) {
         <span class="flex min-w-0 items-center gap-2 px-2 text-sm" data-testid="comparison-no-differences">
             <i class="fa-solid fa-equals fa-fw text-base-content/60"></i>
@@ -7,12 +8,15 @@
                 <span class="font-mono">{{ head()?.shortCommit }}</span></span
             >
         </span>
+        @if (gitLine(); as gitLine) {
+            <span class="hidden shrink-0 whitespace-nowrap text-xs text-base-content/60 xl:inline" data-testid="comparison-git-line">{{ gitLine }}</span>
+        }
     } @else {
         @for (side of [base(), head()]; track $index; let isHead = $last) {
             @if (isHead) {
                 <button
                     type="button"
-                    class="btn btn-ghost btn-sm btn-square"
+                    class="btn btn-ghost btn-sm btn-square shrink-0"
                     title="Switch reference and comparison file"
                     data-testid="comparison-swap"
                     (click)="swap()"
@@ -23,32 +27,65 @@
             @if (side; as side) {
                 <button
                     type="button"
-                    class="btn btn-ghost btn-sm min-w-0 max-w-48 shrink gap-1 font-normal"
+                    class="btn btn-ghost btn-sm max-w-48 shrink gap-1 font-normal"
                     [attr.data-testid]="'comparison-' + side.caption"
-                    [title]="side.caption + ' ' + side.shortCommit + (side.label ? ' ' + side.label : '')"
+                    [title]="side.title"
                     (click)="change()"
                 >
-                    <span class="hidden text-xs text-base-content/60 xl:inline">{{ side.caption }}</span>
-                    <span class="font-mono">{{ side.shortCommit }}</span>
+                    <span class="hidden text-xs text-base-content/60 2xl:inline" data-testid="comparison-caption">{{ side.caption }}</span>
+                    <span class="shrink-0 font-mono">{{ side.shortCommit }}</span>
                     @if (side.label) {
-                        <span class="truncate">{{ side.label }}</span>
+                        <span class="min-w-16 truncate">{{ side.label }}</span>
                     }
                 </button>
                 @if (side.staleBadge) {
-                    <span class="badge badge-warning badge-sm shrink-0 whitespace-nowrap" data-testid="comparison-stale" [title]="side.staleTitle">{{
-                        side.staleBadge
-                    }}</span>
+                    <span class="badge badge-warning badge-sm shrink-0 whitespace-nowrap" data-testid="comparison-stale" [title]="side.staleTitle">
+                        <span class="hidden xl:inline">{{ side.staleBadge }}</span>
+                        <span class="inline-flex items-center gap-1 xl:hidden" data-testid="comparison-stale-short"
+                            ><i class="fa-solid fa-clock-rotate-left"></i>{{ side.staleCount }}</span
+                        >
+                    </span>
                 }
             }
         }
+        @if (changeRequest(); as changeRequest) {
+            @if (changeRequest.url) {
+                <a
+                    class="badge badge-ghost badge-sm inline-flex max-w-32 shrink-0 items-center gap-1"
+                    target="_blank"
+                    rel="noopener"
+                    data-testid="comparison-pull-request"
+                    [href]="changeRequest.url"
+                    [title]="changeRequest.title"
+                    [attr.aria-label]="changeRequest.title"
+                >
+                    <i class="fa-solid fa-code-pull-request"></i>
+                    <span class="hidden truncate lg:inline">{{ changeRequest.label }}</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square hidden lg:inline"></i>
+                </a>
+            } @else {
+                <span
+                    class="badge badge-ghost badge-sm inline-flex max-w-32 shrink-0 items-center gap-1"
+                    data-testid="comparison-pull-request"
+                    [title]="changeRequest.title"
+                >
+                    <i class="fa-solid fa-code-pull-request"></i>
+                    <span class="hidden truncate lg:inline">{{ changeRequest.label }}</span>
+                </span>
+            }
+        }
         @if (baseModeBadge(); as badge) {
-            <span class="badge badge-ghost badge-xs hidden shrink-0 whitespace-nowrap xl:inline-flex" data-testid="comparison-base-mode" [title]="badge.title">{{
-                badge.text
-            }}</span>
+            <span
+                class="badge badge-ghost badge-xs hidden shrink-0 whitespace-nowrap 2xl:inline-flex"
+                data-testid="comparison-base-mode"
+                [title]="badge.title"
+                >{{ badge.text }}</span
+            >
         }
     }
+    </div>
 
-    <div class="dropdown dropdown-end" [class.dropdown-open]="isMenuOpen()">
+    <div class="dropdown dropdown-end shrink-0" [class.dropdown-open]="isMenuOpen()">
         <button
             type="button"
             class="btn btn-ghost btn-sm btn-square"
@@ -62,6 +99,11 @@
         </button>
         @if (isMenuOpen()) {
             <ul role="menu" class="dropdown-content z-[70] mt-1 flex w-max min-w-48 flex-col gap-0.5 rounded-box border border-base-300 bg-base-100 p-1 text-sm shadow-md">
+                @if (!isNoDifferences() && baseModeBadge(); as badge) {
+                    <li role="none" class="px-2 py-1 text-xs text-base-content/60 2xl:hidden" data-testid="comparison-menu-base-mode" [title]="badge.title">
+                        {{ badge.menuText }}
+                    </li>
+                }
                 <li role="none">
                     <button type="button" role="menuitem" class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200" (click)="change()">
                         <i class="fa-fw"></i>Change…

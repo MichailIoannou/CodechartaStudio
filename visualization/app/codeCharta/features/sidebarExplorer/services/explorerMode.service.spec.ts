@@ -53,12 +53,12 @@ describe("ExplorerModeService", () => {
     })
 
     describe("with conditional modes", () => {
-        const setupConditional = (conditionalModes: WritableSignal<ExplorerMode[]>) => {
+        const setupConditional = (...conditionalModes: WritableSignal<ExplorerMode[]>[]) => {
             TestBed.resetTestingModule()
             TestBed.configureTestingModule({
                 providers: [
                     provideExplorerCapabilitiesMock({ modes: [FILES_EXPLORER_MODE] }),
-                    { provide: EXPLORER_CONDITIONAL_MODES, useValue: conditionalModes },
+                    ...conditionalModes.map(modes => ({ provide: EXPLORER_CONDITIONAL_MODES, multi: true, useValue: modes })),
                     ExplorerModeService
                 ]
             })
@@ -78,6 +78,20 @@ describe("ExplorerModeService", () => {
             // Assert
             expect(activeBeforeItIsThere).toBe(FILES_EXPLORER_MODE)
             expect(modeService.modes()).toEqual([FILES_EXPLORER_MODE, WORDS_MODE])
+        })
+
+        it("should offer the modes of every provider", () => {
+            // Arrange
+            const changesMode: ExplorerMode = { ...WORDS_MODE, id: "changes", label: "Changes" }
+            const firstProvider = signal<ExplorerMode[]>([WORDS_MODE])
+            const secondProvider = signal<ExplorerMode[]>([])
+            const modeService = setupConditional(firstProvider, secondProvider)
+
+            // Act
+            secondProvider.set([changesMode])
+
+            // Assert
+            expect(modeService.modes()).toEqual([FILES_EXPLORER_MODE, WORDS_MODE, changesMode])
         })
 
         it("should hand over to the opening mode when the open conditional mode goes away", () => {

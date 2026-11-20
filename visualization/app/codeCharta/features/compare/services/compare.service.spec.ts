@@ -8,6 +8,7 @@ import { addFile, setStandard } from "../../../stores/fileStore/store/files.acti
 import { layoutAlgorithmSelector } from "../../../stores/mapState/mapState.read.facade"
 import { setLayoutAlgorithm } from "../../../stores/mapState/mapState.write.facade"
 import { appReducers, setStateMiddleware } from "../../../stores/rootStore/store"
+import { setChangedFilesFilter } from "../../../stores/sharedView/sharedView.write.facade"
 import { DesktopBridgeError } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
 import { ANALYSIS_GATEWAY, CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
@@ -109,6 +110,32 @@ describe("CompareService", () => {
         })
         expect(compareStore.state().phase).toBe("active")
         expect(compareStore.isActive()).toBe(true)
+    })
+
+    it("should ask for the files git changed between the two commits once the comparison shows", async () => {
+        // Arrange
+        core.changedFilesAnswer = { source: "git", files: [{ change: "modified", path: "a.ts", previousPath: null }] }
+
+        // Act
+        await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
+        await Promise.resolve()
+
+        // Assert
+        expect(core.changedFilesRequests).toEqual([{ baseFolder: FOLDER, headFolder: FOLDER, base: BASE_SHA, head: HEAD_SHA }])
+        expect(compareStore.state().changedFiles).toEqual(core.changedFilesAnswer)
+    })
+
+    it("should treat a failed changed-files request as a list git cannot give", async () => {
+        // Arrange
+        core.changedFilesAnswer = new Error("git failed")
+
+        // Act
+        await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
+        await Promise.resolve()
+        await Promise.resolve()
+
+        // Assert
+        expect(compareStore.state().changedFiles).toEqual({ source: "unavailable", files: [] })
     })
 
     it("should remember a merge-base comparison by the tip its base came from", async () => {
@@ -572,6 +599,17 @@ describe("CompareService", () => {
             // Assert
             expect(dispatched).toEqual(["SET_STANDARD", "REMOVE_FILES"])
             expect(selectionByChecksum()).toEqual({ [HEAD_CHECKSUM]: FileSelectionState.Partial })
+        })
+
+        it("should clear the filter when the comparison ends", () => {
+            // Arrange
+            store.dispatch(setChangedFilesFilter({ value: { source: "metrics" } }))
+
+            // Act
+            service.exit()
+
+            // Assert
+            expect(state.getValue().sharedView.changedFilesFilter).toBeNull()
         })
 
         it("should clear the comparison when leaving", () => {

@@ -126,4 +126,27 @@ describe("CoreGatewayAdapter", () => {
             new DesktopBridgeError({ code: "UNKNOWN_REVISION", message: "The commit has no parent to compare with." })
         )
     })
+
+    it("should list the files git changed between two commits", async () => {
+        // Arrange
+        const answer = { source: "git", files: [{ change: "modified", path: "src/a.ts", previousPath: null }] }
+        const gateway = createGateway({ responses: { "compare.changedFiles": answer } })
+
+        // Act
+        const result = await gateway.changedFiles({ baseFolder: FOLDER, headFolder: FOLDER, base: BASE_SHA, head: HEAD_SHA })
+
+        // Assert
+        expect(result).toEqual(answer)
+    })
+
+    it("should name the folder's local branches", async () => {
+        // Arrange
+        const gateway = createGateway()
+
+        // Act
+        const names = await gateway.branchNames(FOLDER)
+
+        // Assert
+        expect(names).toEqual(["main", "feature/x"])
+    })
 })

@@ -16,6 +16,7 @@ import type { GitRefs } from "../../model/coreApi/GitRefs"
 import type { GitRepositoryInfo } from "../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../model/coreApi/GitStatus"
 import type { GitWorkingTreeEntry } from "../../model/coreApi/GitWorkingTreeEntry"
+import type { HostingOverride } from "../../model/coreApi/HostingOverride"
 import type { JobError } from "../../model/coreApi/JobError"
 import type { JobProgress } from "../../model/coreApi/JobProgress"
 import type { NewFolder } from "../../model/coreApi/NewFolder"
@@ -192,6 +193,7 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     batchId?: string
     policy?: PrunePolicy
     snapshotIds?: string[]
+    hosting?: HostingOverride
 }
 
 type FakeGitTarget =
@@ -417,6 +419,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
                 makePrimary(project, folderIndex)
             }
             folder.role = params.role ?? folder.role
+            folder.hosting = params.hosting ?? folder.hosting
             return null
         })
     }
@@ -1464,8 +1467,8 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
                 return [branchTarget(folder.folderId, intent.branch, intent.target), intent.branch]
             case "explicit":
                 return [revisionOfTyped(folder.folderId, intent.base.rev.name), revisionOfTyped(folder.folderId, intent.head.rev.name)]
-            default:
-                return null
+            case "changeRequest":
+                return [`refs/heads/${intent.baseRefName}`, intent.headCommit]
         }
     }
 
@@ -1477,7 +1480,17 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
 
     function usesMergeBase(intent: CompareIntent, base: string) {
         const isNamedRef = base.startsWith("refs/")
-        return (intent.kind === "branch" || intent.kind === "explicit") && intent.baseMode === "mergeBase" && isNamedRef
+        const isChangeRequest = intent.kind === "changeRequest"
+        return (
+            isChangeRequest || ((intent.kind === "branch" || intent.kind === "explicit") && intent.baseMode === "mergeBase" && isNamedRef)
+        )
+    }
+
+    function originOf(intent: CompareIntent, baseRevision: string) {
+        if (intent.kind === "changeRequest") {
+            return "pullRequest"
+        }
+        return intent.kind === "branch" || (intent.kind === "explicit" && baseRevision.startsWith("refs/")) ? "branches" : "commits"
     }
 
     function sizeVerdictOf(bytes: number) {
@@ -1495,6 +1508,9 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         if (!revisions) {
             return refuse("UNKNOWN_REVISION", "The commit has no parent to compare with.")
         }
+        if (intent.kind === "changeRequest" && revisions[1] === null) {
+            return refuse("HEAD_NOT_LOCAL", `The head of #${intent.number} is not in this clone.`)
+        }
         if (revisions.some(revision => revision === null)) {
             return refuse("UNKNOWN_REVISION", "The revision is not in the repository.")
         }
@@ -1503,6 +1519,9 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         const isTipTheMergeBase = mergeBase === commitAtRevision(folder.folderId, baseRevision)
         const base = comparedSide(folder, mergeBase && !isTipTheMergeBase ? mergeBase : baseRevision)
         const head = comparedSide(folder, headRevision)
+        if (intent.kind === "changeRequest") {
+            head.requested.label = { kind: "pullRequest", name: `#${intent.number}` }
+        }
         const shown = [base, head].map(side =>
             side.status.status === "exact" ? (side.status.snapshot as SnapshotSummary) : (side.status.nearest?.snapshot ?? null)
         )
@@ -1511,7 +1530,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         const isSameCommit = base.requested.commit === head.requested.commit
         return succeed({
             status: { kind: isSameCommit ? "sameCommit" : "ready" },
-            origin: intent.kind === "branch" || (intent.kind === "explicit" && baseRevision.startsWith("refs/")) ? "branches" : "commits",
+            origin: originOf(intent, baseRevision),
             baseMode: mergeBase ? "mergeBase" : "tip",
             base,
             head,

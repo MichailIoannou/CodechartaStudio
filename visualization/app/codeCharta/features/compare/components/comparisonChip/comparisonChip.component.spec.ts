@@ -50,9 +50,20 @@ describe("ComparisonChipComponent", () => {
         store.dispatch(addFile({ file: TEST_FILE_DATA_JAVA }))
         store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA, comparisonFile: TEST_FILE_DATA_JAVA }))
         const head = phase === "noDifferences" ? { ...HEAD, checksum: TEST_FILE_DATA.fileMeta.fileChecksum } : HEAD
-        TestBed.inject(CompareStore).set({ phase, resolved, base: BASE, head, error: null, analyses: [] })
+        TestBed.inject(CompareStore).set({
+            phase,
+            resolved,
+            base: BASE,
+            head,
+            error: null,
+            analyses: [],
+            changedFiles: null,
+            changeRequest: null
+        })
         await screen.findByTestId("comparison-chip")
     }
+
+    const fullTextOf = (badge: HTMLElement) => badge.firstElementChild?.textContent?.trim()
 
     async function chooseAction(name: string) {
         await userEvent.click(screen.getByRole("button", { name: "Comparison actions" }))
@@ -72,7 +83,7 @@ describe("ComparisonChipComponent", () => {
         // Arrange
         await renderChip()
         const older = screen.getByTestId("comparison-stale")
-        const olderText = [older.textContent?.trim(), older.getAttribute("title")]
+        const olderText = [fullTextOf(older), older.getAttribute("title")]
 
         // Act
         TestBed.inject(CompareStore).update({
@@ -83,10 +94,118 @@ describe("ComparisonChipComponent", () => {
 
         // Assert
         expect(olderText).toEqual(["stale by 2", "No analysis for 9f8e7d6. Showing 3c4d5e6, 2 commits older."])
-        expect(screen.getAllByTestId("comparison-stale").map(badge => [badge.textContent?.trim(), badge.getAttribute("title")])).toEqual([
+        expect(screen.getAllByTestId("comparison-stale").map(badge => [fullTextOf(badge), badge.getAttribute("title")])).toEqual([
             ["ahead by 3", "No analysis for 9f8e7d6. Showing 3c4d5e6, which is ahead by 3 commits."],
             ["diverged 3↓ 2↑", "No analysis for a1b2c3d. Showing a1b2c3d from a diverged line: 3 behind / 2 ahead."]
         ])
+    })
+
+    it("should shorten each stale badge to a clock and its number for a narrow window", async () => {
+        // Arrange
+        await renderChip()
+
+        // Act
+        TestBed.inject(CompareStore).update({ head: { ...HEAD, relation: "diverged", staleBy: 5, behind: 3, ahead: 2 } })
+        TestBed.tick()
+
+        // Assert
+        const shortForms = screen.getAllByTestId("comparison-stale-short")
+        expect(shortForms.map(short => short.textContent?.trim())).toEqual(["2", "3↓ 2↑"])
+        expect(shortForms[0].className).toContain("xl:hidden")
+        expect(shortForms[0].querySelector(".fa-clock-rotate-left")).not.toBeNull()
+    })
+
+    it("should hide the captions below 2xl and name the side in its title", async () => {
+        // Act
+        await renderChip()
+
+        // Assert
+        expect(screen.getAllByTestId("comparison-caption").map(caption => caption.className)).toEqual([
+            expect.stringContaining("hidden"),
+            expect.stringContaining("hidden")
+        ])
+        expect(screen.getByTestId("comparison-base").getAttribute("title")).toBe("Base: 9f8e7d6 main")
+        expect(screen.getByTestId("comparison-head").getAttribute("title")).toBe("Head: a1b2c3d")
+    })
+
+    it("should keep at least six characters of the branch label", async () => {
+        // Act
+        await renderChip()
+
+        // Assert
+        expect(screen.getByTestId("comparison-base").querySelector(".truncate")?.className).toContain("min-w-16")
+    })
+
+    it("should move the base mode into the caret menu below 2xl", async () => {
+        // Arrange
+        await renderChip("active", aResolvedComparison({ origin: "branches", baseMode: "tip" }))
+
+        // Act
+        await userEvent.click(screen.getByRole("button", { name: "Comparison actions" }))
+
+        // Assert
+        expect(screen.getByTestId("comparison-base-mode").className).toContain("2xl:inline-flex")
+        const menuLine = screen.getByTestId("comparison-menu-base-mode")
+        expect(menuLine.textContent?.trim()).toBe("Tip vs tip")
+        expect(menuLine.getAttribute("title")).toBe("Everything that differs between the two tips")
+        expect(menuLine.className).toContain("2xl:hidden")
+    })
+
+    it("should link the pull request and copy the range with its link", async () => {
+        // Arrange
+        const writeText = jest.fn().mockResolvedValue(undefined)
+        Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true })
+        await renderChip()
+        const changeRequest = {
+            folder: FOLDER,
+            provider: "github" as const,
+            number: 7,
+            remote: "origin",
+            baseRefName: "main",
+            url: "https://github.com/mia/billing/pull/7"
+        }
+        TestBed.inject(CompareStore).update({ changeRequest })
+        TestBed.tick()
+
+        // Act
+        await chooseAction("Copy as text")
+
+        // Assert
+        const badge = screen.getByTestId("comparison-pull-request")
+        expect(badge.getAttribute("href")).toBe("https://github.com/mia/billing/pull/7")
+        expect(badge.getAttribute("title")).toBe("Pull request #7")
+        expect(badge.textContent?.trim()).toBe("#7")
+        expect(writeText).toHaveBeenCalledWith("main..a1b2c3d https://github.com/mia/billing/pull/7")
+    })
+
+    it("should show a merge request without a link when its page is unknown", async () => {
+        // Arrange
+        await renderChip()
+
+        // Act
+        TestBed.inject(CompareStore).update({
+            changeRequest: { folder: FOLDER, provider: "gitlab", number: 7, remote: "origin", baseRefName: "main", url: null }
+        })
+        TestBed.tick()
+
+        // Assert
+        const badge = screen.getByTestId("comparison-pull-request")
+        expect(badge.tagName).toBe("SPAN")
+        expect(badge.getAttribute("title")).toBe("Merge request !7")
+    })
+
+    it("should count the files git changed when there are no metric differences", async () => {
+        // Arrange
+        await renderChip("noDifferences")
+
+        // Act
+        TestBed.inject(CompareStore).update({
+            changedFiles: { source: "git", files: [{ change: "modified", path: "README.md", previousPath: null }] }
+        })
+        TestBed.tick()
+
+        // Assert
+        expect(screen.getByTestId("comparison-git-line").textContent).toBe("1 file changed in git")
     })
 
     it("should say that there are no metric differences", async () => {

@@ -13,8 +13,8 @@ export interface ExplorerCapabilities {
 
 export const EXPLORER_CAPABILITIES = new InjectionToken<ExplorerCapabilities>("EXPLORER_CAPABILITIES")
 
-/** Modes a view offers only while their data is there, after the permanent ones. */
-export const EXPLORER_CONDITIONAL_MODES = new InjectionToken<Signal<ExplorerMode[]>>("EXPLORER_CONDITIONAL_MODES")
+/** Modes a view offers only while their data is there, after the permanent ones; multi, one signal per provider. */
+export const EXPLORER_CONDITIONAL_MODES = new InjectionToken<readonly Signal<ExplorerMode[]>[]>("EXPLORER_CONDITIONAL_MODES")
 
 export const DEFAULT_EXPLORER_CAPABILITIES: ExplorerCapabilities = {
     showRules: true,

@@ -1,4 +1,4 @@
-import { signal } from "@angular/core"
+import { Provider, signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { StoreModule } from "@ngrx/store"
 import { render, screen } from "@testing-library/angular"
@@ -9,7 +9,16 @@ import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
 import { ProjectsFacade } from "../../../projects/facade"
 import { aFolder, aProject } from "../../../projects/projects.mocks"
 import type { CompareState } from "../../model/compare.model"
-import { aCommitSnapshot, aComparedCommit, aResolvedComparison, BASE_SHA, HEAD_SHA } from "../../ports/compareGateways.mocks"
+import { HOSTING_GATEWAY } from "../../ports/compareGateways"
+import {
+    aCommitSnapshot,
+    aComparedCommit,
+    aResolvedComparison,
+    BASE_SHA,
+    FakeHostingGateway,
+    HEAD_SHA
+} from "../../ports/compareGateways.mocks"
+import { ChangeRequestService } from "../../services/changeRequest.service"
 import { CompareService } from "../../services/compare.service"
 import { CompareStore } from "../../stores/compare.store"
 import { CompareHostComponent } from "../compareHost/compareHost.component"
@@ -40,7 +49,7 @@ describe("CompareDialogComponent", () => {
         localStorage.clear()
     })
 
-    async function renderDialog(prefill = {}, state: Partial<CompareState> = {}) {
+    async function renderDialog(prefill = {}, state: Partial<CompareState> = {}, project = BILLING, extraProviders: Provider[] = []) {
         service = { compareSides: jest.fn().mockResolvedValue(undefined), continueWithShownSnapshots: jest.fn(), cancel: jest.fn() }
         const bridge = createFakeDesktopBridge({ git: { "f-api": { refs: REFS }, "f-fork": { refs: REFS } } })
         HTMLDialogElement.prototype.showModal = jest.fn()
@@ -52,7 +61,8 @@ describe("CompareDialogComponent", () => {
             providers: [
                 { provide: CompareService, useValue: service },
                 { provide: DESKTOP_BRIDGE, useValue: bridge },
-                { provide: ProjectsFacade, useValue: { activeProject: signal(BILLING), workingFolder: signal(BILLING.folders[1]) } }
+                { provide: ProjectsFacade, useValue: { activeProject: signal(project), workingFolder: signal(project.folders[1]) } },
+                ...extraProviders
             ]
         })
         store = TestBed.inject(CompareStore)
@@ -299,5 +309,163 @@ describe("CompareDialogComponent", () => {
         const button = screen.getByTestId("compare-submit") as HTMLButtonElement
         expect(button.textContent?.trim()).toBe("Loading maps…")
         expect(button.disabled).toBe(true)
+    })
+
+    describe("pull requests", () => {
+        const GIT_FACTS = {
+            topLevel: "/work/f-fork",
+            isRepositoryRoot: true,
+            remotes: [{ name: "origin", fetchUrl: "https://github.com/mia/billing.git", pushUrl: null }],
+            defaultBranch: "main",
+            rootCommits: [],
+            isShallow: false,
+            detectedAt: "2026-11-20T00:00:00Z"
+        }
+        const WITH_REMOTE = aProject("p-billing", [
+            aFolder("f-api", { label: "billing-api" }),
+            aFolder("f-fork", { label: "billing-fork", role: "fork", git: GIT_FACTS as never })
+        ])
+        const GH_MISSING = {
+            checkedAt: "2026-11-20T00:00:00Z",
+            tools: [
+                {
+                    tool: "gh",
+                    isRequired: false,
+                    state: "missing",
+                    path: null,
+                    source: null,
+                    version: null,
+                    minimumVersion: null,
+                    problem: null
+                }
+            ],
+            canUseGit: true,
+            canAnalyse: true
+        }
+        const changeRequests = {
+            fetchHeadAndCompare: jest.fn(),
+            cancelFetch: jest.fn().mockResolvedValue(undefined),
+            baseBranchesOf: jest.fn()
+        }
+
+        function providersWith(hosting: FakeHostingGateway): Provider[] {
+            changeRequests.baseBranchesOf.mockResolvedValue(["main"])
+            return [
+                { provide: HOSTING_GATEWAY, useValue: hosting },
+                {
+                    provide: DESKTOP_BRIDGE,
+                    useValue: createFakeDesktopBridge({
+                        git: { "f-api": { refs: REFS }, "f-fork": { refs: REFS } },
+                        responses: { "tools.doctor": GH_MISSING }
+                    })
+                },
+                { provide: ChangeRequestService, useValue: changeRequests }
+            ]
+        }
+
+        it("should leave the segment out for a folder without a remote", async () => {
+            // Act
+            await renderDialog()
+
+            // Assert
+            expect(screen.queryByTestId("compare-list-change-requests")).toBeNull()
+            expect(screen.getByTestId("compare-recent")).toBeTruthy()
+        })
+
+        it("should show the segment first, with the install hint when gh is missing", async () => {
+            // Act
+            await renderDialog({}, {}, WITH_REMOTE, providersWith(new FakeHostingGateway()))
+
+            // Assert
+            expect(screen.getByTestId("compare-list-change-requests").textContent?.trim()).toBe("Pull requests")
+            expect(screen.getByTestId("change-requests-not-installed")).toBeTruthy()
+            expect(screen.getByTestId("change-requests-number-entry")).toBeTruthy()
+        })
+
+        it("should open the desktop tools from the install hint and unmount them once closed", async () => {
+            // Arrange
+            await renderDialog({}, {}, WITH_REMOTE, providersWith(new FakeHostingGateway()))
+            const before = screen.queryByText("Global Configuration")
+
+            // Act
+            await userEvent.click(screen.getByTestId("change-requests-open-tools"))
+            await settle()
+            const whileOpen = screen.queryByText("Global Configuration")
+            const configuration = whileOpen?.closest("dialog") as HTMLDialogElement
+            configuration.close()
+            await settle()
+
+            // Assert
+            expect(before).toBeNull()
+            expect(whileOpen).not.toBeNull()
+            expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled()
+            expect(screen.queryByText("Global Configuration")).toBeNull()
+        })
+
+        it("should switch to the recent comparisons", async () => {
+            // Arrange
+            await renderDialog({}, {}, WITH_REMOTE, providersWith(new FakeHostingGateway()))
+
+            // Act
+            await userEvent.click(screen.getByTestId("compare-list-recent"))
+
+            // Assert
+            expect(screen.queryByTestId("change-requests")).toBeNull()
+            expect(screen.getByTestId("compare-recent")).toBeTruthy()
+        })
+
+        it("should leave the segment out when the core has no hosting support", async () => {
+            // Arrange
+            const hosting = new FakeHostingGateway()
+            hosting.answer = new Error("unknown method")
+
+            // Act
+            await renderDialog({}, {}, WITH_REMOTE, providersWith(hosting))
+
+            // Assert
+            expect(screen.queryByTestId("compare-list-change-requests")).toBeNull()
+        })
+
+        it("should offer to fetch a head that is not in the clone", async () => {
+            // Arrange
+            const changeRequest = {
+                folder: { projectId: "p-billing", folderId: "f-fork" },
+                provider: "github" as const,
+                number: 7,
+                remote: "origin",
+                baseRefName: "main",
+                url: null
+            }
+            await renderDialog({}, { phase: "headNotLocal", changeRequest }, WITH_REMOTE, providersWith(new FakeHostingGateway()))
+
+            // Act
+            await userEvent.click(screen.getByTestId("compare-fetch"))
+
+            // Assert
+            expect(screen.getByTestId("compare-fetch-head").textContent).toContain("The head of #7 is not in your clone yet.")
+            expect(screen.getByTestId("compare-fetch").textContent?.trim()).toBe("Fetch from 'origin'")
+            expect(screen.queryByTestId("compare-lists")).toBeNull()
+            expect(changeRequests.fetchHeadAndCompare).toHaveBeenCalled()
+        })
+
+        it("should cancel a running fetch", async () => {
+            // Arrange
+            const changeRequest = {
+                folder: { projectId: "p-billing", folderId: "f-fork" },
+                provider: "gitlab" as const,
+                number: 7,
+                remote: "upstream",
+                baseRefName: "main",
+                url: null
+            }
+            await renderDialog({}, { phase: "fetchingHead", changeRequest }, WITH_REMOTE, providersWith(new FakeHostingGateway()))
+
+            // Act
+            await userEvent.click(screen.getByTestId("compare-cancel-fetch"))
+
+            // Assert
+            expect(screen.getByTestId("compare-fetch-head").textContent).toContain("Fetching !7 from 'upstream'…")
+            expect(changeRequests.cancelFetch).toHaveBeenCalled()
+        })
     })
 })

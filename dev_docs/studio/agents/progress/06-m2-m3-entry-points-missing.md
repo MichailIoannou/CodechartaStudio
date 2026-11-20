@@ -167,3 +167,8 @@ like M1's 1280 px finding — the map slot is narrow; not changed.
   base mode live in `repos/`.
 - 06-M6: `RefInput` is a tagged enum with one variant — add `workingTree` / `imported`; `SideInput.folder` already
   per side.
+
+### Open entries closed (2026-11-20, `06-m4-m5-ui.md`)
+- The branch menu (`cc-branch-context-menu`) now lists the offered `BRANCH_ACTIONS` after its own items.
+- The Pull requests segment sits before Recent in `compare-lists` (see `06-m4-m5-ui.md`, "M5"); PR rows in the ref picker
+  still wait for the listing (06-M5 tasks 2–3).

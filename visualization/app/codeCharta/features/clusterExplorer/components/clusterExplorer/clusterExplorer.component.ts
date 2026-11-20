@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, inject, OnDestroy, signal, viewChild } from "@angular/core"
 import { toSignal } from "@angular/core/rxjs-interop"
 import { formatClusterShare, showsRealNames } from "../../../../lenses/clusters/clusters.facade"
-import { ExplorerScrollHostService, ListViewport, listWindow } from "../../../sidebarExplorer/facade"
+import { ExplorerModeService, ExplorerScrollHostService, ListViewport, listWindow } from "../../../sidebarExplorer/facade"
+import { CLUSTERS_EXPLORER_MODE } from "../../provideClustersExplorerMode"
 import { clusterListEntriesOf } from "../../selectors/clusterListEntries"
 import { BY_SHARE, detailLineOf, matchingRowsInOrder, sortOptionsOf } from "../../selectors/clusterRowOrder"
 import { ClusterShareRow, ClusterShares, clusterSharesOf, SHARE_OF_FILES } from "../../selectors/clusterShares"
@@ -22,7 +23,8 @@ export class ClusterExplorerComponent implements OnDestroy {
     private readonly highlight = inject(ClusterHighlightService)
     private readonly scrollHostService = inject(ExplorerScrollHostService)
     private readonly viewport = new ListViewport(ROW_SELECTOR)
-    private readonly list = viewChild.required<ElementRef<HTMLElement>>("list")
+    private readonly modeService = inject(ExplorerModeService)
+    private readonly list = viewChild<ElementRef<HTMLElement>>("list")
 
     private readonly clusterings = toSignal(this.readStore.clusterings$, { requireSync: true })
     private readonly shownFiles = toSignal(this.readStore.shownFiles$, { requireSync: true })
@@ -31,6 +33,7 @@ export class ClusterExplorerComponent implements OnDestroy {
     private readonly chosenSort = signal(BY_SHARE)
     private readonly isOffMapGroupOpen = signal(false)
     readonly filterText = signal("")
+    readonly isClustersModeActive = computed(() => this.modeService.activeMode().id === CLUSTERS_EXPLORER_MODE.id)
 
     readonly clusteringOptions = computed(() =>
         Object.entries(this.clusterings())
@@ -79,7 +82,12 @@ export class ClusterExplorerComponent implements OnDestroy {
     readonly reservesDetailLine = computed(() => this.sortOptions().length > 1 || this.shares().rows.some(row => row.mapShare !== null))
 
     constructor() {
-        effect(() => this.viewport.attachTo(this.list().nativeElement, this.scrollHostService.element()))
+        effect(() => {
+            const list = this.list()
+            if (list) {
+                this.viewport.attachTo(list.nativeElement, this.scrollHostService.element())
+            }
+        })
     }
 
     summaryOf(row: ClusterShareRow): string {

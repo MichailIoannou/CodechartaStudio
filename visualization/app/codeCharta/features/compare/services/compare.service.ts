@@ -6,6 +6,7 @@ import { ToastService } from "../../shared/facade"
 import type {
     AnalysisJob,
     BaseMode,
+    ComparedChangeRequest,
     CompareError,
     CompareIntent,
     FolderRef,
@@ -13,11 +14,13 @@ import type {
     ResolvedComparison,
     ResolvedSide
 } from "../model/compare.model"
+import { IDLE_COMPARISON } from "../model/compare.model"
 import { ANALYSIS_GATEWAY, CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
 import { RecentComparisonsRepo } from "../repos/recentComparisons.repo"
 import { CompareReadStore } from "../stores/compare.read.store"
 import { CompareStore } from "../stores/compare.store"
 import { CompareWriteStore } from "../stores/compare.write.store"
+import { ChangedFilesService } from "./changedFiles.service"
 import { refName } from "./comparisonText"
 import { batchOutcome, missingSidesOf, pendingJobIds, queuedAnalysis, withFailures } from "./missingSides"
 
@@ -53,6 +56,7 @@ export class CompareService {
     private readonly toastService = inject(ToastService)
     private readonly recents = inject(RecentComparisonsRepo)
     private readonly analyses = inject(ANALYSIS_GATEWAY)
+    private readonly changedFiles = inject(ChangedFilesService)
     private latestTicket = 0
     private lastIntent: CompareIntent | null = null
 
@@ -75,12 +79,13 @@ export class CompareService {
         }
     }
 
-    async start(intent: CompareIntent): Promise<void> {
-        const ticket = this.beginResolving()
+    /** With the pull or merge request the intent names, so a head that is not local can be fetched. */
+    async start(intent: CompareIntent, changeRequest: ComparedChangeRequest | null = null): Promise<void> {
+        const ticket = this.beginResolving(changeRequest)
         try {
             await this.resolveAndShow(intent, ticket)
         } catch (error) {
-            this.fail(ticket, compareErrorOf(error))
+            this.failOrAskToFetch(ticket, error)
         }
     }
 
@@ -137,6 +142,7 @@ export class CompareService {
         const { base, head } = this.store.state()
         const baseFile = base && this.readStore.fileWithChecksum(base.checksum)
         const headFile = head && this.readStore.fileWithChecksum(head.checksum)
+        this.changedFiles.clearFilter()
         if (this.store.isActive() && baseFile && headFile) {
             this.writeStore.showAlone(headFile, [baseFile.fileMeta.fileName])
         }
@@ -151,9 +157,19 @@ export class CompareService {
         }
     }
 
-    private beginResolving(): number {
-        this.store.set({ phase: "resolving", resolved: null, base: null, head: null, error: null, analyses: [] })
+    private beginResolving(changeRequest: ComparedChangeRequest | null = null): number {
+        this.changedFiles.clearFilter()
+        this.store.set({ ...IDLE_COMPARISON, phase: "resolving", changeRequest })
         return ++this.latestTicket
+    }
+
+    private failOrAskToFetch(ticket: number, error: unknown): void {
+        const isHeadMissing = error instanceof DesktopBridgeError && error.code === "HEAD_NOT_LOCAL"
+        if (isHeadMissing && this.store.state().changeRequest && ticket === this.latestTicket) {
+            this.store.update({ phase: "headNotLocal" })
+            return
+        }
+        this.fail(ticket, compareErrorOf(error))
     }
 
     /** Once no analysis of the batch runs: resolves again, so the sides come from the store, and goes on from there. */
@@ -216,7 +232,7 @@ export class CompareService {
             return
         }
         if (load.head && !load.base) {
-            this.finishWithoutDifferences(base, head, load.head)
+            this.finishWithoutDifferences(base, head, load.head, ticket)
             return
         }
         if (!(load.base && load.head)) {
@@ -242,6 +258,7 @@ export class CompareService {
         this.showInMetricView()
         this.store.update({ phase: "active", base, head, error: null })
         this.rememberComparison()
+        this.loadChangedFiles(ticket)
     }
 
     private async showHeadAlone(base: ShownSide, head: ShownSide, ticket: number): Promise<void> {
@@ -253,13 +270,21 @@ export class CompareService {
             this.fail(ticket, unreadable(head))
             return
         }
-        this.finishWithoutDifferences(base, head, checksum)
+        this.finishWithoutDifferences(base, head, checksum, ticket)
     }
 
-    private finishWithoutDifferences(base: ShownSide, head: ShownSide, checksum: string): void {
+    private finishWithoutDifferences(base: ShownSide, head: ShownSide, checksum: string, ticket: number): void {
         this.showInMetricView()
         this.store.update({ phase: "noDifferences", base: { ...base, checksum }, head: { ...head, checksum }, error: null })
         this.rememberComparison()
+        this.loadChangedFiles(ticket)
+    }
+
+    private loadChangedFiles(ticket: number): void {
+        const { resolved } = this.store.state()
+        if (resolved) {
+            void this.changedFiles.load(resolved, () => ticket === this.latestTicket)
+        }
     }
 
     /** As the user named the sides: a merge-base comparison by the tip its base came from. */

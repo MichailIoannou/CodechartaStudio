@@ -53,6 +53,17 @@ describe("comparisonText", () => {
         expect(captions).toEqual(["main", null])
     })
 
+    it("should caption a pull or merge request side as PR or MR with its number", () => {
+        // Act
+        const captions = [
+            sideCaption(aComparedCommit(HEAD_SHA, { kind: "pullRequest", name: "#123" })),
+            sideCaption(aComparedCommit(HEAD_SHA, { kind: "pullRequest", name: "!123" }))
+        ]
+
+        // Assert
+        expect(captions).toEqual(["PR #123", "MR !123"])
+    })
+
     it("should word each stop status of the resolution", () => {
         // Arrange
         const statuses = [

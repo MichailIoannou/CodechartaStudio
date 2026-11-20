@@ -1,6 +1,6 @@
 ---
 name: 06-M4 changed files
-state: progress
+state: complete
 version: 1
 ---
 
@@ -26,7 +26,7 @@ folder (two clones). Error codes SCREAMING_SNAKE_CASE. Gates with and without `-
 ## Steps
 
 - [x] 1. Core
-- [ ] 2+. Renderer (later)
+- [x] 2–7. Renderer (`06-m4-m5-ui.md`)
 
 ## Notes
 
@@ -68,3 +68,10 @@ No changelog entry (nothing user-visible before the renderer tasks).
 ### For the renderer tasks
 Call `compare.changedFiles` with the resolved sides' folders and `requested.commit`s; map `path` to
 `/${rootName}/${path}`; `unavailable` -> fall back to metric changes. A rename lists the new path in `path`.
+
+### 2–7. Renderer (done, 2026-11-20)
+Built on `feature/studio-06-m4m5-ui`; details in `06-m4-m5-ui.md` ("M4"). Multi `EXPLORER_CONDITIONAL_MODES`, the
+transient `sharedView.changedFilesFilter` with `changedFilesMatcher` in `flattenPredicateSelector`, `ChangedFilesService`
+(list after `active`/`noDifferences`, filter cleared on start, exit and deactivation), `cc-changes-explorer` (C8),
+e2e, changelog entry "Changed files". The 20 000-row responsiveness is carried by the virtualised list (`ListViewport`);
+not measured with a 20 000-file fixture.

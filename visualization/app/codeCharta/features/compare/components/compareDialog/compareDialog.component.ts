@@ -8,6 +8,7 @@ import {
     inject,
     input,
     OnInit,
+    output,
     signal,
     untracked,
     viewChild
@@ -18,9 +19,13 @@ import { ProjectsFacade } from "../../../projects/facade"
 import type { BaseMode, ComparePrefill, FolderRef } from "../../model/compare.model"
 import { BaseModeRepo } from "../../repos/baseMode.repo"
 import { RecentComparison, RecentComparisonsRepo } from "../../repos/recentComparisons.repo"
+import { ChangeRequestService } from "../../services/changeRequest.service"
+import { changeRequestLabel, segmentLabelOf } from "../../services/changeRequestText"
 import { CompareService } from "../../services/compare.service"
 import { errorSentence, rangeOf, refName, resolveOutcome } from "../../services/comparisonText"
+import { HostingCheckService } from "../../services/hostingCheck.service"
 import { CompareStore } from "../../stores/compare.store"
+import { ChangeRequestListComponent } from "../changeRequestList/changeRequestList.component"
 import { ComparePreparationComponent } from "../comparePreparation/comparePreparation.component"
 
 const BUSY_PHASES: ReadonlySet<string> = new Set(["resolving", "loading"])
@@ -28,6 +33,9 @@ const PREPARATION_PHASES: ReadonlySet<string> = new Set(["needsDecision", "analy
 const FINISHED_PHASES: ReadonlySet<string> = new Set(["active", "noDifferences"])
 const MILLISECONDS_PER_SECOND = 1000
 const NAMED_REF_KINDS: ReadonlySet<string> = new Set(["branch", "remoteBranch", "tag"])
+const FETCH_PHASES: ReadonlySet<string> = new Set(["headNotLocal", "fetchingHead"])
+
+type ListSegment = "changeRequests" | "recent"
 
 interface RecentRow {
     recent: RecentComparison
@@ -40,7 +48,7 @@ interface RecentRow {
 @Component({
     selector: "cc-compare-dialog",
     templateUrl: "./compareDialog.component.html",
-    imports: [RefPickerComponent, ComparePreparationComponent],
+    imports: [RefPickerComponent, ComparePreparationComponent, ChangeRequestListComponent],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CompareDialogComponent implements OnInit, AfterViewInit {
@@ -49,12 +57,16 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
     private readonly projects = inject(ProjectsFacade)
     private readonly baseModeRepo = inject(BaseModeRepo)
     private readonly recentComparisonsRepo = inject(RecentComparisonsRepo)
+    private readonly hostingCheck = inject(HostingCheckService)
+    private readonly changeRequests = inject(ChangeRequestService)
     private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
     private readonly basePicker = viewChild<RefPickerComponent>("basePicker")
     private readonly headPicker = viewChild<RefPickerComponent>("headPicker")
     readonly hasStartedHere = signal(false)
 
     readonly prefill = input.required<ComparePrefill>()
+    readonly openDesktopTools = output<void>()
+    readonly chosenList = signal<ListSegment>("changeRequests")
     readonly folderId = signal("")
     readonly base = signal("")
     readonly head = signal("")
@@ -91,11 +103,35 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         return phase === "failed" && error ? errorSentence(error) : null
     })
     readonly canRetry = computed(() => this.store.state().error?.kind === "coreUnavailable")
+    readonly pullRequestPanel = computed(() => {
+        const repo = this.repo()
+        return repo ? this.hostingCheck.panelOf(repo) : ({ kind: "absent" } as const)
+    })
+    readonly hasChangeRequestSegment = computed(() => this.pullRequestPanel().kind !== "absent")
+    readonly changeRequestSegmentLabel = computed(() => {
+        const panel = this.pullRequestPanel()
+        return segmentLabelOf("hosting" in panel ? panel.hosting.provider : null)
+    })
+    readonly shownList = computed<ListSegment>(() => (this.hasChangeRequestSegment() ? this.chosenList() : "recent"))
+    readonly fetchPrompt = computed(() => {
+        const { phase, changeRequest } = this.store.state()
+        if (!(FETCH_PHASES.has(phase) && changeRequest)) {
+            return null
+        }
+        const label = changeRequestLabel(changeRequest.provider, changeRequest.number)
+        return { label, remote: changeRequest.remote, isFetching: phase === "fetchingHead" }
+    })
 
     constructor() {
         effect(() => {
             if (this.hasStartedHere() && FINISHED_PHASES.has(this.phase())) {
                 untracked(() => this.close())
+            }
+        })
+        effect(() => {
+            const repo = this.repo()
+            if (repo) {
+                untracked(() => void this.hostingCheck.check(repo))
             }
         })
     }
@@ -164,6 +200,19 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         )
     }
 
+    chooseList(list: ListSegment): void {
+        this.chosenList.set(list)
+    }
+
+    async fetchHead(): Promise<void> {
+        this.hasStartedHere.set(true)
+        await this.changeRequests.fetchHeadAndCompare()
+    }
+
+    async cancelFetch(): Promise<void> {
+        await this.changeRequests.cancelFetch()
+    }
+
     async continueAfterOutcome(): Promise<void> {
         this.hasStartedHere.set(true)
         await this.service.continueWithShownSnapshots()
@@ -188,6 +237,7 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
     }
 
     private handleClosed(): void {
+        void this.changeRequests.cancelFetch()
         if (!FINISHED_PHASES.has(this.phase())) {
             this.service.cancel()
         }

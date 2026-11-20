@@ -1,6 +1,7 @@
 import { DependencyGraphSettings } from "./dependencyGraph.model"
 import {
     CCFile,
+    ChangedFilesFilter,
     ColorLabelOptions,
     ColorMode,
     ColorRange,
@@ -94,6 +95,7 @@ export interface SharedView {
     hoveredFileExtensions: string[]
     keptHighlightPaths: string[]
     selectedNodePath: string | null
+    changedFilesFilter: ChangedFilesFilter | null
     rightClickedNodeData: {
         nodeId: string
         xPositionOfRightClickEvent: number

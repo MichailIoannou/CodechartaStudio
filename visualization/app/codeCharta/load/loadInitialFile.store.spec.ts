@@ -341,5 +341,17 @@ describe("LoadInitialFileStore", () => {
             expect(missingKeys).toEqual([])
             expect(dispatchedActions()).toEqual([])
         })
+
+        it("should not report the filter as missing from a saved session", () => {
+            // Arrange
+            setup()
+            const { changedFilesFilter, ...savedBeforeTheFilter } = defaultState.sharedView
+
+            // Act
+            const missingKeys = loadInitialFileStore.missingKeysOfSharedView(savedBeforeTheFilter as SharedView)
+
+            // Assert
+            expect(missingKeys).toEqual([])
+        })
     })
 })

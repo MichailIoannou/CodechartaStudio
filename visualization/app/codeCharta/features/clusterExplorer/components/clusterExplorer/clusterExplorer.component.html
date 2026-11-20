@@ -1,138 +1,140 @@
-@if (clusteringOptions().length > 1) {
-    <label class="form-control w-full gap-1">
-        <span class="text-xs opacity-60">Clustering</span>
-        <select
-            class="select select-sm w-full"
-            data-testid="cluster-explorer-picker"
-            [value]="activeKey()"
-            (change)="chooseClustering($event)"
-        >
-            @for (option of clusteringOptions(); track option.key) {
-                <option [value]="option.key" [selected]="option.key === activeKey()">{{ option.title }}</option>
-            }
-        </select>
-    </label>
-} @else {
-    <span class="text-sm font-semibold" data-testid="cluster-explorer-title">{{ clusteringOptions()[0]?.title }}</span>
-}
-@if (showsRealNames()) {
-    <div role="alert" class="alert alert-warning mt-2 px-2 py-1 text-xs" data-testid="cluster-explorer-real-names">
-        <i class="fa-solid fa-triangle-exclamation"></i>
-        <span>This map shows real author names, which are personal data. Take care where you share it.</span>
-    </div>
-}
-@if (showsFilter()) {
-    <input
-        type="search"
-        class="input input-sm mt-2 w-full"
-        placeholder="Filter by name"
-        aria-label="Filter clusters by name"
-        data-testid="cluster-explorer-filter"
-        [value]="filterText()"
-        (input)="filter($event)"
-    />
-}
-@if (sortOptions().length > 1) {
-    <label class="form-control mt-2 w-full gap-1">
-        <span class="text-xs opacity-60">Sort by</span>
-        <select
-            class="select select-sm w-full"
-            data-testid="cluster-explorer-sort"
-            [value]="activeSort()"
-            (change)="chooseSort($event)"
-        >
-            @for (option of sortOptions(); track option.key) {
-                <option [value]="option.key" [selected]="option.key === activeSort()">{{ option.title }}</option>
-            }
-        </select>
-    </label>
-}
-<div class="mt-2 text-right text-xs opacity-60" data-testid="cluster-explorer-share-label">{{ shares().shareLabel }}</div>
-<ul #list class="mt-1" data-testid="cluster-explorer-list">
-    <li aria-hidden="true" [style.height.px]="window().topSpacerHeight"></li>
-    @for (entry of renderedEntries(); track entry.id) {
-        @if (entry.kind === "cluster") {
-            <li class="pb-1" [class.pl-3]="entry.isInGroup" data-cluster-row>
-                <button
-                    type="button"
-                    class="w-full cursor-pointer rounded-lg border-2 px-1 py-1 text-left hover:bg-base-200"
-                    [class.border-primary]="entry.row.id === pinnedClusterId()"
-                    [class.border-transparent]="entry.row.id !== pinnedClusterId()"
-                    [attr.aria-pressed]="entry.row.id === pinnedClusterId()"
-                    [attr.title]="titleOf(entry.row)"
-                    data-testid="cluster-explorer-row"
-                    (mouseenter)="hover(entry.row)"
-                    (mouseleave)="endHover()"
-                    (focus)="hover(entry.row)"
-                    (blur)="endHover()"
-                    (click)="togglePin(entry.row)"
-                >
-                    <span class="flex items-baseline justify-between gap-2 text-sm">
-                        <span class="min-w-0 truncate">
-                            {{ entry.row.name }}
-                            @if (entry.row.repositoryMarker) {
-                                <span class="text-xs opacity-60" data-testid="cluster-explorer-marker">{{ entry.row.repositoryMarker }}</span>
+@if (isClustersModeActive()) {
+    @if (clusteringOptions().length > 1) {
+        <label class="form-control w-full gap-1">
+            <span class="text-xs opacity-60">Clustering</span>
+            <select
+                class="select select-sm w-full"
+                data-testid="cluster-explorer-picker"
+                [value]="activeKey()"
+                (change)="chooseClustering($event)"
+            >
+                @for (option of clusteringOptions(); track option.key) {
+                    <option [value]="option.key" [selected]="option.key === activeKey()">{{ option.title }}</option>
+                }
+            </select>
+        </label>
+    } @else {
+        <span class="text-sm font-semibold" data-testid="cluster-explorer-title">{{ clusteringOptions()[0]?.title }}</span>
+    }
+    @if (showsRealNames()) {
+        <div role="alert" class="alert alert-warning mt-2 px-2 py-1 text-xs" data-testid="cluster-explorer-real-names">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>This map shows real author names, which are personal data. Take care where you share it.</span>
+        </div>
+    }
+    @if (showsFilter()) {
+        <input
+            type="search"
+            class="input input-sm mt-2 w-full"
+            placeholder="Filter by name"
+            aria-label="Filter clusters by name"
+            data-testid="cluster-explorer-filter"
+            [value]="filterText()"
+            (input)="filter($event)"
+        />
+    }
+    @if (sortOptions().length > 1) {
+        <label class="form-control mt-2 w-full gap-1">
+            <span class="text-xs opacity-60">Sort by</span>
+            <select
+                class="select select-sm w-full"
+                data-testid="cluster-explorer-sort"
+                [value]="activeSort()"
+                (change)="chooseSort($event)"
+            >
+                @for (option of sortOptions(); track option.key) {
+                    <option [value]="option.key" [selected]="option.key === activeSort()">{{ option.title }}</option>
+                }
+            </select>
+        </label>
+    }
+    <div class="mt-2 text-right text-xs opacity-60" data-testid="cluster-explorer-share-label">{{ shares().shareLabel }}</div>
+    <ul #list class="mt-1" data-testid="cluster-explorer-list">
+        <li aria-hidden="true" [style.height.px]="window().topSpacerHeight"></li>
+        @for (entry of renderedEntries(); track entry.id) {
+            @if (entry.kind === "cluster") {
+                <li class="pb-1" [class.pl-3]="entry.isInGroup" data-cluster-row>
+                    <button
+                        type="button"
+                        class="w-full cursor-pointer rounded-lg border-2 px-1 py-1 text-left hover:bg-base-200"
+                        [class.border-primary]="entry.row.id === pinnedClusterId()"
+                        [class.border-transparent]="entry.row.id !== pinnedClusterId()"
+                        [attr.aria-pressed]="entry.row.id === pinnedClusterId()"
+                        [attr.title]="titleOf(entry.row)"
+                        data-testid="cluster-explorer-row"
+                        (mouseenter)="hover(entry.row)"
+                        (mouseleave)="endHover()"
+                        (focus)="hover(entry.row)"
+                        (blur)="endHover()"
+                        (click)="togglePin(entry.row)"
+                    >
+                        <span class="flex items-baseline justify-between gap-2 text-sm">
+                            <span class="min-w-0 truncate">
+                                {{ entry.row.name }}
+                                @if (entry.row.repositoryMarker) {
+                                    <span class="text-xs opacity-60" data-testid="cluster-explorer-marker">{{ entry.row.repositoryMarker }}</span>
+                                }
+                            </span>
+                            <span class="shrink-0 tabular-nums">{{ formatShare(entry.row.share) }}</span>
+                        </span>
+                        <span class="relative mt-0.5 block h-1 overflow-hidden rounded bg-base-300">
+                            @if (entry.row.mapShare !== null) {
+                                <span
+                                    class="absolute inset-y-0 left-0 bg-primary/30"
+                                    data-testid="cluster-explorer-map-share-bar"
+                                    [style.width.%]="entry.row.mapShare * 100"
+                                ></span>
+                            }
+                            <span class="relative block h-full bg-primary" [style.width.%]="entry.row.share * 100"></span>
+                        </span>
+                        @if (reservesDetailLine()) {
+                            <span class="mt-0.5 block h-4 truncate text-xs opacity-60" data-testid="cluster-explorer-attributes">{{
+                                summaryOf(entry.row)
+                            }}</span>
+                        }
+                    </button>
+                </li>
+            } @else {
+                <li class="pb-1" data-cluster-row>
+                    <button
+                        type="button"
+                        class="w-full cursor-pointer rounded-lg border-2 border-transparent px-1 py-1 text-left opacity-70 hover:bg-base-200"
+                        title="Clusters none of whose shown files has a building on the map"
+                        [attr.aria-expanded]="entry.isOpen"
+                        data-testid="cluster-explorer-off-map-group"
+                        (click)="toggleOffMapGroup()"
+                    >
+                        <span class="flex items-baseline justify-between gap-2 text-sm">
+                            <span class="min-w-0 truncate">
+                                <i class="fa-solid" [class.fa-chevron-right]="!entry.isOpen" [class.fa-chevron-down]="entry.isOpen"></i>
+                                <i class="fa-solid fa-eye-slash"></i>
+                                Not on the map ({{ entry.clusterCount }})
+                            </span>
+                            @if (entry.share !== null) {
+                                <span class="shrink-0 tabular-nums">{{ formatShare(entry.share) }}</span>
                             }
                         </span>
-                        <span class="shrink-0 tabular-nums">{{ formatShare(entry.row.share) }}</span>
-                    </span>
-                    <span class="relative mt-0.5 block h-1 overflow-hidden rounded bg-base-300">
-                        @if (entry.row.mapShare !== null) {
-                            <span
-                                class="absolute inset-y-0 left-0 bg-primary/30"
-                                data-testid="cluster-explorer-map-share-bar"
-                                [style.width.%]="entry.row.mapShare * 100"
-                            ></span>
-                        }
-                        <span class="relative block h-full bg-primary" [style.width.%]="entry.row.share * 100"></span>
-                    </span>
-                    @if (reservesDetailLine()) {
-                        <span class="mt-0.5 block h-4 truncate text-xs opacity-60" data-testid="cluster-explorer-attributes">{{
-                            summaryOf(entry.row)
-                        }}</span>
-                    }
-                </button>
-            </li>
-        } @else {
-            <li class="pb-1" data-cluster-row>
-                <button
-                    type="button"
-                    class="w-full cursor-pointer rounded-lg border-2 border-transparent px-1 py-1 text-left opacity-70 hover:bg-base-200"
-                    title="Clusters none of whose shown files has a building on the map"
-                    [attr.aria-expanded]="entry.isOpen"
-                    data-testid="cluster-explorer-off-map-group"
-                    (click)="toggleOffMapGroup()"
-                >
-                    <span class="flex items-baseline justify-between gap-2 text-sm">
-                        <span class="min-w-0 truncate">
-                            <i class="fa-solid" [class.fa-chevron-right]="!entry.isOpen" [class.fa-chevron-down]="entry.isOpen"></i>
-                            <i class="fa-solid fa-eye-slash"></i>
-                            Not on the map ({{ entry.clusterCount }})
+                        <span class="mt-0.5 block h-1 overflow-hidden rounded bg-base-300">
+                            <span class="block h-full bg-primary" [style.width.%]="(entry.share ?? 0) * 100"></span>
                         </span>
-                        @if (entry.share !== null) {
-                            <span class="shrink-0 tabular-nums">{{ formatShare(entry.share) }}</span>
+                        @if (reservesDetailLine()) {
+                            <span class="mt-0.5 block h-4"></span>
                         }
-                    </span>
-                    <span class="mt-0.5 block h-1 overflow-hidden rounded bg-base-300">
-                        <span class="block h-full bg-primary" [style.width.%]="(entry.share ?? 0) * 100"></span>
-                    </span>
-                    @if (reservesDetailLine()) {
-                        <span class="mt-0.5 block h-4"></span>
-                    }
-                </button>
+                    </button>
+                </li>
+            }
+        }
+        <li aria-hidden="true" [style.height.px]="window().bottomSpacerHeight"></li>
+        @if (rows().length === 0 && filterText() !== "") {
+            <li class="px-1 py-1 text-sm opacity-70" data-testid="cluster-explorer-no-match">No cluster's name contains "{{ filterText() }}".</li>
+        }
+        @if (shares().notAttributedShare) {
+            <li class="px-1 py-1 opacity-70" data-testid="cluster-explorer-not-attributed">
+                <span class="flex items-baseline justify-between gap-2 text-sm">
+                    <span>Not attributed</span>
+                    <span class="tabular-nums">{{ formatShare(shares().notAttributedShare!) }}</span>
+                </span>
             </li>
         }
-    }
-    <li aria-hidden="true" [style.height.px]="window().bottomSpacerHeight"></li>
-    @if (rows().length === 0 && filterText() !== "") {
-        <li class="px-1 py-1 text-sm opacity-70" data-testid="cluster-explorer-no-match">No cluster's name contains "{{ filterText() }}".</li>
-    }
-    @if (shares().notAttributedShare) {
-        <li class="px-1 py-1 opacity-70" data-testid="cluster-explorer-not-attributed">
-            <span class="flex items-baseline justify-between gap-2 text-sm">
-                <span>Not attributed</span>
-                <span class="tabular-nums">{{ formatShare(shares().notAttributedShare!) }}</span>
-            </span>
-        </li>
-    }
-</ul>
+    </ul>
+}

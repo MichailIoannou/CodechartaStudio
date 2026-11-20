@@ -52,27 +52,105 @@ const REFS = {
     remotes: []
 } as unknown as GitRefs
 
+const CHANGED_FILES = {
+    source: "git",
+    files: [
+        { change: "modified", path: "bigLeaf.ts", previousPath: null },
+        { change: "added", path: "ParentLeaf/sample2LeafMergedIn.kt", previousPath: null },
+        { change: "modified", path: "README.md", previousPath: null }
+    ]
+}
+
+const seedOf = (project: typeof BILLING, responses: Record<string, unknown>) => ({
+    projects: [project],
+    activeProjectId: "p-billing",
+    snapshots: [commitSnapshot("s-base", BASE_SHA, "Release 2.4.0"), commitSnapshot("s-head", HEAD_SHA, "Fix invoice rounding")],
+    snapshotMaps: { "s-base": gzippedSample("sample1.cc.json"), "s-head": gzippedSample("sample2.cc.json") },
+    responses: { "compare.changedFiles": CHANGED_FILES, ...responses },
+    git: {
+        "f-api": {
+            info: aRepositoryInfo(),
+            status: aStatusOn("feature/x", { head: { kind: "branch", name: "feature/x", commit: HEAD_SHA } }),
+            refs: REFS,
+            commits: [commit(LATEST_SHA, [NEXT_SHA]), commit(NEXT_SHA, [HEAD_SHA]), commit(HEAD_SHA, [BASE_SHA]), commit(BASE_SHA, [])]
+        }
+    }
+})
+
+test.describe("Compare pull requests", () => {
+    const WITH_GITHUB_REMOTE = aProject(
+        "p-billing",
+        [
+            aFolder("f-api", {
+                label: "billing-api",
+                git: {
+                    topLevel: "/work/f-api",
+                    isRepositoryRoot: true,
+                    remotes: [{ name: "origin", url: "https://github.com/mia/billing.git" }],
+                    defaultBranch: "main",
+                    rootCommits: [],
+                    isShallow: false,
+                    detectedAt: "2026-11-20T00:00:00Z"
+                }
+            })
+        ],
+        { name: "billing", view: { workingFolderId: "f-api", shownSnapshotIdByFolder: { "f-api": "s-head" } } }
+    )
+
+    test.beforeEach(async ({ page }) => {
+        await standInForTheDesktopBridge(
+            page,
+            seedOf(WITH_GITHUB_REMOTE, {
+                "hosting.status": {
+                    provider: "github",
+                    host: "github.com",
+                    repository: "mia/billing",
+                    remote: "origin",
+                    detectedBy: "knownHost"
+                },
+                "hosting.fetchChangeRequestHead": { gitRef: "refs/codecharta/pr/7", commit: HEAD_SHA },
+                "tools.doctor": {
+                    checkedAt: "2026-11-20T00:00:00Z",
+                    tools: [
+                        {
+                            tool: "gh",
+                            isRequired: false,
+                            state: "missing",
+                            path: null,
+                            source: null,
+                            version: null,
+                            minimumVersion: null,
+                            problem: null
+                        }
+                    ],
+                    canUseGit: true,
+                    canAnalyse: true
+                }
+            })
+        )
+        await goto(page)
+    })
+
+    test("should open a pull request by number without the GitHub CLI and compare it from its merge base", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        await compare.openTheDialogFromTheCompareTab()
+        await expect(compare.changeRequestsNotInstalled()).toContainText("Install the GitHub CLI (gh) to list pull requests")
+
+        // Act
+        await compare.openPullRequestByNumber("7")
+
+        // Assert
+        await expect(compare.dialog()).toHaveCount(0)
+        await expect(compare.chip()).toContainText("PR #7")
+        await expect(compare.pullRequestBadge()).toHaveAttribute("href", "https://github.com/mia/billing/pull/7")
+        await expect(compare.baseModeBadge()).toHaveText("since merge base")
+    })
+})
+
 test.describe("Compare", () => {
     test.beforeEach(async ({ page }) => {
-        await standInForTheDesktopBridge(page, {
-            projects: [BILLING],
-            activeProjectId: "p-billing",
-            snapshots: [commitSnapshot("s-base", BASE_SHA, "Release 2.4.0"), commitSnapshot("s-head", HEAD_SHA, "Fix invoice rounding")],
-            snapshotMaps: { "s-base": gzippedSample("sample1.cc.json"), "s-head": gzippedSample("sample2.cc.json") },
-            git: {
-                "f-api": {
-                    info: aRepositoryInfo(),
-                    status: aStatusOn("feature/x", { head: { kind: "branch", name: "feature/x", commit: HEAD_SHA } }),
-                    refs: REFS,
-                    commits: [
-                        commit(LATEST_SHA, [NEXT_SHA]),
-                        commit(NEXT_SHA, [HEAD_SHA]),
-                        commit(HEAD_SHA, [BASE_SHA]),
-                        commit(BASE_SHA, [])
-                    ]
-                }
-            }
-        })
+        await standInForTheDesktopBridge(page, seedOf(BILLING, {}))
         await goto(page)
     })
 
@@ -99,6 +177,24 @@ test.describe("Compare", () => {
         expect(await metricsBar.getSelectedAreaMetricName()).toContain("functions")
         await new ExplorerTreeLevelPageObject(page).selectNode("/root/bigLeaf.ts")
         await expect(page.getByTestId("metric-row-delta").first()).toBeVisible()
+    })
+
+    test("should list the files git changed and grey out the others", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        await compare.openTheDialogFromTheCompareTab()
+        await compare.compare("main", "feature/x")
+        await expect(compare.chip()).toBeVisible()
+
+        // Act
+        await compare.openTheChangesMode()
+        await compare.showOnlyChangedFiles()
+
+        // Assert
+        await expect(compare.changesSource()).toHaveText("Files changed in git")
+        await expect(compare.changeRows()).toHaveCount(3)
+        await expect(compare.changeRows().nth(2)).toHaveAttribute("title", "Not part of the analysis")
+        await expect(compare.flattenedCount()).toContainText("3")
     })
 
     test("should leave the comparison with the head alone", async ({ page }) => {
@@ -164,6 +260,20 @@ test.describe("Compare", () => {
         await expect(compare.chip()).toContainText("a1b2c3d")
     })
 
+    test("should open the dialog with a branch as the head from the branch menu", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        const history = new GitHistoryPageObject(page)
+        await history.open()
+
+        // Act
+        await compare.chooseFromTheBranchMenu(history.branchRow("refs/heads/feature/later"), "Compare with…")
+
+        // Assert
+        await expect(compare.dialog()).toBeVisible()
+        await expect(page.getByTestId("compare-head")).toHaveValue("feature/later")
+    })
+
     test("should name a ref the folder does not have", async ({ page }) => {
         // Arrange
         const compare = new ComparePageObject(page)
@@ -188,7 +298,7 @@ test.describe("Compare", () => {
 
         // Assert
         await expect(compare.dialog()).toHaveCount(0)
-        await expect(compare.staleBadge()).toHaveText("stale by 2")
+        await expect(compare.staleBadge()).toHaveText("stale by 2", { useInnerText: true })
         await expect(compare.staleBadge()).toHaveAttribute("title", "No analysis for c3d4e5f. Showing a1b2c3d, 2 commits older.")
     })
 })
