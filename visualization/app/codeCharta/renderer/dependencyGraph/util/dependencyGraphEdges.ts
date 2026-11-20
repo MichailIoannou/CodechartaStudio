@@ -1,6 +1,6 @@
 import { drawnItem, UNTRANSFORMED } from "./dependencyGraphElements"
 import { ToPixels } from "./dependencyGraphScene"
-import { DIMMED_OPACITY, FILE_FILL, SELECTED_COLOR } from "./dependencyGraphStyle"
+import { DIMMED_OPACITY, fileFill, selectedColor } from "./dependencyGraphStyle"
 import { EdgeRoute, Side } from "./edgeRouting"
 import { Point } from "./geometry"
 import { ArrowHead, LineStyle } from "./lineStyle"
@@ -56,7 +56,7 @@ export function drawEdge(route: EdgeRoute, { isDimmed, isSelected, widthPx, colo
     const line = { fill: null, opacity }
     return drawnItem([
         ...(isSelected
-            ? [underlay(shape, { ...line, stroke: SELECTED_COLOR, lineWidth: widthPx + HALO.extraWidthPx, opacity: HALO.opacity })]
+            ? [underlay(shape, { ...line, stroke: selectedColor(), lineWidth: widthPx + HALO.extraWidthPx, opacity: HALO.opacity })]
             : []),
         {
             type: "bezierCurve",
@@ -88,7 +88,7 @@ function drawHead(head: ArrowHead, points: HeadPoints, { color, opacity, widthPx
                 type: "polygon",
                 ...UNTRANSFORMED,
                 shape: { points },
-                style: { fill: FILE_FILL, stroke: color, lineWidth: outlineWidth, opacity }
+                style: { fill: fileFill(), stroke: color, lineWidth: outlineWidth, opacity }
             }
         case "open": {
             const [tip, baseLeft, baseRight] = points

@@ -3,7 +3,7 @@ import { toSignal } from "@angular/core/rxjs-interop"
 import { isDependencyEdgeMetric } from "../../../../lenses/dependency/dependencyLens.facade"
 import {
     BOX_BADGE_LEGEND,
-    DECLARATION_KIND_LEGEND,
+    declarationKindLegend,
     edgeLegend,
     USAGE_LEGEND,
     upwardLineOf
@@ -42,6 +42,6 @@ export class DependencyEdgeLegendComponent {
             : []
     )
     readonly upwardLine = computed(() => upwardLineOf(this.settings().edgeColors, this.settings().lineStyleShows))
-    readonly kindLegend = computed(() => (this.hasDeclarations() ? DECLARATION_KIND_LEGEND : []))
+    readonly kindLegend = computed(() => (this.hasDeclarations() ? declarationKindLegend() : []))
     readonly usageColor = computed(() => this.settings().edgeColors.regular)
 }

@@ -10,6 +10,8 @@ import {
     ThreeSceneService
 } from "../../../renderer/threeViewer/threeViewer.facade"
 import { defaultState } from "../../../stores/rootStore/state.manager"
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { resolveTheme } from "../../../util/theme/resolveTheme"
 import { checkWriteToClipboardAllowed, setToClipboard } from "./clipboardWriter"
 import { ScreenshotService } from "./screenshot.service"
 
@@ -184,6 +186,62 @@ describe("ScreenshotService", () => {
         const ignoreElements = mockHtml2Canvas.mock.calls[0][1].ignoreElements as (element: Element) => boolean
         const fakeNavBar = document.createElement("cc-nav-bar")
         expect(ignoreElements(fakeNavBar)).toBe(true)
+    })
+
+    it("should give labels the theme's label colors while capturing", async () => {
+        // Arrange
+        configure()
+        setActiveTheme(resolveTheme("cc-dark", "light"))
+        jest.spyOn(CanvasRenderingContext2D.prototype, "getImageData").mockImplementation(() => createMockImageData().imageData)
+        const labels = document.createElement("div")
+        labels.id = "codeMapLabels"
+        const label = document.createElement("div")
+        label.style.cssText = "color: var(--color-base-content);"
+        Object.defineProperty(label.style, "backdropFilter", { value: "blur(6px)", writable: true })
+        labels.append(label)
+        document.body.append(labels)
+        let styleWhileCapturing = ""
+        mockHtml2Canvas.mockImplementation(() => {
+            styleWhileCapturing = label.getAttribute("style") ?? ""
+            return document.createElement("canvas")
+        })
+
+        // Act
+        await service.makeScreenshotToFile()
+
+        // Assert
+        expect(styleWhileCapturing).toContain("background: rgb(30, 35, 41)")
+        expect(styleWhileCapturing).toContain("color: rgb(230, 233, 238)")
+        expect(styleWhileCapturing).toContain("border: 1px solid rgb(58, 66, 77)")
+        expect(label.getAttribute("style")).toContain("var(--color-base-content)")
+        labels.remove()
+    })
+
+    it("should lay a dark theme's screenshot on the theme surface", async () => {
+        // Arrange
+        configure()
+        setActiveTheme(resolveTheme("cc-dark", "light"))
+        jest.spyOn(CanvasRenderingContext2D.prototype, "getImageData").mockImplementation(() => createMockImageData().imageData)
+        const fillRectSpy = jest.spyOn(CanvasRenderingContext2D.prototype, "fillRect")
+
+        // Act
+        await service.makeScreenshotToFile()
+
+        // Assert
+        expect(fillRectSpy).toHaveBeenCalledTimes(1)
+    })
+
+    it("should keep a light theme's screenshot transparent", async () => {
+        // Arrange
+        configure()
+        jest.spyOn(CanvasRenderingContext2D.prototype, "getImageData").mockImplementation(() => createMockImageData().imageData)
+        const fillRectSpy = jest.spyOn(CanvasRenderingContext2D.prototype, "fillRect")
+
+        // Act
+        await service.makeScreenshotToFile()
+
+        // Assert
+        expect(fillRectSpy).not.toHaveBeenCalled()
     })
 
     it("should ignore cc-bottom-bar in screenshots", async () => {

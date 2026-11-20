@@ -2,6 +2,8 @@ import { InstancedBufferAttribute, InstancedMesh, Matrix4 } from "three"
 import { STATE, TEST_NODE_ROOT } from "../../../mocks/dataMocks"
 import { Node } from "../../../model/codeCharta.model"
 import { clone } from "../../../util/clone"
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { resolveTheme } from "../../../util/theme/resolveTheme"
 import { BuildResult, GeometryGenerator } from "./geometryGenerator"
 
 describe("geometryGenerator", () => {
@@ -59,6 +61,36 @@ describe("geometryGenerator", () => {
             // measures.y=6 (from z0), measures.height=2 (from height, delta path not taken).
             // boundingBox.max.y = 6 + 2 = 8.
             expect(buildResult.desc.buildings[0].boundingBox.max.y).toBe(8)
+        })
+    })
+
+    describe("floors", () => {
+        const floorsOf = (depths: number[]) =>
+            depths.map((depth, index) => ({ ...TEST_NODE_ROOT, id: index, depth, isLeaf: false, markingColor: undefined }))
+
+        it("should paint the floors from the theme's root color to its deepest color", () => {
+            // Arrange
+            setActiveTheme(resolveTheme("cc-dark", "light"))
+            const nodes = floorsOf([0, 1])
+
+            // Act
+            const { desc } = geomGen.build(nodes, null, state, false)
+
+            // Assert
+            expect(desc.buildings.map(building => building.color)).toEqual(["#4a515c", "#c9ced6"])
+        })
+
+        it("should repaint the floors in the theme active at the time", () => {
+            // Arrange
+            const nodes = floorsOf([0, 1])
+            const { desc } = geomGen.build(nodes, null, state, false)
+            setActiveTheme(resolveTheme("cc-dark", "light"))
+
+            // Act
+            geomGen.recolorBuildings(nodes, desc.buildings)
+
+            // Assert
+            expect(desc.buildings[0].color).toBe("#4a515c")
         })
     })
 

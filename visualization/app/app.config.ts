@@ -13,6 +13,7 @@ import { mapExplorerEffects } from "app/codeCharta/features/mapExplorer/effects/
 import { metricsBarEffects } from "app/codeCharta/features/metricsBar/effects/metricsBar.effects"
 import { navBarEffects } from "app/codeCharta/features/navBar/effects/navBar.effects"
 import { sharedEffects } from "app/codeCharta/features/shared/effects/shared.effects"
+import { themeEffects } from "app/codeCharta/features/theme/effects/theme.effects"
 import { loadEffects } from "app/codeCharta/load/effects/load.effects"
 import { CloseDialogsOfLeftViewEffect } from "app/codeCharta/routing/closeDialogsOfLeftView.effect"
 import { KeepAliveRouteReuseStrategy } from "app/codeCharta/routing/keepAliveRouteReuse.strategy"
@@ -63,7 +64,8 @@ export const appConfig: ApplicationConfig = {
             ...sharedEffects,
             ...loadEffects,
             ...domainViewEffects,
-            ...mapExplorerEffects
+            ...mapExplorerEffects,
+            ...themeEffects
         ]),
 
         {

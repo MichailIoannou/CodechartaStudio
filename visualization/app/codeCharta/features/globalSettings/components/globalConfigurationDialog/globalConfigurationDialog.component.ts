@@ -5,6 +5,7 @@ import { PreferencesReadWindow } from "../../../../stores/preferences/preference
 import { DesktopEnvironment } from "../../../../util/desktop/desktopEnvironment.service"
 import { DesktopToolsPanelComponent } from "../../../desktopTools/facade"
 import { canOpenFoldersHere } from "../../../localSource/facade"
+import { ThemePickerComponent } from "../../../theme/facade"
 import { GlobalSettingsWriteStore } from "../../stores/globalSettings.write.store"
 import { ExternalLinksComponent } from "./externalLinks/externalLinks.component"
 import { ResetFiltersButtonComponent } from "./resetFiltersButton/resetFiltersButton.component"
@@ -21,6 +22,7 @@ import { SettingToggleComponent } from "./settingToggle/settingToggle.component"
         ResetSettingsButtonComponent,
         SettingToggleComponent,
         ExternalLinksComponent,
+        ThemePickerComponent,
         DesktopToolsPanelComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush

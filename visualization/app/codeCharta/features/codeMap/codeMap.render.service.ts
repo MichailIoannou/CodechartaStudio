@@ -80,8 +80,8 @@ export class CodeMapRenderService implements OnDestroy, RendererEngine {
     render(map: CodeMapNode, invalidation: RenderInvalidation = FULL_INVALIDATION) {
         if (invalidation.geometry || this.visibleSortedNodes === undefined) {
             this.rebuildBuildings(map)
-        } else if (invalidation.colors) {
-            this.threeSceneService.recolorMapMesh(this.codeMapStore.getState() as CcState)
+        } else {
+            this.refreshBuildings(invalidation)
         }
 
         if (invalidation.colors) {
@@ -89,6 +89,15 @@ export class CodeMapRenderService implements OnDestroy, RendererEngine {
         }
         if (invalidation.arrows) {
             this.setArrows(this.visibleSortedNodes)
+        }
+    }
+
+    private refreshBuildings(invalidation: RenderInvalidation) {
+        if (invalidation.colors) {
+            this.threeSceneService.recolorMapMesh(this.codeMapStore.getState() as CcState)
+        }
+        if (invalidation.floorLabels) {
+            this.threeSceneService.redrawFloorLabels()
         }
     }
 

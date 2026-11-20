@@ -3,12 +3,15 @@ import { TestBed } from "@angular/core/testing"
 import { of } from "rxjs"
 import { DependencyGraphChartRegistry, Rectangle } from "../../../renderer/dependencyGraph/dependencyGraphRegistry.facade"
 import { FilesRepo } from "../../../stores/fileStore/fileStore.facade"
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { themeById } from "../../../util/theme/themes"
 import { GlobalSettingsFacade } from "../../globalSettings/facade"
 import { ToastService } from "../../shared/facade"
 import * as clipboardWriter from "./clipboardWriter"
 import { DependencyGraphScreenshotService } from "./dependencyGraphScreenshot.service"
 
 describe("DependencyGraphScreenshotService", () => {
+    const EXPORT_PADDING = 16
     const CHART_WIDTH = 400
     const CHART_HEIGHT = 300
     const toastMock = { show: jest.fn() }
@@ -90,6 +93,24 @@ describe("DependencyGraphScreenshotService", () => {
 
         // Assert
         expect(downloadNames).toEqual(["_dependencies.png"])
+    })
+
+    it("should lay the graph on the export background of a dark theme", async () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+        const { service } = configure()
+        recordDownloads()
+        const encode = jest.spyOn(HTMLCanvasElement.prototype, "toDataURL")
+
+        // Act
+        await service.makeScreenshotToFile()
+
+        // Assert
+        expect(encode.mock.calls.length).toBe(1)
+        expect(encode.mock.contexts[0]).toMatchObject({
+            width: CHART_WIDTH + 2 * EXPORT_PADDING,
+            height: CHART_HEIGHT + 2 * EXPORT_PADDING
+        })
     })
 
     describe("screenshotBox", () => {

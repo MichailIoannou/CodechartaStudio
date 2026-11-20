@@ -36,6 +36,33 @@ describe("MetricColorRangeDiagramComponent", () => {
         expect(svg).not.toBeNull()
     })
 
+    it("should draw axes in the current text color", async () => {
+        // Arrange & Act
+        const component = await setup()
+
+        // Assert
+        const container: HTMLElement = component["elementRef"].nativeElement
+        const svg = container.querySelector("svg")
+        expect(svg.classList.contains("text-base-content/60")).toBe(true)
+        expect(container.querySelector("#axis-x").getAttribute("color")).toBe("currentColor")
+        expect(container.querySelector("#axis-y").getAttribute("color")).toBe("currentColor")
+        expect(container.querySelector("#diagram-path").getAttribute("stroke")).toBe("currentColor")
+        expect(container.querySelector("#x-label").getAttribute("fill")).toBe("currentColor")
+    })
+
+    it("should draw the crosshair in the base content color", async () => {
+        // Arrange & Act
+        const component = await setup()
+
+        // Assert
+        const container: HTMLElement = component["elementRef"].nativeElement
+        const handleStrokes = [".dashed-vertical-line", ".straight-vertical-line", ".horizontal-line"].map(
+            selector => (container.querySelector(selector) as SVGElement).style.stroke
+        )
+        expect(handleStrokes).toEqual(Array(3).fill("var(--color-base-content)"))
+        expect((container.querySelector(".cross-tooltip") as SVGElement).style.fill).toBe("var(--color-base-content)")
+    })
+
     it("should return 0 for the min value and 100 for the max value", async () => {
         // Arrange
         const component = await setup()

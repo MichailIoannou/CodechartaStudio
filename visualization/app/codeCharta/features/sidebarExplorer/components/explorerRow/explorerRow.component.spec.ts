@@ -64,7 +64,7 @@ describe("ExplorerRowComponent", () => {
 
         // Assert
         expect(rowOf(container).querySelector(".bg-primary\\/10")).toBe(null)
-        expect((rowOf(container).querySelector(".bg-neutral\\/15") as HTMLElement).style.width).toBe("42%")
+        expect((rowOf(container).querySelector(".bg-base-content\\/10") as HTMLElement).style.width).toBe("42%")
     })
 
     it("should leave the bar out of a row without a share", async () => {

@@ -5,7 +5,7 @@ export type BarTone = "primary" | "neutral"
 
 const BAR_CLASS_BY_TONE: Record<BarTone, string> = {
     primary: "bg-primary/10",
-    neutral: "bg-neutral/15"
+    neutral: "bg-base-content/10"
 }
 
 /** The look of one explorer row. Everything the explorer lists — nodes, words, a word's occurrences —

@@ -11,8 +11,9 @@ import {
     ThreeSceneService
 } from "../../../renderer/threeViewer/threeViewer.facade"
 import { FilesRepo } from "../../../stores/fileStore/fileStore.facade"
+import { activeRenderPalette } from "../../../util/theme/activeTheme"
 import { ScreenshotCapture } from "../screenshotCapture"
-import { cropTransparentMargins } from "./canvasCrop"
+import { cropTransparentMargins, onExportBackground } from "./canvasCrop"
 import { checkWriteToClipboardAllowed, setToClipboard } from "./clipboardWriter"
 import { downloadPng } from "./pngScreenshot"
 
@@ -88,8 +89,6 @@ export class ScreenshotService implements ScreenshotCapture {
             "cc-sidebar-explorer"
         ])
 
-        const idsToIgnore = new Set(["legend-panel-button"])
-
         const bodyHeight = document.querySelector("body")?.offsetHeight ?? 0
         const navBarHeight = (document.querySelector("cc-nav-bar") as HTMLElement | null)?.offsetHeight ?? 0
         const fileExtensionBarHeight = (document.querySelector("cc-file-extension-bar") as HTMLElement | null)?.offsetHeight ?? 0
@@ -103,17 +102,13 @@ export class ScreenshotService implements ScreenshotCapture {
             scrollY: -navBarHeight,
             height: Math.max(0, bodyHeight - navBarHeight - bottomBarsHeight),
             ignoreElements(element) {
-                return (
-                    tagsNamesToIgnore.has(element.tagName.toLowerCase()) ||
-                    idsToIgnore.has(element.id) ||
-                    (element as HTMLElement).style.zIndex === "10000"
-                )
+                return tagsNamesToIgnore.has(element.tagName.toLowerCase()) || (element as HTMLElement).style.zIndex === "10000"
             }
         })
 
         this.restoreLabelsAfterScreenshot(savedLabelStyles)
 
-        return cropTransparentMargins(canvas)
+        return onExportBackground(cropTransparentMargins(canvas), activeRenderPalette().exportBackground)
     }
 
     private prepareLabelsForScreenshot(): Map<HTMLElement, string> {
@@ -122,6 +117,7 @@ export class ScreenshotService implements ScreenshotCapture {
         if (!container) {
             return saved
         }
+        const { background, text, border } = activeRenderPalette().map.buildingLabel
 
         for (const element of container.querySelectorAll("div")) {
             const el = element as HTMLElement
@@ -131,9 +127,10 @@ export class ScreenshotService implements ScreenshotCapture {
             saved.set(el, el.style.cssText)
             el.style.backdropFilter = "none"
             el.style.setProperty("-webkit-backdrop-filter", "none")
-            el.style.background = "white"
+            el.style.background = background
+            el.style.color = text
             el.style.boxShadow = "none"
-            el.style.border = "1px solid rgba(0, 0, 0, 0.3)"
+            el.style.border = `1px solid ${border}`
             el.style.transition = "none"
         }
         return saved

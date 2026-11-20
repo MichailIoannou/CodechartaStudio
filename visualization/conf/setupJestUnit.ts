@@ -1,4 +1,6 @@
 import { setupZonelessTestEnv } from "jest-preset-angular/setup-env/zoneless"
+import { setActiveTheme } from "../app/codeCharta/util/theme/activeTheme"
+import { resolveTheme } from "../app/codeCharta/util/theme/resolveTheme"
 
 setupZonelessTestEnv()
 
@@ -83,3 +85,8 @@ if (typeof HTMLElement.prototype.togglePopover === "undefined") {
 const dialogPopoverStyle = document.createElement("style")
 dialogPopoverStyle.textContent = "dialog[popover] { display: flex }"
 document.head.append(dialogPopoverStyle)
+
+// Specs and snapshots assert the light render colors; a spec about a dark theme sets its theme itself.
+beforeEach(() => {
+    setActiveTheme(resolveTheme("cc-light", "light"))
+})

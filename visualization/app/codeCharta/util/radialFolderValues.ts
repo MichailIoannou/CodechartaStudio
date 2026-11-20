@@ -1,9 +1,7 @@
 import { Color } from "three"
 import { MapColors, RadialFolderStyle, RadialFolderValue } from "../model/codeCharta.model"
 import { ColorConverter } from "./color/colorConverter"
-
-export const NEUTRAL_FOLDER_COLOR = "#d9dce1"
-const WHITE = "#ffffff"
+import { activeRenderPalette } from "./theme/activeTheme"
 
 export interface RadialFolderValueDescriptor {
     value: RadialFolderValue
@@ -55,8 +53,12 @@ export function describeRadialFolderValue(value: RadialFolderValue): RadialFolde
     return RADIAL_FOLDER_VALUES.find(descriptor => descriptor.value === value) ?? RADIAL_FOLDER_VALUES[0]
 }
 
+export function neutralFolderColor(): string {
+    return activeRenderPalette().radial.neutralFolder
+}
+
 export function tintColor(color: string, tint: number): string {
-    return mixColors(color, WHITE, 1 - tint)
+    return mixColors(color, activeRenderPalette().radial.tintTarget, 1 - tint)
 }
 
 export function mixColors(fromHex: string, toHex: string, fraction: number): string {
@@ -67,7 +69,7 @@ export function mixColors(fromHex: string, toHex: string, fraction: number): str
 
 export function folderSwatchBackground(mapColors: MapColors, style: RadialFolderStyle, tint: number): string {
     if (style === RadialFolderStyle.Neutral) {
-        return NEUTRAL_FOLDER_COLOR
+        return neutralFolderColor()
     }
     const stops = [mapColors.positive, mapColors.neutral, mapColors.negative].map(color => tintColor(color, tint))
     return `linear-gradient(90deg, ${stops.join(", ")})`

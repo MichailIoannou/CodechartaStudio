@@ -8,12 +8,13 @@ import { isPresentationModeSelector } from "./isPresentationMode/isPresentationM
 import { localSourceEnabledSelector } from "./localSourceEnabled/localSourceEnabled.selector"
 import { maxTreeMapFilesSelector } from "./maxTreeMapFiles/maxTreeMapFiles.selector"
 import { isRadialFolderNeutralSelector, radialFolderStyleSelector } from "./radialFolderStyle/radialFolderStyle.selector"
-import { radialFolderSwatchSelector, radialTintedFolderSwatchSelector } from "./radialFolderSwatch/radialFolderSwatch.selector"
+import { radialFolderSwatchInputsSelector } from "./radialFolderSwatch/radialFolderSwatch.selector"
 import { radialFolderTintSelector } from "./radialFolderTint/radialFolderTint.selector"
 import { radialFolderValueSelector } from "./radialFolderValue/radialFolderValue.selector"
 import { radialLevelsSelector } from "./radialLevels/radialLevels.selector"
 import { resetCameraIfNewFileIsLoadedSelector } from "./resetCameraIfNewFileIsLoaded/resetCameraIfNewFileIsLoaded.selector"
 import { sortingOrderAscendingSelector, sortingOrderSelector } from "./sorting/sorting.selector"
+import { themePreferenceSelector } from "./theme/theme.selector"
 
 @Injectable({
     providedIn: "root"
@@ -28,6 +29,7 @@ export class PreferencesReadWindow {
     readonly isColorMetricLinkedToHeightMetric$ = this.store.select(isColorMetricLinkedToHeightMetricSelector)
     readonly screenshotToClipboardEnabled$ = this.store.select(screenshotToClipboardEnabledSelector)
     readonly localSourceEnabled$ = this.store.select(localSourceEnabledSelector)
+    readonly theme$ = this.store.select(themePreferenceSelector)
     readonly resetCameraIfNewFileIsLoaded$ = this.store.select(resetCameraIfNewFileIsLoadedSelector)
     readonly centerMapZoom$ = this.store.select(centerMapZoomSelector)
     readonly maxTreeMapFiles$ = this.store.select(maxTreeMapFilesSelector)
@@ -37,8 +39,7 @@ export class PreferencesReadWindow {
     readonly radialFolderStyle$ = this.store.select(radialFolderStyleSelector)
     readonly radialFolderTint$ = this.store.select(radialFolderTintSelector)
     readonly isRadialFolderNeutral$ = this.store.select(isRadialFolderNeutralSelector)
-    readonly radialFolderSwatch$ = this.store.select(radialFolderSwatchSelector)
-    readonly radialTintedFolderSwatch$ = this.store.select(radialTintedFolderSwatchSelector)
+    readonly radialFolderSwatchInputs$ = this.store.select(radialFolderSwatchInputsSelector)
     readonly radialLevels$ = this.store.select(radialLevelsSelector)
 
     getPreferences(): Preferences {

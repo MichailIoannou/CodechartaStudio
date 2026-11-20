@@ -1,3 +1,5 @@
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { themeById } from "../../../util/theme/themes"
 import { fileNode, folderNode, TEST_COLORING } from "../testing/radialChart.stub"
 import { CENTRE_RADIUS, DIMMED_OPACITY } from "./radialChartStyle"
 import { nodeColor } from "./radialColor"
@@ -159,6 +161,17 @@ describe("buildRadialTreemapOption", () => {
 
         // Assert
         expect(piece.style.stroke).toBe("#ffffff")
+    })
+
+    it("should outline pieces in the theme surface", () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+
+        // Act
+        const [piece] = drawn(TREE).drawItem("/root/src/a.ts").children
+
+        // Assert
+        expect(piece.style.stroke).toBe("#1e2329")
     })
 
     it("should outline a piece too thin for a white border in its own colour, so tiny files do not fade to white", () => {

@@ -23,6 +23,7 @@ import {
     setShowMetricLabelNodeName,
     setShowOutgoingEdges
 } from "../../../../stores/mapState/mapState.write.facade"
+import { activeThemeChanged } from "../../../../stores/preferences/preferences.write.facade"
 import { markPackages, setMarkedPackages, unmarkPackage } from "../../../../stores/sharedView/sharedView.write.facade"
 
 /**
@@ -39,13 +40,16 @@ export interface RenderInvalidation {
     colors: boolean
     labels: boolean
     arrows: boolean
+    /** Paint the folder names on the floors again. A new geometry draws them anyway. */
+    floorLabels: boolean
 }
 
 export const FULL_INVALIDATION: RenderInvalidation = Object.freeze({
     geometry: true,
     colors: true,
     labels: true,
-    arrows: true
+    arrows: true,
+    floorLabels: true
 })
 
 const partialInvalidationByActionType = new Map<string, Partial<RenderInvalidation>>([
@@ -77,7 +81,9 @@ const partialInvalidationByActionType = new Map<string, Partial<RenderInvalidati
     [unmarkPackage.type, { colors: true }],
 
     // The map is scaled as a whole group, so the buildings' own buffers stay valid.
-    [setScaling.type, { labels: true, arrows: true }]
+    [setScaling.type, { labels: true, arrows: true }],
+
+    [activeThemeChanged.type, { colors: true, floorLabels: true }]
 ])
 
 export function invalidationForAction(action: Action): RenderInvalidation {
@@ -97,7 +103,8 @@ export function propagate(invalidation: Partial<RenderInvalidation>): RenderInva
         geometry,
         colors,
         labels: colors || invalidation.labels === true,
-        arrows: geometry || invalidation.arrows === true
+        arrows: geometry || invalidation.arrows === true,
+        floorLabels: geometry || invalidation.floorLabels === true
     }
 }
 
@@ -106,6 +113,7 @@ export function mergeInvalidations(invalidations: RenderInvalidation[]): RenderI
         geometry: invalidations.some(({ geometry }) => geometry),
         colors: invalidations.some(({ colors }) => colors),
         labels: invalidations.some(({ labels }) => labels),
-        arrows: invalidations.some(({ arrows }) => arrows)
+        arrows: invalidations.some(({ arrows }) => arrows),
+        floorLabels: invalidations.some(({ floorLabels }) => floorLabels)
     })
 }

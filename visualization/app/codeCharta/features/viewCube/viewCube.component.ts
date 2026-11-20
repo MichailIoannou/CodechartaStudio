@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnInit } from "@angular/core"
+import { ChangeDetectionStrategy, Component, ElementRef, effect, OnInit } from "@angular/core"
 import {
     AmbientLight,
     AxesHelper,
@@ -7,12 +7,14 @@ import {
     DirectionalLight,
     Group,
     Mesh,
+    MeshLambertMaterial,
     PerspectiveCamera,
     Scene,
     Vector3,
     WebGLRenderer
 } from "three"
 import { ThreeMapControlsService } from "../../renderer/threeViewer/threeViewer.facade"
+import { activeRenderPalette, activeTheme } from "../../util/theme/activeTheme"
 import { ViewCubemeshGenerator } from "./viewCube.meshGenerator"
 import { ViewCubeMouseEventsService } from "./viewCube.mouseEvents.service"
 import { ZoomSliderComponent } from "./zoomSlider/zoomSlider.component"
@@ -32,6 +34,7 @@ export class ViewCubeComponent implements OnInit {
     private camera: PerspectiveCamera
     private renderer: WebGLRenderer
     private scene: Scene
+    private cubeBoundingBox: BoxHelper
     private readonly WIDTH = 200
     private readonly HEIGHT = 200
     private readonly LENGTH_VIEWCUBE = 1
@@ -47,7 +50,12 @@ export class ViewCubeComponent implements OnInit {
         private readonly elementReference: ElementRef,
         private readonly threeMapControlsService: ThreeMapControlsService,
         private readonly viewCubeMouseEvents: ViewCubeMouseEventsService
-    ) {}
+    ) {
+        effect(() => {
+            activeTheme()
+            this.recolorAfterThemeChange()
+        })
+    }
 
     ngOnInit() {
         this.initScene()
@@ -81,10 +89,24 @@ export class ViewCubeComponent implements OnInit {
         this.cubeDefinition.top = top
         this.cubeDefinition.sides = sides
 
-        const cubeBoundingBox = new BoxHelper(this.cubeGroup, new Color(0x00_00_00))
+        this.cubeBoundingBox = new BoxHelper(this.cubeGroup, new Color(activeRenderPalette().viewCube.outline))
 
         this.scene.add(this.cubeGroup)
-        this.scene.add(cubeBoundingBox)
+        this.scene.add(this.cubeBoundingBox)
+    }
+
+    private recolorAfterThemeChange() {
+        if (!this.cubeGroup) {
+            return
+        }
+        const { face, outline } = activeRenderPalette().viewCube
+        this.cubeGroup.traverse(child => {
+            if (child instanceof Mesh && child.material instanceof MeshLambertMaterial) {
+                child.material.color.set(face)
+            }
+        })
+        this.cubeBoundingBox.material.color.set(outline)
+        this.renderer.render(this.scene, this.camera)
     }
 
     onCameraChanged = (data: { camera: PerspectiveCamera }) => {
@@ -129,7 +151,7 @@ export class ViewCubeComponent implements OnInit {
             cube: data.cube,
             originalMaterial: data.cube.material
         }
-        this.hoverInfo.cube.material.emissive = new Color(0xff_ff_ff)
+        this.hoverInfo.cube.material.emissive = new Color(activeRenderPalette().viewCube.hoverEmissive)
         this.renderer.render(this.scene, this.camera)
     }
 
