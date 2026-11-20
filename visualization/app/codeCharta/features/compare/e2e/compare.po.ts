@@ -74,4 +74,24 @@ export class ComparePageObject {
         await this.page.getByTestId("comparison-actions").click()
         await this.page.getByTestId("comparison-leave").click()
     }
+
+    async openTheChangesMode() {
+        await this.page.getByTestId("explorer-mode-changes").click()
+    }
+
+    changeRows() {
+        return this.page.getByTestId("changes-row")
+    }
+
+    changesSource() {
+        return this.page.getByTestId("changes-source")
+    }
+
+    async showOnlyChangedFiles() {
+        await this.page.getByTestId("changes-only-changed").click()
+    }
+
+    flattenedCount() {
+        return this.page.locator("cc-explorer-count-chip").filter({ hasText: "Flattened" })
+    }
 }
