@@ -134,6 +134,7 @@ describe("ToastComponent", () => {
         expect(screen.getAllByTestId("copy-command").map(block => block.textContent?.trim())).toEqual(commands)
         expect(screen.getAllByRole("button", { name: "Copy command" })).toHaveLength(2)
         expect(screen.queryByTestId("toast-details")).toBe(null)
+        expect(screen.getAllByTestId("copy-command")[0].closest(".alert")?.classList).toContain("grid-cols-[minmax(0,1fr)_auto]")
     })
 
     it("should stack the messages at the top right just below the nav bar", async () => {

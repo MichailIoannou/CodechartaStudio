@@ -2,13 +2,13 @@
     <ng-content />
     @for (message of messages(); track message.id) {
         <div
-            class="alert w-96 max-w-[calc(100vw-2rem)] items-start shadow-lg"
+            class="alert w-96 max-w-[calc(100vw-2rem)] grid-cols-[minmax(0,1fr)_auto] items-start shadow-lg"
             [class.alert-info]="message.severity === 'info'"
             [class.alert-success]="message.severity === 'success'"
             [class.alert-warning]="message.severity === 'warning'"
             [class.alert-error]="message.severity === 'error'"
         >
-            <div class="flex min-w-0 flex-col gap-2">
+            <div class="flex w-full min-w-0 flex-col gap-2">
                 <span class="whitespace-pre-line break-words">{{ message.text }}</span>
                 @for (command of message.commands ?? []; track $index) {
                     <cc-copy-command [command]="command" />
