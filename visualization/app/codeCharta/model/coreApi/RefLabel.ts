@@ -2,6 +2,7 @@
 import type { RefLabelKind } from "./RefLabelKind"
 
 /**
- * How a side is named: a branch or tag name when the user picked one, else the short commit.
+ * How a side is named: a branch or tag name when the user picked one, else the short commit; a
+ * working-tree snapshot is "working tree", an imported one its file name.
  */
 export type RefLabel = { kind: RefLabelKind; name: string }

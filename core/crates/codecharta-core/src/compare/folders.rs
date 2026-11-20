@@ -88,7 +88,7 @@ impl<'core, Sides: SideLookup + Sync> CommitComparison<'_, 'core, Sides> {
         })
     }
 
-    fn history_in<'call>(
+    pub(super) fn history_in<'call>(
         &'call self,
         folder: &'call GitFolder,
         cancel: &'call CancellationToken,

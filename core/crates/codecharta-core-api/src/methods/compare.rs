@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::ids::SnapshotId;
 use crate::methods::git::GitFileChange;
 use crate::methods::hosting::HostingProvider;
 use crate::methods::projects::FolderRef;
@@ -83,6 +84,8 @@ pub struct SideInput {
 }
 
 /// `rev`: a branch, remote branch or tag name, `HEAD`, a full ref name or the leading digits of a commit.
+/// `workingTree` and `imported` name an existing snapshot of the side's folder that has no commit to
+/// compare: no merge base, no git list of changed files.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(
     tag = "kind",
@@ -91,6 +94,14 @@ pub struct SideInput {
 )]
 pub enum RefInput {
     Rev { name: TypedRevision },
+    WorkingTree { snapshot_id: SnapshotId },
+    Imported { snapshot_id: SnapshotId },
+}
+
+impl RefInput {
+    pub fn is_snapshot(&self) -> bool {
+        !matches!(self, RefInput::Rev { .. })
+    }
 }
 
 /// Resolving never starts an analysis.
@@ -127,9 +138,12 @@ pub enum RefLabelKind {
     Branch,
     Tag,
     PullRequest,
+    WorkingTree,
+    Imported,
 }
 
-/// How a side is named: a branch or tag name when the user picked one, else the short commit.
+/// How a side is named: a branch or tag name when the user picked one, else the short commit; a
+/// working-tree snapshot is "working tree", an imported one its file name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RefLabel {
@@ -137,12 +151,24 @@ pub struct RefLabel {
     pub name: String,
 }
 
+/// What a side of a comparison is: a commit, or a snapshot that has no commit to compare.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum SideKind {
+    Commit,
+    WorkingTree,
+    Imported,
+}
+
+/// One side: a `commit` has its sha, a working-tree or imported snapshot its `snapshotId` instead.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ComparedCommit {
     pub folder: FolderRef,
-    pub commit: CommitSha,
-    pub short_commit: String,
+    pub kind: SideKind,
+    pub commit: Option<CommitSha>,
+    pub short_commit: Option<String>,
+    pub snapshot_id: Option<SnapshotId>,
     pub label: RefLabel,
 }
 

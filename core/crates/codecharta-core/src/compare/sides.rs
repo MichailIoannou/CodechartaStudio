@@ -1,8 +1,10 @@
 use std::future::Future;
 
 use codecharta_core_api::methods::analysis::AnalysisTarget;
-use codecharta_core_api::methods::compare::{ComparedCommit, NearestSnapshot, SideStatus};
-use codecharta_core_api::methods::snapshots::SnapshotResolution;
+use codecharta_core_api::methods::compare::{NearestSnapshot, SideStatus};
+use codecharta_core_api::methods::projects::FolderRef;
+use codecharta_core_api::methods::snapshots::{SnapshotRef, SnapshotResolution, SnapshotSummary};
+use codecharta_core_api::values::CommitSha;
 use tokio_util::sync::CancellationToken;
 
 use crate::error::CoreResult;
@@ -12,23 +14,30 @@ use crate::snapshots::FolderResolver;
 pub trait SideLookup {
     fn status_of(
         &self,
-        side: &ComparedCommit,
+        folder: &FolderRef,
+        commit: &CommitSha,
         cancel: &CancellationToken,
     ) -> impl Future<Output = CoreResult<SideStatus>> + Send;
+
+    /// A snapshot named by its id, for a side without a commit; `NOT_FOUND` when the folder has none.
+    fn snapshot(&self, snapshot: &SnapshotRef) -> CoreResult<SnapshotSummary>;
 }
 
 impl SideLookup for FolderResolver<'_, '_> {
     async fn status_of(
         &self,
-        side: &ComparedCommit,
+        folder: &FolderRef,
+        commit: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<SideStatus> {
         let target = AnalysisTarget::Commit {
-            sha: side.commit.clone(),
+            sha: commit.clone(),
         };
-        self.resolve(&side.folder, &target, cancel)
-            .await
-            .map(side_status)
+        self.resolve(folder, &target, cancel).await.map(side_status)
+    }
+
+    fn snapshot(&self, snapshot: &SnapshotRef) -> CoreResult<SnapshotSummary> {
+        Ok(self.snapshots.read(snapshot)?.to_summary())
     }
 }
 

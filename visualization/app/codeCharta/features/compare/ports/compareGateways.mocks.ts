@@ -24,7 +24,7 @@ export const BASE_SHA = "9f8e7d6".padEnd(40, "0")
 export const HEAD_SHA = "a1b2c3d".padEnd(40, "0")
 
 export function aComparedCommit(sha: string, label: ComparedCommit["label"] = { kind: "commit", name: sha.slice(0, 7) }): ComparedCommit {
-    return { folder: FOLDER, commit: sha, shortCommit: sha.slice(0, 7), label }
+    return { folder: FOLDER, kind: "commit", commit: sha, shortCommit: sha.slice(0, 7), snapshotId: null, label }
 }
 
 export function aCommitSnapshot(sha: string, checksum: string | null = `checksum-${sha.slice(0, 7)}`): SnapshotSummary {

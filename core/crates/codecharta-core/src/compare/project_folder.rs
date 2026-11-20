@@ -1,7 +1,7 @@
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::methods::compare::{
     ChangedFilesParams, ChangedFilesResult, CompareIntent, ResolveComparisonParams,
-    ResolvedComparison,
+    ResolvedComparison, SideInput,
 };
 use codecharta_core_api::methods::projects::{FolderKind, FolderRef};
 use tokio_util::sync::CancellationToken;
@@ -10,6 +10,7 @@ use super::changed_files::ChangedFilesSearch;
 use super::folders::SideFolders;
 use super::preflight::SizeLimits;
 use super::resolve::CommitComparison;
+use super::snapshot_sides::SnapshotSideFolders;
 use crate::error::{CoreError, CoreResult};
 use crate::git::error::{GitError, message_for};
 use crate::git::{GitFolder, GitService};
@@ -18,43 +19,89 @@ use crate::snapshots::FolderResolver;
 
 const TWO_PROJECTS_MESSAGE: &str = "Both sides of a comparison must be in one project.";
 
-/// Resolves a comparison of a project folder, or of two folders of one project, against the snapshots of
-/// the store the resolver reads; the serving core and the command line share it.
+/// Resolves a comparison of a project folder, of two folders of one project, or against a working-tree or
+/// imported snapshot, over the snapshots of the store the resolver reads; the serving core and the command
+/// line share it.
 pub async fn resolve_in_project(
     resolver: &FolderResolver<'_, '_>,
     params: &ResolveComparisonParams,
     cancel: &CancellationToken,
 ) -> CoreResult<ResolvedComparison> {
-    let folder = compared_folder(resolver.projects, params.intent.folder())?;
-    let default_branch = resolver.projects.default_branch(params.intent.folder())?;
-    let comparison = CommitComparison {
-        git: resolver.git,
-        sides: resolver,
-        limits: SizeLimits::default(),
-        default_branch: default_branch.as_deref(),
-    };
-    match head_folder_elsewhere(&params.intent)? {
-        Some(head_folder) => {
-            let head = compared_folder(resolver.projects, head_folder)?;
+    match explicit_sides(&params.intent)? {
+        Some((base, head)) if base.rev.is_snapshot() || head.rev.is_snapshot() => {
+            resolve_with_snapshots(resolver, base, head, params, cancel).await
+        }
+        Some((base, head)) if base.folder != head.folder => {
+            let comparison = comparison_of(resolver, None);
+            let base = compared_folder(resolver.projects, &base.folder)?;
+            let head = compared_folder(resolver.projects, &head.folder)?;
             let folders = SideFolders {
-                base: &folder,
+                base: &base,
                 head: &head,
             };
             comparison.resolve_across(&folders, params, cancel).await
         }
-        None => comparison.resolve(&folder, params, cancel).await,
+        _ => {
+            let folder = compared_folder(resolver.projects, params.intent.folder())?;
+            let default_branch = resolver.projects.default_branch(params.intent.folder())?;
+            let comparison = comparison_of(resolver, default_branch.as_deref());
+            comparison.resolve(&folder, params, cancel).await
+        }
     }
 }
 
-/// The head's folder when an explicit comparison spans two folders of one project.
-fn head_folder_elsewhere(intent: &CompareIntent) -> CoreResult<Option<&FolderRef>> {
+fn comparison_of<'deps, 'core>(
+    resolver: &'deps FolderResolver<'deps, 'core>,
+    default_branch: Option<&'deps str>,
+) -> CommitComparison<'deps, 'core, FolderResolver<'deps, 'core>> {
+    CommitComparison {
+        git: resolver.git,
+        sides: resolver,
+        limits: SizeLimits::default(),
+        default_branch,
+    }
+}
+
+/// A snapshot side needs its folder to exist, not to be a repository: an imported map may sit in a plain
+/// folder.
+async fn resolve_with_snapshots(
+    resolver: &FolderResolver<'_, '_>,
+    base: &SideInput,
+    head: &SideInput,
+    params: &ResolveComparisonParams,
+    cancel: &CancellationToken,
+) -> CoreResult<ResolvedComparison> {
+    let base_clone = clone_of_side(resolver.projects, base)?;
+    let head_clone = clone_of_side(resolver.projects, head)?;
+    let folders = SnapshotSideFolders {
+        base: base_clone.as_ref(),
+        head: head_clone.as_ref(),
+    };
+    comparison_of(resolver, None)
+        .resolve_with_snapshots(&folders, params, cancel)
+        .await
+}
+
+fn clone_of_side(
+    projects: &ProjectRepository<'_>,
+    side: &SideInput,
+) -> CoreResult<Option<GitFolder>> {
+    if side.rev.is_snapshot() {
+        projects.resolve_folder(&side.folder)?;
+        return Ok(None);
+    }
+    compared_folder(projects, &side.folder).map(Some)
+}
+
+/// The two sides of an explicit comparison, which must be in one project.
+fn explicit_sides(intent: &CompareIntent) -> CoreResult<Option<(&SideInput, &SideInput)>> {
     let CompareIntent::Explicit { base, head, .. } = intent else {
         return Ok(None);
     };
     if base.folder.project_id != head.folder.project_id {
         return Err(CoreError::BadRequest(TWO_PROJECTS_MESSAGE.to_string()));
     }
-    Ok((base.folder != head.folder).then_some(&head.folder))
+    Ok(Some((base, head)))
 }
 
 /// Lists the files between two commits in the base folder's clone, else the head folder's; every folder

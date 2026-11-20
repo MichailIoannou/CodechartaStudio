@@ -31,6 +31,7 @@ import type { Project } from "../../model/coreApi/Project"
 import type { ProjectView } from "../../model/coreApi/ProjectView"
 import type { PromptKind } from "../../model/coreApi/PromptKind"
 import type { PrunePolicy } from "../../model/coreApi/PrunePolicy"
+import type { RefInput } from "../../model/coreApi/RefInput"
 import type { ResolvedCommit } from "../../model/coreApi/ResolvedCommit"
 import type { SnapshotResolution } from "../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
@@ -1540,7 +1541,14 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
     function comparedSide(folder: FolderRef, revision: string) {
         const sha = commitAtRevision(folder.folderId, revision)
         const snapshot = snapshotsOf(folder.projectId, folder.folderId).find(candidate => candidate.commit === sha)
-        const requested = { folder, commit: sha, shortCommit: sha.slice(0, 7), label: labelOfRevision(revision, sha) }
+        const requested = {
+            folder,
+            kind: "commit",
+            commit: sha,
+            shortCommit: sha.slice(0, 7),
+            snapshotId: null,
+            label: labelOfRevision(revision, sha)
+        }
         const status = snapshot
             ? { status: "exact", snapshot: JSON.parse(JSON.stringify(snapshot)) }
             : { status: "missing", nearest: nearestOf(folder, sha) }
@@ -1561,6 +1569,10 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         )
         const byPrefix = commitsOf(folderId).filter(commit => /^[0-9a-f]{4,}$/i.test(name) && commit.sha.startsWith(name.toLowerCase()))
         return named?.refName ?? (byPrefix.length === 1 ? byPrefix[0].sha : null)
+    }
+
+    function typedRevisionOf(folderId: string, rev: RefInput) {
+        return rev.kind === "rev" ? revisionOfTyped(folderId, rev.name) : null
     }
 
     function branchTarget(folderId: string, branch: string, target: string | null) {
@@ -1588,7 +1600,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
             case "branch":
                 return [branchTarget(folder.folderId, intent.branch, intent.target), intent.branch]
             case "explicit":
-                return [revisionOfTyped(folder.folderId, intent.base.rev.name), revisionOfTyped(folder.folderId, intent.head.rev.name)]
+                return [typedRevisionOf(folder.folderId, intent.base.rev), typedRevisionOf(folder.folderId, intent.head.rev)]
             case "changeRequest":
                 return [`refs/heads/${intent.baseRefName}`, intent.headCommit]
         }

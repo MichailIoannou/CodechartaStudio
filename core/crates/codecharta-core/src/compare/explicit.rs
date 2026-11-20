@@ -9,6 +9,7 @@ use crate::git::error::{GitError, message_for};
 
 const SHORTEST_PREFIX_LENGTH: usize = 4;
 const TWO_FOLDERS_MESSAGE: &str = "Both sides of a comparison must be in the same folder.";
+const NOT_A_COMMIT_MESSAGE: &str = "A snapshot without a commit is compared through its folder.";
 
 /// The base the user chose stays the base; from a branch or tag in `mergeBase` mode, the base is where the
 /// head left it.
@@ -39,7 +40,9 @@ pub(super) async fn explicit_pair(
 }
 
 pub(super) async fn pick_typed(history: &History<'_, '_>, input: &RefInput) -> CoreResult<Picked> {
-    let RefInput::Rev { name } = input;
+    let RefInput::Rev { name } = input else {
+        return Err(CoreError::BadRequest(NOT_A_COMMIT_MESSAGE.to_string()));
+    };
     let revision = revision_of_typed(history, name.as_str()).await?;
     history.pick(&revision).await
 }

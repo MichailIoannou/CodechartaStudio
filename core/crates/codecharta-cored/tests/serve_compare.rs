@@ -241,6 +241,42 @@ fn explicit_params(base_folder: &Value, head_folder: &Value) -> Value {
     })
 }
 
+const IMPORTED_MAP: &str = r#"{"projectName":"demo","apiVersion":"1.5","nodes":[]}"#;
+
+#[test]
+fn should_resolve_a_commit_against_an_imported_snapshot_over_json_rpc() {
+    // Arrange
+    let mut project = ComparedProject::serve();
+    let folder = project.folder.clone();
+    let maps = tempfile::tempdir().expect("a folder for the map");
+    let map_file = maps.path().join("export.cc.json");
+    std::fs::write(&map_file, IMPORTED_MAP).expect("the map is written");
+    let picked = project.core.request(
+        1,
+        "snapshots.inspectImportFile",
+        json!({ "path": map_file }),
+    );
+    let import = json!({
+        "projectId": folder["projectId"], "folderId": folder["folderId"],
+        "importToken": picked["result"]["importToken"], "bindToCommit": null
+    });
+    let imported = project.core.request(2, "snapshots.import", import);
+    let snapshot_id = imported["result"]["ref"]["snapshotId"].clone();
+    let mut params = explicit_params(&folder, &folder);
+    params["intent"]["head"]["rev"] = json!({ "kind": "imported", "snapshotId": snapshot_id });
+
+    // Act
+    let answer = project.core.request(3, "compare.resolve", params);
+
+    // Assert
+    let head = &answer["result"]["head"];
+    assert_eq!(head["requested"]["kind"], "imported", "{answer} {imported}");
+    assert_eq!(head["requested"]["commit"], Value::Null);
+    assert_eq!(head["requested"]["label"]["name"], "export.cc.json");
+    assert_eq!(head["status"]["status"], "exact");
+    assert_eq!(answer["result"]["baseMode"], "tip");
+}
+
 #[test]
 fn should_refuse_a_comparison_across_two_projects() {
     // Arrange

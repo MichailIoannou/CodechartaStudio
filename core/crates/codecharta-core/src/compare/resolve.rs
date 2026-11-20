@@ -1,7 +1,7 @@
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::methods::compare::{
     BaseMode, CompareIntent, ComparedCommit, ComparisonOrigin, RefLabel, RefLabelKind,
-    ResolveComparisonParams, ResolveStatus, ResolvedComparison, ResolvedSide,
+    ResolveComparisonParams, ResolveStatus, ResolvedComparison, ResolvedSide, SideKind,
 };
 use codecharta_core_api::methods::projects::FolderRef;
 use codecharta_core_api::values::{CommitSha, Revision, SHORTEST_COMMIT_HASH_LENGTH};
@@ -72,8 +72,8 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
         picked: Picked,
         cancel: &CancellationToken,
     ) -> CoreResult<ResolvedSide> {
+        let status = self.sides.status_of(folder, &picked.commit, cancel).await?;
         let requested = compared(folder, picked);
-        let status = self.sides.status_of(&requested, cancel).await?;
         Ok(ResolvedSide { requested, status })
     }
 }
@@ -81,8 +81,10 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
 pub(super) fn compared(folder: &FolderRef, picked: Picked) -> ComparedCommit {
     ComparedCommit {
         folder: folder.clone(),
-        short_commit: short_commit(&picked.commit),
-        commit: picked.commit,
+        kind: SideKind::Commit,
+        short_commit: Some(short_commit(&picked.commit)),
+        commit: Some(picked.commit),
+        snapshot_id: None,
         label: picked.label,
     }
 }
