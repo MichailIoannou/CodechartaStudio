@@ -148,7 +148,7 @@ describe("SaveScenarioDialogComponent", () => {
     it("should have no files when files state is empty", () => {
         // Act
         const hasFiles = component.hasFiles()
-        const fileNames = component.visibleFileNames()
+        const fileNames = component.visibleMapKeys()
 
         // Assert
         expect(hasFiles).toBe(false)
@@ -160,7 +160,7 @@ describe("SaveScenarioDialogComponent", () => {
         store.setState({ ...defaultState, files: [createFileState("project.cc.json"), createFileState("other.cc.json")] })
 
         // Assert
-        expect(component.visibleFileNames()).toEqual(["project.cc.json", "other.cc.json"])
+        expect(component.visibleMapKeys()).toEqual(["project.cc.json", "other.cc.json"])
         expect(component.hasFiles()).toBe(true)
     })
 
@@ -177,6 +177,29 @@ describe("SaveScenarioDialogComponent", () => {
         expect(scenariosService.saveScenario).toHaveBeenCalledWith(
             expect.objectContaining({ name: "Bound Scenario", mapFileNames: ["project.cc.json", "other.cc.json"] })
         )
+    })
+
+    it("should bind a scenario to the folder of a project map, once for two of its commits", async () => {
+        // Arrange
+        const projectMap = (commit: string) => {
+            const fileState = createFileState(`codecharta@${commit}`)
+            fileState.file.fileMeta.projectSnapshot = {
+                projectId: "p-1",
+                folderId: "f-1",
+                snapshotId: `s-${commit}`,
+                folderLabel: "codecharta"
+            }
+            return fileState
+        }
+        store.setState({ ...defaultState, files: [projectMap("1a2b3c4"), projectMap("9f8e7d6")] })
+        component.name.set("Folder Scenario")
+        component.bindToMap.set(true)
+
+        // Act
+        await component.save()
+
+        // Assert
+        expect(scenariosService.saveScenario).toHaveBeenCalledWith(expect.objectContaining({ mapFileNames: ["codecharta"] }))
     })
 
     it("should not pass mapFileNames when bindToMap is unchecked", async () => {
