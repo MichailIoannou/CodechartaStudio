@@ -41,6 +41,15 @@ export class ComparePageObject {
         await this.page.getByTestId(`compare-${side}-list`).getByRole("option", { name: option }).click()
     }
 
+    async compareWithAnotherFolder(headFolderLabel: string) {
+        await this.page.getByTestId("compare-across-folders").check()
+        await this.page.getByTestId("compare-head-folder").selectOption({ label: headFolderLabel })
+    }
+
+    chipSide(side: "base" | "head") {
+        return this.page.getByTestId(`comparison-${side}`)
+    }
+
     async submit() {
         await this.page.getByTestId("compare-submit").click()
     }
