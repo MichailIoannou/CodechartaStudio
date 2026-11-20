@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event"
 import { appReducers, setStateMiddleware } from "../../../../stores/rootStore/store"
 import { createFakeDesktopBridge } from "../../../../util/desktop/desktopBridge.mocks"
 import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
+import { GlobalConfigurationOpener } from "../../../globalSettings/facade"
 import { ProjectsFacade } from "../../../projects/facade"
 import { aFolder, aProject } from "../../../projects/projects.mocks"
 import type { CompareState } from "../../model/compare.model"
@@ -382,24 +383,17 @@ describe("CompareDialogComponent", () => {
             expect(screen.getByTestId("change-requests-number-entry")).toBeTruthy()
         })
 
-        it("should open the desktop tools from the install hint and unmount them once closed", async () => {
+        it("should open the shared settings dialog at the desktop tools from the install hint", async () => {
             // Arrange
-            await renderDialog({}, {}, WITH_REMOTE, providersWith(new FakeHostingGateway()))
-            const before = screen.queryByText("Global Configuration")
+            const openGlobalConfiguration = jest.fn()
+            const opener = { provide: GlobalConfigurationOpener, useValue: { openGlobalConfiguration } }
+            await renderDialog({}, {}, WITH_REMOTE, [...providersWith(new FakeHostingGateway()), opener])
 
             // Act
             await userEvent.click(screen.getByTestId("change-requests-open-tools"))
-            await settle()
-            const whileOpen = screen.queryByText("Global Configuration")
-            const configuration = whileOpen?.closest("dialog") as HTMLDialogElement
-            configuration.close()
-            await settle()
 
             // Assert
-            expect(before).toBeNull()
-            expect(whileOpen).not.toBeNull()
-            expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled()
-            expect(screen.queryByText("Global Configuration")).toBeNull()
+            expect(openGlobalConfiguration).toHaveBeenCalledWith({ section: "desktopTools" })
         })
 
         it("should switch to the recent comparisons", async () => {
