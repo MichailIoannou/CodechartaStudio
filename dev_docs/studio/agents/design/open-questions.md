@@ -275,3 +275,17 @@ answer that differs means the named file is changed, nothing else.
      - answering a confirmation (a click on the modal) closes the W1 dropdown like any outside click, so
        "Pulling…" is then visible only on the trigger. Should the dropdown stay open?
      - the "Open History" buttons next to the sync button in the W1 and P3 mock-ups are not built yet.
+  8. Compare polish (`progress/06-m6-polish.md`), built without design where noted:
+     - imported side in the chip uses the file's modification date ("imported 12 Nov", or "imported, date
+       unknown"); use the time it was imported into the store instead?
+     - pickers list every working-tree analysis as "Working tree (4 Nov 09:12)" with "uncommitted changes on
+       a1b2c3d", not just the newest. OK?
+     - two folders: the chip shows the folder only in each side's tooltip ("… in billing-fork"). Design?
+     - "Compare with another folder" checkbox sits at the right end of the folder row; the mock-up has it
+       right after the select.
+     - "Both sides are the same analysis — nothing to compare." OK?
+     - inspector git line (not designed): H9 worded badge plus "in git" / "from <old path>" under the node
+       badges.
+     - folder-menu "Remove fetched pull requests" (not designed): `fa-broom`, no confirmation (refs can be
+       fetched again), result toast.
+     - comparisons with a working-tree or imported side are not saved to Recent.
