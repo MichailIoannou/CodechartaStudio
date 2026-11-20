@@ -38,4 +38,19 @@ describe("CopyToClipboardService", () => {
         // Assert
         expect(service.copied()).toBe(false)
     })
+
+    it("should keep the copied flag for the asked feedback time", async () => {
+        // Arrange
+        const service = TestBed.inject(CopyToClipboardService)
+
+        // Act
+        await service.copy("git status", 2000)
+        jest.advanceTimersByTime(1999)
+        const isCopiedBeforeTheEnd = service.copied()
+        jest.advanceTimersByTime(1)
+
+        // Assert
+        expect(isCopiedBeforeTheEnd).toBe(true)
+        expect(service.copied()).toBe(false)
+    })
 })

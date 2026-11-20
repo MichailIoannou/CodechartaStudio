@@ -87,6 +87,14 @@ describe("ToastService", () => {
         })
     })
 
+    it("should carry the commands the user must run", () => {
+        // Act
+        toastService.show("Git does not know who you are.", "error", { commands: ['git config --global user.name "Your Name"'] })
+
+        // Assert
+        expect(toastService.messages()[0].commands).toEqual(['git config --global user.name "Your Name"'])
+    })
+
     it("should dismiss only the requested message when dismiss is called", () => {
         // Arrange
         const keptId = toastService.show("keep me")
