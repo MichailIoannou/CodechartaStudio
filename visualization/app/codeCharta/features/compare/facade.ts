@@ -4,6 +4,7 @@ export { ComparisonChipComponent } from "./components/comparisonChip/comparisonC
 export { ComparisonLegendCaptionComponent } from "./components/comparisonLegendCaption/comparisonLegendCaption.component"
 export { FileGitChangeComponent } from "./components/fileGitChange/fileGitChange.component"
 export { provideCompareForGitHistory } from "./gitHistory/provideCompareForGitHistory"
+export { provideCompareForProjects } from "./projects/provideCompareForProjects"
 export { provideChangesExplorerMode } from "./provideChangesExplorerMode"
 export { CompareFacade } from "./services/compareFacade"
 export { provideCompareForSnapshots } from "./snapshots/provideCompareForSnapshots"

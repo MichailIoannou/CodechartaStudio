@@ -165,6 +165,8 @@ export class FakeHostingGateway implements HostingGateway {
     readonly fetches: { params: FetchChangeRequestHeadParams; operationId: string }[] = []
     readonly cancelled: string[] = []
     readonly overrides: HostingOverride[] = []
+    readonly cleanedFolders: string[] = []
+    removedRefs: number | Error = 0
     answer: HostingStatus | Error = GITHUB_STATUS
     private settleFetch: ((head: FetchedHead | Error) => void) | null = null
 
@@ -196,5 +198,10 @@ export class FakeHostingGateway implements HostingGateway {
     setOverride(_folder: FolderRef, override: HostingOverride): Promise<void> {
         this.overrides.push(override)
         return Promise.resolve()
+    }
+
+    removeFetchedRefs(folder: FolderRef): Promise<number> {
+        this.cleanedFolders.push(folder.folderId)
+        return this.removedRefs instanceof Error ? Promise.reject(this.removedRefs) : Promise.resolve(this.removedRefs)
     }
 }

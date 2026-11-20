@@ -15,7 +15,8 @@ describe("HostingGatewayAdapter", () => {
         bridge = createFakeDesktopBridge({
             responses: {
                 "hosting.status": GITHUB_STATUS,
-                "hosting.fetchChangeRequestHead": { gitRef: "refs/codecharta/pr/7", commit: HEAD_SHA }
+                "hosting.fetchChangeRequestHead": { gitRef: "refs/codecharta/pr/7", commit: HEAD_SHA },
+                "hosting.removeFetchedRefs": { removed: 3 }
             }
         })
         projects = { setFolderHosting: jest.fn().mockResolvedValue(undefined) }
@@ -35,6 +36,15 @@ describe("HostingGatewayAdapter", () => {
         // Assert
         expect(status).toEqual(GITHUB_STATUS)
         expect(bridge.calls.at(-1)?.args).toEqual(["hosting.status", { folder: FOLDER }, undefined])
+    })
+
+    it("should answer how many fetched heads the core removed", async () => {
+        // Act
+        const removed = await adapter.removeFetchedRefs(FOLDER)
+
+        // Assert
+        expect(removed).toBe(3)
+        expect(bridge.calls.at(-1)?.args).toEqual(["hosting.removeFetchedRefs", { folder: FOLDER }, undefined])
     })
 
     it("should fetch a head as a cancellable operation", async () => {
