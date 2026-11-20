@@ -4,7 +4,7 @@ import { render, screen, within } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import { BehaviorSubject, of } from "rxjs"
 import { ClusteringsData } from "../../../../model/codeCharta.model"
-import { ExplorerScrollHostService } from "../../../sidebarExplorer/facade"
+import { ExplorerMode, ExplorerModeService, ExplorerScrollHostService } from "../../../sidebarExplorer/facade"
 import { ClusterHighlightService } from "../../services/clusterHighlight.service"
 import { ClusterExplorerReadStore } from "../../stores/clusterExplorer.read.store"
 import { ClusterExplorerComponent } from "./clusterExplorer.component"
@@ -55,9 +55,12 @@ describe("ClusterExplorerComponent", () => {
         togglePin: jest.fn()
     }
 
+    const activeMode = signal<Pick<ExplorerMode, "id">>({ id: "clusters" })
+
     async function setup(clusterings: ClusteringsData, areaMetric = "rloc") {
         jest.clearAllMocks()
         isOnMap.set(() => true)
+        activeMode.set({ id: "clusters" })
         TestBed.configureTestingModule({
             providers: [
                 {
@@ -74,11 +77,24 @@ describe("ClusterExplorerComponent", () => {
                     }
                 },
                 { provide: ClusterHighlightService, useValue: highlight },
+                { provide: ExplorerModeService, useValue: { activeMode } },
                 ExplorerScrollHostService
             ]
         })
         return render(ClusterExplorerComponent)
     }
+
+    it("should render only while the clusters mode is active", async () => {
+        // Arrange
+        const { fixture } = await setup(AUTHORS)
+
+        // Act
+        activeMode.set({ id: "changes" })
+        fixture.detectChanges()
+
+        // Assert
+        expect(screen.queryByTestId("cluster-explorer-list")).toBeNull()
+    })
 
     it("should list the clusters by share with what is not attributed, labelled as share of files", async () => {
         // Arrange & Act
