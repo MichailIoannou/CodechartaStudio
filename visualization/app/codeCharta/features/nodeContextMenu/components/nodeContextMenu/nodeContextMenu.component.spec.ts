@@ -73,11 +73,12 @@ describe("nodeContextMenu component", () => {
         findSource: jest.fn().mockResolvedValue({ status: "cancelled" }),
         chooseFolder: jest.fn().mockResolvedValue({ status: "cancelled" }),
         editorTargetOf: jest.fn().mockResolvedValue(null),
-        isMapRoot: (path: string) => path === "/root"
+        offersFolderSettings: jest.fn()
     }
 
     beforeEach(() => {
         jest.clearAllMocks()
+        localSourceMock.offersFolderSettings.mockImplementation((path: string) => path === "/root")
     })
 
     type RenderMenuOptions = {
@@ -591,6 +592,18 @@ describe("nodeContextMenu component", () => {
             // Assert
             expect(menu().getByText("Set Local Folder…")).not.toBe(null)
             expect(menu().queryByText("Show Source")).toBe(null)
+        })
+
+        it("should not offer to set the folders of a map that brings its own folder", async () => {
+            // Arrange
+            localSourceMock.offersFolderSettings.mockImplementation(() => false)
+
+            // Act
+            await renderMenu({ node: rootNode, isLocalSourceSupported: true })
+
+            // Assert
+            expect(menu().queryByText("Set Local Folder…")).toBe(null)
+            expect(menu().queryByText("Set VS Code Folder…")).toBe(null)
         })
 
         it.each([

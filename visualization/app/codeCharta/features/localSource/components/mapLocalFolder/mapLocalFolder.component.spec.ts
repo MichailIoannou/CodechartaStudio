@@ -5,11 +5,18 @@ import { MapLocalFolderComponent } from "./mapLocalFolder.component"
 
 describe("MapLocalFolderComponent", () => {
     const folderChanges = signal(0)
-    const localSourceMock = { isAvailable: signal(true), folderChanges, describeFolder: jest.fn() }
+    const canChooseFolders = signal(true)
+    const mapsWithLinkedFolders = new Set<string>()
+    const localSourceMock = {
+        canChooseFolderFor: (mapFileName: string) => canChooseFolders() && !mapsWithLinkedFolders.has(mapFileName),
+        folderChanges,
+        describeFolder: jest.fn()
+    }
 
     beforeEach(() => {
         jest.clearAllMocks()
-        localSourceMock.isAvailable.set(true)
+        canChooseFolders.set(true)
+        mapsWithLinkedFolders.clear()
         localSourceMock.describeFolder.mockResolvedValue(null)
     })
 
@@ -91,7 +98,19 @@ describe("MapLocalFolderComponent", () => {
 
     it("should show nothing where the browser cannot open a folder", async () => {
         // Arrange
-        localSourceMock.isAvailable.set(false)
+        canChooseFolders.set(false)
+
+        // Act
+        await renderFolder()
+
+        // Assert
+        expect(screen.queryByTestId("map-local-folder")).toBe(null)
+        expect(localSourceMock.describeFolder).not.toHaveBeenCalled()
+    })
+
+    it("should show nothing for a map that brings its own folder", async () => {
+        // Arrange
+        mapsWithLinkedFolders.add("myproject.cc.json")
 
         // Act
         await renderFolder()

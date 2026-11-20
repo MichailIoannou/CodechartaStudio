@@ -1,4 +1,3 @@
-import { signal } from "@angular/core"
 import { fireEvent, render, screen } from "@testing-library/angular"
 import { ToastService } from "../../../shared/facade"
 import { fakeDirectory } from "../../services/fileSystemAccess.mocks"
@@ -7,7 +6,7 @@ import { MapLocalFolderMenuComponent } from "./mapLocalFolderMenu.component"
 
 describe("MapLocalFolderMenuComponent", () => {
     const localSourceMock = {
-        isAvailable: signal(true),
+        canChooseFolderFor: jest.fn(),
         describeFolder: jest.fn(),
         chooseFolderForMap: jest.fn(),
         saveEditorRootPath: jest.fn()
@@ -17,7 +16,7 @@ describe("MapLocalFolderMenuComponent", () => {
     beforeEach(() => {
         jest.clearAllMocks()
         HTMLDialogElement.prototype.showModal = jest.fn()
-        localSourceMock.isAvailable.set(true)
+        localSourceMock.canChooseFolderFor.mockReturnValue(true)
         localSourceMock.describeFolder.mockResolvedValue(null)
     })
 
@@ -62,15 +61,16 @@ describe("MapLocalFolderMenuComponent", () => {
         expect(toastMock.show).toHaveBeenCalledWith("Could not read the local folder: storage gone", "error")
     })
 
-    it("should keep the browser's menu where the browser cannot open a folder", async () => {
+    it("should keep the browser's menu where no folder can be chosen for the map", async () => {
         // Arrange
-        localSourceMock.isAvailable.set(false)
+        localSourceMock.canChooseFolderFor.mockReturnValue(false)
         const fixture = await renderMenu()
 
         // Act
         const event = await rightClick(fixture)
 
         // Assert
+        expect(localSourceMock.canChooseFolderFor).toHaveBeenCalledWith("myproject.cc.json")
         expect(event.defaultPrevented).toBe(false)
         expect(fixture.componentInstance.target()).toBeNull()
     })
