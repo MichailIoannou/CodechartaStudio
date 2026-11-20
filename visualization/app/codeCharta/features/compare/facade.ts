@@ -2,6 +2,7 @@ export { ChangesExplorerComponent } from "./components/changesExplorer/changesEx
 export { CompareHostComponent } from "./components/compareHost/compareHost.component"
 export { ComparisonChipComponent } from "./components/comparisonChip/comparisonChip.component"
 export { ComparisonLegendCaptionComponent } from "./components/comparisonLegendCaption/comparisonLegendCaption.component"
+export { FileGitChangeComponent } from "./components/fileGitChange/fileGitChange.component"
 export { provideCompareForGitHistory } from "./gitHistory/provideCompareForGitHistory"
 export { provideChangesExplorerMode } from "./provideChangesExplorerMode"
 export { CompareFacade } from "./services/compareFacade"
