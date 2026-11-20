@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron")
+const { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } = require("electron")
 const { spawn } = require("node:child_process")
 const fs = require("node:fs")
 const path = require("node:path")
@@ -19,7 +19,8 @@ const CORE_STATE_EVENT = "shell.coreState"
 const PROGRESS_EVENT = "core.progress"
 const CLIENT_NAME = "codecharta-visualization"
 const WINDOW_SIZE = { width: 1400, height: 900 }
-const DEFAULT_WINDOW_BACKGROUND = "#ffffff"
+const DEFAULT_WINDOW_BACKGROUND = "#1e2329"
+const DEFAULT_COLOR_SCHEME = "dark"
 const CORE_LOG_FILE = "core.log"
 const PREVIOUS_CORE_LOG_FILE = "core.log.1"
 // Only Windows reads .ico; elsewhere Electron fails to decode it and the window ends up iconless.
@@ -161,6 +162,7 @@ function createActions() {
         dialog,
         shell,
         fs,
+        nativeTheme,
         getWindow: () => mainWindow,
         requestCore,
         restartCore: () => coreClient.restart(),
@@ -250,10 +252,14 @@ function createWindow() {
         devServerUrl: process.env.CODECHARTA_DEV_SERVER_URL,
         platform: process.platform
     })
+    const shellSettings = readShellSettings(fs, app.getPath("userData"))
+    nativeTheme.themeSource = policy.isColorScheme(shellSettings.colorScheme) ? shellSettings.colorScheme : DEFAULT_COLOR_SCHEME
     mainWindow = new BrowserWindow({
         ...WINDOW_SIZE,
         icon: path.join(__dirname, "codeCharta/assets", WINDOW_ICON_FILE),
-        backgroundColor: readShellSettings(fs, app.getPath("userData")).windowBackgroundColor ?? DEFAULT_WINDOW_BACKGROUND,
+        backgroundColor: policy.isWindowBackgroundColor(shellSettings.windowBackgroundColor)
+            ? shellSettings.windowBackgroundColor
+            : DEFAULT_WINDOW_BACKGROUND,
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
             sandbox: true,

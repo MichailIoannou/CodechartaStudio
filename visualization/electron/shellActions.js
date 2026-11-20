@@ -1,5 +1,5 @@
 const path = require("node:path")
-const { isReadableMapPath, isWindowBackgroundColor, toDialogOptions } = require("./shellPolicy")
+const { isColorScheme, isReadableMapPath, isWindowBackgroundColor, toDialogOptions } = require("./shellPolicy")
 
 const SHELL_SETTINGS_FILE = "shell.json"
 const FILE_PICKER = ["openFile"]
@@ -38,7 +38,7 @@ async function nearestExistingFolder(fs, filePath) {
     return candidate
 }
 
-function createShellActions({ dialog, shell, fs, getWindow, requestCore, restartCore, dataDir, platform }) {
+function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, requestCore, restartCore, dataDir, platform }) {
     async function pickPath(properties, options) {
         const dialogOptions = toDialogOptions(options)
         if (dialogOptions === null) {
@@ -109,6 +109,16 @@ function createShellActions({ dialog, shell, fs, getWindow, requestCore, restart
         return NOTHING_CHOSEN
     }
 
+    async function setColorScheme({ scheme }) {
+        if (!isColorScheme(scheme)) {
+            return failure("BAD_REQUEST", "The colour scheme must be light, dark or system.")
+        }
+        nativeTheme.themeSource = scheme
+        const settings = { ...readShellSettings(fs, dataDir), colorScheme: scheme }
+        await fs.promises.writeFile(shellSettingsFile(dataDir), JSON.stringify(settings, null, 2))
+        return NOTHING_CHOSEN
+    }
+
     return {
         dialogActions: {
             pickFolder: ({ options }) => pickPath(FOLDER_PICKER, options),
@@ -122,6 +132,7 @@ function createShellActions({ dialog, shell, fs, getWindow, requestCore, restart
             reveal,
             readSnapshotMap,
             setWindowBackground,
+            setColorScheme,
             restartCore: async () => {
                 restartCore()
                 return NOTHING_CHOSEN
