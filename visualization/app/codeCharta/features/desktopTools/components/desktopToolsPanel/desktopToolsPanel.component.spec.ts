@@ -319,7 +319,9 @@ describe("DesktopToolsPanelComponent", () => {
             await renderPanel({}, fake => {
                 const request = fake.request.bind(fake)
                 jest.spyOn(fake, "request").mockImplementation((method, ...rest) =>
-                    method === "tools.doctor" ? new Promise(resolve => (answerDoctor = resolve as typeof answerDoctor)) : request(method, ...rest)
+                    method === "tools.doctor"
+                        ? new Promise(resolve => (answerDoctor = resolve as typeof answerDoctor))
+                        : request(method, ...rest)
                 )
             })
             fixture.componentInstance.reveal("git")

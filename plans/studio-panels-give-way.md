@@ -1,6 +1,6 @@
 ---
 name: Side panels give way, desktop tools deep link
-state: progress
+state: complete
 version: 1
 ---
 
@@ -25,9 +25,9 @@ settings dialog at the desktop tools section with the failing tool focused (desi
 
 ## Steps
 
-- [ ] Complete Task 1: Side panels give way
-- [ ] Complete Task 2: Desktop tools deep link
-- [ ] Changelog, progress file, all gates
+- [x] Complete Task 1: Side panels give way
+- [x] Complete Task 2: Desktop tools deep link
+- [x] Changelog, progress file, all gates
 
 ## Notes
 

@@ -5,7 +5,7 @@ import { CSS_VARIABLE_HOST } from "../cssVariableHost"
 import { PANEL_ISLAND_MARGIN_PX } from "../util/publishBarInset"
 
 /** The narrowest the floating bars can shrink to and still show every cell. */
-export const MIN_FREE_MAP_WIDTH_REM = 30
+const MIN_FREE_MAP_WIDTH_REM = 30
 const DEFAULT_ROOT_FONT_SIZE_PX = 16
 
 export type SidePanelSide = "left" | "right"

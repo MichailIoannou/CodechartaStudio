@@ -4,7 +4,6 @@ import { PreferencesReadWindow } from "../../stores/preferences/preferences.read
 
 // Dialog opened from other features (e.g. the navBar settings button).
 export { GlobalConfigurationDialogComponent } from "./components/globalConfigurationDialog/globalConfigurationDialog.component"
-export { GlobalConfigurationTarget } from "./globalConfigurationTarget"
 export { GlobalConfigurationOpener } from "./services/globalConfigurationOpener.service"
 
 @Injectable({
