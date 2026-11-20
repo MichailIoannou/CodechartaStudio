@@ -74,8 +74,25 @@ In the desktop app, with a project open whose folder is a git repository, **Comp
 3. Click **Compare** (or press Ctrl+Enter). **Recent** lists the last comparisons of the project; one click fills both
    sides again.
 
-The History offers the same: **Compare** for two selected commits, and **Compare with Parent**, **Compare with
-Current** and **Compare with…** in a commit's menu.
+The History offers the same: **Compare** for two selected commits, **Compare with Parent**, **Compare with
+Current** and **Compare with…** in a commit's menu, and **Compare with '<branch>'** and **Compare with…** in a branch's
+menu.
+
+### Pull and merge requests
+
+For a folder whose remote is on GitHub or GitLab, the dialog shows a **Pull requests** (GitLab: **Merge requests**)
+list next to **Recent**. Enter a request's number, pick the branch it targets and click **Open**: CodeCharta fetches the
+request's head into a private ref of your clone (`refs/codecharta/pr/<number>`, never a branch) and compares it from
+where it left the target branch. When the GitHub CLI (`gh`) or the GitLab CLI (`glab`) is missing, the list says so
+and links to the desktop tools. A host CodeCharta does not recognise can be named as
+GitHub Enterprise or GitLab once.
+
+### Changed files
+
+While comparing, the explorer offers a **Changes** mode: it sums up how many files were added, removed and changed and
+how the area and height metrics moved, and lists the files git changed between the two commits (or, when no clone has
+both commits, the files whose metrics changed). Click a row to select its building, or the crosshair to focus its
+folder. **Only changed files** greys out and flattens every other building.
 
 While comparing, the top bar names both sides, for example `base 9f8e7d6 main ⇄ head a1b2c3d feature/x`. Click a side
 to change it; the menu next to it swaps the sides, copies the range as text or leaves the comparison, which keeps the
