@@ -7,7 +7,6 @@ import { GitRepositoryService } from "../../services/gitRepository.service"
 import { HistoryLayoutService } from "../../services/historyLayout.service"
 import { HistoryTabService } from "../../services/historyTab.service"
 import { GitFolderChoice, problemNoticeOf } from "../../util/gitErrorText"
-import { BranchDialogComponent } from "../branchDialog/branchDialog.component"
 import { BranchesTreeComponent } from "../branchesTree/branchesTree.component"
 import { ChangesPanelComponent } from "../changesPanel/changesPanel.component"
 import { CommitDetailsComponent } from "../commitDetails/commitDetails.component"
@@ -16,7 +15,6 @@ import { CommitGraphLegendComponent } from "../commitGraphLegend/commitGraphLege
 import { CommitListComponent } from "../commitList/commitList.component"
 import { CommitScopeChipComponent } from "../commitScopeChip/commitScopeChip.component"
 import { DiffViewComponent } from "../diffView/diffView.component"
-import { GitConfirmDialogComponent } from "../gitConfirmDialog/gitConfirmDialog.component"
 import { GitProblemNoticeComponent } from "../gitProblemNotice/gitProblemNotice.component"
 import { HistoryToolbarComponent } from "../historyToolbar/historyToolbar.component"
 import { OperationStateBannerComponent } from "../operationStateBanner/operationStateBanner.component"
@@ -41,8 +39,6 @@ export interface FolderToRelink {
         CommitGraphLegendComponent,
         CommitDetailsComponent,
         ColumnResizeHandleDirective,
-        BranchDialogComponent,
-        GitConfirmDialogComponent,
         ChangesPanelComponent,
         DiffViewComponent,
         OperationStateBannerComponent
