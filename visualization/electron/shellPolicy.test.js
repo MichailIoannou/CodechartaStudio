@@ -4,11 +4,14 @@ const path = require("node:path")
 const {
     describeTrustedPage,
     isRendererEvent,
+    isComposedMethod,
+    isDroppedMapPath,
     isRendererMethod,
     isTrustedSender,
     isReadableMapPath,
     isValidOperationId,
     isColorScheme,
+    isMapChunkRange,
     isWindowBackgroundColor,
     judgeNavigation,
     planCoreRestart,
@@ -252,6 +255,19 @@ describe("allow-list", () => {
         assert.deepEqual(verdicts, [true, true, false, false, false, false])
     })
 
+    test("should compose only the methods the shell itself offers", () => {
+        // Arrange
+        const composedMethods = { "projects.pickFolder": () => null }
+
+        // Act
+        const verdicts = ["projects.pickFolder", "projects.inspectFolder", "toString", "constructor", undefined].map(method =>
+            isComposedMethod(method, composedMethods)
+        )
+
+        // Assert
+        assert.deepEqual(verdicts, [true, false, false, false, false])
+    })
+
     test("should forward only renderer events", () => {
         // Arrange
         const contract = { rendererEvents: ["core.progress"] }
@@ -347,6 +363,27 @@ describe("shell actions", () => {
         assert.deepEqual(verdicts, [true, true, true, false, false, false, false, false])
     })
 
+    test("should accept only whole-byte map chunk ranges of at most 32 MiB", () => {
+        // Arrange
+        const maxLength = 32 * 1024 * 1024
+        const ranges = [
+            { offset: 0, length: 1 },
+            { offset: 5_000_000_000, length: maxLength },
+            { offset: 0, length: 0 },
+            { offset: 0, length: maxLength + 1 },
+            { offset: -1, length: 1 },
+            { offset: 1.5, length: 1 },
+            { offset: "0", length: 1 },
+            { offset: 0, length: Number.NaN }
+        ]
+
+        // Act
+        const verdicts = ranges.map(isMapChunkRange)
+
+        // Assert
+        assert.deepEqual(verdicts, [true, true, false, false, false, false, false, false])
+    })
+
     test("should keep only well-formed picker titles and filters", () => {
         // Arrange
         const wellFormed = { title: "Pick", filters: [{ name: "Executables", extensions: ["exe", "cmd", "bat"] }] }
@@ -368,5 +405,24 @@ describe("shell actions", () => {
             badExtension: null,
             notAList: null
         })
+    })
+})
+
+describe("dropped files", () => {
+    test("should accept only absolute cc.json paths of a readable size", () => {
+        // Arrange
+        const candidates = [
+            ["/home/mia/a1b2c3d.app.cc.json.gz", "linux"],
+            ["C:\\Users\\mia\\map.CC.JSON", "win32"],
+            ["map.cc.json", "linux"],
+            ["/home/mia/map.json", "linux"],
+            [42, "linux"]
+        ]
+
+        // Act
+        const accepted = candidates.map(([filePath, platform]) => isDroppedMapPath(filePath, platform))
+
+        // Assert
+        assert.deepEqual(accepted, [true, true, false, false, false])
     })
 })
