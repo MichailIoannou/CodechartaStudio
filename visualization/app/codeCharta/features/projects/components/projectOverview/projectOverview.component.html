@@ -1,0 +1,167 @@
+<div class="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6" data-testid="project-overview">
+    @if (storeProblem(); as problem) {
+        <div role="alert" class="alert alert-error flex-wrap" data-testid="project-overview-store-problem">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div class="flex flex-col">
+                <span class="font-semibold">The analysis store cannot be used.</span>
+                <span>{{ problem.sentence }}</span>
+            </div>
+            <div class="flex gap-2">
+                @if (problem.code === "STORE_LOCKED") {
+                    <button type="button" class="btn btn-sm" (click)="tryStoreAgain()">Try again</button>
+                }
+                <button type="button" class="btn btn-sm" (click)="revealStoreFolder()">Open store folder</button>
+                <button type="button" class="btn btn-sm" data-testid="project-overview-store-elsewhere" [disabled]="isChangingStore()" (click)="chooseStoreFolder()">
+                    @if (isChangingStore()) {
+                        <span class="loading loading-spinner loading-xs"></span>
+                    }
+                    Choose another location…
+                </button>
+            </div>
+        </div>
+    } @else if (project(); as project) {
+        <header class="flex items-start gap-3">
+            <div class="min-w-0">
+                <h1 class="truncate text-2xl font-bold" [title]="project.name">{{ project.name }}</h1>
+                @if (project.description) {
+                    <p class="text-base-content/70">{{ project.description }}</p>
+                }
+            </div>
+            <button type="button" class="btn btn-sm ml-auto shrink-0" data-testid="project-overview-manage" (click)="manageDialog.open()">
+                <i class="fa-solid fa-gear fa-fw"></i>
+                Manage project…
+            </button>
+        </header>
+
+        @if (workingFolder(); as folder) {
+            <div class="grid gap-1.5 md:grid-cols-2">
+                <cc-working-folder-card [folder]="folder" (relink)="relink.start(folder)" />
+                <cc-analyses-card [snapshots]="workingSnapshots()" />
+            </div>
+        }
+
+        <section class="flex flex-col gap-2" data-testid="project-overview-folders">
+            <div class="flex items-center">
+                <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Folders of this project</h2>
+                <button type="button" class="btn btn-sm ml-auto" data-testid="project-overview-add-folder" (click)="addFolder()">
+                    <i class="fa-solid fa-plus fa-fw"></i>
+                    Add folder…
+                </button>
+            </div>
+            @if (folderRows().length === 0) {
+                <p class="rounded-[10px] bg-base-100 px-4 py-4 text-center text-sm text-base-content/60">
+                    No folders yet. Add the repository folder first; forks and helper folders can follow.
+                </p>
+            } @else {
+                <ul class="flex flex-col rounded-[10px] bg-base-100 py-1">
+                    @for (row of folderRows(); track row.folder.id) {
+                        <li class="flex flex-col px-4 py-1.5 text-sm" [attr.data-testid]="'project-overview-folder-' + row.folder.label">
+                            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <i
+                                    class="fa-circle text-[0.6rem]"
+                                    [class]="row.isWorking ? 'fa-solid text-primary' : 'fa-regular text-base-content/60'"
+                                ></i>
+                                <span class="w-32 truncate font-semibold" [title]="row.folder.label">{{ row.folder.label }}</span>
+                                <span class="badge badge-ghost badge-sm">{{ row.folder.role }}</span>
+                                <span class="min-w-0 flex-1 truncate text-base-content/60" [class.text-warning]="row.folder.status === 'missing'">
+                                    @if (row.folder.status === "missing") {
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                    } @else if (row.folder.kind === "plain") {
+                                        <i class="fa-solid fa-folder"></i>
+                                    } @else {
+                                        <i class="fa-solid fa-code-branch"></i>
+                                    }
+                                    {{ row.kindText }}
+                                </span>
+                                <span class="w-24 text-base-content/60">{{ row.analysesText }}</span>
+                                @if (row.folder.status === "missing") {
+                                    <button type="button" class="btn btn-xs" (click)="relink.start(row.folder)">Re-link…</button>
+                                }
+                                @if (row.isWorking) {
+                                    <span class="w-20 text-base-content/60">(working)</span>
+                                } @else {
+                                    <button type="button" class="btn btn-xs w-20" [disabled]="isBusy()" (click)="chooseFolder(row.folder)">
+                                        Work here
+                                    </button>
+                                }
+                                <div class="dropdown dropdown-end">
+                                    <button
+                                        type="button"
+                                        tabindex="0"
+                                        class="btn btn-ghost btn-xs"
+                                        title="More actions"
+                                        aria-label="More actions"
+                                        [attr.data-testid]="'project-overview-folder-more-' + row.folder.label"
+                                    >
+                                        <i class="fa-solid fa-ellipsis"></i>
+                                    </button>
+                                    <ul tabindex="0" class="menu dropdown-content z-[70] w-48 rounded-box border border-base-300 bg-base-100 p-1 shadow-md">
+                                        <li>
+                                            <button type="button" [attr.data-testid]="'project-overview-import-' + row.folder.label" (click)="importFile(row.folder)">
+                                                <i class="fa-solid fa-file-import fa-fw"></i>
+                                                Import cc.json…
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            @if (row.showsPlainHint) {
+                                <p class="pl-6 text-xs text-base-content/60">Imported maps only. Add the repository folder and move the snapshot to it.</p>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    } @else {
+        <section class="flex flex-col items-center gap-3 py-8 text-center" data-testid="project-overview-no-project">
+            <h1 class="text-2xl font-bold">CodeCharta</h1>
+            <p class="text-base-content/70">Open a project to see its code as a city.</p>
+            <div class="flex flex-wrap justify-center gap-2">
+                <button type="button" class="btn" data-testid="project-overview-new-project" (click)="createDialog.open()">
+                    <i class="fa-solid fa-plus fa-fw"></i>
+                    New project…
+                </button>
+                <button type="button" class="btn" data-testid="project-overview-open-file" (click)="openFile()">
+                    <i class="fa-solid fa-folder-open fa-fw"></i>
+                    Open cc.json…
+                </button>
+                <button type="button" class="btn" data-testid="project-overview-samples" (click)="showSampleFiles()">Show sample maps</button>
+            </div>
+        </section>
+
+        <section class="flex flex-col gap-2">
+            <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Projects</h2>
+            @if (projectRows().length === 0) {
+                <p class="text-sm text-base-content/60">
+                    No projects yet. A project groups the folders of one codebase — the repository, forks, helper folders.
+                </p>
+            } @else {
+                <ul class="rounded-box border border-base-300 divide-y divide-base-300 bg-base-100">
+                    @for (row of projectRows(); track row.project.id) {
+                        <li>
+                            <button
+                                type="button"
+                                class="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-base-200"
+                                [attr.data-testid]="'project-overview-project-' + row.project.name"
+                                (click)="openProject(row.project.id)"
+                            >
+                                <i class="fa-solid fa-layer-group fa-fw text-base-content/60"></i>
+                                <span class="w-40 truncate font-semibold" [title]="row.project.name">{{ row.project.name }}</span>
+                                <span class="flex-1 truncate text-sm text-base-content/60">{{ row.facts }}</span>
+                                @if (row.missing) {
+                                    <span class="text-sm text-warning"><i class="fa-solid fa-triangle-exclamation"></i> {{ row.missing }}</span>
+                                }
+                                <i class="fa-solid fa-caret-right text-base-content/60"></i>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    }
+</div>
+
+<cc-create-project-dialog #createDialog />
+<cc-manage-project-dialog #manageDialog />
+<cc-relink-folder #relink />

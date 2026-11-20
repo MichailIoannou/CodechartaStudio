@@ -1,0 +1,54 @@
+@if (failure(); as failure) {
+    <div role="alert" class="alert alert-error mb-3 text-sm" data-testid="manage-profile-failure">{{ failure }}</div>
+}
+<div class="form-control mb-3">
+    <label class="label" for="manage-profile-exclude">
+        <span class="label-text">Exclude (one pattern per line)</span>
+    </label>
+    <textarea
+        id="manage-profile-exclude"
+        class="textarea textarea-bordered w-full font-mono"
+        rows="4"
+        placeholder="**/generated/**"
+        [value]="excludeText()"
+        (input)="excludeText.set($any($event.target).value)"
+    ></textarea>
+    <span class="label-text-alt text-base-content/60">Up to 50 patterns of 200 characters.</span>
+</div>
+
+<fieldset class="mb-3 grid grid-cols-2 gap-x-4 gap-y-1">
+    <legend class="label-text mb-1">Analysers</legend>
+    @for (analyser of analysers; track analyser.name) {
+        <label class="label cursor-pointer justify-start gap-2 py-0.5">
+            <input
+                type="checkbox"
+                class="checkbox checkbox-sm"
+                [checked]="without().has(analyser.name)"
+                (change)="setSkipped(analyser.name, $any($event.target).checked)"
+            />
+            <span class="label-text">Skip {{ analyser.label }}</span>
+        </label>
+    }
+</fieldset>
+
+<label class="label cursor-pointer justify-start gap-4">
+    <input
+        type="checkbox"
+        class="toggle toggle-primary"
+        [checked]="parallel()"
+        (change)="parallel.set($any($event.target).checked)"
+    />
+    <span class="label-text">Run analysers in parallel</span>
+</label>
+
+<p class="mt-2 text-xs text-base-content/60">
+    Changing the profile does not touch existing analyses; new analyses are stored next to them.
+</p>
+<div class="mt-2 flex justify-end">
+    <button type="button" class="btn btn-primary btn-sm" data-testid="manage-profile-save" [disabled]="!isDirty() || isSaving()" (click)="save()">
+        @if (isSaving()) {
+            <span class="loading loading-spinner loading-xs"></span>
+        }
+        Save
+    </button>
+</div>

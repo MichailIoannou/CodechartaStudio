@@ -1,0 +1,32 @@
+<div class="flex items-center gap-2">
+    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Working folder</h2>
+    <button type="button" class="btn btn-sm ml-auto" data-testid="working-folder-show-in-files" (click)="showInFiles()">
+        <i class="fa-regular fa-folder-open fa-fw"></i>
+        Show in files
+    </button>
+</div>
+<div class="flex min-w-0 items-center gap-2">
+    <i class="fa-solid fa-fw" [class.fa-code-branch]="folder().kind === 'git'" [class.fa-folder]="folder().kind === 'plain'"></i>
+    <span class="truncate font-semibold" [title]="folder().label">{{ folder().label }}</span>
+    <span class="badge badge-ghost badge-sm shrink-0">{{ folder().role }}</span>
+    <span class="min-w-0 truncate font-mono text-xs text-base-content/60" [title]="folder().path">{{ folder().path }}</span>
+</div>
+
+@if (folder().status === "missing") {
+    <div role="alert" class="alert alert-warning text-sm" data-testid="working-folder-missing">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>This folder was not found on disk. Its analyses still open.</span>
+        <button type="button" class="btn btn-sm" data-testid="working-folder-relink" (click)="relink.emit()">Re-link…</button>
+    </div>
+} @else if (folder().kind === "plain") {
+    <p class="text-sm text-base-content/70">Plain folder — no git history.</p>
+} @else if (remotes().length > 0) {
+    <dl class="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm" data-testid="working-folder-git">
+        <dt class="text-base-content/60">Remotes</dt>
+        <dd class="min-w-0">
+            @for (remote of remotes(); track remote.name) {
+                <span class="block truncate" [title]="remote.address">{{ remote.name }} {{ remote.address }}</span>
+            }
+        </dd>
+    </dl>
+}

@@ -1,7 +1,11 @@
 import { HashLocationStrategy, LocationStrategy } from "@angular/common"
 import { TestBed } from "@angular/core/testing"
+import { ProjectOverviewComponent } from "app/codeCharta/features/projects/facade"
+import { projectRoutePath } from "app/codeCharta/routing/projectRoute"
 import { routeLinks, routePaths } from "app/codeCharta/routing/routePaths"
 import { showSpinnerBeforeBuildingView } from "app/codeCharta/routing/showSpinnerBeforeBuildingView.guard"
+import { createFakeDesktopBridge } from "app/codeCharta/util/desktop/desktopBridge.mocks"
+import { DESKTOP_BRIDGE } from "app/codeCharta/util/desktop/desktopBridge.token"
 import { DomainViewComponent } from "app/codeCharta/views/domainView/domainView.component"
 import { MetricsViewComponent } from "app/codeCharta/views/metricsView/metricsView.component"
 import { routerProviders, routes } from "./app.config"
@@ -26,10 +30,29 @@ describe("app routes", () => {
 
     it("should show the spinner before building any of the views", () => {
         // Arrange & Act
-        const guardsPerRoute = routes.map(route => route.canActivate)
+        const viewRoutes = routes.filter(route => route.path !== projectRoutePath)
 
         // Assert
-        expect(guardsPerRoute).toEqual(routes.map(() => [showSpinnerBeforeBuildingView]))
+        expect(viewRoutes.map(route => route.canActivate)).toEqual(viewRoutes.map(() => [showSpinnerBeforeBuildingView]))
+    })
+
+    it("should lazy load the project overview only in the desktop app", async () => {
+        // Arrange
+        const projectRoute = routes.find(route => route.path === projectRoutePath)
+        const matchesWith = (bridge: unknown) => {
+            TestBed.resetTestingModule()
+            TestBed.configureTestingModule({ providers: [{ provide: DESKTOP_BRIDGE, useValue: bridge }] })
+            const canMatch = projectRoute?.canMatch?.[0] as () => boolean
+            return TestBed.runInInjectionContext(canMatch)
+        }
+
+        // Act
+        const component = await projectRoute?.loadComponent?.()
+
+        // Assert
+        expect(component).toBe(ProjectOverviewComponent)
+        expect(matchesWith(null)).toBe(false)
+        expect(matchesWith(createFakeDesktopBridge())).toBe(true)
     })
 
     it("should keep the routed path in the fragment so file and static-host entry URLs resolve", () => {

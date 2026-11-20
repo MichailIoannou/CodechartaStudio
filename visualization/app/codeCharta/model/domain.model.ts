@@ -1,4 +1,5 @@
 import { Vector3 } from "three"
+import { ProjectSnapshotOrigin } from "./projectSnapshot.model"
 import Rectangle from "./rectangle"
 
 export type Scaling = {
@@ -132,6 +133,7 @@ export interface FileMeta {
     projectName: string
     exportedFileSize: number
     repoCreationDate?: string
+    projectSnapshot?: ProjectSnapshotOrigin
 }
 
 export interface FileSettings {

@@ -4,29 +4,30 @@ import { MockStore, provideMockStore } from "@ngrx/store/testing"
 import { render, screen } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import "fake-indexeddb/auto"
-import { CcStatePersistence, LoadFilesUseCase } from "../../../../../load/load.facade"
+import { CcStatePersistence } from "../../../../../load/load.facade"
 import { METRIC_DATA } from "../../../../../mocks/dataMocks"
 import { nodeMetricDataSelector } from "../../../../../renderer/renderModel/nodeMetricData/nodeMetricData.selector"
 import { setState } from "../../../../../stores/rootStore/state.actions"
 import { defaultState } from "../../../../../stores/rootStore/state.manager"
 import { LocalSourceService } from "../../../../localSource/facade"
+import { ProjectsBootService } from "../../../../projects/facade"
 import { ConfirmResetMapDialogComponent } from "./confirmResetMapDialog.component"
 
 describe("ConfirmResetMapDialogComponent", () => {
     let mockedCcStatePersistence: { read: jest.Mock; delete: jest.Mock }
-    let mockedLoadFilesUseCase: { reloadAfterReset: jest.Mock }
+    let mockedProjectsBoot: { reloadAfterReset: jest.Mock }
     const mockedLocalSource = { forgetAllFolders: jest.fn().mockResolvedValue(undefined) }
 
     beforeEach(() => {
         mockedCcStatePersistence = { read: jest.fn(), delete: jest.fn().mockResolvedValue(undefined) }
-        mockedLoadFilesUseCase = { reloadAfterReset: jest.fn().mockResolvedValue(undefined) }
+        mockedProjectsBoot = { reloadAfterReset: jest.fn().mockResolvedValue(undefined) }
 
         TestBed.configureTestingModule({
             imports: [ConfirmResetMapDialogComponent],
             providers: [
                 { provide: State, useValue: { getValue: () => defaultState } },
                 { provide: CcStatePersistence, useValue: mockedCcStatePersistence },
-                { provide: LoadFilesUseCase, useValue: mockedLoadFilesUseCase },
+                { provide: ProjectsBootService, useValue: mockedProjectsBoot },
                 { provide: LocalSourceService, useValue: mockedLocalSource },
                 provideMockStore({
                     selectors: [
@@ -55,7 +56,7 @@ describe("ConfirmResetMapDialogComponent", () => {
         return renderResult
     }
 
-    it("should delete the persisted state, reset the map and reload the files when confirm is selected", async () => {
+    it("should delete the persisted state, reset the map and reload through the projects boot when confirm is selected", async () => {
         // Arrange
         await renderAndOpen()
         const store = TestBed.inject(MockStore)
@@ -68,7 +69,7 @@ describe("ConfirmResetMapDialogComponent", () => {
         expect(mockedCcStatePersistence.delete).toHaveBeenCalled()
         expect(mockedLocalSource.forgetAllFolders).toHaveBeenCalled()
         expect(dispatchSpy).toHaveBeenCalledWith(setState({ value: defaultState }))
-        expect(mockedLoadFilesUseCase.reloadAfterReset).toHaveBeenCalled()
+        expect(mockedProjectsBoot.reloadAfterReset).toHaveBeenCalled()
     })
 
     it("should close dialog when abort is selected", async () => {
@@ -80,6 +81,6 @@ describe("ConfirmResetMapDialogComponent", () => {
 
         // Assert
         expect(HTMLDialogElement.prototype.close).toHaveBeenCalled()
-        expect(mockedLoadFilesUseCase.reloadAfterReset).not.toHaveBeenCalled()
+        expect(mockedProjectsBoot.reloadAfterReset).not.toHaveBeenCalled()
     })
 })

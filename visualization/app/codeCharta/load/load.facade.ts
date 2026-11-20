@@ -2,3 +2,8 @@
 // navbar upload, the reset dialog) inject the file loader through this barrel rather than a deep path.
 export { LoadFilesUseCase } from "./loadFiles.useCase"
 export { CcStatePersistence } from "./services/ccStatePersistence"
+export type {
+    LoadedSnapshotFacts,
+    ProjectSnapshotsLoadResult,
+    ProjectSnapshotToLoad
+} from "./services/projectSnapshotReader"
