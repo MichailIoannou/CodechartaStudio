@@ -232,6 +232,34 @@ fn should_answer_an_unknown_folder_an_expression_and_a_plain_folder_with_typed_e
     assert_eq!(error_data_code(&plain), "NOT_A_REPOSITORY", "{plain}");
 }
 
+fn explicit_params(base_folder: &Value, head_folder: &Value) -> Value {
+    let side =
+        |folder: &Value| json!({ "folder": folder, "rev": { "kind": "rev", "name": "HEAD" } });
+    json!({
+        "intent": { "kind": "explicit", "base": side(base_folder), "head": side(head_folder), "baseMode": "tip" },
+        "shownCommit": null
+    })
+}
+
+#[test]
+fn should_refuse_a_comparison_across_two_projects() {
+    // Arrange
+    let mut project = ComparedProject::serve();
+    let folder = project.folder.clone();
+    let plain_dir = tempfile::tempdir().expect("a plain folder");
+    let other_project = project.project_of(plain_dir.path());
+
+    // Act
+    let answer = project.core.request(
+        1,
+        "compare.resolve",
+        explicit_params(&folder, &other_project),
+    );
+
+    // Assert
+    assert_eq!(error_data_code(&answer), "BAD_REQUEST", "{answer}");
+}
+
 #[test]
 fn should_print_the_same_resolution_as_json_on_the_command_line() {
     // Arrange

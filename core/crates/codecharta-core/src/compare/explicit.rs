@@ -38,7 +38,7 @@ pub(super) async fn explicit_pair(
     Ok(tips(base_tip, head))
 }
 
-async fn pick_typed(history: &History<'_, '_>, input: &RefInput) -> CoreResult<Picked> {
+pub(super) async fn pick_typed(history: &History<'_, '_>, input: &RefInput) -> CoreResult<Picked> {
     let RefInput::Rev { name } = input;
     let revision = revision_of_typed(history, name.as_str()).await?;
     history.pick(&revision).await

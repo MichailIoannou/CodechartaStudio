@@ -48,10 +48,7 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
         let status = status_of(&history, &pair).await?;
         let origin = origin_of(&params.intent, &pair);
         let compared_folder = params.intent.folder();
-        let base_mode = pair
-            .origin
-            .as_ref()
-            .map_or(BaseMode::Tip, |_| BaseMode::MergeBase);
+        let base_mode = pair.base_mode();
         let base_tip = pair
             .origin
             .map(|origin| compared(compared_folder, origin.tip));
@@ -69,7 +66,7 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
         })
     }
 
-    async fn side(
+    pub(super) async fn side(
         &self,
         folder: &FolderRef,
         picked: Picked,
@@ -81,7 +78,7 @@ impl<Sides: SideLookup + Sync> CommitComparison<'_, '_, Sides> {
     }
 }
 
-fn compared(folder: &FolderRef, picked: Picked) -> ComparedCommit {
+pub(super) fn compared(folder: &FolderRef, picked: Picked) -> ComparedCommit {
     ComparedCommit {
         folder: folder.clone(),
         short_commit: short_commit(&picked.commit),
@@ -113,7 +110,11 @@ impl History<'_, '_> {
         })
     }
 
-    async fn is_ancestor(&self, ancestor: &CommitSha, descendant: &CommitSha) -> CoreResult<bool> {
+    pub(super) async fn is_ancestor(
+        &self,
+        ancestor: &CommitSha,
+        descendant: &CommitSha,
+    ) -> CoreResult<bool> {
         self.git
             .is_ancestor(self.folder, ancestor, descendant, self.cancel)
             .await
@@ -125,7 +126,7 @@ impl History<'_, '_> {
             .await
     }
 
-    async fn share_history(&self, pair: &Pair) -> CoreResult<bool> {
+    pub(super) async fn share_history(&self, pair: &Pair) -> CoreResult<bool> {
         let merge_base = self
             .merge_base(&pair.base.commit, &pair.head.commit)
             .await?;
@@ -168,6 +169,14 @@ pub(super) struct MergeBaseOrigin {
     pub(super) tip: Picked,
     pub(super) target: String,
     pub(super) shares_history: bool,
+}
+
+impl Pair {
+    pub(super) fn base_mode(&self) -> BaseMode {
+        self.origin
+            .as_ref()
+            .map_or(BaseMode::Tip, |_| BaseMode::MergeBase)
+    }
 }
 
 async fn pick_pair(

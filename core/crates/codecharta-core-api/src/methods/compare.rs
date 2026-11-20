@@ -72,7 +72,9 @@ impl CompareIntent {
     }
 }
 
-/// What the user typed or picked for one side. Both sides of an `explicit` intent are in one folder.
+/// What the user typed or picked for one side. The two sides of an `explicit` intent may be in two folders
+/// of one project: then the merge base and the status come from a clone that has both commits, and without
+/// one the comparison is tip vs tip.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SideInput {
@@ -107,13 +109,15 @@ pub enum BaseMode {
     Tip,
 }
 
-/// Where a comparison came from: two commits, two branches (or tags), or a pull or merge request.
+/// Where a comparison came from: two commits, two branches (or tags), a pull or merge request, or two
+/// folders of one project.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum ComparisonOrigin {
     Commits,
     Branches,
     PullRequest,
+    Folders,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

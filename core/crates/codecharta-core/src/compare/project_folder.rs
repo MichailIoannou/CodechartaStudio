@@ -1,21 +1,25 @@
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::methods::compare::{
-    ChangedFilesParams, ChangedFilesResult, ResolveComparisonParams, ResolvedComparison,
+    ChangedFilesParams, ChangedFilesResult, CompareIntent, ResolveComparisonParams,
+    ResolvedComparison,
 };
 use codecharta_core_api::methods::projects::{FolderKind, FolderRef};
 use tokio_util::sync::CancellationToken;
 
 use super::changed_files::ChangedFilesSearch;
+use super::folders::SideFolders;
 use super::preflight::SizeLimits;
 use super::resolve::CommitComparison;
-use crate::error::CoreResult;
+use crate::error::{CoreError, CoreResult};
 use crate::git::error::{GitError, message_for};
 use crate::git::{GitFolder, GitService};
 use crate::projects::ProjectRepository;
 use crate::snapshots::FolderResolver;
 
-/// Resolves a comparison of a project folder against the snapshots of the store the resolver reads; the
-/// serving core and the command line share it.
+const TWO_PROJECTS_MESSAGE: &str = "Both sides of a comparison must be in one project.";
+
+/// Resolves a comparison of a project folder, or of two folders of one project, against the snapshots of
+/// the store the resolver reads; the serving core and the command line share it.
 pub async fn resolve_in_project(
     resolver: &FolderResolver<'_, '_>,
     params: &ResolveComparisonParams,
@@ -29,7 +33,28 @@ pub async fn resolve_in_project(
         limits: SizeLimits::default(),
         default_branch: default_branch.as_deref(),
     };
-    comparison.resolve(&folder, params, cancel).await
+    match head_folder_elsewhere(&params.intent)? {
+        Some(head_folder) => {
+            let head = compared_folder(resolver.projects, head_folder)?;
+            let folders = SideFolders {
+                base: &folder,
+                head: &head,
+            };
+            comparison.resolve_across(&folders, params, cancel).await
+        }
+        None => comparison.resolve(&folder, params, cancel).await,
+    }
+}
+
+/// The head's folder when an explicit comparison spans two folders of one project.
+fn head_folder_elsewhere(intent: &CompareIntent) -> CoreResult<Option<&FolderRef>> {
+    let CompareIntent::Explicit { base, head, .. } = intent else {
+        return Ok(None);
+    };
+    if base.folder.project_id != head.folder.project_id {
+        return Err(CoreError::BadRequest(TWO_PROJECTS_MESSAGE.to_string()));
+    }
+    Ok((base.folder != head.folder).then_some(&head.folder))
 }
 
 /// Lists the files between two commits in the base folder's clone, else the head folder's; every folder
