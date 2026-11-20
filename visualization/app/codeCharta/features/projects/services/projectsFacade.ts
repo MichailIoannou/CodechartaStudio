@@ -2,7 +2,7 @@ import { computed, Injectable, inject } from "@angular/core"
 import type { ProjectSnapshotsLoadResult } from "../../../load/load.facade"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
-import { ProjectsService } from "./projects.service"
+import { FolderChoice, ProjectsService } from "./projects.service"
 
 @Injectable({ providedIn: "root" })
 export class ProjectsFacade {
@@ -33,6 +33,14 @@ export class ProjectsFacade {
 
     refreshFolderSnapshots(folder: FolderRef): Promise<void> {
         return this.projects.refreshFolderSnapshots(folder)
+    }
+
+    chooseFolder(choice: FolderChoice): Promise<void> {
+        return this.projects.chooseFolder(choice)
+    }
+
+    openFolderMenu(): void {
+        this.projects.requestFolderMenu()
     }
 
     showOverview(): void {

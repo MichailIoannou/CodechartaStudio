@@ -1,5 +1,10 @@
 @if (isDesktop()) {
-    <cc-git-history-panel (relinkFolder)="relink.start($event)" (openDesktopTools)="configuration.open()" />
+    <cc-git-history-panel
+        (relinkFolder)="relink.start($event)"
+        (openDesktopTools)="configuration.open()"
+        (workInFolder)="workIn($event)"
+        (chooseWorkingFolder)="chooseWorkingFolder()"
+    />
     <cc-relink-folder #relink />
     <cc-global-configuration-dialog #configuration />
 } @else {

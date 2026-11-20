@@ -59,4 +59,41 @@ describe("GitProblemNoticeComponent", () => {
         expect(writeText).toHaveBeenCalledWith(command)
         expect(screen.getByRole("button", { name: "Copy command" }).querySelector(".fa-check")).not.toBeNull()
     })
+
+    it("should offer to work in the other git folder of the project", async () => {
+        // Arrange
+        const web = { id: "f-web", label: "billing-web" }
+        const { fixture } = await renderNotice({
+            text: "'billing-api' is not a git repository.",
+            command: null,
+            action: "workInFolder",
+            workInFolder: web
+        })
+        const workIn = jest.fn()
+        fixture.componentInstance.workInFolder.subscribe(workIn)
+
+        // Act
+        fireEvent.click(screen.getByRole("button", { name: "Work in 'billing-web'" }))
+
+        // Assert
+        expect(workIn).toHaveBeenCalledWith(web)
+    })
+
+    it("should offer to choose the working folder in the project menu", async () => {
+        // Arrange
+        const { fixture } = await renderNotice({
+            text: "'billing-api' is not a git repository.",
+            command: null,
+            action: "chooseWorkingFolder"
+        })
+        const choose = jest.fn()
+        fixture.componentInstance.chooseWorkingFolder.subscribe(choose)
+
+        // Act
+        fireEvent.click(screen.getByRole("button", { name: "Choose working folder…" }))
+
+        // Assert
+        expect(choose).toHaveBeenCalled()
+        expect(screen.queryByRole("combobox")).toBeNull()
+    })
 })

@@ -6,7 +6,7 @@ import { GitLogService } from "../../services/gitLog.service"
 import { GitRepositoryService } from "../../services/gitRepository.service"
 import { HistoryLayoutService } from "../../services/historyLayout.service"
 import { HistoryTabService } from "../../services/historyTab.service"
-import { problemNoticeOf } from "../../util/gitErrorText"
+import { GitFolderChoice, problemNoticeOf } from "../../util/gitErrorText"
 import { BranchDialogComponent } from "../branchDialog/branchDialog.component"
 import { BranchesTreeComponent } from "../branchesTree/branchesTree.component"
 import { ChangesPanelComponent } from "../changesPanel/changesPanel.component"
@@ -58,13 +58,20 @@ export class GitHistoryPanelComponent {
     readonly commitGraphCommand = COMMIT_GRAPH_COMMAND
     readonly relinkFolder = output<FolderToRelink>()
     readonly openDesktopTools = output<void>()
+    readonly workInFolder = output<GitFolderChoice>()
+    readonly chooseWorkingFolder = output<void>()
 
     private readonly isShallowNoticeDismissed = signal(false)
 
+    private readonly otherGitFolders = computed<GitFolderChoice[]>(() =>
+        (this.repository.activeProject()?.folders ?? [])
+            .filter(folder => folder.kind === "git" && folder.status === "ok" && folder.id !== this.repository.workingFolder()?.id)
+            .map(({ id, label }) => ({ id, label }))
+    )
     readonly problemNotice = computed(() => {
         const folder = this.repository.workingFolder()
         const failure = [this.repository.repository(), this.repository.status(), this.repository.refs()].map(failureOf).find(Boolean)
-        return failure && folder ? problemNoticeOf(failure, folder) : null
+        return failure && folder ? problemNoticeOf(failure, folder, this.otherGitFolders()) : null
     })
     readonly isShallowNoticeShown = computed(
         () => !this.isShallowNoticeDismissed() && (readyValueOf(this.repository.repository())?.isShallow ?? false)
