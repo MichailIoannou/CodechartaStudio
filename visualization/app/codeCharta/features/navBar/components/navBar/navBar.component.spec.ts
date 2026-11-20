@@ -10,7 +10,12 @@ import { defaultState } from "../../../../stores/rootStore/state.manager"
 import { Export3DMapDialogComponent, Export3DMapDialogStore } from "../../../3dPrint/facade"
 import { CompareFacade } from "../../../compare/facade"
 import { ProjectSwitcherComponent, ProjectsFacade } from "../../../projects/facade"
-import { SnapshotsDialogComponent, SnapshotsDialogService } from "../../../snapshots/facade"
+import {
+    BatchAnalysisDialogComponent,
+    BatchAnalysisDialogService,
+    SnapshotsDialogComponent,
+    SnapshotsDialogService
+} from "../../../snapshots/facade"
 import { WorkspaceStatusComponent } from "../../../workspaceStatus/facade"
 import { UploadFilesService } from "../../services/uploadFiles.service"
 import { NavBarComponent } from "./navBar.component"
@@ -30,6 +35,9 @@ class WorkspaceStatusStubComponent {
 
 @Component({ selector: "cc-snapshots-dialog", template: "" })
 class SnapshotsDialogStubComponent {}
+
+@Component({ selector: "cc-batch-analysis-dialog", template: "" })
+class BatchAnalysisDialogStubComponent {}
 
 describe("NavBarComponent", () => {
     const providersFor = (isDeltaState: boolean) => [
@@ -146,8 +154,17 @@ describe("NavBarComponent", () => {
 
         beforeEach(() => {
             TestBed.overrideComponent(NavBarComponent, {
-                remove: { imports: [ProjectSwitcherComponent, WorkspaceStatusComponent, SnapshotsDialogComponent] },
-                add: { imports: [ProjectSwitcherStubComponent, WorkspaceStatusStubComponent, SnapshotsDialogStubComponent] }
+                remove: {
+                    imports: [ProjectSwitcherComponent, WorkspaceStatusComponent, SnapshotsDialogComponent, BatchAnalysisDialogComponent]
+                },
+                add: {
+                    imports: [
+                        ProjectSwitcherStubComponent,
+                        WorkspaceStatusStubComponent,
+                        SnapshotsDialogStubComponent,
+                        BatchAnalysisDialogStubComponent
+                    ]
+                }
             })
         })
 
@@ -200,6 +217,26 @@ describe("NavBarComponent", () => {
             // Assert
             expect(closedCount).toBe(0)
             expect(container.querySelectorAll("cc-snapshots-dialog").length).toBe(1)
+        })
+
+        it("should host the batch analysis dialog while it has a folder", async () => {
+            // Arrange
+            const request = signal<{ folder: object } | null>(null)
+            const { container, fixture } = await render(NavBarComponent, {
+                providers: [
+                    ...desktopProvidersFor({ hasActiveProject: true }),
+                    { provide: BatchAnalysisDialogService, useValue: { current: request } }
+                ]
+            })
+            const closedCount = container.querySelectorAll("cc-batch-analysis-dialog").length
+
+            // Act
+            request.set({ folder: { projectId: "p-1", folderId: "f-1" } })
+            fixture.detectChanges()
+
+            // Assert
+            expect(closedCount).toBe(0)
+            expect(container.querySelectorAll("cc-batch-analysis-dialog").length).toBe(1)
         })
 
         it("should hide the view switcher while no map is loaded", async () => {

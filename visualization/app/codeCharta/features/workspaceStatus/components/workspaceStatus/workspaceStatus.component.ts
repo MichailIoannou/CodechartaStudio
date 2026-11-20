@@ -24,6 +24,7 @@ import { changesSentence, ProjectsFacade, shortDate } from "../../../projects/fa
 import {
     AnalysisJobsService,
     AnalysisLogDialogComponent,
+    BatchAnalysisDialogService,
     isPendingJob,
     SnapshotCatalogService,
     SnapshotsDialogService,
@@ -110,6 +111,10 @@ export class WorkspaceStatusComponent {
             }
         })
         this.jobsService.outcomes$.pipe(takeUntilDestroyed()).subscribe(job => this.showOutcome(job))
+        // The click that started the batch may still be bubbling to the outside-click handler, which would close the menu again.
+        inject(BatchAnalysisDialogService)
+            .batchStarted$.pipe(takeUntilDestroyed())
+            .subscribe(() => setTimeout(() => this.open()))
         inject(DestroyRef).onDestroy(() => clearTimeout(this.finishedTimer))
     }
 

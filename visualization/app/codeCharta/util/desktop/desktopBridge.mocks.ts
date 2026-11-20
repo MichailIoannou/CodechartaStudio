@@ -1,5 +1,6 @@
 import type { AnalysisJob } from "../../model/coreApi/AnalysisJob"
 import type { AnalysisTarget } from "../../model/coreApi/AnalysisTarget"
+import type { BatchSelection } from "../../model/coreApi/BatchSelection"
 import type { CompareIntent } from "../../model/coreApi/CompareIntent"
 import type { ErrorCode } from "../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
@@ -23,6 +24,7 @@ import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { Project } from "../../model/coreApi/Project"
 import type { ProjectView } from "../../model/coreApi/ProjectView"
 import type { PromptKind } from "../../model/coreApi/PromptKind"
+import type { PrunePolicy } from "../../model/coreApi/PrunePolicy"
 import type { ResolvedCommit } from "../../model/coreApi/ResolvedCommit"
 import type { SnapshotResolution } from "../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
@@ -185,6 +187,11 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     amend?: boolean
     ancestor?: string
     descendant?: string
+    selection?: BatchSelection
+    dryRun?: boolean
+    batchId?: string
+    policy?: PrunePolicy
+    snapshotIds?: string[]
 }
 
 type FakeGitTarget =
@@ -490,6 +497,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         if (project?.view.shownSnapshotIdByFolder[snapshot.ref.folderId] === snapshot.ref.snapshotId) {
             delete project.view.shownSnapshotIdByFolder[snapshot.ref.folderId]
         }
+        emit("snapshots.changed", { projectId: snapshot.ref.projectId, folderId: snapshot.ref.folderId })
         return succeed(null)
     }
 
@@ -660,6 +668,42 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
             return { folderId: folder.id, snapshotCount: snapshots.length, bytes }
         })
         return succeed({ totalBytes: folders.reduce((total, folder) => total + folder.bytes, 0), folders })
+    }
+
+    function isAnalysedCommit(snapshot: SnapshotSummary) {
+        return snapshot.source === "analysed" && snapshot.target === "commit"
+    }
+
+    function prunePlan(params: FakeRequestParams) {
+        const policy = params.policy as PrunePolicy
+        const project = store.projects.find(candidate => candidate.id === params.projectId)
+        const shownId = project?.view.shownSnapshotIdByFolder[params.folderId ?? ""]
+        const refs = store.git[params.folderId ?? ""]?.refs
+        const tips = new Set([...(refs?.localBranches ?? []), ...(refs?.tags ?? [])].map(ref => ref.commit))
+        const analysed = snapshotsOf(params.projectId ?? "", params.folderId)
+            .filter(snapshot => snapshot.source === "analysed")
+            .sort((first, second) => (second.finishedAt ?? "").localeCompare(first.finishedAt ?? ""))
+        const commits = analysed.filter(isAnalysedCommit)
+        const workingTrees = analysed.filter(snapshot => !isAnalysedCommit(snapshot))
+        const kept = new Set([
+            ...commits.slice(0, policy.keepNewestCommitSnapshots),
+            ...workingTrees.slice(0, policy.keepNewestWorkingTreeSnapshots),
+            ...analysed.filter(snapshot => snapshot.ref.snapshotId === shownId),
+            ...analysed.filter(snapshot => policy.keepBranchTipsAndTags && snapshot.commit !== null && tips.has(snapshot.commit))
+        ])
+        const toDelete = analysed.filter(snapshot => !kept.has(snapshot))
+        const freedBytes = toDelete.reduce((total, snapshot) => total + snapshot.mapBytes, 0)
+        return succeed({ delete: JSON.parse(JSON.stringify(toDelete)), keep: kept.size, freedBytes })
+    }
+
+    function prune(params: FakeRequestParams) {
+        const ids = new Set(params.snapshotIds ?? [])
+        const removed = snapshotsOf(params.projectId ?? "", params.folderId).filter(snapshot => ids.has(snapshot.ref.snapshotId))
+        store.snapshots = store.snapshots.filter(snapshot => !removed.includes(snapshot))
+        if (removed.length > 0) {
+            emit("snapshots.changed", { projectId: params.projectId, folderId: params.folderId })
+        }
+        return succeed({ deleted: removed.length, freedBytes: removed.reduce((total, snapshot) => total + snapshot.mapBytes, 0) })
     }
 
     function gitAnswer(method: FakeGitMethod, read: (repository: FakeGitRepository, params: FakeRequestParams) => unknown) {
@@ -1142,9 +1186,27 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         if (queued) {
             return succeed({ status: "alreadyQueued", job: JSON.parse(JSON.stringify(queued)) })
         }
+        const job = queueJob(params, target, null)
+        return succeed({ status: "queued", job: JSON.parse(JSON.stringify(job)) })
+    }
+
+    function batchShasOf(params: FakeRequestParams, selection: BatchSelection) {
+        const repository = store.git[params.folderId ?? ""]
+        if (selection.kind === "commits") {
+            return selection.shas
+        }
+        if (selection.kind === "tags") {
+            return [...new Set((repository?.refs?.tags ?? []).map(tag => tag.commit))]
+        }
+        const commits = (repository?.commits ?? []).map(commit => commit.sha)
+        const tipIndex = commits.indexOf(selection.tipSha)
+        return tipIndex === -1 ? [] : commits.slice(tipIndex, tipIndex + selection.count)
+    }
+
+    function queueJob(params: FakeRequestParams, target: AnalysisTarget, batchId: string | null) {
         const job: AnalysisJob = {
             id: nextId("job"),
-            batchId: null,
+            batchId,
             projectId: params.projectId ?? "",
             folderId: params.folderId ?? "",
             target,
@@ -1159,7 +1221,45 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         }
         store.jobs.push(job)
         announceJob("analysis.queued", job)
-        return succeed({ status: "queued", job: JSON.parse(JSON.stringify(job)) })
+        return job
+    }
+
+    function enqueueBatch(params: FakeRequestParams) {
+        const MAX_BATCH_JOBS = 200
+        const selection = params.selection as BatchSelection
+        const count = selection.kind === "lastCommits" ? selection.count : 1
+        if (count < 1 || count > MAX_BATCH_JOBS) {
+            return refuse("BAD_REQUEST", `A batch holds 1 to ${MAX_BATCH_JOBS} commits.`)
+        }
+        const folderSnapshots = snapshotsOf(params.projectId ?? "", params.folderId).filter(isAnalysedCommit)
+        const analysedShas = new Set(folderSnapshots.map(snapshot => snapshot.commit))
+        const shas = batchShasOf(params, selection)
+        const toAnalyse = shas.filter(sha => !analysedShas.has(sha)).slice(0, MAX_BATCH_JOBS)
+        const durations = folderSnapshots.map(snapshot => snapshot.durationMs).filter(duration => duration !== null)
+        const averageMs = durations.length > 0 ? durations.reduce((total, duration) => total + duration, 0) / durations.length : null
+        const batchId = params.dryRun || toAnalyse.length === 0 ? null : nextId("batch")
+        const jobs = batchId ? toAnalyse.map(sha => queueJob(params, { kind: "commit", sha }, batchId)) : []
+        return succeed({
+            batchId,
+            toAnalyse,
+            alreadyAnalysed: shas.filter(sha => analysedShas.has(sha)),
+            leftOut: Math.max(0, shas.filter(sha => !analysedShas.has(sha)).length - MAX_BATCH_JOBS),
+            jobs: JSON.parse(JSON.stringify(jobs)),
+            estimatedDurationMs: averageMs === null ? null : Math.round(averageMs * toAnalyse.length),
+            problems: []
+        })
+    }
+
+    function cancelBatch(params: FakeRequestParams) {
+        const jobs = store.jobs.filter(job => job.batchId === params.batchId)
+        if (jobs.length === 0) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no batch ${String(params.batchId)}.`)
+        }
+        for (const job of jobs.filter(isPending)) {
+            Object.assign(job, { state: "cancelled", finishedAt: now })
+            announceJob("analysis.cancelled", job)
+        }
+        return succeed(null)
     }
 
     function cancelAnalysis(params: FakeRequestParams) {
@@ -1491,6 +1591,8 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "snapshots.move": moveSnapshot,
         "snapshots.readMapChunk": readMapChunk,
         "snapshots.usage": storeUsage,
+        "snapshots.planPrune": prunePlan,
+        "snapshots.prune": prune,
         "git.repositoryInfo": gitAnswer("git.repositoryInfo", repository => repository.info),
         "git.status": gitAnswer("git.status", repository => repository.status),
         "git.branches": gitAnswer("git.branches", repository => repository.refs),
@@ -1502,6 +1604,8 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "analysis.preflight": () => succeed({ ok: true, problems: [] }),
         "analysis.enqueue": enqueueAnalysis,
         "analysis.cancel": cancelAnalysis,
+        "analysis.enqueueBatch": enqueueBatch,
+        "analysis.cancelBatch": cancelBatch,
         "analysis.list": () => succeed({ jobs: JSON.parse(JSON.stringify(store.jobs)) }),
         "analysis.clearFinished": clearFinishedAnalyses,
         "analysis.readLog": readFailedLog,

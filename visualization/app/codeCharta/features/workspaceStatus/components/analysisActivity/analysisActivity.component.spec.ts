@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 import type { AnalysisJob } from "../../../../model/coreApi/AnalysisJob"
 import { aFolder, aProject } from "../../../projects/projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../../projects/projectsTestBed.mocks"
+import { AnalysisJobsService } from "../../../snapshots/facade"
 import { aJob } from "../../../snapshots/snapshots.mocks"
 import { AnalysisActivityComponent } from "./analysisActivity.component"
 
@@ -36,6 +37,45 @@ describe("AnalysisActivityComponent", () => {
         // Assert
         expect(screen.getByTestId("activity-done").textContent?.replaceAll(/\s+/g, " ")).toContain("Analysed working tree · 1 min 12 s")
         expect(screen.getByTestId("activity-queued").textContent?.replaceAll(/\s+/g, " ")).toContain("Queued: a1b2c3d · billing-web")
+    })
+
+    it("should group the jobs of a batch under one line that counts them, expands and cancels the rest", async () => {
+        // Arrange
+        const batch = [
+            aJob("job-3", { batchId: "batch-1", state: "done", target: { kind: "commit", sha: "c".repeat(40) } }),
+            aJob("job-4", { batchId: "batch-1", state: "running", target: { kind: "commit", sha: "d".repeat(40) } }),
+            aJob("job-5", { batchId: "batch-1", target: { kind: "commit", sha: "e".repeat(40) } })
+        ]
+        await renderActivity([DONE, ...batch])
+        const collapsedRows = screen.queryAllByTestId("activity-queued").length
+
+        // Act
+        await userEvent.click(screen.getByTestId("activity-batch-toggle"))
+        const expandedRows = screen.getAllByTestId("activity-queued").length
+        await userEvent.click(screen.getByTestId("activity-cancel-batch"))
+        await settle()
+
+        // Assert
+        expect(screen.getByTestId("activity-batch-toggle").textContent?.trim()).toBe("Batch: 3 commits (1 of 3 done)")
+        expect(collapsedRows).toBe(0)
+        expect(expandedRows).toBe(1)
+        expect(testBed.requestsOf("analysis.cancelBatch")).toEqual([{ batchId: "batch-1" }])
+    })
+
+    it("should collapse a batch again and name it as it was started", async () => {
+        // Arrange
+        const job = aJob("job-3", { batchId: "batch-1", state: "done" })
+        await renderActivity([job])
+        jest.spyOn(TestBed.inject(AnalysisJobsService), "batchLabelOf").mockReturnValue("last 20 commits of main")
+
+        // Act
+        await userEvent.click(screen.getByTestId("activity-batch-toggle"))
+        await userEvent.click(screen.getByTestId("activity-batch-toggle"))
+
+        // Assert
+        expect(screen.getByTestId("activity-batch-toggle").textContent?.trim()).toBe("Batch: last 20 commits of main (1 of 1 done)")
+        expect(screen.queryByTestId("activity-done")).toBeNull()
+        expect(screen.queryByTestId("activity-cancel-batch")).toBeNull()
     })
 
     it("should clear the finished jobs", async () => {

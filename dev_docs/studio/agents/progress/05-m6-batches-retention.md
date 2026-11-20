@@ -1,6 +1,6 @@
 ---
 name: 05-M6 batches, retention, cleanup
-state: progress
+state: complete
 version: 1
 ---
 
@@ -32,7 +32,9 @@ record it. From 05-M3: `NewJob.batch_id` already ranks batch jobs after direct o
 
 - [x] 1. Batches
 - [x] 3. Retention
-- [ ] 2, 4, 5. Renderer and changelog (later)
+- [x] 2. Batch dialog (`feature/studio-05-m6-ui`)
+- [x] 4. Delete action, size footer, clean-up dialog (`feature/studio-05-m6-ui`)
+- [x] 5. Changelog (`feature/studio-05-m6-ui`)
 
 ## Notes
 
@@ -119,4 +121,77 @@ run after direct ones), `snapshots.delete { …, permanently }` with the injecte
 - Error codes: `SNAPSHOT_BEING_WRITTEN` → S4 warning toast "This analysis is still being written…";
   `RECYCLE_FAILED` → nothing was removed; only after asking the user may the renderer resend with
   `permanently: true`. `snapshots.changed` follows every delete / prune.
+
+### Renderer (tasks 2, 4, 5), branch `feature/studio-05-m6-ui` from `feature/studio-next`
+Read before starting: plan M6/M7, `design/05-snapshots.md` (S4, S7, S8, W1 ACTIVITY, revision 3 with the O4 answers),
+`design/00-design-principles.md`, `design/owner-decisions.md`, `design/open-questions.md` O4.
+
+- **Stand-in bridge** (`util/desktop/desktopBridge.mocks.ts`, shared, additive): `analysis.enqueueBatch` (last N of the
+  seeded log from the tip, every tag of the seeded refs, explicit commits; skips analysed commits; estimate = mean
+  `durationMs` of the folder's analyses × count; 1–200 else `BAD_REQUEST`; jobs with `batchId` only on a real run),
+  `analysis.cancelBatch`, `snapshots.planPrune` (newest N commit / M working-tree analyses, shown snapshot, branch tips
+  and tags kept, imports never listed), `snapshots.prune`; `snapshots.delete` and `prune` now emit `snapshots.changed`
+  like the core. The job literal is shared by `queueJob`. `setUpProjects` takes extra `providers` (test bed, additive).
+- **Task 2, S7** `cc-batch-analysis-dialog` (`components/batchAnalysisDialog`), opened through
+  `BatchAnalysisDialogService` (`{ folder, folderLabel, tipSha }`) and hosted by the nav bar (one `@if`, like the
+  snapshots dialog). Entry points: S4 header "Analyse several…" (git folders; plain: disabled, "Not a git repository")
+  and the History commit menu "Analyse the Last Commits from Here…" (`fa-layer-group`, "Analyse several commits of this
+  line", one commit selected; a new `COMMIT_ACTIONS` provider). Count 1–200 (default 20), branch select of the working
+  folder's local branches (default current) or "commits up to a1b2c3d" when opened from a commit, "Main line only
+  (first parent)" (default on), "Every tag". Dry run 300 ms after the inputs settle (`loading-dots` meanwhile, late
+  answers dropped by ticket); summary/estimate wording in `util/batchWording.ts`; primary "Analyse 13 commits",
+  disabled at 0 with "Nothing to analyse — all commits are analysed."; S6 for blocking problems of the preview or of
+  the real run (the dialog stays open). After a started batch: the dialog and the snapshots dialog close, and W1 opens
+  its dropdown (`batchStarted$`).
+- **W1 ACTIVITY**: the jobs of a batch gather under one collapsible line "Batch: last 20 commits of main (7 of 20 done)"
+  with "Cancel batch" while any job is pending (`analysis.cancelBatch`); collapsed by default. The label is what this
+  window started (`AnalysisJobsService.batchLabelOf`); a batch from elsewhere (CLI, another window, after a reload) reads
+  "Batch: 20 commits (…)". Rows reuse one `jobRow` template.
+- **Task 4, S4/S8**: `SnapshotRetentionService` (`usage`, `delete`, `planPrune`, `prune`); every request sends
+  `permanently: false`, the renderer never sends `true` (O4.1). Delete: row action (bin, `aria-label` "Delete") and the
+  Delete key on a focused row open `cc-delete-snapshot-dialog` ("Delete Analysis", wording in `util/retentionWording.ts`,
+  incl. the imported text of the design); deleting the shown snapshot toasts the design's info text;
+  `SNAPSHOT_BEING_WRITTEN` → warning toast; `RECYCLE_FAILED` → error toast (stays until dismissed) "Could not move the
+  analysis to the recycle bin. Nothing was deleted." with Details = the core's message, no permanent-delete offer.
+  Footer "This project's analyses use 61.2 MB." (`snapshots.usage`, re-read whenever the catalog changes; hidden when
+  unreadable) and "Clean up…" (`title` "Clean up the analyses of billing-api"). `cc-cleanup-dialog` (hosted by S4) for
+  the working folder only (O4.3): keep 50 / 3 / tips and tags (owner decision 4 defaults), plan 300 ms after the inputs
+  settle, "Moves 30 analyses (701 MB) of billing-api to the recycle bin:" + collapsible list (commit, subject, date,
+  size), "Nothing to clean up with these settings.", `btn-error` "Move 30 to recycle bin" without a second
+  confirmation, success toast "Moved 30 analyses (701 MB) to the recycle bin.", other failures as `alert-error` in the
+  dialog.
+- **Task 5**: changelog entry "Analysis batches and clean-up" (Added).
+- **Fix found by the e2e**: with an instant bridge the click that started a batch reached W1's outside-click handler
+  after the menu opened and closed it again; W1 now opens on the next task (commented workaround).
+- Screenshots (scratch Playwright spec, not committed, 1600×900, cc-dark): S4 with the third header button (folder
+  select kept with its label), footer and hover actions incl. the bin; delete confirmation; S8 with the list open;
+  S7 on one line (select `w-32`) and the 200 error; W1 with a batch line. Fixed after looking: the folder label and
+  select split across lines in S4, the S7 branch select wrapped, the S8 list was cut to one row (now `shrink-0` and an
+  inner scroll container), the batch line used `text-xs`.
+
+**Choices where the design is silent** (also open questions below):
+1. Count field wording for an empty or non-integer count: "Enter a number from 1 to 200." (the design has only the
+   >200 text). Clean-up counts: "Enter a whole number of 0 or more."
+2. Every tag: the summary says "N tagged commits: …"; the core's `leftOut` shows as "N older tagged commits left out —
+   at most 200 commits per batch."
+3. Estimate rounding: whole minutes (at least 1), from 60 minutes on whole hours.
+4. S7 opened for another folder than the working folder (S4 "folder" select) has no branch list (the History only reads
+   the working folder's refs) and counts back from that folder's HEAD ("commits up to a1b2c3d").
+5. After a started batch from S4, S4 closes too, so the W1 dropdown is visible (a modal would cover it, and clicking
+   it would close the dropdown).
+6. Delete question for a working-tree analysis: "Move the analysis of the working tree (on a1b2c3d) to the recycle bin?";
+   no success toast for a plain delete (the row disappears).
+7. Clean-up stopped by the recycle bin after some analyses were moved (the core stops at the first failure): the
+   renderer re-lists the folder and says "Could not move every analysis to the recycle bin. Moved 4 of 30; the rest were
+   kept." The design's "Nothing was deleted." is used only when nothing was moved.
+
+**Open questions for the designer**
+- Choices 1–7 above (wording and the partial clean-up message in particular).
+- W1 batch line: collapsed by default, or expanded while it runs?
+
+Tests: specs for every new service and component (`batchWording`, `retentionWording`, `AnalysisJobsService` batch
+methods, `SnapshotRetentionService`, `BatchAnalysisDialogComponent` incl. the plan's "should show counts and estimate"
+and "should enqueue on confirm", `CleanupDialogComponent` incl. "should list what a clean-up removes and the space it
+frees", `DeleteSnapshotDialogComponent`, S4 incl. "should ask before deleting", activity, W1, nav bar host, commit
+action, stand-in bridge). E2E in `05-m7-e2e-docs.md`.
 

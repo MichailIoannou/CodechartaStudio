@@ -2,6 +2,8 @@ import { DestroyRef, effect, Injectable, inject, signal, untracked } from "@angu
 import { Subject } from "rxjs"
 import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
 import type { AnalysisTarget } from "../../../model/coreApi/AnalysisTarget"
+import type { BatchResult } from "../../../model/coreApi/BatchResult"
+import type { BatchSelection } from "../../../model/coreApi/BatchSelection"
 import type { EnqueueResult } from "../../../model/coreApi/EnqueueResult"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { DesktopBridge } from "../../../util/desktop/desktopBridge"
@@ -17,6 +19,7 @@ export class AnalysisJobsService {
     private readonly environment = inject(DesktopEnvironment)
     private readonly jobList = signal<AnalysisJob[]>([])
     private readonly finishedJobs = new Subject<AnalysisJob>()
+    private readonly batchLabels = signal<Readonly<Record<string, string>>>({})
 
     readonly jobs = this.jobList.asReadonly()
     /** Jobs that just finished or failed, once each, as the core reported them. */
@@ -55,6 +58,32 @@ export class AnalysisJobsService {
             this.applyJob(result.job, false)
         }
         return result
+    }
+
+    /** What a batch would queue, with its estimate; queues nothing. */
+    async previewBatch(folder: FolderRef, selection: BatchSelection): Promise<BatchResult> {
+        return valueOrThrow(await this.bridge.request("analysis.enqueueBatch", { ...folder, selection, dryRun: true }))
+    }
+
+    async startBatch(folder: FolderRef, selection: BatchSelection, label: string): Promise<BatchResult> {
+        const result = valueOrThrow(await this.bridge.request("analysis.enqueueBatch", { ...folder, selection, dryRun: false }))
+        const { batchId } = result
+        if (batchId) {
+            this.batchLabels.update(labels => ({ ...labels, [batchId]: label }))
+        }
+        for (const job of result.jobs) {
+            this.applyJob(job, false)
+        }
+        return result
+    }
+
+    async cancelBatch(batchId: string): Promise<void> {
+        valueOrThrow(await this.bridge.request("analysis.cancelBatch", { batchId }))
+    }
+
+    /** How the batch was described when this window started it, e.g. "last 20 commits of main". */
+    batchLabelOf(batchId: string): string | null {
+        return this.batchLabels()[batchId] ?? null
     }
 
     async cancel(jobId: string): Promise<void> {
