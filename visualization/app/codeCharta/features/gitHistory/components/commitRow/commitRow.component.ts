@@ -35,7 +35,8 @@ const LABEL_ICONS: Record<RefLabel["kind"], string | null> = {
     tag: "fa-tag"
 }
 const ROW_CLASS = "grid h-7 cursor-pointer select-none items-center gap-2 whitespace-nowrap px-2 text-sm hover:bg-base-200"
-const SELECTED_ROW_CLASS = "bg-primary/20 font-semibold"
+// the inset outline keeps a selection visible on white, where a 20 % tint is faint
+const SELECTED_ROW_CLASS = "bg-primary/20 font-semibold outline outline-1 -outline-offset-1 outline-primary/60"
 // pl-1.5 + the 2 px border keep the px-2 inset, so the graph lanes stay in line with the rows around it
 const SECOND_ROW_CLASS = `${SELECTED_ROW_CLASS} border-l-2 border-primary pl-1.5`
 
@@ -44,7 +45,7 @@ export function rowIdOf(key: string): string {
     return `commit-option-${key}`
 }
 
-/** Design H8: selected rows are tinted; the second selection also gets a left border. */
+/** Design H8: selected rows are tinted and outlined; the second selection also gets a left border. */
 export function selectionClassOf({ isSelected, isSecond }: { isSelected: boolean; isSecond: boolean }): string {
     if (!isSelected) {
         return ""

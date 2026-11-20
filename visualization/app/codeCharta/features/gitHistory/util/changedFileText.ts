@@ -8,6 +8,8 @@ export interface ChangeBadge {
     label: string
     toneClass: string
     title: string | null
+    /** A solid badge stands out where a soft one is pale (light themes). */
+    isSolid?: boolean
 }
 
 const CHANGE_BADGES: Record<GitFileChange, ChangeBadge> = {
@@ -20,7 +22,7 @@ const CHANGE_BADGES: Record<GitFileChange, ChangeBadge> = {
     unknown: { label: "unknown", toneClass: "badge-ghost", title: null }
 }
 
-const CONFLICT_BADGE: ChangeBadge = { label: "conflict", toneClass: "badge-warning", title: null }
+const CONFLICT_BADGE: ChangeBadge = { label: "conflict", toneClass: "badge-warning", title: null, isSolid: true }
 const UNTRACKED_BADGE: ChangeBadge = { label: "untracked", toneClass: "badge-ghost", title: null }
 
 /** The worded change of design H9, never a bare letter. */

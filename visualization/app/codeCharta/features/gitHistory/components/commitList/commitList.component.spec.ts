@@ -314,6 +314,9 @@ describe("CommitListComponent", () => {
         // Assert
         expect(commitSelected).toBe(START.sha)
         expect(rowClass).toContain("bg-primary/20")
+        expect(["outline", "outline-1", "-outline-offset-1", "outline-primary/60"].every(name => rowClass.split(" ").includes(name))).toBe(
+            true
+        )
         expect(selection.selection()?.items).toEqual([{ kind: "workingTree", status: dirty }])
         expect(screen.getByTestId("commit-row-working-tree").getAttribute("aria-selected")).toBe("true")
     })
