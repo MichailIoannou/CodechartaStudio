@@ -278,6 +278,77 @@ describe("SnapshotsDialogComponent", () => {
         expect(screen.getAllByTestId("snapshots-row")).toHaveLength(1)
     })
 
+    it("should ask before deleting and move the analysis to the recycle bin", async () => {
+        // Arrange
+        await openDialog()
+        const row = screen.getAllByTestId("snapshots-row")[1]
+
+        // Act
+        await userEvent.click(within(row).getByTestId("snapshots-delete"))
+        const question = screen.getByTestId("delete-snapshot-question").textContent
+        const deletesBeforeConfirm = testBed.requestsOf("snapshots.delete").length
+        await userEvent.click(screen.getByTestId("delete-snapshot-confirm"))
+        await settle()
+
+        // Assert
+        expect(question).toBe("Move the analysis of a1b2c3d (Fix invoice rounding) to the recycle bin?")
+        expect(deletesBeforeConfirm).toBe(0)
+        expect(testBed.requestsOf("snapshots.delete")).toEqual([{ ...COMMIT.ref, permanently: false }])
+        expect(screen.getAllByTestId("snapshots-row")).toHaveLength(2)
+    })
+
+    it("should open the delete confirmation with the Delete key on a focused row", async () => {
+        // Arrange
+        await openDialog()
+        await userEvent.selectOptions(screen.getByTestId("snapshots-folder"), "all")
+        screen.getByTestId("snapshots-unbound-row").focus()
+
+        // Act
+        await userEvent.keyboard("{Delete}")
+
+        // Assert
+        expect(screen.getByTestId("delete-snapshot-question").textContent).toBe(
+            "Move the imported snapshot 'export-2024.cc.json' to the recycle bin? It can only be restored from the recycle bin."
+        )
+        expect(testBed.requestsOf("snapshots.delete")).toEqual([])
+    })
+
+    it("should say how much space the analyses use and keep it current", async () => {
+        // Arrange
+        await openDialog()
+        const before = screen.getByTestId("snapshots-usage").textContent
+
+        // Act
+        testBed.bridge.emit("snapshots.changed", { projectId: "p-billing", folderId: "f-api" })
+        testBed.bridge.respondWith("snapshots.usage", { totalBytes: 61_200_000, folders: [] })
+        await settle()
+
+        // Assert
+        expect(before).toBe("This project's analyses use 4.1 kB.")
+        expect(screen.getByTestId("snapshots-usage").textContent).toBe("This project's analyses use 61.2 MB.")
+    })
+
+    it("should hide the store size it could not read", async () => {
+        // Arrange & Act
+        await openDialog({ failures: { "snapshots.usage": { code: "IO", message: "store unreadable", details: {} } } })
+
+        // Assert
+        expect(screen.queryByTestId("snapshots-usage")).toBeNull()
+    })
+
+    it("should open the clean-up of the working folder", async () => {
+        // Arrange
+        await openDialog()
+        const cleanup = screen.getByTestId("snapshots-cleanup")
+
+        // Act
+        await userEvent.click(cleanup)
+
+        // Assert
+        expect(cleanup.title).toBe("Clean up the analyses of billing-api")
+        expect(screen.getByTestId("cleanup-dialog").textContent).toContain("Clean Up Analyses — billing-api")
+    })
+
     it("should close", async () => {
         // Arrange
         await openDialog()

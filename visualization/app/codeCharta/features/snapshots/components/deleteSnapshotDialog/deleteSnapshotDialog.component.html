@@ -1,0 +1,18 @@
+<dialog #dialog class="modal" aria-labelledby="delete-snapshot-title" data-testid="delete-snapshot-dialog">
+    <div class="modal-box max-w-sm">
+        <h3 id="delete-snapshot-title" class="mb-2 text-lg font-bold">Delete Analysis</h3>
+        <p class="break-words" data-testid="delete-snapshot-question">{{ question() }}</p>
+        <div class="modal-action">
+            <button type="button" class="btn" data-testid="delete-snapshot-cancel" (click)="close()">Cancel</button>
+            <button type="button" class="btn btn-error" data-testid="delete-snapshot-confirm" [disabled]="isDeleting()" (click)="confirm()">
+                @if (isDeleting()) {
+                    <span class="loading loading-spinner loading-xs"></span>
+                }
+                Delete
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
