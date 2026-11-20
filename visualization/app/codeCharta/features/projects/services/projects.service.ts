@@ -4,6 +4,7 @@ import { LoadedSnapshotFacts, LoadFilesUseCase, ProjectSnapshotsLoadResult, Proj
 import type { ErrorCode } from "../../../model/coreApi/ErrorCode"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../../model/coreApi/FolderRole"
+import type { HostingOverride } from "../../../model/coreApi/HostingOverride"
 import type { NewFolder } from "../../../model/coreApi/NewFolder"
 import type { PickedFolder } from "../../../model/coreApi/PickedFolder"
 import type { Project } from "../../../model/coreApi/Project"
@@ -303,7 +304,7 @@ export class ProjectsService {
         }
     }
 
-    async updateFolder(folderId: string, changes: { label?: string; role?: FolderRole }): Promise<void> {
+    async updateFolder(folderId: string, changes: { label?: string; role?: FolderRole; hosting?: HostingOverride }): Promise<void> {
         await this.applyProject(await this.request("projects.updateFolder", { ...this.folderRef(folderId), ...changes }))
     }
 

@@ -47,7 +47,8 @@ describe("ComparisonLegendCaptionComponent", () => {
             },
             error: null,
             analyses: [],
-            changedFiles: null
+            changedFiles: null,
+            changeRequest: null
         })
 
         // Assert

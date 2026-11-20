@@ -51,7 +51,8 @@ describe("CompareStore", () => {
             head: aLoadedSide(HEAD_SHA, headChecksum),
             error: null,
             analyses: [],
-            changedFiles: null
+            changedFiles: null,
+            changeRequest: null
         })
     }
 

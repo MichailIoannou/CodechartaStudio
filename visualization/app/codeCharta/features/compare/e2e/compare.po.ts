@@ -75,6 +75,19 @@ export class ComparePageObject {
         await this.page.getByTestId("branch-context-menu").getByRole("button", { name: item }).click()
     }
 
+    changeRequestsNotInstalled() {
+        return this.page.getByTestId("change-requests-not-installed")
+    }
+
+    async openPullRequestByNumber(number: string) {
+        await this.page.getByTestId("change-requests-number").fill(number)
+        await this.page.getByTestId("change-requests-open").click()
+    }
+
+    pullRequestBadge() {
+        return this.page.getByTestId("comparison-pull-request")
+    }
+
     async leave() {
         await this.page.getByTestId("comparison-actions").click()
         await this.page.getByTestId("comparison-leave").click()

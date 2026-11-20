@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core"
+import { GlobalConfigurationDialogComponent } from "../../../globalSettings/facade"
 import { CompareStore } from "../../stores/compare.store"
 import { CompareDialogComponent } from "../compareDialog/compareDialog.component"
 
@@ -7,10 +8,11 @@ import { CompareDialogComponent } from "../compareDialog/compareDialog.component
     selector: "cc-compare-host",
     template: `
         @if (prefill(); as prefill) {
-            <cc-compare-dialog [prefill]="prefill" />
+            <cc-compare-dialog [prefill]="prefill" (openDesktopTools)="configuration.open()" />
         }
+        <cc-global-configuration-dialog #configuration />
     `,
-    imports: [CompareDialogComponent],
+    imports: [CompareDialogComponent, GlobalConfigurationDialogComponent],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CompareHostComponent {

@@ -1,6 +1,7 @@
 import { computed, Injectable, inject } from "@angular/core"
 import type { ProjectSnapshotsLoadResult } from "../../../load/load.facade"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
+import type { HostingOverride } from "../../../model/coreApi/HostingOverride"
 import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
 import { ProjectsService } from "./projects.service"
 
@@ -33,6 +34,11 @@ export class ProjectsFacade {
 
     refreshFolderSnapshots(folder: FolderRef): Promise<void> {
         return this.projects.refreshFolderSnapshots(folder)
+    }
+
+    /** Plan 06: the provider of a host the core does not recognise, kept on the folder record. */
+    setFolderHosting(folderId: string, hosting: HostingOverride): Promise<void> {
+        return this.projects.updateFolder(folderId, { hosting })
     }
 
     showOverview(): void {

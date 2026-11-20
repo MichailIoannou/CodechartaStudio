@@ -83,13 +83,41 @@
             </div>
         }
 
-        @if (!outcome() && !isPreparing()) {
+        @if (!outcome() && !isPreparing() && !fetchPrompt()) {
             <div class="flex flex-col gap-2" data-testid="compare-lists">
                 <fieldset class="join flex" aria-label="Lists">
-                    <button type="button" class="btn btn-sm join-item btn-active flex-1 font-normal normal-case" aria-pressed="true">
+                    @if (hasChangeRequestSegment()) {
+                        <button
+                            type="button"
+                            class="btn btn-sm join-item flex-1 font-normal normal-case"
+                            data-testid="compare-list-change-requests"
+                            [class.btn-active]="shownList() === 'changeRequests'"
+                            [attr.aria-pressed]="shownList() === 'changeRequests'"
+                            (click)="chooseList('changeRequests')"
+                        >
+                            <span class="text-xs">{{ changeRequestSegmentLabel() }}</span>
+                        </button>
+                    }
+                    <button
+                        type="button"
+                        class="btn btn-sm join-item flex-1 font-normal normal-case"
+                        data-testid="compare-list-recent"
+                        [class.btn-active]="shownList() === 'recent'"
+                        [attr.aria-pressed]="shownList() === 'recent'"
+                        (click)="chooseList('recent')"
+                    >
                         <span class="text-xs">Recent</span>
                     </button>
                 </fieldset>
+                @if (shownList() === "changeRequests" && repo(); as repo) {
+                    <cc-change-request-list
+                        [folder]="repo"
+                        [panel]="pullRequestPanel()"
+                        [defaultBranch]="defaultBranch()"
+                        (openDesktopTools)="openDesktopTools.emit()"
+                        (started)="hasStartedHere.set(true)"
+                    />
+                } @else {
                 <ul class="m-0 flex max-h-48 list-none flex-col gap-0.5 overflow-y-auto p-0" data-testid="compare-recent">
                     @for (row of recentComparisons(); track row.range + row.recent.folderId) {
                         <li>
@@ -110,6 +138,19 @@
                         <li class="px-3 py-1.5 text-sm text-base-content/60">No comparisons yet.</li>
                     }
                 </ul>
+                }
+            </div>
+        }
+
+        @if (fetchPrompt(); as fetchPrompt) {
+            <div role="status" class="alert alert-info text-sm" data-testid="compare-fetch-head">
+                @if (fetchPrompt.isFetching) {
+                    <span>Fetching {{ fetchPrompt.label }} from '{{ fetchPrompt.remote }}'…</span>
+                    <button type="button" class="btn btn-sm" data-testid="compare-cancel-fetch" (click)="cancelFetch()">Cancel</button>
+                } @else {
+                    <span>The head of {{ fetchPrompt.label }} is not in your clone yet.</span>
+                    <button type="button" class="btn btn-sm" data-testid="compare-fetch" (click)="fetchHead()">Fetch from '{{ fetchPrompt.remote }}'</button>
+                }
             </div>
         }
 

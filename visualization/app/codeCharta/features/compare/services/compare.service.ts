@@ -6,6 +6,7 @@ import { ToastService } from "../../shared/facade"
 import type {
     AnalysisJob,
     BaseMode,
+    ComparedChangeRequest,
     CompareError,
     CompareIntent,
     FolderRef,
@@ -78,12 +79,13 @@ export class CompareService {
         }
     }
 
-    async start(intent: CompareIntent): Promise<void> {
-        const ticket = this.beginResolving()
+    /** With the pull or merge request the intent names, so a head that is not local can be fetched. */
+    async start(intent: CompareIntent, changeRequest: ComparedChangeRequest | null = null): Promise<void> {
+        const ticket = this.beginResolving(changeRequest)
         try {
             await this.resolveAndShow(intent, ticket)
         } catch (error) {
-            this.fail(ticket, compareErrorOf(error))
+            this.failOrAskToFetch(ticket, error)
         }
     }
 
@@ -155,10 +157,19 @@ export class CompareService {
         }
     }
 
-    private beginResolving(): number {
+    private beginResolving(changeRequest: ComparedChangeRequest | null = null): number {
         this.changedFiles.clearFilter()
-        this.store.set({ ...IDLE_COMPARISON, phase: "resolving" })
+        this.store.set({ ...IDLE_COMPARISON, phase: "resolving", changeRequest })
         return ++this.latestTicket
+    }
+
+    private failOrAskToFetch(ticket: number, error: unknown): void {
+        const isHeadMissing = error instanceof DesktopBridgeError && error.code === "HEAD_NOT_LOCAL"
+        if (isHeadMissing && this.store.state().changeRequest && ticket === this.latestTicket) {
+            this.store.update({ phase: "headNotLocal" })
+            return
+        }
+        this.fail(ticket, compareErrorOf(error))
     }
 
     /** Once no analysis of the batch runs: resolves again, so the sides come from the store, and goes on from there. */

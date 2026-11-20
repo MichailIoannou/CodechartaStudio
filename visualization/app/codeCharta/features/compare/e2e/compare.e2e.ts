@@ -61,28 +61,96 @@ const CHANGED_FILES = {
     ]
 }
 
+const seedOf = (project: typeof BILLING, responses: Record<string, unknown>) => ({
+    projects: [project],
+    activeProjectId: "p-billing",
+    snapshots: [commitSnapshot("s-base", BASE_SHA, "Release 2.4.0"), commitSnapshot("s-head", HEAD_SHA, "Fix invoice rounding")],
+    snapshotMaps: { "s-base": gzippedSample("sample1.cc.json"), "s-head": gzippedSample("sample2.cc.json") },
+    responses: { "compare.changedFiles": CHANGED_FILES, ...responses },
+    git: {
+        "f-api": {
+            info: aRepositoryInfo(),
+            status: aStatusOn("feature/x", { head: { kind: "branch", name: "feature/x", commit: HEAD_SHA } }),
+            refs: REFS,
+            commits: [commit(LATEST_SHA, [NEXT_SHA]), commit(NEXT_SHA, [HEAD_SHA]), commit(HEAD_SHA, [BASE_SHA]), commit(BASE_SHA, [])]
+        }
+    }
+})
+
+test.describe("Compare pull requests", () => {
+    const WITH_GITHUB_REMOTE = aProject(
+        "p-billing",
+        [
+            aFolder("f-api", {
+                label: "billing-api",
+                git: {
+                    topLevel: "/work/f-api",
+                    isRepositoryRoot: true,
+                    remotes: [{ name: "origin", url: "https://github.com/mia/billing.git" }],
+                    defaultBranch: "main",
+                    rootCommits: [],
+                    isShallow: false,
+                    detectedAt: "2026-11-20T00:00:00Z"
+                }
+            })
+        ],
+        { name: "billing", view: { workingFolderId: "f-api", shownSnapshotIdByFolder: { "f-api": "s-head" } } }
+    )
+
+    test.beforeEach(async ({ page }) => {
+        await standInForTheDesktopBridge(
+            page,
+            seedOf(WITH_GITHUB_REMOTE, {
+                "hosting.status": {
+                    provider: "github",
+                    host: "github.com",
+                    repository: "mia/billing",
+                    remote: "origin",
+                    detectedBy: "knownHost"
+                },
+                "hosting.fetchChangeRequestHead": { gitRef: "refs/codecharta/pr/7", commit: HEAD_SHA },
+                "tools.doctor": {
+                    checkedAt: "2026-11-20T00:00:00Z",
+                    tools: [
+                        {
+                            tool: "gh",
+                            isRequired: false,
+                            state: "missing",
+                            path: null,
+                            source: null,
+                            version: null,
+                            minimumVersion: null,
+                            problem: null
+                        }
+                    ],
+                    canUseGit: true,
+                    canAnalyse: true
+                }
+            })
+        )
+        await goto(page)
+    })
+
+    test("should open a pull request by number without the GitHub CLI and compare it from its merge base", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        await compare.openTheDialogFromTheCompareTab()
+        await expect(compare.changeRequestsNotInstalled()).toContainText("Install the GitHub CLI (gh) to list pull requests")
+
+        // Act
+        await compare.openPullRequestByNumber("7")
+
+        // Assert
+        await expect(compare.dialog()).toHaveCount(0)
+        await expect(compare.chip()).toContainText("PR #7")
+        await expect(compare.pullRequestBadge()).toHaveAttribute("href", "https://github.com/mia/billing/pull/7")
+        await expect(compare.baseModeBadge()).toHaveText("since merge base")
+    })
+})
+
 test.describe("Compare", () => {
     test.beforeEach(async ({ page }) => {
-        await standInForTheDesktopBridge(page, {
-            projects: [BILLING],
-            activeProjectId: "p-billing",
-            snapshots: [commitSnapshot("s-base", BASE_SHA, "Release 2.4.0"), commitSnapshot("s-head", HEAD_SHA, "Fix invoice rounding")],
-            snapshotMaps: { "s-base": gzippedSample("sample1.cc.json"), "s-head": gzippedSample("sample2.cc.json") },
-            responses: { "compare.changedFiles": CHANGED_FILES },
-            git: {
-                "f-api": {
-                    info: aRepositoryInfo(),
-                    status: aStatusOn("feature/x", { head: { kind: "branch", name: "feature/x", commit: HEAD_SHA } }),
-                    refs: REFS,
-                    commits: [
-                        commit(LATEST_SHA, [NEXT_SHA]),
-                        commit(NEXT_SHA, [HEAD_SHA]),
-                        commit(HEAD_SHA, [BASE_SHA]),
-                        commit(BASE_SHA, [])
-                    ]
-                }
-            }
-        })
+        await standInForTheDesktopBridge(page, seedOf(BILLING, {}))
         await goto(page)
     })
 
@@ -230,7 +298,7 @@ test.describe("Compare", () => {
 
         // Assert
         await expect(compare.dialog()).toHaveCount(0)
-        await expect(compare.staleBadge()).toHaveText("stale by 2")
+        await expect(compare.staleBadge()).toHaveText("stale by 2", { useInnerText: true })
         await expect(compare.staleBadge()).toHaveAttribute("title", "No analysis for c3d4e5f. Showing a1b2c3d, 2 commits older.")
     })
 })

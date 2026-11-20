@@ -1,6 +1,7 @@
 import { InjectionToken, inject, Signal } from "@angular/core"
 import { AnalysisGatewayAdapter } from "../adapters/analysisGateway.adapter"
 import { CoreGatewayAdapter } from "../adapters/coreGateway.adapter"
+import { HostingGatewayAdapter } from "../adapters/hostingGateway.adapter"
 import { SnapshotGatewayAdapter } from "../adapters/snapshotGateway.adapter"
 import type {
     AnalysisJob,
@@ -8,7 +9,11 @@ import type {
     ChangedFilesResult,
     CompareIntent,
     EnqueueResult,
+    FetchChangeRequestHeadParams,
+    FetchedHead,
     FolderRef,
+    HostingOverride,
+    HostingStatus,
     PairLoad,
     ResolvedComparison,
     SnapshotSummary
@@ -35,6 +40,17 @@ export interface AnalysisGateway {
 export interface CoreGateway {
     resolve(intent: CompareIntent, shownCommit: string | null): Promise<ResolvedComparison>
     changedFiles(params: ChangedFilesParams): Promise<ChangedFilesResult>
+    /** The folder's local branch names, for the base of a pull request opened by number. */
+    branchNames(folder: FolderRef): Promise<string[]>
+}
+
+export interface HostingGateway {
+    status(folder: FolderRef): Promise<HostingStatus>
+    /** Fetches the request's head into the private namespace; only ever on the user's click. */
+    fetchHead(params: FetchChangeRequestHeadParams, operationId: string): Promise<FetchedHead>
+    cancel(operationId: string): Promise<void>
+    /** Names the provider of a host the core does not recognise, on the folder record. */
+    setOverride(folder: FolderRef, override: HostingOverride): Promise<void>
 }
 
 export const SNAPSHOT_GATEWAY = new InjectionToken<SnapshotGateway>("SNAPSHOT_GATEWAY", {
@@ -45,6 +61,11 @@ export const SNAPSHOT_GATEWAY = new InjectionToken<SnapshotGateway>("SNAPSHOT_GA
 export const ANALYSIS_GATEWAY = new InjectionToken<AnalysisGateway>("ANALYSIS_GATEWAY", {
     providedIn: "root",
     factory: () => inject(AnalysisGatewayAdapter)
+})
+
+export const HOSTING_GATEWAY = new InjectionToken<HostingGateway>("HOSTING_GATEWAY", {
+    providedIn: "root",
+    factory: () => inject(HostingGatewayAdapter)
 })
 
 export const CORE_GATEWAY = new InjectionToken<CoreGateway>("CORE_GATEWAY", {
