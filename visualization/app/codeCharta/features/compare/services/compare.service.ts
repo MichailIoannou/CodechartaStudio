@@ -13,11 +13,13 @@ import type {
     ResolvedComparison,
     ResolvedSide
 } from "../model/compare.model"
+import { IDLE_COMPARISON } from "../model/compare.model"
 import { ANALYSIS_GATEWAY, CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
 import { RecentComparisonsRepo } from "../repos/recentComparisons.repo"
 import { CompareReadStore } from "../stores/compare.read.store"
 import { CompareStore } from "../stores/compare.store"
 import { CompareWriteStore } from "../stores/compare.write.store"
+import { ChangedFilesService } from "./changedFiles.service"
 import { refName } from "./comparisonText"
 import { batchOutcome, missingSidesOf, pendingJobIds, queuedAnalysis, withFailures } from "./missingSides"
 
@@ -53,6 +55,7 @@ export class CompareService {
     private readonly toastService = inject(ToastService)
     private readonly recents = inject(RecentComparisonsRepo)
     private readonly analyses = inject(ANALYSIS_GATEWAY)
+    private readonly changedFiles = inject(ChangedFilesService)
     private latestTicket = 0
     private lastIntent: CompareIntent | null = null
 
@@ -137,6 +140,7 @@ export class CompareService {
         const { base, head } = this.store.state()
         const baseFile = base && this.readStore.fileWithChecksum(base.checksum)
         const headFile = head && this.readStore.fileWithChecksum(head.checksum)
+        this.changedFiles.clearFilter()
         if (this.store.isActive() && baseFile && headFile) {
             this.writeStore.showAlone(headFile, [baseFile.fileMeta.fileName])
         }
@@ -152,7 +156,8 @@ export class CompareService {
     }
 
     private beginResolving(): number {
-        this.store.set({ phase: "resolving", resolved: null, base: null, head: null, error: null, analyses: [] })
+        this.changedFiles.clearFilter()
+        this.store.set({ ...IDLE_COMPARISON, phase: "resolving" })
         return ++this.latestTicket
     }
 
@@ -216,7 +221,7 @@ export class CompareService {
             return
         }
         if (load.head && !load.base) {
-            this.finishWithoutDifferences(base, head, load.head)
+            this.finishWithoutDifferences(base, head, load.head, ticket)
             return
         }
         if (!(load.base && load.head)) {
@@ -242,6 +247,7 @@ export class CompareService {
         this.showInMetricView()
         this.store.update({ phase: "active", base, head, error: null })
         this.rememberComparison()
+        this.loadChangedFiles(ticket)
     }
 
     private async showHeadAlone(base: ShownSide, head: ShownSide, ticket: number): Promise<void> {
@@ -253,13 +259,21 @@ export class CompareService {
             this.fail(ticket, unreadable(head))
             return
         }
-        this.finishWithoutDifferences(base, head, checksum)
+        this.finishWithoutDifferences(base, head, checksum, ticket)
     }
 
-    private finishWithoutDifferences(base: ShownSide, head: ShownSide, checksum: string): void {
+    private finishWithoutDifferences(base: ShownSide, head: ShownSide, checksum: string, ticket: number): void {
         this.showInMetricView()
         this.store.update({ phase: "noDifferences", base: { ...base, checksum }, head: { ...head, checksum }, error: null })
         this.rememberComparison()
+        this.loadChangedFiles(ticket)
+    }
+
+    private loadChangedFiles(ticket: number): void {
+        const { resolved } = this.store.state()
+        if (resolved) {
+            void this.changedFiles.load(resolved, () => ticket === this.latestTicket)
+        }
     }
 
     /** As the user named the sides: a merge-base comparison by the tip its base came from. */

@@ -50,7 +50,7 @@ describe("ComparisonChipComponent", () => {
         store.dispatch(addFile({ file: TEST_FILE_DATA_JAVA }))
         store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA, comparisonFile: TEST_FILE_DATA_JAVA }))
         const head = phase === "noDifferences" ? { ...HEAD, checksum: TEST_FILE_DATA.fileMeta.fileChecksum } : HEAD
-        TestBed.inject(CompareStore).set({ phase, resolved, base: BASE, head, error: null, analyses: [] })
+        TestBed.inject(CompareStore).set({ phase, resolved, base: BASE, head, error: null, analyses: [], changedFiles: null })
         await screen.findByTestId("comparison-chip")
     }
 

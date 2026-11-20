@@ -2,6 +2,8 @@ import { signal } from "@angular/core"
 import { aSnapshot } from "../../projects/projects.mocks"
 import type {
     AnalysisJob,
+    ChangedFilesParams,
+    ChangedFilesResult,
     ComparedCommit,
     CompareIntent,
     EnqueueResult,
@@ -119,10 +121,17 @@ function aJob(id: string, commit: string, state: AnalysisJob["state"]): Analysis
 
 export class FakeCoreGateway implements CoreGateway {
     readonly intents: CompareIntent[] = []
+    readonly changedFilesRequests: ChangedFilesParams[] = []
     resolution: ResolvedComparison | Error = aResolvedComparison()
+    changedFilesAnswer: ChangedFilesResult | Error = { source: "unavailable", files: [] }
 
     resolve(intent: CompareIntent): Promise<ResolvedComparison> {
         this.intents.push(intent)
         return this.resolution instanceof Error ? Promise.reject(this.resolution) : Promise.resolve(this.resolution)
+    }
+
+    changedFiles(params: ChangedFilesParams): Promise<ChangedFilesResult> {
+        this.changedFilesRequests.push(params)
+        return this.changedFilesAnswer instanceof Error ? Promise.reject(this.changedFilesAnswer) : Promise.resolve(this.changedFilesAnswer)
     }
 }

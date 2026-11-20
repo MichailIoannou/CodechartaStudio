@@ -4,6 +4,8 @@ import { CoreGatewayAdapter } from "../adapters/coreGateway.adapter"
 import { SnapshotGatewayAdapter } from "../adapters/snapshotGateway.adapter"
 import type {
     AnalysisJob,
+    ChangedFilesParams,
+    ChangedFilesResult,
     CompareIntent,
     EnqueueResult,
     FolderRef,
@@ -32,6 +34,7 @@ export interface AnalysisGateway {
 
 export interface CoreGateway {
     resolve(intent: CompareIntent, shownCommit: string | null): Promise<ResolvedComparison>
+    changedFiles(params: ChangedFilesParams): Promise<ChangedFilesResult>
 }
 
 export const SNAPSHOT_GATEWAY = new InjectionToken<SnapshotGateway>("SNAPSHOT_GATEWAY", {

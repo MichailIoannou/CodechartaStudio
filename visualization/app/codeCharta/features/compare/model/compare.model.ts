@@ -1,5 +1,7 @@
 import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
 import type { BaseMode } from "../../../model/coreApi/BaseMode"
+import type { ChangedFilesParams } from "../../../model/coreApi/ChangedFilesParams"
+import type { ChangedFilesResult } from "../../../model/coreApi/ChangedFilesResult"
 import type { ComparedCommit } from "../../../model/coreApi/ComparedCommit"
 import type { CompareIntent } from "../../../model/coreApi/CompareIntent"
 import type { EnqueueResult } from "../../../model/coreApi/EnqueueResult"
@@ -12,6 +14,8 @@ import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 export type {
     AnalysisJob,
     BaseMode,
+    ChangedFilesParams,
+    ChangedFilesResult,
     ComparedCommit,
     CompareIntent,
     EnqueueResult,
@@ -57,6 +61,9 @@ export interface SideAnalysis {
     failure: string | null
 }
 
+/** The files git changed between the two commits: asked for once the comparison shows, never awaited. */
+export type ChangedFilesState = "loading" | ChangedFilesResult | null
+
 export interface CompareState {
     phase: ComparePhase
     resolved: ResolvedComparison | null
@@ -65,6 +72,7 @@ export interface CompareState {
     error: CompareError | null
     /** The analyses of the missing sides, while they run and after one failed. */
     analyses: SideAnalysis[]
+    changedFiles: ChangedFilesState
 }
 
 /** The checksums of the two maps now in the store; `base` is null when its content equals the head's and only the head was kept. */
@@ -79,4 +87,12 @@ export interface ComparePrefill {
     head?: string
 }
 
-export const IDLE_COMPARISON: CompareState = { phase: "idle", resolved: null, base: null, head: null, error: null, analyses: [] }
+export const IDLE_COMPARISON: CompareState = {
+    phase: "idle",
+    resolved: null,
+    base: null,
+    head: null,
+    error: null,
+    analyses: [],
+    changedFiles: null
+}
