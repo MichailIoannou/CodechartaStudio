@@ -75,18 +75,18 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M4 Renderer load path | renderer | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m4 | ce4e78324 (merged into stack e041d661a) |
 | 03-M5 Projects UI | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m5 | 8c93d3f13 (merged into stack 10b8b4135) |
 | 03-M6 Import and store settings | UI + core | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m6 | 0994d5f75 (merged into stack 1ebe30d2c) |
-| 03-M7 Local source and scenarios | UI | in progress | — | feature/studio-03-m7 | — |
+| 03-M7 Local source and scenarios | UI | done on `feature/studio-next` | — | feature/studio-03-m7 | b2fd355f3 (merged 113f918db) |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
 | 04-M3 History view, branches pane (chip replaced by W1) | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-04-m3 | 5877e3661 (merged into stack 14881e68f, fix 5b2462566) |
 | 04-M4 Commit list with graph, filters, details | UI | done on `feature/studio-stack` (385adc20f; web e2e 176/176) | integration merge: as 03-M2 | feature/studio-04-m4 | 8642672fb |
 | 04-M5 Selection, keyboard, context menu, ports (+ 05-M4 task 5 badges) | UI | done on `feature/studio-stack` (1b38f5819; web e2e 177/177) | integration merge: as 03-M2 | feature/studio-04-m5 | 9e5c3d35c |
-| 04-M6 Read-only end-to-end and docs (+ 04 design follow-ups O8.3) | UI | in progress | — | feature/studio-04-m6 | — |
+| 04-M6 Read-only end-to-end and docs (+ 04 design follow-ups O8.3) | UI | done on `feature/studio-next` | — | feature/studio-04-m6 | ccaa94c42 (merged 3e78ab5ef) |
 | 04-M7 Operation queue, progress, prompts | core + UI | core and task 5 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
 | 04-M8 Fetch and branches | core + UI | core and task 2 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
 | 04-M9 Changes and diff | core + UI | core and task 2 merged into `feature/studio-stack`; **web e2e pending** (paused) | — | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
 | 04-M10 Commit | core + UI | core and task 2 merged into `feature/studio-stack`; **web e2e pending** (paused) | — | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
-| 04-M11 Pull, push, abort | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
+| 04-M11 Pull, push, abort | core + UI | core in the stack; task 2 (UI) in progress with 04-M12 on `feature/studio-04-m11-ui` (from 04-M6) | — | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
 | 05-M0 Spikes on a real Windows machine | spike | done (Linux); Windows items W1–W5 open for owner | owner hardware (W1–W5) | feature/studio-05-m0 | 071cfd98a |
 | 05-M1 Run one analysis from the core | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m1 | a6eff44c7 (verified, not merged) |
@@ -94,8 +94,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M3 Queue, preflight, RPC, CLI | core (+ fake bridge) | tasks 1–4 verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (fake bridge): core stack merge | feature/studio-05-m3 | b3b7a6164 (verified, not merged) |
 | 05-M4 Analyse from the UI, browse snapshots | UI | done on `feature/studio-stack` (8747e752b; web e2e 175/175); history badges (task 5) after 04-M4 | integration merge: as 03-M2 | — | — |
 | 05-M5 Nearest snapshot and stale notice | core + UI | done on `feature/studio-stack` (UI web e2e 177/177) | integration merge: as 03-M2 | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
-| 05-M6 Batches, retention, cleanup | core + UI | core in the stack; UI in progress (with 05-M7) | — | feature/studio-05-m6-ui | 9acf7a56b (core) |
-| 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
+| 05-M6 Batches, retention, cleanup | core + UI | done on `feature/studio-next` (UI with 05-M7) | — | feature/studio-05-m6-ui | 2ec7551bc (merged 7dd31b1e7) |
+| 05-M7 E2E and docs | UI | done on `feature/studio-next` (with 05-M6 UI) | — | feature/studio-05-m6-ui | 2ec7551bc (merged 7dd31b1e7) |
 | 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
 | 06-M1 Compare core: commit vs commit | core + UI | done on `feature/studio-stack` (renderer web e2e 180/180) | integration merge: as 03-M2 | feature/studio-06-m1 | 698643e98 (verified, not merged) |
 | 06-M2 Entry points (+ core tasks 1–2) | core + UI | merged into `feature/studio-stack` (417ef52b9, fix 8a409bed3); **web e2e pending** (paused); PR segment and branch-menu compare entries open | — | feature/studio-06-m2m3 | 96232878b |
@@ -442,6 +442,13 @@ None open.
 Design questions are in `design/open-questions.md`.
 
 ## Session log
+
+- 2026-11-20: merged 03-M7 (gates at 1153cdf13: format, lint, tsc, npm test 768/768, build, test:electron
+  80/80, e2e:desktop 16/16, web e2e 196/196), then 02 side panels give way + 01 D2 deep link, 04-M6 + 04
+  follow-ups and 05-M6 UI + 05-M7 (conflicts in the History view, its e2e, the desktop smoke test and the
+  changelog resolved by keeping both sides). Gates at 7dd31b1e7: format, lint, tsc, npm test 778/778
+  (6312 tests), build, test:electron, e2e:desktop 18/18, web e2e 207/207. Designer questions logged as O9.
+  04-M11 UI + 04-M12 started from `feature/studio-04-m6`; 06-M4/M5 UI still running.
 
 - 2026-11-20: owner resumed development. Six stacked branches built from `Claude-Work` and verified per
   branch by the orchestrator (format, lint, tsc, npm test, cargo fmt/clippy/test with and without

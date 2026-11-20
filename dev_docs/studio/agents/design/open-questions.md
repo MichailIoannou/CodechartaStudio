@@ -219,3 +219,32 @@ answer that differs means the named file is changed, nothing else.
        the base-mode badge leave below 1536 px (C2 "Space priority").
   5. Desktop tools deep link (D5): kept as designed; until the facade entry exists the link opens the
      dialog at its top (`01-desktop-tools.md` D2).
+
+- **O9 (2026-11-20). Design follow-ups from the second implementation round** (details in the progress
+  files named per item; each was built with the reading given and can be changed later).
+  1. Side panels give way (`progress/02-panels-give-way.md`):
+     - a panel opened by a click or focus *inside* the other panel opens collapsed itself, so the panel
+       the user works in keeps its place (read literally, clicking an explorer row at ~900 px collapsed the
+       explorer under the pointer). Acceptable, and should T4 say so?
+     - a new selection does not reopen a collapsed inspector (one click does). Should it?
+     - the collapsed inspector strip is not designed; built like the explorer's strip with
+       `fa-solid fa-circle-info`. What should it look like?
+     - should panels give way in the Dependencies view too (needs a collapsed form of its inspector)?
+     - with the core down, "Check again" is disabled and cannot take focus; the deep link only scrolls. OK?
+  2. History (`progress/04-M6-readonly-e2e-followups.md`):
+     - "Work in '<label>'" uses the same call as P1, which shows the project overview when the folder has
+       no analysis, so the user leaves the History. Should switching from the History stay there?
+     - for an untracked file H13's `git diff -- <path>` prints nothing; use
+       `git diff --no-index -- /dev/null <path>` (`NUL` on Windows)?
+     - identity commands are cut off with "…" in the `w-96` toast (full text in `title`, Copy copies all).
+       Acceptable, or wider error toasts when they carry commands?
+     - the selected-row outline was applied to commit rows only (H8), not to Changes rows. Intended?
+  3. Snapshots (`progress/05-m6-batches-retention.md`): wording chosen where the design is silent —
+     count validation "Enter a number from 1 to 200.", keep counts "Enter a whole number of 0 or more.",
+     tags "N tagged commits: …" / "N older tagged commits left out — at most 200 commits per batch.", the
+     working-tree delete question, and a partial clean-up "Moved X of Y; the rest were kept." Approve or
+     replace? Should a running batch's activity line start expanded?
+  4. Projects (`progress/03-m7-local-source-scenarios.md`): no design covers 03-M7. Wording chosen for a
+     missing folder: "The folder "<label>" is not available, so its files cannot be opened. Re-link it in
+     the project." A project map's source shows the folder's current files, not the analysed commit, with
+     no hint. Should there be one?
