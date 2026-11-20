@@ -1,5 +1,5 @@
 use codecharta_core_api::methods::hosting::{
-    FetchChangeRequestHeadParams, FetchedHead, HostingProvider,
+    FetchChangeRequestHeadParams, FetchedHead, HostingProvider, RemovedRefs,
 };
 use codecharta_core_api::values::{CommitSha, FullRefName, Revision};
 
@@ -86,6 +86,16 @@ pub async fn fetch_change_request_head(
         commit: CommitSha::try_from(summary.sha)
             .map_err(|error| CoreError::Internal(format!("git answered no commit: {error}")))?,
     })
+}
+
+/// Deletes the request heads fetched into the private namespace, through the operation queue.
+pub async fn remove_fetched_refs(
+    git: &GitService<'_>,
+    folder: &GitFolder,
+    context: &OperationContext<'_>,
+) -> CoreResult<RemovedRefs> {
+    let removed = git.remove_private_refs(folder, context).await?;
+    Ok(RemovedRefs { removed })
 }
 
 #[cfg(test)]
