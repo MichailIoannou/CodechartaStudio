@@ -1,12 +1,14 @@
+import { signal, WritableSignal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { State, Store, StoreModule } from "@ngrx/store"
 import { TEST_FILE_DATA, TEST_FILE_DATA_JAVA } from "../../../mocks/dataMocks"
 import { CcState } from "../../../model/codeCharta.model"
 import { FileSelectionState } from "../../../model/files/files"
 import { FileStoreReadWindow, FilesRepo } from "../../../stores/fileStore/fileStore.facade"
-import { addFile, removeFiles, setDelta, setStandard } from "../../../stores/fileStore/store/files.actions"
+import { addFile, removeFiles, setDelta, setFiles, setStandard } from "../../../stores/fileStore/store/files.actions"
 import { referenceFileSelector } from "../../../stores/fileStore/store/referenceFile.selector"
 import { appReducers, setStateMiddleware } from "../../../stores/rootStore/store"
+import { CompareFacade } from "../../compare/facade"
 import { NavBarWriteStore } from "../stores/navBar.write.store"
 import { FileSelectionModeService } from "./fileSelectionMode.service"
 
@@ -14,8 +16,10 @@ describe("FileSelectionModeService", () => {
     let fileSelectionModeService: FileSelectionModeService
     let store: Store<CcState>
     let state: State<CcState>
+    let compareFacade: { isActive: WritableSignal<boolean>; isAvailable: WritableSignal<boolean>; exit: jest.Mock; openDialog: jest.Mock }
 
     beforeEach(() => {
+        compareFacade = { isActive: signal(false), isAvailable: signal(false), exit: jest.fn(), openDialog: jest.fn() }
         TestBed.configureTestingModule({
             imports: [StoreModule.forRoot(appReducers, { metaReducers: [setStateMiddleware] })]
         })
@@ -28,7 +32,8 @@ describe("FileSelectionModeService", () => {
         fileSelectionModeService = new FileSelectionModeService(
             TestBed.inject(FileStoreReadWindow),
             TestBed.inject(FilesRepo),
-            TestBed.inject(NavBarWriteStore)
+            TestBed.inject(NavBarWriteStore),
+            compareFacade as unknown as CompareFacade
         )
     })
 
@@ -60,6 +65,36 @@ describe("FileSelectionModeService", () => {
         expect(referenceFileSelector(state.getValue())).toBe(TEST_FILE_DATA)
     })
 
+    it("should forget remembered files that were removed from the store", () => {
+        // Arrange
+        fileSelectionModeService.toggle()
+        store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA_JAVA, comparisonFile: TEST_FILE_DATA }))
+        fileSelectionModeService.toggle()
+
+        // Act
+        store.dispatch(removeFiles({ fileNames: [TEST_FILE_DATA_JAVA.fileMeta.fileName] }))
+
+        // Assert
+        const rememberedFiles = fileSelectionModeService.lastSetFilesOfPreviousMode.map(fileState => fileState.file)
+        expect(rememberedFiles).toEqual([TEST_FILE_DATA])
+    })
+
+    it("should not put removed files back when leaving delta", () => {
+        // Arrange
+        const removedFile = { ...TEST_FILE_DATA, fileMeta: { ...TEST_FILE_DATA.fileMeta, fileName: "removed", fileChecksum: "removed" } }
+        store.dispatch(addFile({ file: removedFile }))
+        store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA, comparisonFile: TEST_FILE_DATA_JAVA }))
+        const keptFiles = state.getValue().files.filter(fileState => fileState.file !== removedFile)
+        store.dispatch(setFiles({ value: keptFiles }))
+
+        // Act
+        fileSelectionModeService.toggle()
+
+        // Assert
+        const fileNames = state.getValue().files.map(fileState => fileState.file.fileMeta.fileName)
+        expect(fileNames).not.toContain("removed")
+    })
+
     it("should switch back to standard mode after a reload while in delta mode", () => {
         // Arrange — simulate the post-reload state: store is in delta mode but the service
         // has no remembered "previous standard" snapshot because it was just constructed.
@@ -67,7 +102,8 @@ describe("FileSelectionModeService", () => {
         const freshService = new FileSelectionModeService(
             TestBed.inject(FileStoreReadWindow),
             TestBed.inject(FilesRepo),
-            TestBed.inject(NavBarWriteStore)
+            TestBed.inject(NavBarWriteStore),
+            compareFacade as unknown as CompareFacade
         )
         expect(freshService.lastSetFilesOfPreviousMode).toEqual([])
 
@@ -100,5 +136,43 @@ describe("FileSelectionModeService", () => {
         expect(fileStates[2].file.fileMeta.fileName).toBe("bFile")
         expect(fileStates[3].file.fileMeta.fileName).toBe("fileA")
         expect(fileStates[4].file.fileMeta.fileName).toBe("fileB")
+    })
+
+    it("should leave the comparison when Explore is chosen", () => {
+        // Arrange
+        compareFacade.isActive.set(true)
+        store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA, comparisonFile: TEST_FILE_DATA_JAVA }))
+
+        // Act
+        fileSelectionModeService.toggle()
+
+        // Assert
+        expect(compareFacade.exit).toHaveBeenCalled()
+        expect(referenceFileSelector(state.getValue())).toBe(TEST_FILE_DATA)
+    })
+
+    it("should open the compare dialog instead of comparing loaded maps in a project with git", () => {
+        // Arrange
+        compareFacade.isAvailable.set(true)
+
+        // Act
+        fileSelectionModeService.toggle()
+
+        // Assert
+        expect(compareFacade.openDialog).toHaveBeenCalled()
+        expect(referenceFileSelector(state.getValue())).toBeUndefined()
+    })
+
+    it("should leave a delta of loaded maps as before in a project with git", () => {
+        // Arrange
+        compareFacade.isAvailable.set(true)
+        store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA, comparisonFile: TEST_FILE_DATA_JAVA }))
+
+        // Act
+        fileSelectionModeService.toggle()
+
+        // Assert
+        expect(compareFacade.openDialog).not.toHaveBeenCalled()
+        expect(state.getValue().files.find(fileState => fileState.file === TEST_FILE_DATA)?.selectedAs).toBe(FileSelectionState.Partial)
     })
 })

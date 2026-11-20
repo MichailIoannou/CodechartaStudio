@@ -36,7 +36,7 @@
         @if (workingFolder(); as folder) {
             <div class="grid gap-1.5 md:grid-cols-2">
                 <cc-working-folder-card [folder]="folder" [lastCommit]="commits()?.[0] ?? null" [now]="now()" (relink)="relink.start(folder)" />
-                <cc-analyses-card [snapshots]="workingSnapshots()" />
+                <cc-analyses-card [snapshots]="workingSnapshots()" [storeBytes]="storeBytes()" />
             </div>
 
             @if (folder.kind === "git" && recentCommits().length > 0) {

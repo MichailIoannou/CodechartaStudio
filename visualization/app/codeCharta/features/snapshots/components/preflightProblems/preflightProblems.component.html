@@ -1,0 +1,22 @@
+<div role="alert" class="alert items-start text-sm" [class.alert-error]="isBlocking()" [class.alert-warning]="!isBlocking()" data-testid="preflight-problems">
+    <i class="fa-solid fa-fw" [class.fa-circle-xmark]="isBlocking()" [class.fa-triangle-exclamation]="!isBlocking()"></i>
+    <div class="flex min-w-0 flex-col gap-1">
+        <span class="font-medium">The analysis cannot start:</span>
+        <ul class="list-disc pl-4">
+            @for (problem of problems(); track $index) {
+                <li class="break-words" [attr.data-testid]="'preflight-problem-' + problem.code">
+                    {{ problem.message }}
+                    @if (problem.severity === "warning") {
+                        <span class="opacity-80">(warning)</span>
+                    }
+                    @if (problem.hint) {
+                        <span class="block text-xs opacity-80">{{ problem.hint }}</span>
+                    }
+                    @if (problem.code === "WORKTREE_FAILED") {
+                        <code class="mt-1 block select-all rounded bg-base-100/60 px-2 py-1 font-mono text-xs text-base-content">{{ longPathsCommand }}</code>
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+</div>

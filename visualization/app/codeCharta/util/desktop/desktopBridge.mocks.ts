@@ -1,3 +1,6 @@
+import type { AnalysisJob } from "../../model/coreApi/AnalysisJob"
+import type { AnalysisTarget } from "../../model/coreApi/AnalysisTarget"
+import type { CompareIntent } from "../../model/coreApi/CompareIntent"
 import type { ErrorCode } from "../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
 import type { FolderRef } from "../../model/coreApi/FolderRef"
@@ -12,6 +15,8 @@ import type { GitRefs } from "../../model/coreApi/GitRefs"
 import type { GitRepositoryInfo } from "../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../model/coreApi/GitStatus"
 import type { GitWorkingTreeEntry } from "../../model/coreApi/GitWorkingTreeEntry"
+import type { JobError } from "../../model/coreApi/JobError"
+import type { JobProgress } from "../../model/coreApi/JobProgress"
 import type { NewFolder } from "../../model/coreApi/NewFolder"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
 import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
@@ -19,6 +24,7 @@ import type { Project } from "../../model/coreApi/Project"
 import type { ProjectView } from "../../model/coreApi/ProjectView"
 import type { PromptKind } from "../../model/coreApi/PromptKind"
 import type { ResolvedCommit } from "../../model/coreApi/ResolvedCommit"
+import type { SnapshotResolution } from "../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 import type { UpdateProjectParams } from "../../model/coreApi/UpdateProjectParams"
 import type { BridgeMethod, CoreState, DesktopBridge } from "./desktopBridge"
@@ -107,6 +113,11 @@ export interface FakeDesktopSeed {
     gitStatuses?: Record<string, GitStatus>
     gitLogs?: Record<string, GitCommitSummary[]>
     commits?: Record<string, ResolvedCommit[]>
+    analysisJobs?: AnalysisJob[]
+    snapshotLogs?: Record<string, string>
+    failedJobLogs?: Record<string, string>
+    /** By `<folderId>/<sha or "workingTree">`; answered until an analysis of that target finishes. */
+    resolutions?: Record<string, SnapshotResolution>
     now?: string
 }
 
@@ -120,6 +131,11 @@ export interface FakeDesktopBridge extends DesktopBridge {
     emit(event: string, payload: unknown): void
     respondWith(key: FakeAnswerKey, value: unknown): void
     failWith(key: FakeAnswerKey, error: ErrorPayload): void
+    startJob(jobId: string): void
+    reportProgress(jobId: string, progress: JobProgress): void
+    completeJob(jobId: string, snapshot?: SnapshotSummary): void
+    failJob(jobId: string, error: JobError, log?: string): void
+    setResolution(folder: FolderRef, target: AnalysisTarget, resolution: SnapshotResolution): void
 }
 
 interface FakeRequestParams extends Partial<UpdateProjectParams> {
@@ -133,9 +149,10 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     view?: ProjectView
     checksum?: string
     importToken?: string
-    target?: FolderRef | string | null
+    target?: FolderRef | AnalysisTarget | string | null
     candidates?: string[]
     force?: boolean
+    jobId?: string
     bindToCommit?: string | null
     toFolderId?: string
     hash?: string
@@ -147,6 +164,8 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     scope?: GitLogParams["scope"]
     filter?: GitLogParams["filter"]
     cursor?: string | null
+    intent?: CompareIntent
+    shownCommit?: string | null
     promptId?: string
     name?: string
     startPoint?: string
@@ -206,6 +225,10 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         snapshotMaps: { ...seed.snapshotMaps },
         git: JSON.parse(JSON.stringify(seed.git ?? {})) as Record<string, FakeGitRepository>,
         commits: { ...seed.commits },
+        jobs: JSON.parse(JSON.stringify(seed.analysisJobs ?? [])) as AnalysisJob[],
+        snapshotLogs: { ...seed.snapshotLogs },
+        failedJobLogs: { ...seed.failedJobLogs },
+        resolutions: JSON.parse(JSON.stringify(seed.resolutions ?? {})) as Record<string, SnapshotResolution>,
         heldOperations: new Map<string, FakeHeldOperation>(),
         createdIds: 0
     }
@@ -506,7 +529,11 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
             fileModifiedAt: file.fileModifiedAt,
             mapBytes: file.sizeBytes,
             checksum: null,
-            profileHash: null
+            profileHash: null,
+            target: null,
+            finishedAt: null,
+            durationMs: null,
+            notInMap: []
         }
     }
 
@@ -614,6 +641,16 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         const map = store.snapshotMaps[snapshotId]
         const offset = params.offset ?? 0
         return succeed({ bytes: new Uint8Array(map.slice(offset, offset + (params.length ?? 0))), offset, totalBytes: map.length })
+    }
+
+    function storeUsage(params: FakeRequestParams) {
+        const project = store.projects.find(candidate => candidate.id === params.projectId)
+        const folders = (project?.folders ?? []).map(folder => {
+            const snapshots = snapshotsOf(project?.id ?? "", folder.id)
+            const bytes = snapshots.reduce((total, snapshot) => total + snapshot.mapBytes, 0)
+            return { folderId: folder.id, snapshotCount: snapshots.length, bytes }
+        })
+        return succeed({ totalBytes: folders.reduce((total, folder) => total + folder.bytes, 0), folders })
     }
 
     function gitAnswer(method: FakeGitMethod, read: (repository: FakeGitRepository, params: FakeRequestParams) => unknown) {
@@ -1073,6 +1110,350 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return succeed(null)
     }
 
+    function findJob(jobId: string) {
+        return store.jobs.find(job => job.id === jobId)
+    }
+
+    function isPending(job: AnalysisJob) {
+        return job.state === "queued" || job.state === "running"
+    }
+
+    function targetKeyOf(target: AnalysisTarget) {
+        return target.kind === "commit" ? target.sha : "workingTree"
+    }
+
+    function announceJob(event: string, job: AnalysisJob) {
+        emit(event, { job: JSON.parse(JSON.stringify(job)) })
+    }
+
+    function enqueueAnalysis(params: FakeRequestParams) {
+        const target = params.target as AnalysisTarget
+        const key = `${params.projectId}/${params.folderId}/${targetKeyOf(target)}`
+        const queued = store.jobs.find(job => isPending(job) && `${job.projectId}/${job.folderId}/${targetKeyOf(job.target)}` === key)
+        if (queued) {
+            return succeed({ status: "alreadyQueued", job: JSON.parse(JSON.stringify(queued)) })
+        }
+        const job: AnalysisJob = {
+            id: nextId("job"),
+            batchId: null,
+            projectId: params.projectId ?? "",
+            folderId: params.folderId ?? "",
+            target,
+            profileHash: "0123456789abcdef",
+            state: "queued",
+            progress: { mode: "indeterminate" },
+            queuedAt: now,
+            startedAt: null,
+            finishedAt: null,
+            snapshotId: null,
+            error: null
+        }
+        store.jobs.push(job)
+        announceJob("analysis.queued", job)
+        return succeed({ status: "queued", job: JSON.parse(JSON.stringify(job)) })
+    }
+
+    function cancelAnalysis(params: FakeRequestParams) {
+        const job = findJob(params.jobId ?? "")
+        if (!job) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no job ${String(params.jobId)}.`)
+        }
+        if (isPending(job)) {
+            Object.assign(job, { state: "cancelled", finishedAt: now })
+            announceJob("analysis.cancelled", job)
+        }
+        return succeed(null)
+    }
+
+    function clearFinishedAnalyses() {
+        for (const job of store.jobs.filter(candidate => !isPending(candidate))) {
+            delete store.failedJobLogs[job.id]
+        }
+        store.jobs = store.jobs.filter(isPending)
+        return succeed(null)
+    }
+
+    function readFailedLog(params: FakeRequestParams) {
+        const jobId = params.jobId ?? ""
+        const isFailed = findJob(jobId)?.state === "failed"
+        return isFailed && Object.hasOwn(store.failedJobLogs, jobId)
+            ? succeed({ log: store.failedJobLogs[jobId] })
+            : refuse("NOT_FOUND", `There is no failed analysis ${jobId}.`)
+    }
+
+    function readSnapshotLog(params: FakeRequestParams) {
+        const snapshotId = params.snapshotId ?? ""
+        return Object.hasOwn(store.snapshotLogs, snapshotId)
+            ? succeed({ log: store.snapshotLogs[snapshotId] })
+            : refuse("NOT_FOUND", `The fake desktop bridge has no log for ${snapshotId}.`)
+    }
+
+    function analysedSnapshot(job: AnalysisJob): SnapshotSummary {
+        const commit = job.target.kind === "commit" ? job.target.sha : null
+        return {
+            ref: {
+                projectId: job.projectId,
+                folderId: job.folderId,
+                snapshotId: commit ? `${commit}-01234567` : "worktree-20260101T000000000Z-01234567"
+            },
+            source: "analysed",
+            createdAt: now,
+            commit,
+            shortCommit: commit ? commit.slice(0, 7) : null,
+            subject: null,
+            commitDate: null,
+            dirty: commit === null,
+            originalFileName: null,
+            fileModifiedAt: null,
+            mapBytes: 100,
+            checksum: null,
+            profileHash: job.profileHash,
+            target: job.target.kind,
+            finishedAt: now,
+            durationMs: 1000,
+            notInMap: []
+        }
+    }
+
+    function resolutionKeyOf(folderId: string, target: AnalysisTarget) {
+        return `${folderId}/${targetKeyOf(target)}`
+    }
+
+    function setResolution(folder: FolderRef, target: AnalysisTarget, resolution: SnapshotResolution) {
+        store.resolutions[resolutionKeyOf(folder.folderId, target)] = JSON.parse(JSON.stringify(resolution))
+    }
+
+    function headCommitOf(folderId: string) {
+        return store.git[folderId]?.status?.head.commit ?? null
+    }
+
+    function snapshotFor(snapshots: SnapshotSummary[], folderId: string, target: AnalysisTarget) {
+        const workingTree = target.kind === "workingTree" ? snapshots.find(snapshot => snapshot.target === "workingTree") : undefined
+        const sha = target.kind === "commit" ? target.sha : headCommitOf(folderId)
+        return workingTree ?? snapshots.find(snapshot => sha !== null && snapshot.commit === sha)
+    }
+
+    function resolveForCommit(params: FakeRequestParams) {
+        const folderId = params.folderId ?? ""
+        const target = params.target as AnalysisTarget
+        const scripted = store.resolutions[resolutionKeyOf(folderId, target)]
+        if (scripted) {
+            return succeed(JSON.parse(JSON.stringify(scripted)))
+        }
+        const snapshots = snapshotsOf(params.projectId ?? "", folderId).sort((first, second) =>
+            second.createdAt.localeCompare(first.createdAt)
+        )
+        const folder = store.projects.find(project => project.id === params.projectId)?.folders.find(candidate => candidate.id === folderId)
+        const match = snapshotFor(snapshots, folderId, target)
+        if (snapshots.length === 0) {
+            return succeed({ kind: "none", reason: "NO_SNAPSHOTS" })
+        }
+        if (folder?.kind === "plain") {
+            return succeed({ kind: "latest", snapshot: JSON.parse(JSON.stringify(snapshots[0])), reason: "PLAIN_FOLDER" })
+        }
+        return succeed(
+            match
+                ? { kind: "exact", snapshot: JSON.parse(JSON.stringify(match)), isCurrentProfile: match.source === "analysed" }
+                : { kind: "none", reason: "UNRELATED" }
+        )
+    }
+
+    function commitAtRevision(folderId: string, revision: string) {
+        const repository = Object.hasOwn(store.git, folderId) ? store.git[folderId] : undefined
+        if (revision === "HEAD") {
+            return repository?.status?.head.commit ?? repository?.refs?.head.commit ?? revision
+        }
+        const refs = repository?.refs
+        const named = [...(refs?.localBranches ?? []), ...(refs?.remoteBranches ?? []), ...(refs?.tags ?? [])].find(
+            ref => ref.refName === revision
+        )
+        return named ? named.commit : revision
+    }
+
+    function labelOfRevision(revision: string, sha: string) {
+        const prefixes = [
+            ["refs/heads/", "branch"],
+            ["refs/remotes/", "branch"],
+            ["refs/tags/", "tag"]
+        ]
+        const prefix = prefixes.find(([start]) => revision.startsWith(start))
+        return prefix ? { kind: prefix[1], name: revision.slice(prefix[0].length) } : { kind: "commit", name: sha.slice(0, 7) }
+    }
+
+    function commitsOf(folderId: string) {
+        return Object.hasOwn(store.git, folderId) ? (store.git[folderId].commits ?? []) : []
+    }
+
+    function reachedFrom(folderId: string, sha: string) {
+        return new Set(reachableCommits(commitsOf(folderId), [sha]).map(commit => commit.sha))
+    }
+
+    function nearestOf(folder: FolderRef, sha: string) {
+        const reached = reachedFrom(folder.folderId, sha)
+        const snapshots = snapshotsOf(folder.projectId, folder.folderId)
+        const ancestor = commitsOf(folder.folderId).find(
+            commit => commit.sha !== sha && reached.has(commit.sha) && snapshots.some(candidate => candidate.commit === commit.sha)
+        )
+        if (!ancestor) {
+            return null
+        }
+        const snapshot = snapshots.find(candidate => candidate.commit === ancestor.sha)
+        const fromAncestor = reachedFrom(folder.folderId, ancestor.sha)
+        const behind = [...reached].filter(reachedSha => !fromAncestor.has(reachedSha)).length
+        return { snapshot: JSON.parse(JSON.stringify(snapshot)), relation: "ancestor", staleBy: behind, behind, ahead: 0 }
+    }
+
+    function comparedSide(folder: FolderRef, revision: string) {
+        const sha = commitAtRevision(folder.folderId, revision)
+        const snapshot = snapshotsOf(folder.projectId, folder.folderId).find(candidate => candidate.commit === sha)
+        const requested = { folder, commit: sha, shortCommit: sha.slice(0, 7), label: labelOfRevision(revision, sha) }
+        const status = snapshot
+            ? { status: "exact", snapshot: JSON.parse(JSON.stringify(snapshot)) }
+            : { status: "missing", nearest: nearestOf(folder, sha) }
+        return { requested, status }
+    }
+
+    function comparedFolder(intent: CompareIntent): FolderRef {
+        return intent.kind === "explicit" ? intent.base.folder : intent.folder
+    }
+
+    function revisionOfTyped(folderId: string, name: string) {
+        const refs = Object.hasOwn(store.git, folderId) ? store.git[folderId].refs : undefined
+        if (name === "HEAD" || name.startsWith("refs/") || /^[0-9a-f]{40}$/.test(name)) {
+            return name
+        }
+        const named = [...(refs?.tags ?? []), ...(refs?.localBranches ?? []), ...(refs?.remoteBranches ?? [])].find(
+            ref => ref.name === name
+        )
+        const byPrefix = commitsOf(folderId).filter(commit => /^[0-9a-f]{4,}$/i.test(name) && commit.sha.startsWith(name.toLowerCase()))
+        return named?.refName ?? (byPrefix.length === 1 ? byPrefix[0].sha : null)
+    }
+
+    function branchTarget(folderId: string, branch: string, target: string | null) {
+        const repository = Object.hasOwn(store.git, folderId) ? store.git[folderId] : undefined
+        const current = repository?.refs?.localBranches.find(candidate => candidate.isCurrent)
+        if (target) {
+            return target
+        }
+        return current && current.refName !== branch ? current.refName : "refs/heads/main"
+    }
+
+    function comparedRevisions(intent: CompareIntent, shownCommit: string | null) {
+        const folder = comparedFolder(intent)
+        const commits = commitsOf(folder.folderId)
+        const positionOf = (revision: string) => commits.findIndex(commit => commit.sha === commitAtRevision(folder.folderId, revision))
+        switch (intent.kind) {
+            case "commits":
+                return positionOf(intent.b) > positionOf(intent.a) ? [intent.b, intent.a] : [intent.a, intent.b]
+            case "withParent": {
+                const parent = commits[positionOf(intent.commit)]?.parents[0]
+                return parent ? [parent, intent.commit] : null
+            }
+            case "withCurrent":
+                return [intent.commit, shownCommit ?? "HEAD"]
+            case "branch":
+                return [branchTarget(folder.folderId, intent.branch, intent.target), intent.branch]
+            case "explicit":
+                return [revisionOfTyped(folder.folderId, intent.base.rev.name), revisionOfTyped(folder.folderId, intent.head.rev.name)]
+            default:
+                return null
+        }
+    }
+
+    function mergeBaseOf(folderId: string, tip: string, head: string) {
+        const fromTip = reachedFrom(folderId, commitAtRevision(folderId, tip))
+        const fromHead = reachedFrom(folderId, commitAtRevision(folderId, head))
+        return commitsOf(folderId).find(commit => fromHead.has(commit.sha) && fromTip.has(commit.sha))?.sha ?? null
+    }
+
+    function usesMergeBase(intent: CompareIntent, base: string) {
+        const isNamedRef = base.startsWith("refs/")
+        return (intent.kind === "branch" || intent.kind === "explicit") && intent.baseMode === "mergeBase" && isNamedRef
+    }
+
+    function sizeVerdictOf(bytes: number) {
+        const megabyte = 1024 * 1024
+        if (bytes > 60 * megabyte) {
+            return "block"
+        }
+        return bytes > 15 * megabyte ? "warn" : "ok"
+    }
+
+    function resolveComparison(params: FakeRequestParams) {
+        const intent = params.intent as CompareIntent
+        const folder = comparedFolder(intent)
+        const revisions = comparedRevisions(intent, params.shownCommit ?? null)
+        if (!revisions) {
+            return refuse("UNKNOWN_REVISION", "The commit has no parent to compare with.")
+        }
+        if (revisions.some(revision => revision === null)) {
+            return refuse("UNKNOWN_REVISION", "The revision is not in the repository.")
+        }
+        const [baseRevision, headRevision] = revisions as string[]
+        const mergeBase = usesMergeBase(intent, baseRevision) ? mergeBaseOf(folder.folderId, baseRevision, headRevision) : null
+        const isTipTheMergeBase = mergeBase === commitAtRevision(folder.folderId, baseRevision)
+        const base = comparedSide(folder, mergeBase && !isTipTheMergeBase ? mergeBase : baseRevision)
+        const head = comparedSide(folder, headRevision)
+        const shown = [base, head].map(side =>
+            side.status.status === "exact" ? (side.status.snapshot as SnapshotSummary) : (side.status.nearest?.snapshot ?? null)
+        )
+        const checksums = shown.map(snapshot => snapshot?.checksum ?? null)
+        const combinedBytes = shown.reduce((total, snapshot) => total + (snapshot?.mapBytes ?? 0), 0)
+        const isSameCommit = base.requested.commit === head.requested.commit
+        return succeed({
+            status: { kind: isSameCommit ? "sameCommit" : "ready" },
+            origin: intent.kind === "branch" || (intent.kind === "explicit" && baseRevision.startsWith("refs/")) ? "branches" : "commits",
+            baseMode: mergeBase ? "mergeBase" : "tip",
+            base,
+            head,
+            baseTip: mergeBase ? comparedSide(folder, baseRevision).requested : null,
+            preflight: {
+                identicalChecksums: checksums[0] !== null && checksums[0] === checksums[1],
+                profilesDiffer: false,
+                combinedBytes,
+                sizeVerdict: sizeVerdictOf(combinedBytes)
+            }
+        })
+    }
+
+    function startJob(jobId: string) {
+        const job = findJob(jobId)
+        if (job) {
+            Object.assign(job, { state: "running", startedAt: now })
+            announceJob("analysis.started", job)
+        }
+    }
+
+    function reportProgress(jobId: string, progress: JobProgress) {
+        const job = findJob(jobId)
+        if (job) {
+            job.progress = progress
+            emit("analysis.progress", { jobId, progress })
+        }
+    }
+
+    function completeJob(jobId: string, snapshot?: SnapshotSummary) {
+        const job = findJob(jobId)
+        if (!job) {
+            return
+        }
+        const summary: SnapshotSummary = JSON.parse(JSON.stringify(snapshot ?? analysedSnapshot(job)))
+        store.snapshots.push(summary)
+        delete store.resolutions[resolutionKeyOf(job.folderId, job.target)]
+        Object.assign(job, { state: "done", finishedAt: now, snapshotId: summary.ref.snapshotId })
+        announceJob("analysis.finished", job)
+        emit("snapshots.changed", { projectId: job.projectId, folderId: job.folderId })
+    }
+
+    function failJob(jobId: string, error: JobError, log?: string) {
+        const job = findJob(jobId)
+        if (job) {
+            Object.assign(job, { state: "failed", finishedAt: now, error })
+            store.failedJobLogs[jobId] = log ?? error.message
+            announceJob("analysis.failed", job)
+        }
+    }
+
     const backend: Partial<Record<FakeAnswerKey, (params: FakeRequestParams) => FakeAnswer>> = {
         "store.status": () => succeed({ problem: null }),
         "projects.list": () => succeed({ projects: store.projects.map(summaryOf) }),
@@ -1100,11 +1481,21 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "snapshots.import": importSnapshot,
         "snapshots.move": moveSnapshot,
         "snapshots.readMapChunk": readMapChunk,
+        "snapshots.usage": storeUsage,
         "git.repositoryInfo": gitAnswer("git.repositoryInfo", repository => repository.info),
         "git.status": gitAnswer("git.status", repository => repository.status),
         "git.branches": gitAnswer("git.branches", repository => repository.refs),
         "git.refsFingerprint": gitAnswer("git.refsFingerprint", repository => repository.refs?.fingerprint),
         "git.log": gitAnswer("git.log", gitLogPage),
+        "snapshots.readLog": readSnapshotLog,
+        "snapshots.resolveForCommit": resolveForCommit,
+        "compare.resolve": resolveComparison,
+        "analysis.preflight": () => succeed({ ok: true, problems: [] }),
+        "analysis.enqueue": enqueueAnalysis,
+        "analysis.cancel": cancelAnalysis,
+        "analysis.list": () => succeed({ jobs: JSON.parse(JSON.stringify(store.jobs)) }),
+        "analysis.clearFinished": clearFinishedAnalyses,
+        "analysis.readLog": readFailedLog,
         "git.commitDetails": gitAnswer("git.commitDetails", gitCommitDetails),
         "git.measureDistances": gitAnswer("git.measureDistances", gitDistances),
         "git.resolveCommit": gitAnswer("git.resolveCommit", (repository, params) => {
@@ -1168,6 +1559,11 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         failWith: (key, error) => {
             failures[key] = error
         },
+        startJob,
+        reportProgress,
+        completeJob,
+        failJob,
+        setResolution,
         protocolVersion: seed.protocolVersion ?? FALLBACK_PROTOCOL_VERSION,
         request: ((method: BridgeMethod, params: unknown, options?: { operationId?: string }) => {
             const slow = slowOperationOf(method, params)

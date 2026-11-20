@@ -1,0 +1,28 @@
+<dialog #dialog class="modal" aria-labelledby="analysis-log-title" data-testid="analysis-log-dialog">
+    <div class="modal-box max-w-3xl">
+        <h2 id="analysis-log-title" class="mb-4 truncate text-xl font-bold" [title]="title()">{{ title() }}</h2>
+
+        @if (log() !== null) {
+            <pre class="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-md bg-base-200 p-2 font-mono text-xs" data-testid="analysis-log-text">{{ log() }}</pre>
+        } @else if (failureMessage(); as message) {
+            <p role="alert" class="text-sm text-error" data-testid="analysis-log-unreadable">The log could not be read: {{ message }}</p>
+        } @else {
+            <div class="flex flex-col gap-2" data-testid="analysis-log-loading">
+                <div class="skeleton h-3 w-3/4"></div>
+                <div class="skeleton h-3 w-1/2"></div>
+                <div class="skeleton h-3 w-2/3"></div>
+            </div>
+        }
+
+        <div class="modal-action">
+            <button type="button" class="btn" data-testid="analysis-log-copy" [disabled]="log() === null" (click)="copyLog()">
+                <i class="fa-regular fa-copy fa-fw"></i>
+                {{ isCopied() ? "Copied" : "Copy log" }}
+            </button>
+            <button type="button" class="btn" data-testid="analysis-log-close" (click)="close()">Close</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>

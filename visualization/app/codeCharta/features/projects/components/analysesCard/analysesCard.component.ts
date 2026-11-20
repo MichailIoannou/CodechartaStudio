@@ -2,7 +2,7 @@ import { NgTemplateOutlet } from "@angular/common"
 import { ChangeDetectionStrategy, Component, computed, inject, input } from "@angular/core"
 import type { SnapshotSummary } from "../../../../model/coreApi/SnapshotSummary"
 import { ProjectsService } from "../../services/projects.service"
-import { shortDate } from "../../util/folderWording"
+import { byteSize, durationText, shortDate } from "../../util/folderWording"
 
 interface SnapshotLine {
     shortCommit: string | null
@@ -21,6 +21,7 @@ export class AnalysesCardComponent {
     private readonly projects = inject(ProjectsService)
 
     readonly snapshots = input.required<SnapshotSummary[]>()
+    readonly storeBytes = input<number | null>(null)
 
     readonly inTheMap = computed(() => {
         const shown = this.projects.shownSnapshot()
@@ -30,7 +31,11 @@ export class AnalysesCardComponent {
         const newest = this.snapshots()[0]
         return newest ? { ...lineOf(newest), when: latestWhen(newest) } : null
     })
-    readonly analysesCount = computed(() => String(this.snapshots().length))
+    readonly analysesCount = computed(() => {
+        const bytes = this.storeBytes()
+        const count = String(this.snapshots().length)
+        return bytes === null ? count : `${count} · ${byteSize(bytes)}`
+    })
 
     showMap() {
         this.projects.showMap()
@@ -45,5 +50,6 @@ function latestWhen(snapshot: SnapshotSummary): string {
     if (snapshot.source === "imported") {
         return `analysis time unknown (imported ${shortDate(snapshot.createdAt)})`
     }
-    return shortDate(snapshot.createdAt)
+    const date = shortDate(snapshot.finishedAt ?? snapshot.createdAt)
+    return snapshot.durationMs === null ? date : `${date} · took ${durationText(snapshot.durationMs)}`
 }

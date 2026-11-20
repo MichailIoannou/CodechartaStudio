@@ -5,6 +5,7 @@ import { CredentialPromptDialogComponent } from "../features/gitHistory/facade"
 import { NavBarComponent } from "../features/navBar/facade"
 import { FileDropOverlayComponent, ProjectsBootService } from "../features/projects/facade"
 import { BootLoadingIndicatorComponent, ErrorDialogComponent, ToastComponent } from "../features/shared/facade"
+import { SnapshotNoticeComponent } from "../features/snapshots/facade"
 
 @Component({
     selector: "cc-code-charta",
@@ -17,6 +18,7 @@ import { BootLoadingIndicatorComponent, ErrorDialogComponent, ToastComponent } f
         RouterOutlet,
         BootLoadingIndicatorComponent,
         FileDropOverlayComponent,
+        SnapshotNoticeComponent,
         CredentialPromptDialogComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush

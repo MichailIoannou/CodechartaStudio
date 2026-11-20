@@ -8,6 +8,9 @@ const SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i
 const SCP_LIKE = /^[^@/]+@([^:/]+):(.+)$/
 const GIT_SUFFIX = /\.git$/
 const TRAILING_SLASH = /\/+$/
+const SECONDS_PER_MINUTE = 60
+const MS_PER_SECOND = 1000
+const SECONDS_PER_HOUR = 3600
 const BYTES_PER_KB = 1000
 const BYTE_UNITS = ["B", "kB", "MB", "GB", "TB"]
 
@@ -71,6 +74,17 @@ export function fileDate(timestamp: string): string {
     const date = new Date(timestamp)
     const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
     return `${longDate(timestamp)}, ${time}`
+}
+
+export function durationText(milliseconds: number): string {
+    const seconds = Math.round(milliseconds / MS_PER_SECOND)
+    const hours = Math.floor(seconds / SECONDS_PER_HOUR)
+    const minutes = Math.floor((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE)
+    const rest = seconds % SECONDS_PER_MINUTE
+    if (hours > 0) {
+        return `${hours} h ${minutes} min`
+    }
+    return minutes > 0 ? `${minutes} min ${rest} s` : `${rest} s`
 }
 
 function operationName(status: GitStatus): string {

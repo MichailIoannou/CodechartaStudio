@@ -45,7 +45,12 @@ export class CommitContextMenuComponent {
     readonly target = input.required<CommitMenuTarget>()
     readonly closed = output<CommitMenuClosing>()
 
-    readonly actions = computed(() => this.actionsService.offeredFor(this.target().selection))
+    readonly actions = computed(() => {
+        const { selection } = this.target()
+        return this.actionsService
+            .offeredFor(selection)
+            .map(action => ({ action, disabledReason: action.disabledReasonFor?.(selection) ?? null }))
+    })
     readonly commit = computed(() => {
         const item = this.target().item
         return item.kind === "commit" ? item.commit : null
