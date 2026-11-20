@@ -57,6 +57,9 @@ export interface CCFile {
     fileMeta: FileMeta
 }
 
+/** Which files a comparison shows unflattened: the paths git reports, or the leaves whose metrics changed. */
+export type ChangedFilesFilter = { source: "git"; paths: string[] } | { source: "metrics" }
+
 export interface FileCount {
     all?: number
     added: number

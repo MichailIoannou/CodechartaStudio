@@ -1,5 +1,6 @@
 import { combineReducers } from "@ngrx/store"
 import { SharedView } from "../../../model/codeCharta.model"
+import { changedFilesFilter, defaultChangedFilesFilter } from "./changedFilesFilter/changedFilesFilter.reducer"
 import { defaultExcludedNodes, excludedNodes } from "./excludedNodes/excludedNodes.reducer"
 import { defaultFlattenedNodes, flattenedNodes } from "./flattenedNodes/flattenedNodes.reducer"
 import { defaultFocusedNodePath, focusedNodePath } from "./focusedNodePath/focusedNodePath.reducer"
@@ -23,7 +24,8 @@ export const sharedView = combineReducers({
     hoveredFileExtensions,
     keptHighlightPaths,
     selectedNodePath,
-    rightClickedNodeData
+    rightClickedNodeData,
+    changedFilesFilter
 })
 
 export const defaultSharedView: SharedView = {
@@ -37,5 +39,6 @@ export const defaultSharedView: SharedView = {
     hoveredFileExtensions: defaultHoveredFileExtensions,
     keptHighlightPaths: defaultKeptHighlightPaths,
     selectedNodePath: defaultSelectedNodePath,
-    rightClickedNodeData: defaultRightClickedNodeData
+    rightClickedNodeData: defaultRightClickedNodeData,
+    changedFilesFilter: defaultChangedFilesFilter
 }

@@ -14,6 +14,7 @@ import { ViewId } from "../../../../routing/routePaths"
 import { ViewReadinessStore } from "../../../../routing/viewReadiness.store"
 import { isThreeDimensionalLayoutSelector } from "../../../../stores/mapState/mapState.read.facade"
 import { setInvertArea } from "../../../../stores/mapState/mapState.write.facade"
+import { setChangedFilesFilter } from "../../../../stores/sharedView/sharedView.write.facade"
 import { wait } from "../../../../util/testUtils/wait"
 import { CodeMapRenderService } from "../../codeMap.render.service"
 import { maxFPS, RenderCodeMapEffect } from "./renderCodeMap.effect"
@@ -82,6 +83,15 @@ describe("renderCodeMapEffect", () => {
         await wait(maxFPS)
         expect(codeMapRenderService.load).toHaveBeenCalledTimes(1)
         expect(threeRendererService.render).toHaveBeenCalledTimes(1)
+    })
+
+    it("should re-render when the filter changes", async () => {
+        // Act
+        actions$.next(setChangedFilesFilter({ value: { source: "metrics" } }))
+        await wait(maxFPS)
+
+        // Assert
+        expect(codeMapRenderService.load).toHaveBeenCalledTimes(1)
     })
 
     it("should leave the 3D map alone while another layout is shown, and still report the render", async () => {

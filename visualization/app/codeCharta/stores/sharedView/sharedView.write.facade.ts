@@ -1,3 +1,4 @@
+export { setChangedFilesFilter } from "./store/changedFilesFilter/changedFilesFilter.actions"
 export {
     addExcludedNodes,
     addExcludedNodesIfNotResultsInEmptyMap,

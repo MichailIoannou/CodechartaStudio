@@ -1,3 +1,4 @@
+export { changedFilesFilterSelector } from "./store/changedFilesFilter/changedFilesFilter.selector"
 export { excludedNodesSelector } from "./store/excludedNodes/excludedNodes.selector"
 export { excludeMatcherSelector } from "./store/excludedNodes/excludeMatcher.selector"
 export { flattenedNodesSelector, sortedFlattenedNodesSelector } from "./store/flattenedNodes/flattenedNodes.selector"
