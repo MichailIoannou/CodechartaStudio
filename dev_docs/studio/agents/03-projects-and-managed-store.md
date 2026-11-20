@@ -612,5 +612,5 @@ Acceptance: in the desktop app, create a project with two folders, restart, land
 
 ## Open questions for the owner
 
-1. **May the "open local source files" preference be bypassed for project maps?** Default: yes — a project folder is an explicit link, so source opening is always on for project maps; the experimental switch keeps governing uploaded maps in the web build.
-2. **How many folders may be shown side by side?** Default: no limit; D6's "one or two maps in memory" becomes "as many as the user checked", with no warning.
+1. ~~**May the "open local source files" preference be bypassed for project maps?**~~ **Decided by the owner (2026-11-18):** yes — a project folder is an explicit link, so source opening is always on for project maps; the experimental switch keeps governing uploaded maps in the web build.
+2. ~~**How many folders may be shown side by side?**~~ **Moot (OD1): one working folder at a time.** Former default: no limit; D6's "one or two maps in memory" becomes "as many as the user checked", with no warning.

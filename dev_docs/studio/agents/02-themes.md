@@ -580,4 +580,4 @@ On Windows, `npm run build && npm run package:local` in `visualization/`, then s
 
 ## Open questions for the owner
 
-1. **Quick toggle in the top bar?** Assumed: yes, added in M5.4 (toggles between CodeCharta Light and CodeCharta Dark); drop that task if the bar should stay minimal.
+1. ~~**Quick toggle in the top bar?** Assumed: yes, added in M5.4 (toggles between CodeCharta Light and CodeCharta Dark); drop that task if the bar should stay minimal.~~ Decided by the owner (2026-11-18): see OD10.

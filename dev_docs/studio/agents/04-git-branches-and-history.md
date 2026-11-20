@@ -931,7 +931,9 @@ Interactive rebase, `rebase --continue/--skip`, reset, cherry-pick, revert; hunk
 | Thousands of refs. | Tips via stdin; tree groups capped at 200; refs cached by fingerprint. |
 | Git fixture tests slow or flaky. | One fixture per test module where possible, no network, isolated config, `fast-import` for long histories. |
 
-Open, proceeding on the default: commit order by date (Rider) rather than topological; no refresh while focused beyond focus, Refresh, `repository.changed` and post-operation refresh.
+Decided by the owner (2026-11-18): commit order by date (Rider), not topological.
+
+Open, proceeding on the default: no refresh while focused beyond focus, Refresh, `repository.changed` and post-operation refresh.
 
 ## 9. Notes
 
