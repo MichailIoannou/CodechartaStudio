@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process"
+import { execFileSync, spawn } from "node:child_process"
 import { once } from "node:events"
 import { access, copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -13,6 +13,9 @@ const TOOL_COUNT = 5
 const SAMPLE_MAP = join(__dirname, "..", "app", "codeCharta", "assets", "sample1.cc.json")
 const MAP_CHUNK_BYTES = 16 * 1024 * 1024
 const GZIP_MAGIC_BYTES = [31, 139]
+const ANALYSIS_TIMEOUT_MS = 60_000
+const FAKE_CCSH = join(__dirname, "..", "..", "core", "target", "debug", `fake-ccsh${process.platform === "win32" ? ".exe" : ""}`)
+const GIT_IDENTITY = ["-c", "user.name=CodeCharta Test", "-c", "user.email=test@codecharta.invalid", "-c", "commit.gpgsign=false"]
 const BRIDGE_KEYS = [
     "cancel",
     "chooseStoreRoot",
@@ -394,4 +397,60 @@ test("should inspect a dropped cc.json file once the native confirmation is acce
     expect(await desktopApp.evaluate(() => (globalThis as any).confirmations)).toEqual([
         `Open 'sample1.cc.json' from '${join(userDataDir, "dropped")}'?`
     ])
+})
+
+async function gitRepositoryWithOneCommit(folder: string) {
+    await mkdir(join(folder, "src"), { recursive: true })
+    await writeFile(join(folder, "src", "app.ts"), "export const answer = 42\n")
+    const git = (...args: string[]) => execFileSync("git", [...GIT_IDENTITY, ...args], { cwd: folder, stdio: "ignore" })
+    git("init", "-q")
+    git("add", ".")
+    git("commit", "-q", "-m", "Start")
+}
+
+/** fake-ccsh answers like ccsh 2.4.0 and a JDK 25, and writes a map, so no real ccsh or Java is needed. */
+async function useFakeCcsh() {
+    const scenarioFile = join(userDataDir, "fake-ccsh-scenario.json")
+    await writeFile(scenarioFile, JSON.stringify({ write_map: true }))
+    await writeFile(
+        join(userDataDir, "core-settings.json"),
+        JSON.stringify({ schemaVersion: 1, toolPaths: { ccsh: FAKE_CCSH, java: FAKE_CCSH } })
+    )
+    return { FAKE_CCSH_SCENARIO: scenarioFile }
+}
+
+function finishedSnapshotId(page: Page): Promise<string | null> {
+    return page.evaluate(async () => {
+        const { value } = await (window as any).codeChartaDesktop.request("analysis.list", {})
+        return value.jobs.find((job: any) => job.state === "done")?.snapshotId ?? null
+    })
+}
+
+test("should create a snapshot folder in a temporary store", async () => {
+    // Arrange
+    const repository = join(userDataDir, "work", "demo")
+    await gitRepositoryWithOneCommit(repository)
+    const page = await bootedWindow(await useFakeCcsh())
+    await pickWithTheNativeDialog(repository)
+    const folderRef = await page.evaluate(async () => {
+        const bridge = (window as any).codeChartaDesktop
+        const picked = await bridge.request("projects.pickFolder", { title: "Add Folder" })
+        const folder = { pickToken: picked.value.pickToken, label: picked.value.suggestedLabel, role: "primary" }
+        const created = await bridge.request("projects.create", { name: "Demo", folders: [folder] })
+        await bridge.request("projects.setActive", { projectId: created.value.id })
+        return { projectId: created.value.id, folderId: created.value.folders[0].id }
+    })
+    await page.reload()
+    await waitForBoot(page)
+
+    // Act
+    await page.getByTestId("workspace-status-trigger").click()
+    await page.getByTestId("workspace-status-analyse").click()
+
+    // Assert
+    await expect.poll(() => finishedSnapshotId(page), { timeout: ANALYSIS_TIMEOUT_MS }).not.toBeNull()
+    const snapshotId = await finishedSnapshotId(page)
+    const snapshotFolder = join(userDataDir, "store", "projects", folderRef.projectId, "snapshots", folderRef.folderId, snapshotId ?? "")
+    await expect(access(join(snapshotFolder, "snapshot.json"))).resolves.toBeUndefined()
+    await expect(page.getByTestId("workspace-status-trigger")).not.toContainText("not analysed")
 })
