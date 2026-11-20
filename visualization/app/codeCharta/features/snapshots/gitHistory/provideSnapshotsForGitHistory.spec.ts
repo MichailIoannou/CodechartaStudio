@@ -4,6 +4,7 @@ import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import { ANALYSED_COMMITS, AnalysedCommitMarker, COMMIT_ACTIONS, CommitSelection, LOADED_MAP_LOCATOR } from "../../gitHistory/facade"
 import { ProjectsFacade } from "../../projects/facade"
 import type { SelectedTarget } from "../model/snapshotTarget"
+import { BatchAnalysisDialogService } from "../services/batchAnalysisDialog.service"
 import { SnapshotBadgeProvider } from "../services/snapshotBadgeProvider.service"
 import { SnapshotCatalogService } from "../services/snapshotCatalog.service"
 import { SnapshotMapLocator } from "../services/snapshotMapLocator.service"
@@ -54,13 +55,17 @@ describe("provideSnapshotsForGitHistory", () => {
                 { provide: SnapshotMapLocator, useValue: { nodePathOf: () => null } },
                 { provide: SnapshotViewService, useValue: { analyse, showCommit, showCurrentCheckout, target, status } },
                 { provide: SnapshotCatalogService, useValue: { snapshots } },
-                { provide: ProjectsFacade, useValue: { showMap } }
+                {
+                    provide: ProjectsFacade,
+                    useValue: { showMap, activeProject: signal({ folders: [{ id: "f-api", label: "billing-api" }] }) }
+                }
             ]
         })
         const actions = TestBed.inject(COMMIT_ACTIONS)
         return {
             analyseCommit: actions.find(action => action.id === "snapshots.analyseCommit"),
             analyseWorkingTree: actions.find(action => action.id === "snapshots.analyseWorkingTree"),
+            analyseLastCommits: actions.find(action => action.id === "snapshots.analyseLastCommits"),
             showInMap: actions.find(action => action.id === "snapshots.showInMap"),
             actions
         }
@@ -76,6 +81,7 @@ describe("provideSnapshotsForGitHistory", () => {
         expect(actions.map(action => [action.label, action.detailsLabel, action.icon, action.hoverHint, action.isPrimary])).toEqual([
             ["Show in Map", "Show in map", "fa-solid fa-map", "", true],
             ["Analyse This Commit", "Analyse this commit", "fa-solid fa-play", "Run ccsh on this commit in a temporary worktree", false],
+            ["Analyse the Last Commits from Here…", undefined, "fa-solid fa-layer-group", "Analyse several commits of this line", false],
             ["Analyse Working Tree", undefined, "fa-solid fa-play", "Analyse the files as they are on disk now", false]
         ])
     })
@@ -122,6 +128,24 @@ describe("provideSnapshotsForGitHistory", () => {
         // Assert
         expect(analyse).toHaveBeenCalledTimes(1)
         expect(analyse).toHaveBeenCalledWith({ folder: API, target: { kind: "commit", sha: COMMIT_SHA }, surface: "status" })
+    })
+
+    it("should open the batch dialog counting back from one selected commit", () => {
+        // Arrange
+        const { analyseLastCommits } = provided()
+        const workingTree: CommitSelection = { repo: API, items: [{ kind: "workingTree", status: STATUS }] }
+
+        // Act
+        analyseLastCommits?.run(oneCommit())
+
+        // Assert
+        expect(analyseLastCommits?.isOfferedFor(oneCommit())).toBe(true)
+        expect(analyseLastCommits?.isOfferedFor(workingTree)).toBe(false)
+        expect(TestBed.inject(BatchAnalysisDialogService).current()).toEqual({
+            folder: API,
+            folderLabel: "billing-api",
+            tipSha: COMMIT_SHA
+        })
     })
 
     it("should offer and queue an analysis of the working tree from the uncommitted changes", () => {

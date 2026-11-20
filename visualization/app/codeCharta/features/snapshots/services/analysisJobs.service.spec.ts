@@ -80,6 +80,48 @@ describe("AnalysisJobsService", () => {
         expect(service.jobs()).toEqual([])
     })
 
+    it("should only estimate a batch on a preview and queue its jobs with a label on start", async () => {
+        // Arrange
+        const shas = ["c", "b"].map(seed => seed.repeat(40))
+        const commits = shas.map(sha => ({
+            sha,
+            parents: [],
+            authorName: "Mia",
+            authorEmail: "m@x",
+            authoredAt: 1,
+            committedAt: 1,
+            subject: "s"
+        }))
+        const service = await createService({ gitLogs: { "f-api": commits } })
+        const selection = { kind: "lastCommits" as const, tipSha: shas[0], count: 2, firstParentOnly: true }
+
+        // Act
+        const preview = await service.previewBatch(FOLDER, selection)
+        const jobsAfterPreview = service.jobs().length
+        const started = await service.startBatch(FOLDER, selection, "last 2 commits of main")
+
+        // Assert
+        expect(preview.toAnalyse).toEqual(shas)
+        expect(jobsAfterPreview).toBe(0)
+        expect(service.jobs().map(job => job.batchId)).toEqual([started.batchId, started.batchId])
+        expect(service.batchLabelOf(started.batchId ?? "")).toBe("last 2 commits of main")
+        expect(service.batchLabelOf("batch-unknown")).toBeNull()
+    })
+
+    it("should cancel a batch", async () => {
+        // Arrange
+        const service = await createService({ analysisJobs: [aJob("job-1", { batchId: "batch-1" })] })
+
+        // Act
+        await service.cancelBatch("batch-1")
+
+        // Assert
+        expect(bridge.calls.filter(call => call.args[0] === "analysis.cancelBatch").map(call => call.args[1])).toEqual([
+            { batchId: "batch-1" }
+        ])
+        expect(service.jobs()[0].state).toBe("cancelled")
+    })
+
     it("should reload the jobs when the core is ready again", async () => {
         // Arrange
         const service = await createService({ analysisJobs: [aJob("job-1")] })

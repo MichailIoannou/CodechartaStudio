@@ -1,5 +1,7 @@
 import { inject } from "@angular/core"
 import type { CommitAction, CommitSelection } from "../../gitHistory/facade"
+import { ProjectsFacade } from "../../projects/facade"
+import { BatchAnalysisDialogService } from "../services/batchAnalysisDialog.service"
 import { SnapshotBadgeProvider } from "../services/snapshotBadgeProvider.service"
 import { SnapshotViewService } from "../services/snapshotView.service"
 
@@ -27,6 +29,24 @@ export function analyseThisCommitAction(): CommitAction {
             if (sha) {
                 void view.analyse({ folder: selection.repo, target: { kind: "commit", sha }, surface: "status" })
             }
+        }
+    }
+}
+
+/** Design S5: "Analyse the Last Commits from Here…" opens the batch dialog counting back from this commit. */
+export function analyseLastCommitsAction(): CommitAction {
+    const batchDialog = inject(BatchAnalysisDialogService)
+    const projects = inject(ProjectsFacade)
+    return {
+        id: "snapshots.analyseLastCommits",
+        label: "Analyse the Last Commits from Here…",
+        icon: "fa-solid fa-layer-group",
+        hoverHint: "Analyse several commits of this line",
+        isPrimary: false,
+        isOfferedFor: selection => singleCommitShaOf(selection) !== null,
+        run: selection => {
+            const folderLabel = projects.activeProject()?.folders.find(folder => folder.id === selection.repo.folderId)?.label ?? ""
+            batchDialog.show({ folder: selection.repo, folderLabel, tipSha: singleCommitShaOf(selection) })
         }
     }
 }

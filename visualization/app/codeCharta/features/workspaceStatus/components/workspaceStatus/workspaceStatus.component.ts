@@ -24,6 +24,7 @@ import { changesSentence, ProjectsFacade, shortDate } from "../../../projects/fa
 import {
     AnalysisJobsService,
     AnalysisLogDialogComponent,
+    BatchAnalysisDialogService,
     isPendingJob,
     SnapshotCatalogService,
     SnapshotsDialogService,
@@ -110,6 +111,9 @@ export class WorkspaceStatusComponent {
             }
         })
         this.jobsService.outcomes$.pipe(takeUntilDestroyed()).subscribe(job => this.showOutcome(job))
+        inject(BatchAnalysisDialogService)
+            .batchStarted$.pipe(takeUntilDestroyed())
+            .subscribe(() => this.open())
         inject(DestroyRef).onDestroy(() => clearTimeout(this.finishedTimer))
     }
 

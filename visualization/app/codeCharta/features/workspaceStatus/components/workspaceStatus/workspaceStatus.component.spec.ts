@@ -5,7 +5,7 @@ import type { GitStatus } from "../../../../model/coreApi/GitStatus"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aProject, aSnapshot } from "../../../projects/projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../../projects/projectsTestBed.mocks"
-import { SnapshotsDialogService } from "../../../snapshots/facade"
+import { BatchAnalysisDialogService, SnapshotsDialogService } from "../../../snapshots/facade"
 import { aJob } from "../../../snapshots/snapshots.mocks"
 import { WorkspaceStatusComponent } from "./workspaceStatus.component"
 
@@ -328,6 +328,18 @@ describe("WorkspaceStatusComponent", () => {
         expect(afterEscape).toBeNull()
         expect(focusedAfterEscape).toBe(trigger())
         expect(screen.queryByTestId("workspace-status-menu")).toBeNull()
+    })
+
+    it("should open its activity when a batch was started", async () => {
+        // Arrange
+        await renderStatus({ analysisJobs: [aJob("job-1", { batchId: "batch-1" })] })
+
+        // Act
+        TestBed.inject(BatchAnalysisDialogService).announceStarted("batch-1")
+        await settle()
+
+        // Assert
+        expect(within(screen.getByTestId("workspace-status-menu")).getByTestId("activity-batch")).toBeTruthy()
     })
 
     it("should go to the project overview", async () => {

@@ -5,7 +5,12 @@ import { Export3DMapDialogComponent, Export3DMapDialogStore } from "../../../3dP
 import { CompareFacade, CompareHostComponent, ComparisonChipComponent } from "../../../compare/facade"
 import { ProjectSwitcherComponent, ProjectsFacade } from "../../../projects/facade"
 import { HEIGHT_CSS_VARIABLE, PublishesHeightDirective } from "../../../shared/facade"
-import { SnapshotsDialogComponent, SnapshotsDialogService } from "../../../snapshots/facade"
+import {
+    BatchAnalysisDialogComponent,
+    BatchAnalysisDialogService,
+    SnapshotsDialogComponent,
+    SnapshotsDialogService
+} from "../../../snapshots/facade"
 import { WorkspaceStatusComponent } from "../../../workspaceStatus/facade"
 import { DeltaSelectorComponent } from "../deltaSelector/deltaSelector.component"
 import { MapSelectorComponent } from "../mapSelector/mapSelector.component"
@@ -28,6 +33,7 @@ import { ViewSwitcherComponent } from "../viewSwitcher/viewSwitcher.component"
         ProjectSwitcherComponent,
         WorkspaceStatusComponent,
         SnapshotsDialogComponent,
+        BatchAnalysisDialogComponent,
         ComparisonChipComponent,
         CompareHostComponent
     ],
@@ -39,6 +45,7 @@ export class NavBarComponent {
     private readonly fileStoreReadWindow = inject(FileStoreReadWindow)
     private readonly export3DMapDialogStore = inject(Export3DMapDialogStore)
     private readonly projectsFacade = inject(ProjectsFacade)
+    private readonly batchDialog = inject(BatchAnalysisDialogService)
     private readonly files = toSignal(this.fileStoreReadWindow.files$, { requireSync: true })
 
     isDeltaState = toSignal(this.fileStoreReadWindow.isDeltaState$, { requireSync: true })
@@ -50,6 +57,7 @@ export class NavBarComponent {
     /** Hosted here rather than in the print button, which the mode bar unmounts on mouse-out. */
     readonly isExportDialogOpen = this.export3DMapDialogStore.isDialogOpen
     readonly isSnapshotsDialogOpen = inject(SnapshotsDialogService).isOpen
+    readonly isBatchDialogOpen = computed(() => this.batchDialog.current() !== null)
 
     closeExportDialog() {
         this.export3DMapDialogStore.closeDialog()

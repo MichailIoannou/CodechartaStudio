@@ -5,6 +5,7 @@ import type { GitStatus } from "../../../../model/coreApi/GitStatus"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aProject, aSnapshot } from "../../../projects/projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../../projects/projectsTestBed.mocks"
+import { BatchAnalysisDialogService } from "../../services/batchAnalysisDialog.service"
 import { SnapshotsDialogService } from "../../services/snapshotsDialog.service"
 import { COMMIT_SHA } from "../../snapshots.mocks"
 import { SnapshotsDialogComponent } from "./snapshotsDialog.component"
@@ -189,6 +190,20 @@ describe("SnapshotsDialogComponent", () => {
         expect(head.disabled).toBe(true)
         expect(head.title).toBe("Not a git repository")
         expect(enqueued()).toEqual([{ projectId: "p-billing", folderId: "f-out", target: { kind: "workingTree" }, force: false }])
+    })
+
+    it("should open the batch dialog for the chosen git folder only", async () => {
+        // Arrange
+        await openDialog()
+
+        // Act
+        await userEvent.click(screen.getByTestId("snapshots-analyse-several"))
+        const request = TestBed.inject(BatchAnalysisDialogService).current()
+        await userEvent.selectOptions(screen.getByTestId("snapshots-folder"), "f-out")
+
+        // Assert
+        expect(request).toEqual({ folder: { projectId: "p-billing", folderId: "f-api" }, folderLabel: "billing-api", tipSha: null })
+        expect((screen.getByTestId("snapshots-analyse-several") as HTMLButtonElement).disabled).toBe(true)
     })
 
     it("should re-analyse a snapshot with force", async () => {

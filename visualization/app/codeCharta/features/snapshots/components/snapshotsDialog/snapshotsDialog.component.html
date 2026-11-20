@@ -18,6 +18,17 @@
                 <i class="fa-solid fa-play fa-fw"></i>
                 Analyse HEAD commit
             </button>
+            <button
+                type="button"
+                class="btn btn-sm"
+                data-testid="snapshots-analyse-several"
+                [disabled]="actionFolder()?.kind !== 'git'"
+                [title]="actionFolder()?.kind === 'git' ? '' : 'Not a git repository'"
+                (click)="analyseSeveral()"
+            >
+                <i class="fa-solid fa-layer-group fa-fw"></i>
+                Analyse several…
+            </button>
             <label class="ml-auto flex items-center gap-2 text-sm text-base-content/60" for="snapshots-folder">Folder</label>
             <select id="snapshots-folder" class="select select-sm w-40" data-testid="snapshots-folder" (change)="chooseFolder($any($event.target).value)">
                 <option [value]="allFolders" [selected]="folderFilter() === allFolders">All</option>

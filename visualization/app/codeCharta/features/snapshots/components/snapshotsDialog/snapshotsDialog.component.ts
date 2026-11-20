@@ -13,6 +13,7 @@ import {
     relativeTime,
     shortDate
 } from "../../../projects/facade"
+import { BatchAnalysisDialogService } from "../../services/batchAnalysisDialog.service"
 import { SnapshotCatalogService } from "../../services/snapshotCatalog.service"
 import { SnapshotsDialogService } from "../../services/snapshotsDialog.service"
 import { SnapshotViewService } from "../../services/snapshotView.service"
@@ -49,6 +50,7 @@ export class SnapshotsDialogComponent implements AfterViewInit {
     private readonly view = inject(SnapshotViewService)
     private readonly dialogService = inject(SnapshotsDialogService)
     private readonly gitRepository = inject(GitRepositoryService)
+    private readonly batchDialog = inject(BatchAnalysisDialogService)
     private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
 
     readonly allFolders = ALL_FOLDERS
@@ -112,6 +114,13 @@ export class SnapshotsDialogComponent implements AfterViewInit {
         const sha = this.headCommit()
         if (folder && sha) {
             void this.view.analyse({ folder: this.refOf(folder), target: { kind: "commit", sha }, surface: "dialog" })
+        }
+    }
+
+    analyseSeveral() {
+        const folder = this.actionFolder()
+        if (folder) {
+            this.batchDialog.show({ folder: this.refOf(folder), folderLabel: folder.label, tipSha: null })
         }
     }
 
