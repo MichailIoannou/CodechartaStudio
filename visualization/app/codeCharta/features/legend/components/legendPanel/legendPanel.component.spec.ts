@@ -18,14 +18,14 @@ describe("LegendPanelComponent", () => {
         store = undefined
     })
 
-    async function setup({ isInspectorVisible = false } = {}) {
+    async function setup({ isInspectorExpanded = false } = {}) {
         const renderResult = await render("<cc-legend-tool></cc-legend-tool><cc-legend-panel></cc-legend-panel>", {
             imports: [LegendPanelComponent, LegendToolComponent],
             providers: [
                 LegendDrawerStore,
                 provideMockStore({ initialState: defaultState }),
                 { provide: State, useValue: { getValue: () => defaultState } },
-                ...(isInspectorVisible ? [{ provide: InspectorVisibilityService, useValue: { isVisible: () => true } }] : [])
+                { provide: InspectorVisibilityService, useValue: { isExpanded: () => isInspectorExpanded } }
             ]
         })
         store = TestBed.inject(MockStore)
@@ -118,9 +118,20 @@ describe("LegendPanelComponent", () => {
         expect(screen.queryByTestId("legend-folders-row")).toBeNull()
     })
 
-    it("should shift the panel left when the inspector sidebar is visible", async () => {
+    it("should stay at the window edge while the inspector is collapsed or closed", async () => {
         // Arrange
-        await setup({ isInspectorVisible: true })
+        await setup({ isInspectorExpanded: false })
+
+        // Act
+        fireEvent.click(screen.getByRole("button", { name: "Legend" }))
+
+        // Assert
+        expect(screen.getByTestId("legend-panel").style.right).toBe("40px")
+    })
+
+    it("should shift the panel left when the inspector sidebar is expanded", async () => {
+        // Arrange
+        await setup({ isInspectorExpanded: true })
 
         // Act
         fireEvent.click(screen.getByRole("button", { name: "Legend" }))

@@ -1,6 +1,8 @@
+import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { render, screen } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
+import { registerSidePanel, SidePanelRoom } from "../../../shared/facade"
 import { ExplorerMode, FILES_EXPLORER_MODE } from "../../explorerModes"
 import { provideExplorerPortsMock } from "../../explorerPorts.mocks"
 import { ExplorerCollapseService } from "../../services/explorerCollapse.service"
@@ -337,5 +339,56 @@ describe("SidebarExplorerComponent", () => {
         expect(container.querySelector("cc-explorer-tree")).toBe(null)
         expect(container.querySelector("cc-explorer-sort-control")).not.toBe(null)
         expect(container.querySelector("cc-explorer-search-bar")).not.toBe(null)
+    })
+
+    describe("in a view that keeps room for the floating bars", () => {
+        const originalWidth = window.innerWidth
+        const inspector = {
+            side: "right" as const,
+            isOpen: signal(false),
+            coveredWidthPx: signal(EXPLORER_DEFAULT_WIDTH),
+            collapse: jest.fn()
+        }
+
+        beforeEach(() => {
+            Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 })
+            inspector.isOpen.set(false)
+            inspector.collapse.mockClear()
+            TestBed.configureTestingModule({ providers: [SidePanelRoom] })
+        })
+
+        async function renderBesideInspector() {
+            const rendered = await render(SidebarExplorerComponent)
+            TestBed.runInInjectionContext(() => registerSidePanel(inspector))
+            return rendered
+        }
+
+        afterEach(() => Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth }))
+
+        it("should collapse when the inspector opens and leaves too little map", async () => {
+            // Arrange
+            const { fixture } = await renderBesideInspector()
+
+            // Act
+            inspector.isOpen.set(true)
+            fixture.detectChanges()
+
+            // Assert
+            expect(fixture.debugElement.injector.get(ExplorerCollapseService).isCollapsed()).toBe(true)
+        })
+
+        it("should collapse the inspector when expanded beside it", async () => {
+            // Arrange
+            inspector.isOpen.set(true)
+            const { fixture } = await renderBesideInspector()
+            fixture.debugElement.injector.get(ExplorerCollapseService).collapse()
+            fixture.detectChanges()
+
+            // Act
+            await userEvent.click(screen.getByTestId("explorer-expand-button"))
+
+            // Assert
+            expect(inspector.collapse).toHaveBeenCalledTimes(1)
+        })
     })
 })

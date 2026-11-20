@@ -74,4 +74,63 @@ describe("InspectorVisibilityService", () => {
         expect(threeSceneService.clearSelection).toHaveBeenCalled()
         expect(threeRendererService.render).toHaveBeenCalled()
     })
+
+    it("should stay visible but no longer expanded when collapsed", () => {
+        // Arrange
+        selectBuilding()
+
+        // Act
+        service.collapse()
+
+        // Assert
+        expect(service.isVisible()).toBe(true)
+        expect(service.isCollapsed()).toBe(true)
+        expect(service.isExpanded()).toBe(false)
+    })
+
+    it("should expand again with its building still selected", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+
+        // Act
+        service.expand()
+
+        // Assert
+        expect(service.isExpanded()).toBe(true)
+    })
+
+    it("should stay collapsed while another building is selected", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+
+        // Act
+        mockStore.overrideSelector(selectedNodeSelector, { name: "other.ts", path: "/root/other.ts" } as CodeMapNode)
+        mockStore.refreshState()
+
+        // Assert
+        expect(service.isCollapsed()).toBe(true)
+    })
+
+    it("should open expanded for the next selection once the building was deselected", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+        deselectBuilding()
+
+        // Act
+        selectBuilding()
+
+        // Assert
+        expect(service.isExpanded()).toBe(true)
+    })
+
+    it("should not count as collapsed while nothing is selected", () => {
+        // Act
+        service.collapse()
+
+        // Assert
+        expect(service.isCollapsed()).toBe(false)
+    })
 })

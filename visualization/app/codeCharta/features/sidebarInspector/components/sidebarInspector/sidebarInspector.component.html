@@ -1,7 +1,24 @@
-<cc-inspector-resize-handle></cc-inspector-resize-handle>
-<cc-inspector-header></cc-inspector-header>
-<cc-inspector-metric-mapping></cc-inspector-metric-mapping>
-<div class="min-h-0 flex-1 overflow-y-auto">
-    <cc-inspector-metrics-list></cc-inspector-metrics-list>
-    <cc-inspector-clusters></cc-inspector-clusters>
-</div>
+@if (isCollapsed()) {
+    <div class="flex items-center gap-1 px-2 py-1">
+        <span class="flex-1 min-w-0 truncate text-xs opacity-70" [title]="selectedNode()?.path ?? ''" data-testid="inspector-collapsed-name">
+            {{ selectedNode()?.name }}
+        </span>
+        <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square shrink-0"
+            (click)="expand()"
+            title="Expand inspector"
+            data-testid="inspector-expand-button"
+        >
+            <i class="fa-solid fa-circle-info"></i>
+        </button>
+    </div>
+} @else {
+    <cc-inspector-resize-handle></cc-inspector-resize-handle>
+    <cc-inspector-header></cc-inspector-header>
+    <cc-inspector-metric-mapping></cc-inspector-metric-mapping>
+    <div class="min-h-0 flex-1 overflow-y-auto">
+        <cc-inspector-metrics-list></cc-inspector-metrics-list>
+        <cc-inspector-clusters></cc-inspector-clusters>
+    </div>
+}
