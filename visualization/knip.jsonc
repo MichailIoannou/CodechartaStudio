@@ -1,8 +1,9 @@
 {
     "$schema": "https://unpkg.com/knip@6/schema.json",
-    // No "entry" is configured on purpose: the Angular plugin registers app/main.ts from
-    // angular.json, the Jest and Playwright plugins register *.spec.ts and *.e2e.ts, and the
-    // *.po.ts files are reached from the e2e files that import them.
+    // The Angular plugin registers app/main.ts from angular.json, the Jest and Playwright plugins
+    // register *.spec.ts and *.e2e.ts, and the *.po.ts files are reached from the e2e files that
+    // import them. The Playwright plugin finds playwright.desktop.config.ts but not the specs it
+    // points at outside app/, so the desktop smoke suite is listed as an entry.
     //
     // What this gate does NOT catch: in the default mode this runs in, a spec counts as a
     // consumer, so a production export whose only remaining caller is its own test is reported
@@ -11,8 +12,11 @@
     //
     // "project" deliberately covers app/ only, so script/, electron/ and the root config files
     // are not analyzed for dead code.
+    "entry": ["electron/**/*.e2e.ts"],
     "project": ["app/**/*.ts"],
-    "ignore": ["app/codeCharta/mocks/**"],
+    // coreApi is generated from core/crates/codecharta-core-api (npm run contract); it exports every
+    // protocol type whether the renderer uses it yet or not.
+    "ignore": ["app/codeCharta/mocks/**", "app/codeCharta/model/coreApi/**"],
     "rules": {
         // Off because these packages are reached from sources knip does not parse: app.scss
         // (@fortawesome/fontawesome-free), angular.json (material-icons, karma/jasmine),
