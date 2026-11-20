@@ -51,6 +51,8 @@ export interface HostingGateway {
     cancel(operationId: string): Promise<void>
     /** Names the provider of a host the core does not recognise, on the folder record. */
     setOverride(folder: FolderRef, override: HostingOverride): Promise<void>
+    /** Deletes the fetched request heads under `refs/codecharta/`; answers how many there were. */
+    removeFetchedRefs(folder: FolderRef): Promise<number>
 }
 
 export const SNAPSHOT_GATEWAY = new InjectionToken<SnapshotGateway>("SNAPSHOT_GATEWAY", {

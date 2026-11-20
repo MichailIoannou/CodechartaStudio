@@ -12,7 +12,7 @@ import {
 import type { AnalysisJob, ResolvedComparison, ResolvedSide, SideAnalysis } from "../../model/compare.model"
 import { ANALYSIS_GATEWAY } from "../../ports/compareGateways"
 import { CompareService } from "../../services/compare.service"
-import { analysisFailureText, sideCaption, sideStatusText, useNearestRefusal } from "../../services/comparisonText"
+import { analysisFailureText, sideCaption, sideName, sideStatusText, useNearestRefusal } from "../../services/comparisonText"
 import { CompareStore } from "../../stores/compare.store"
 
 interface PreparationRow {
@@ -100,8 +100,8 @@ function rowOf(caption: string, side: ResolvedSide, analyses: readonly SideAnaly
     const failed = analyses.find(analysis => analysis.commit === side.requested.commit && analysis.failure !== null)
     return {
         caption,
-        shortCommit: side.requested.shortCommit,
-        label: sideCaption(side.requested),
+        shortCommit: sideName(side.requested),
+        label: side.requested.shortCommit ? sideCaption(side.requested) : null,
         tone,
         status: sideStatusText(side),
         failure: failed ? analysisFailureText(failed) : null

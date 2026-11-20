@@ -144,3 +144,24 @@ fn should_fetch_a_pull_request_head_and_compare_it_from_its_merge_base() {
     );
     assert_eq!(comparison["baseTip"]["label"]["name"], "origin/main");
 }
+
+#[test]
+fn should_remove_the_fetched_heads_over_json_rpc() {
+    // Arrange
+    let repository = TestRepository::with_commit();
+    let (_origin, _head) = repository_with_a_pull_request(&repository);
+    let mut core = serve(&repository);
+    let folder = project_of(&mut core, repository.path());
+    let fetch = json!({ "folder": folder, "remote": "origin", "provider": "github", "number": 7 });
+    core.request(3, "hosting.fetchChangeRequestHead", fetch);
+
+    // Act
+    let removed = core.request(4, "hosting.removeFetchedRefs", json!({ "folder": folder }));
+
+    // Assert
+    assert_eq!(removed["result"], json!({ "removed": 1 }), "{removed}");
+    assert_eq!(
+        repository.git(&["for-each-ref", "refs/codecharta/"]).trim(),
+        ""
+    );
+}

@@ -75,8 +75,21 @@ In the desktop app, with a project open whose folder is a git repository, **Comp
    sides again.
 
 The History offers the same: **Compare** for two selected commits, **Compare with Parent**, **Compare with
-Current** and **Compare with…** in a commit's menu, and **Compare with '<branch>'** and **Compare with…** in a branch's
-menu.
+Current** and **Compare with…** in a commit's menu, **Compare with '<branch>'** and **Compare with…** in a branch's
+menu, and **Compare with HEAD** for the uncommitted changes once the working tree was analysed.
+
+### Another folder, the working tree, an imported map
+
+- **Compare with another folder** gives the head its own folder of the project, for example a fork next to the
+  repository. Paths are matched as they are, so a fork with a different layout shows files as removed and added.
+  Without a clone that has both commits the comparison is tip vs tip and lists metric changes only.
+- The lists of both sides end with **Snapshots**: the analysed working trees and the imported maps of the folder. Such
+  a side has no commit, so the comparison is tip vs tip and the changed files come from the metrics. The snapshots
+  dialog offers the same: **Compare with working tree** on a commit's row and **Compare with…** on the row of a working
+  tree or an imported map.
+
+Fetched pull requests stay in your clone until you remove them: **Remove fetched pull requests** in a folder's menu of
+the project overview deletes them; they can be fetched again.
 
 ### Pull and merge requests
 
@@ -92,7 +105,8 @@ GitHub Enterprise or GitLab once.
 While comparing, the explorer offers a **Changes** mode: it sums up how many files were added, removed and changed and
 how the area and height metrics moved, and lists the files git changed between the two commits (or, when no clone has
 both commits, the files whose metrics changed). Click a row to select its building, or the crosshair to focus its
-folder. **Only changed files** greys out and flattens every other building.
+folder. **Only changed files** greys out and flattens every other building. The inspector names the git change of the
+selected file, for example "renamed from src/old.ts".
 
 While comparing, the top bar names both sides, for example `base 9f8e7d6 main ⇄ head a1b2c3d feature/x`. Click a side
 to change it; the menu next to it swaps the sides, copies the range as text or leaves the comparison, which keeps the

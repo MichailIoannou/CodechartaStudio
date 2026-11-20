@@ -29,14 +29,7 @@ export class ChangedFilesService {
     /** Asks the core once the comparison shows; `isCurrent` turns false when another comparison started meanwhile. */
     async load(resolved: ResolvedComparison, isCurrent: () => boolean): Promise<void> {
         this.store.update({ changedFiles: "loading" })
-        const result = await this.core
-            .changedFiles({
-                baseFolder: resolved.base.requested.folder,
-                headFolder: resolved.head.requested.folder,
-                base: resolved.base.requested.commit,
-                head: resolved.head.requested.commit
-            })
-            .catch(() => UNAVAILABLE)
+        const result = await this.changedFilesOf(resolved)
         if (!isCurrent()) {
             return
         }
@@ -54,6 +47,21 @@ export class ChangedFilesService {
         if (this.changesReadStore.changedFilesFilter() !== null) {
             this.writeStore.setChangedFilesFilter(null)
         }
+    }
+
+    /** A working-tree or imported side has no commit git could compare: its changes come from the metrics. */
+    private changedFilesOf({ base, head }: ResolvedComparison): Promise<ChangedFilesResult> {
+        if (base.requested.commit === null || head.requested.commit === null) {
+            return Promise.resolve(UNAVAILABLE)
+        }
+        return this.core
+            .changedFiles({
+                baseFolder: base.requested.folder,
+                headFolder: head.requested.folder,
+                base: base.requested.commit,
+                head: head.requested.commit
+            })
+            .catch(() => UNAVAILABLE)
     }
 
     private filterOfTheList(): ChangedFilesFilter {

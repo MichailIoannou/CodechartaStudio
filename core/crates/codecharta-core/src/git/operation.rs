@@ -182,6 +182,18 @@ impl<'core> GitService<'core> {
         self.fetch_result(&repository, fetched)
     }
 
+    /// Deletes the refs the core fetched under `refs/codecharta/`; answers how many it deleted.
+    pub async fn remove_private_refs(
+        &self,
+        folder: &GitFolder,
+        context: &OperationContext<'_>,
+    ) -> CoreResult<u32> {
+        let repository = locate(&self.git, &folder.path, context.cancel).await?;
+        let mutation = self.mutation(folder, &repository, context)?;
+        let work = sync::remove_private_refs(&mutation);
+        Ok(self.operate(&mutation, work).await?.value)
+    }
+
     pub async fn switch(
         &self,
         folder: &GitFolder,

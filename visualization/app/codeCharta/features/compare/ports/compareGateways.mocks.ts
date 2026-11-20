@@ -20,11 +20,16 @@ import type {
 import type { AnalysisGateway, CoreGateway, HostingGateway, SnapshotGateway } from "./compareGateways"
 
 export const FOLDER: FolderRef = { projectId: "p-billing", folderId: "f-api" }
+export const FORK: FolderRef = { projectId: "p-billing", folderId: "f-fork" }
 export const BASE_SHA = "9f8e7d6".padEnd(40, "0")
 export const HEAD_SHA = "a1b2c3d".padEnd(40, "0")
 
-export function aComparedCommit(sha: string, label: ComparedCommit["label"] = { kind: "commit", name: sha.slice(0, 7) }): ComparedCommit {
-    return { folder: FOLDER, commit: sha, shortCommit: sha.slice(0, 7), label }
+export function aComparedCommit(
+    sha: string,
+    label: ComparedCommit["label"] = { kind: "commit", name: sha.slice(0, 7) },
+    folder: FolderRef = FOLDER
+): ComparedCommit {
+    return { folder, kind: "commit", commit: sha, shortCommit: sha.slice(0, 7), snapshotId: null, label }
 }
 
 export function aCommitSnapshot(sha: string, checksum: string | null = `checksum-${sha.slice(0, 7)}`): SnapshotSummary {
@@ -85,11 +90,13 @@ export class FakeSnapshotGateway implements SnapshotGateway {
 export class FakeAnalysisGateway implements AnalysisGateway {
     readonly jobs = signal<readonly AnalysisJob[]>([])
     readonly enqueued: string[] = []
+    readonly enqueuedIn: string[] = []
     readonly cancelled: string[] = []
     answers: Record<string, EnqueueResult> = {}
 
-    enqueue(_folder: FolderRef, commit: string): Promise<EnqueueResult> {
+    enqueue(folder: FolderRef, commit: string): Promise<EnqueueResult> {
         this.enqueued.push(commit)
+        this.enqueuedIn.push(folder.folderId)
         const job = aJob(`job-${commit.slice(0, 7)}`, commit, "queued")
         this.jobs.update(jobs => [...jobs, job])
         return Promise.resolve(this.answers[commit] ?? { status: "queued", job })
@@ -158,6 +165,8 @@ export class FakeHostingGateway implements HostingGateway {
     readonly fetches: { params: FetchChangeRequestHeadParams; operationId: string }[] = []
     readonly cancelled: string[] = []
     readonly overrides: HostingOverride[] = []
+    readonly cleanedFolders: string[] = []
+    removedRefs: number | Error = 0
     answer: HostingStatus | Error = GITHUB_STATUS
     private settleFetch: ((head: FetchedHead | Error) => void) | null = null
 
@@ -189,5 +198,10 @@ export class FakeHostingGateway implements HostingGateway {
     setOverride(_folder: FolderRef, override: HostingOverride): Promise<void> {
         this.overrides.push(override)
         return Promise.resolve()
+    }
+
+    removeFetchedRefs(folder: FolderRef): Promise<number> {
+        this.cleanedFolders.push(folder.folderId)
+        return this.removedRefs instanceof Error ? Promise.reject(this.removedRefs) : Promise.resolve(this.removedRefs)
     }
 }

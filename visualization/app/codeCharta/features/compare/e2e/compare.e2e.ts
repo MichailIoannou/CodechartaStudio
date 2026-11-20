@@ -302,3 +302,64 @@ test.describe("Compare", () => {
         await expect(compare.staleBadge()).toHaveAttribute("title", "No analysis for c3d4e5f. Showing a1b2c3d, 2 commits older.")
     })
 })
+
+const FORK = aFolder("f-fork", { label: "billing-fork", role: "fork" })
+const WITH_A_FORK = aProject("p-billing", [aFolder("f-api", { label: "billing-api" }), FORK], {
+    name: "billing",
+    view: { workingFolderId: "f-api", shownSnapshotIdByFolder: { "f-api": "s-head" } }
+})
+
+test.describe("Compare against a snapshot or another folder", () => {
+    test.beforeEach(async ({ page }) => {
+        const seed = seedOf(WITH_A_FORK, { "compare.changedFiles": { source: "unavailable", files: [] } })
+        const workingTree = aSnapshot("p-billing", "f-api", "s-tree", {
+            target: "workingTree",
+            commit: HEAD_SHA,
+            shortCommit: "a1b2c3d",
+            dirty: true,
+            createdAt: "2026-11-04T09:12:00Z"
+        })
+        const forked = aSnapshot("p-billing", "f-fork", "s-fork", { commit: LATEST_SHA, shortCommit: "c3d4e5f", target: "commit" })
+        await standInForTheDesktopBridge(page, {
+            ...seed,
+            snapshots: [...seed.snapshots, workingTree, forked],
+            snapshotMaps: { ...seed.snapshotMaps, "s-tree": gzippedSample("sample3.cc.json"), "s-fork": gzippedSample("sample3.cc.json") },
+            git: { ...seed.git, "f-fork": seed.git["f-api"] }
+        })
+        await goto(page)
+    })
+
+    test("should compare a commit with the analysed working tree and list the changes from the metrics", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        await compare.openTheDialogFromTheCompareTab()
+
+        // Act
+        await compare.pick("base", "mai", "main")
+        await compare.pick("head", "Working", "Working tree")
+        await compare.submit()
+
+        // Assert
+        await expect(compare.chip()).toContainText("working tree")
+        await expect(compare.staleBadge()).toHaveCount(0)
+        await compare.openTheLegend()
+        await expect(compare.legendCaption()).toHaveText("Δ = head working tree − base 9f8e7d6")
+        await compare.openTheChangesMode()
+        await expect(compare.changesSource()).toHaveText("Files with metric changes")
+    })
+
+    test("should compare a branch of the working folder with one of the fork", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        await compare.openTheDialogFromTheCompareTab()
+
+        // Act
+        await compare.compareWithAnotherFolder("billing-fork")
+        await compare.compare("main", "feature/later")
+
+        // Assert
+        await expect(compare.dialog()).toHaveCount(0)
+        await expect(compare.chipSide("head")).toHaveAttribute("title", "Head: c3d4e5f feature/later in billing-fork")
+        await expect(compare.chipSide("base")).toHaveAttribute("title", "Base: 9f8e7d6 main in billing-api")
+    })
+})

@@ -1,10 +1,52 @@
+import { aSnapshot } from "../../projects/projects.mocks"
+import type { ComparedCommit } from "../model/compare.model"
 import { aComparedCommit, aResolvedComparison, BASE_SHA, HEAD_SHA } from "../ports/compareGateways.mocks"
-import { errorSentence, parseRange, rangeText, resolveOutcome, sideCaption } from "./comparisonText"
+import { errorSentence, parseRange, rangeText, resolveOutcome, shownSideCaption, sideCaption, sideName } from "./comparisonText"
 
 const MAIN = aComparedCommit(BASE_SHA, { kind: "branch", name: "main" })
 const FEATURE = aComparedCommit(HEAD_SHA, { kind: "branch", name: "feature/x" })
 
+function aSnapshotSide(kind: "workingTree" | "imported", name: string): ComparedCommit {
+    return { ...aComparedCommit(BASE_SHA), kind, commit: null, shortCommit: null, snapshotId: `s-${kind}`, label: { kind, name } }
+}
+
 describe("comparisonText", () => {
+    it("should name a side by its short commit, else by the label of its snapshot", () => {
+        // Act
+        const names = [sideName(MAIN), sideName(aSnapshotSide("workingTree", "working tree"))]
+
+        // Assert
+        expect(names).toEqual(["9f8e7d6", "working tree"])
+    })
+
+    it("should label an imported side by the date of its file, or say the date is unknown", () => {
+        // Arrange
+        const imported = aSnapshotSide("imported", "export.cc.json")
+        const withDate = aSnapshot("p", "f", "s-imported", { source: "imported", fileModifiedAt: "2026-11-12T10:00:00Z" })
+        const withoutDate = aSnapshot("p", "f", "s-imported", { source: "imported" })
+
+        // Act
+        const captions = [
+            shownSideCaption({ requested: imported, snapshot: withDate }),
+            shownSideCaption({ requested: imported, snapshot: withoutDate }),
+            shownSideCaption({ requested: aSnapshotSide("workingTree", "working tree"), snapshot: withoutDate })
+        ]
+
+        // Assert
+        expect(captions).toEqual(["imported 12 Nov", "imported, date unknown", "working tree"])
+    })
+
+    it("should call the same snapshot on both sides the same analysis", () => {
+        // Arrange
+        const side = { requested: aSnapshotSide("workingTree", "working tree"), status: aResolvedComparison().base.status }
+
+        // Act
+        const outcome = resolveOutcome(aResolvedComparison({ status: { kind: "sameCommit" }, base: side, head: side }))
+
+        // Assert
+        expect(outcome?.text).toBe("Both sides are the same analysis — nothing to compare.")
+    })
+
     it("should label a merge-base comparison with three dots", () => {
         // Act
         const text = rangeText(MAIN, FEATURE, "mergeBase")

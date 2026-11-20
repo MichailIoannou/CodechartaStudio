@@ -49,6 +49,7 @@
     "compare.changedFiles",
     "hosting.status",
     "hosting.fetchChangeRequestHead",
+    "hosting.removeFetchedRefs",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",

@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, HostListener, inject, signal } from "@angular/core"
 import { CopyToClipboardService } from "../../../../util/copyToClipboard.service"
+import { ProjectsFacade } from "../../../projects/facade"
 import { ToastService } from "../../../shared/facade"
 import type { ComparedChangeRequest, LoadedSide, ResolvedComparison } from "../../model/compare.model"
 import { gitChangeLine } from "../../selectors/deltaChangeSummary"
 import { changeRequestLabel } from "../../services/changeRequestText"
 import { CompareService } from "../../services/compare.service"
-import { rangeText, refName, sideCaption, staleBadge, staleCount, staleTitle } from "../../services/comparisonText"
+import { rangeText, refName, shownSideCaption, sideName, staleBadge, staleCount, staleTitle } from "../../services/comparisonText"
 import { CompareStore } from "../../stores/compare.store"
 
 interface BaseModeBadge {
@@ -19,7 +20,10 @@ interface ChipSide {
     caption: string
     /** Starts with "Base:" or "Head:", which say the side once the captions are hidden. */
     title: string
-    shortCommit: string
+    /** Null for a working-tree or imported snapshot, which has no commit. */
+    shortCommit: string | null
+    /** The short commit, else the snapshot's label: how a sentence names the side. */
+    name: string
     label: string | null
     staleBadge: string | null
     staleCount: string | null
@@ -45,11 +49,12 @@ export class ComparisonChipComponent {
     private readonly clipboard = inject(CopyToClipboardService)
     private readonly toastService = inject(ToastService)
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
+    private readonly projects = inject(ProjectsFacade)
 
     readonly isMenuOpen = signal(false)
     readonly isNoDifferences = this.store.isShowingNoDifferences
-    readonly base = computed(() => chipSideOf("base", this.store.state().base))
-    readonly head = computed(() => chipSideOf("head", this.store.state().head))
+    readonly base = computed(() => chipSideOf("base", this.store.state().base, this.folderLabelOf("base")))
+    readonly head = computed(() => chipSideOf("head", this.store.state().head, this.folderLabelOf("head")))
     readonly baseModeBadge = computed(() => baseModeBadgeOf(this.store.state().resolved))
     readonly changeRequest = computed(() => chipChangeRequestOf(this.store.state().changeRequest))
     readonly gitLine = computed(() => {
@@ -72,12 +77,15 @@ export class ComparisonChipComponent {
 
     change(): void {
         this.isMenuOpen.set(false)
-        const { base, head } = this.store.state()
-        const folder = head?.requested.folder
+        const { base, head, resolved } = this.store.state()
+        const folder = (resolved?.baseTip ?? base?.requested ?? head?.requested)?.folder
+        const headFolder = head?.requested.folder
+        const isAcrossFolders = folder !== undefined && headFolder !== undefined && headFolder.folderId !== folder.folderId
         this.store.openDialog({
             ...(folder ? { folder } : {}),
             ...(base ? { base: refName(base.requested) } : {}),
-            ...(head ? { head: refName(head.requested) } : {})
+            ...(head ? { head: refName(head.requested) } : {}),
+            ...(isAcrossFolders ? { headFolder } : {})
         })
     }
 
@@ -102,6 +110,17 @@ export class ComparisonChipComponent {
         this.isMenuOpen.set(false)
         this.service.exit()
     }
+
+    /** Only a comparison across two folders names each side's folder. */
+    private folderLabelOf(caption: "base" | "head"): string | null {
+        const { resolved } = this.store.state()
+        const side = this.store.state()[caption]
+        if (resolved?.origin !== "folders" || !side) {
+            return null
+        }
+        const folderId = side.requested.folder.folderId
+        return this.projects.activeProject()?.folders.find(folder => folder.id === folderId)?.label ?? null
+    }
 }
 
 /** Only a comparison of branches or a pull request has a base mode worth naming. */
@@ -125,16 +144,18 @@ function chipChangeRequestOf(changeRequest: ComparedChangeRequest | null): ChipC
     return { label, url: changeRequest.url, title: `${noun} ${label}` }
 }
 
-function chipSideOf(caption: "base" | "head", side: LoadedSide | null): ChipSide | null {
+function chipSideOf(caption: "base" | "head", side: LoadedSide | null, folderLabel: string | null): ChipSide | null {
     if (!side) {
         return null
     }
-    const label = sideCaption(side.requested)
+    const label = shownSideCaption(side)
     const titleCaption = caption === "base" ? "Base:" : "Head:"
+    const inFolder = folderLabel ? `in ${folderLabel}` : null
     return {
         caption,
-        title: [titleCaption, side.requested.shortCommit, label].filter(Boolean).join(" "),
+        title: [titleCaption, side.requested.shortCommit, label, inFolder].filter(Boolean).join(" "),
         shortCommit: side.requested.shortCommit,
+        name: side.requested.shortCommit ?? label ?? sideName(side.requested),
         label,
         staleBadge: staleBadge(side),
         staleCount: staleCount(side),

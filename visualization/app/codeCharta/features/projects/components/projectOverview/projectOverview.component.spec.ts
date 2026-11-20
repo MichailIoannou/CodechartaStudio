@@ -1,7 +1,9 @@
+import type { Provider } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { screen, within } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
+import { FOLDER_ACTIONS, FolderAction } from "../../ports/folderActions.port"
 import { aCommit, aFolder, aGitStatus, aPickedFolder, aPickedImportFile, aProject, aSnapshot } from "../../projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../projectsTestBed.mocks"
 import { OpenFileService } from "../../services/openFile.service"
@@ -61,8 +63,8 @@ function cellsOf(row: HTMLElement): string[] {
 describe("ProjectOverviewComponent", () => {
     let testBed: ProjectsTestBed
 
-    async function renderOverview(seed: FakeDesktopSeed = SEED) {
-        testBed = await setUpProjects(seed)
+    async function renderOverview(seed: FakeDesktopSeed = SEED, providers: Provider[] = []) {
+        testBed = await setUpProjects(seed, { providers })
         const fixture = TestBed.createComponent(ProjectOverviewComponent)
         fixture.autoDetectChanges()
         await settle()
@@ -296,6 +298,28 @@ describe("ProjectOverviewComponent", () => {
         expect(TestBed.inject(OpenFileService).pending()).toEqual(
             expect.objectContaining({ mode: "import", importTarget: { projectId: "p-billing", folderId: "f-out" } })
         )
+    })
+
+    it("should list the folder actions other features add and run one for its folder", async () => {
+        // Arrange
+        const run = jest.fn()
+        const action: FolderAction = {
+            id: "test.clean",
+            label: "Clean up",
+            icon: "fa-solid fa-broom",
+            hoverHint: "Clean up",
+            isOfferedFor: folder => folder.kind === "git",
+            run
+        }
+        await renderOverview(SEED, [{ provide: FOLDER_ACTIONS, multi: true, useValue: action }])
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-folder-more-billing-api"))
+        await userEvent.click(screen.getByTestId("project-overview-folder-action-test.clean-billing-api"))
+
+        // Assert
+        expect(run).toHaveBeenCalledWith({ projectId: "p-billing", folderId: "f-api" }, "billing-api")
+        expect(screen.queryByTestId("project-overview-folder-action-test.clean-out")).toBeNull()
     })
 
     it("should choose another store folder when the store cannot be used", async () => {

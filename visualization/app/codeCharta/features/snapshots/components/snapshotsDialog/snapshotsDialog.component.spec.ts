@@ -1,3 +1,4 @@
+import type { Provider } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { screen, within } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
@@ -5,6 +6,7 @@ import type { GitStatus } from "../../../../model/coreApi/GitStatus"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aProject, aSnapshot } from "../../../projects/projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../../projects/projectsTestBed.mocks"
+import { SNAPSHOT_ACTIONS, SnapshotAction } from "../../ports/snapshotActions.port"
 import { BatchAnalysisDialogService } from "../../services/batchAnalysisDialog.service"
 import { SnapshotsDialogService } from "../../services/snapshotsDialog.service"
 import { COMMIT_SHA } from "../../snapshots.mocks"
@@ -57,18 +59,25 @@ const HEAD: GitStatus = {
 describe("SnapshotsDialogComponent", () => {
     let testBed: ProjectsTestBed
 
-    async function openDialog(seed: FakeDesktopSeed = {}, beforeOpen: (bed: ProjectsTestBed) => void = () => undefined) {
+    async function openDialog(
+        seed: FakeDesktopSeed = {},
+        beforeOpen: (bed: ProjectsTestBed) => void = () => undefined,
+        providers: Provider[] = []
+    ) {
         HTMLDialogElement.prototype.showModal = jest.fn()
         HTMLDialogElement.prototype.close = jest.fn(function (this: HTMLDialogElement) {
             this.dispatchEvent(new Event("close"))
         })
-        testBed = await setUpProjects({
-            projects: [BILLING],
-            activeProjectId: "p-billing",
-            snapshots: [COMMIT, WORKING_TREE, BOUND_IMPORT, UNBOUND_IMPORT],
-            gitStatuses: { "f-api": HEAD },
-            ...seed
-        })
+        testBed = await setUpProjects(
+            {
+                projects: [BILLING],
+                activeProjectId: "p-billing",
+                snapshots: [COMMIT, WORKING_TREE, BOUND_IMPORT, UNBOUND_IMPORT],
+                gitStatuses: { "f-api": HEAD },
+                ...seed
+            },
+            { providers }
+        )
         await testBed.projects.showWorkingFolder()
         beforeOpen(testBed)
         TestBed.inject(SnapshotsDialogService).show()
@@ -141,6 +150,28 @@ describe("SnapshotsDialogComponent", () => {
         expect(within(section).getByTestId("snapshots-unbound-row").textContent).toContain("export-2024.cc.json")
         expect(within(section).getByTestId("snapshots-unbound-row").textContent).toContain("imported 12 Nov 2026")
         expect(screen.getByTestId("snapshots-folder-out").textContent).not.toContain("export-2024")
+    })
+
+    it("should offer the actions other features add for a row and close before running one", async () => {
+        // Arrange
+        const run = jest.fn()
+        const action: SnapshotAction = {
+            id: "test.compare",
+            label: "Compare with working tree",
+            hoverHint: "Compare",
+            isOfferedFor: snapshot => snapshot.target === "commit",
+            run
+        }
+        await openDialog({}, () => undefined, [{ provide: SNAPSHOT_ACTIONS, multi: true, useValue: action }])
+        const [workingTreeRow, commitRow] = screen.getAllByTestId("snapshots-row")
+
+        // Act
+        await userEvent.click(within(commitRow).getByTestId("snapshots-action"))
+
+        // Assert
+        expect(within(workingTreeRow).queryByTestId("snapshots-action")).toBeNull()
+        expect(run).toHaveBeenCalledWith(expect.objectContaining({ ref: COMMIT.ref }))
+        expect(TestBed.inject(SnapshotsDialogService).isOpen()).toBe(false)
     })
 
     it("should load a snapshot and close", async () => {

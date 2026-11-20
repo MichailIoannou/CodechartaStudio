@@ -4,6 +4,7 @@ export { PreflightProblemsComponent } from "./components/preflightProblems/prefl
 export { SnapshotNoticeComponent } from "./components/snapshotNotice/snapshotNotice.component"
 export { SnapshotsDialogComponent } from "./components/snapshotsDialog/snapshotsDialog.component"
 export { provideSnapshotsForGitHistory } from "./gitHistory/provideSnapshotsForGitHistory"
+export { SNAPSHOT_ACTIONS, SnapshotAction } from "./ports/snapshotActions.port"
 export { AnalysisJobsService } from "./services/analysisJobs.service"
 export { BatchAnalysisDialogService } from "./services/batchAnalysisDialog.service"
 export { SnapshotCatalogService } from "./services/snapshotCatalog.service"

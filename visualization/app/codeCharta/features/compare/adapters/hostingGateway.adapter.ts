@@ -22,6 +22,10 @@ export class HostingGatewayAdapter {
         return this.environment.requireBridge().cancel(operationId)
     }
 
+    async removeFetchedRefs(folder: FolderRef): Promise<number> {
+        return valueOrThrow(await this.environment.requireBridge().request("hosting.removeFetchedRefs", { folder })).removed
+    }
+
     setOverride(folder: FolderRef, override: HostingOverride): Promise<void> {
         return this.projects.setFolderHosting(folder.folderId, override)
     }

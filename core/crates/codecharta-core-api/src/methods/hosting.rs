@@ -84,6 +84,28 @@ method!(
     FetchedHead
 );
 
+/// Deletes every ref under `refs/codecharta/` of the folder's clone: the pull and merge request heads
+/// fetched for comparisons, and nothing else. Only ever on the user's explicit request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemoveFetchedRefsParams {
+    pub folder: FolderRef,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct RemovedRefs {
+    pub removed: u32,
+}
+
+method!(
+    HostingRemoveFetchedRefs,
+    "hosting.removeFetchedRefs",
+    Renderer,
+    RemoveFetchedRefsParams,
+    RemovedRefs
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;

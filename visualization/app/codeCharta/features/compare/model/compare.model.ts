@@ -13,6 +13,7 @@ import type { HostingProvider } from "../../../model/coreApi/HostingProvider"
 import type { HostingStatus } from "../../../model/coreApi/HostingStatus"
 import type { ResolvedComparison } from "../../../model/coreApi/ResolvedComparison"
 import type { ResolvedSide } from "../../../model/coreApi/ResolvedSide"
+import type { SideInput } from "../../../model/coreApi/SideInput"
 import type { SnapshotRelation } from "../../../model/coreApi/SnapshotRelation"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 
@@ -32,6 +33,7 @@ export type {
     HostingStatus,
     ResolvedComparison,
     ResolvedSide,
+    SideInput,
     SnapshotRelation,
     SnapshotSummary
 }
@@ -130,6 +132,8 @@ export interface ComparePrefill {
     folder?: FolderRef
     base?: string
     head?: string
+    /** The head's folder when it is another folder than `folder`. */
+    headFolder?: FolderRef
 }
 
 export const IDLE_COMPARISON: CompareState = {

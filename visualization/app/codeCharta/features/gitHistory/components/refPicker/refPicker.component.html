@@ -40,11 +40,11 @@
                         >
                             <i class="fa-fw shrink-0 text-base-content/60" [class]="iconOf(option)"></i>
                             <span class="min-w-0 truncate" [class.font-mono]="option.kind === 'commit'">{{ displayName(option) }}</span>
-                            @if (option.kind !== "commit") {
+                            @if (hasShortSha(option)) {
                                 <span class="shrink-0 font-mono text-xs">{{ shortShaOf(option.sha) }}</span>
                             }
                             <span class="min-w-0 flex-1 truncate text-xs text-base-content/60">{{ option.subject }}</span>
-                            @if (isAnalysed(option.sha)) {
+                            @if (isAnalysed(option)) {
                                 <i class="fa-solid fa-circle shrink-0 text-xs text-success" title="Analysed" aria-label="Analysed"></i>
                             } @else {
                                 <i class="fa-regular fa-circle shrink-0 text-xs text-base-content/40" title="Not analysed" aria-label="Not analysed"></i>
@@ -67,9 +67,11 @@
 
 @if (resolution(); as resolution) {
     <div class="mt-1 flex min-w-0 items-center gap-2 text-xs" [attr.data-testid]="testId() + '-resolved'">
-        <span class="shrink-0 font-mono">{{ shortShaOf(resolution.sha) }}</span>
+        @if (resolution.sha) {
+            <span class="shrink-0 font-mono">{{ shortShaOf(resolution.sha) }}</span>
+        }
         <span class="min-w-0 flex-1 truncate text-base-content/60">{{ resolution.subject }}</span>
-        @if (isAnalysed(resolution.sha)) {
+        @if (isAnalysed(resolution)) {
             <span class="flex shrink-0 items-center gap-1"><i class="fa-solid fa-circle text-success"></i>analysed</span>
         } @else {
             <span class="flex shrink-0 items-center gap-1"><i class="fa-regular fa-circle text-base-content/50"></i>not analysed</span>

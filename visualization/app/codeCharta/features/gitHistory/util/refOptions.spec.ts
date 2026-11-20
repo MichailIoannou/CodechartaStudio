@@ -64,6 +64,36 @@ describe("refOptions", () => {
         expect(unknown).toBeNull()
     })
 
+    it("should offer the given snapshots last and resolve a snapshot by its name", () => {
+        // Arrange
+        const snapshots = [
+            { snapshotId: "s-wt", kind: "workingTree" as const, name: "Working tree (4 Nov 09:12)", detail: "uncommitted changes" },
+            { snapshotId: "s-imp", kind: "imported" as const, name: "export.cc.json", detail: "imported" }
+        ]
+
+        // Act
+        const groups = refOptionGroups(REFS, "export", [], "main", snapshots)
+        const resolved = resolveRefText(REFS, "Working tree (4 Nov 09:12)", [], snapshots)
+
+        // Assert
+        expect(groups.map(group => group.id)).toEqual(["snapshots"])
+        expect(groups[0].options[0]).toEqual({
+            id: "snapshot:s-imp",
+            kind: "imported",
+            name: "export.cc.json",
+            sha: "",
+            subject: "imported",
+            snapshotId: "s-imp"
+        })
+        expect(resolved).toEqual({
+            kind: "workingTree",
+            name: "Working tree (4 Nov 09:12)",
+            sha: "",
+            subject: "uncommitted changes",
+            snapshotId: "s-wt"
+        })
+    })
+
     it("should put commits whose hash starts with the query before subject matches, once each", () => {
         // Arrange
         const byHash = aLogCommit("ab", "First")

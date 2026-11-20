@@ -24,6 +24,7 @@ import {
     relativeTime,
     shortDate
 } from "../../../projects/facade"
+import { SNAPSHOT_ACTIONS, SnapshotAction } from "../../ports/snapshotActions.port"
 import { BatchAnalysisDialogService } from "../../services/batchAnalysisDialog.service"
 import { SnapshotCatalogService } from "../../services/snapshotCatalog.service"
 import { SnapshotRetentionService } from "../../services/snapshotRetention.service"
@@ -44,6 +45,7 @@ interface SnapshotRow {
     commitLabel: string
     isShown: boolean
     reanalyse: AnalysisTarget | null
+    actions: readonly SnapshotAction[]
 }
 
 interface FolderSection {
@@ -73,6 +75,7 @@ export class SnapshotsDialogComponent implements AfterViewInit {
     private readonly gitRepository = inject(GitRepositoryService)
     private readonly batchDialog = inject(BatchAnalysisDialogService)
     private readonly retention = inject(SnapshotRetentionService)
+    private readonly contributedActions = inject(SNAPSHOT_ACTIONS, { optional: true }) ?? []
     private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
 
     readonly allFolders = ALL_FOLDERS
@@ -167,6 +170,11 @@ export class SnapshotsDialogComponent implements AfterViewInit {
         void this.view.open(row.snapshot.ref)
     }
 
+    runAction(action: SnapshotAction, row: SnapshotRow) {
+        this.close()
+        action.run(row.snapshot)
+    }
+
     retry(folder: ProjectFolder) {
         void this.catalog.refresh(this.refOf(folder))
     }
@@ -222,7 +230,8 @@ export class SnapshotsDialogComponent implements AfterViewInit {
             folder,
             commitLabel: snapshotCommitLabel(snapshot),
             isShown: snapshot.ref.snapshotId === shownId,
-            reanalyse: reanalyseTarget(snapshot)
+            reanalyse: reanalyseTarget(snapshot),
+            actions: this.contributedActions.filter(action => action.isOfferedFor(snapshot))
         }))
     }
 

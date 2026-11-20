@@ -7,6 +7,8 @@ export const RECENT_COMPARISON_LIMIT = 10
 
 export interface RecentComparison {
     folderId: string
+    /** Set when the head was in another folder of the project. */
+    headFolderId?: string
     base: string
     head: string
     baseMode: BaseMode
@@ -40,8 +42,8 @@ export class RecentComparisonsRepo {
     }
 }
 
-function keyOf({ folderId, base, head, baseMode }: RecentComparison): string {
-    return JSON.stringify([folderId, base, head, baseMode])
+function keyOf({ folderId, headFolderId, base, head, baseMode }: RecentComparison): string {
+    return JSON.stringify([folderId, headFolderId ?? folderId, base, head, baseMode])
 }
 
 function isRecentComparison(entry: unknown): entry is RecentComparison {
@@ -51,6 +53,7 @@ function isRecentComparison(entry: unknown): entry is RecentComparison {
         typeof candidate.base === "string" &&
         typeof candidate.head === "string" &&
         (candidate.baseMode === "tip" || candidate.baseMode === "mergeBase") &&
-        typeof candidate.comparedAt === "number"
+        typeof candidate.comparedAt === "number" &&
+        (candidate.headFolderId === undefined || typeof candidate.headFolderId === "string")
     )
 }

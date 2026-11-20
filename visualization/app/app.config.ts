@@ -6,7 +6,7 @@ import { provideEffects } from "@ngrx/effects"
 import { provideStore } from "@ngrx/store"
 import { ChangelogFacade } from "app/codeCharta/features/changelog/facade"
 import { codeMapEffects } from "app/codeCharta/features/codeMap/effects/codeMap.effects"
-import { provideCompareForGitHistory } from "app/codeCharta/features/compare/facade"
+import { provideCompareForGitHistory, provideCompareForProjects, provideCompareForSnapshots } from "app/codeCharta/features/compare/facade"
 import { fileExtensionBarEffects } from "app/codeCharta/features/fileExtensionBar/effects/fileExtensionBar.effects"
 import { WORKING_FOLDER_SOURCE } from "app/codeCharta/features/gitHistory/facade"
 import { labelSettingsEffects } from "app/codeCharta/features/labelSettings/effects/labelSettings.effects"
@@ -71,6 +71,8 @@ export const appConfig: ApplicationConfig = {
         { provide: WORKING_FOLDER_SOURCE, useExisting: ProjectsFacade },
         ...provideSnapshotsForGitHistory(),
         ...provideCompareForGitHistory(),
+        ...provideCompareForSnapshots(),
+        ...provideCompareForProjects(),
         ...provideLinkedProjectFolders(),
 
         provideEffects([
