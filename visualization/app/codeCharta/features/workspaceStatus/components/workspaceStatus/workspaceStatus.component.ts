@@ -19,7 +19,7 @@ import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import { DesktopEnvironment } from "../../../../util/desktop/desktopEnvironment.service"
 import { shortSha } from "../../../../util/wording"
 import { DesktopToolsService } from "../../../desktopTools/facade"
-import { GitOperationService, GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
+import { GitOperationService, GitRepositoryService, isGitStatus, SyncButtonComponent } from "../../../gitHistory/facade"
 import { changesSentence, ProjectsFacade, shortDate } from "../../../projects/facade"
 import {
     AnalysisJobsService,
@@ -41,7 +41,7 @@ const OFFLINE_STATES: ReadonlySet<string> = new Set(["restarting", "unavailable"
 @Component({
     selector: "cc-workspace-status",
     templateUrl: "./workspaceStatus.component.html",
-    imports: [AnalysisActivityComponent, AnalysisLogDialogComponent],
+    imports: [AnalysisActivityComponent, AnalysisLogDialogComponent, SyncButtonComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "min-w-0" }
 })

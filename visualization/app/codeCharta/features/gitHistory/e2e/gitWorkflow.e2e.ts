@@ -162,3 +162,72 @@ test.describe("Git workflow", () => {
         await expect(history.toasts().filter({ hasText: "Pulled 1 commit" })).toBeVisible()
     })
 })
+
+test.describe("Sync button outside the History", () => {
+    async function openTheMap(page: Page, seed: FakeDesktopSeed) {
+        const history = new GitHistoryPageObject(page)
+        await standInForTheDesktopBridge(page, seed)
+        await goto(page)
+        await history.workspaceStatus().waitFor({ state: "visible" })
+        return history
+    }
+
+    async function openWorkspaceStatus(history: GitHistoryPageObject) {
+        await history.workspaceStatus().click()
+        return history.workspaceStatusMenu()
+    }
+
+    test("should pull from the workspace status on the map and ask the pull choice there", async ({ page }) => {
+        // Arrange
+        const history = await openTheMap(page, workflowSeed(tracking(2, 1)))
+        const menu = await openWorkspaceStatus(history)
+
+        // Act
+        await menu.getByTestId("sync-button-main").click()
+        await history.choose("merge")
+        await history.confirm("yes")
+
+        // Assert
+        await expect(history.toasts().filter({ hasText: "Pulled 1 commit" })).toBeVisible()
+        expect((await requestsOf(page, "git.pull")).map(params => (params as { mode: string }).mode)).toEqual(["merge"])
+    })
+
+    test("should open the sync menu of the workspace status below its caret", async ({ page }) => {
+        // Arrange
+        const history = await openTheMap(page, workflowSeed(tracking(0, 0)))
+        const menu = await openWorkspaceStatus(history)
+        const caret = menu.getByTestId("sync-button-caret")
+
+        // Act
+        await caret.click()
+        const syncMenu = page.getByTestId("sync-menu")
+        await expect(syncMenu).toBeVisible()
+        const caretBox = await caret.boundingBox()
+        const menuBox = await syncMenu.boundingBox()
+        await syncMenu.getByText("Fetch", { exact: true }).click()
+        await history.confirm("yes")
+
+        // Assert
+        expect(menuBox?.y).toBeGreaterThanOrEqual((caretBox?.y ?? 0) + (caretBox?.height ?? 0) - 1)
+        expect(menuBox?.y).toBeLessThan((caretBox?.y ?? 0) + (caretBox?.height ?? 0) + 16)
+        await expect(history.toasts().filter({ hasText: "Already up to date" })).toBeVisible()
+    })
+
+    test("should force push from the working folder card of the project overview", async ({ page }) => {
+        // Arrange
+        const history = await openTheMap(page, workflowSeed(tracking(2, 1)))
+        await (await openWorkspaceStatus(history)).getByTestId("workspace-status-overview").click()
+        const upstreamRow = page.getByTestId("working-folder-upstream")
+
+        // Act
+        await upstreamRow.getByTestId("sync-button-caret").click()
+        await page.getByTestId("sync-menu-forcePush").locator("button").click()
+        await history.confirm("verb")
+        await history.confirm("yes")
+
+        // Assert
+        await expect(history.toasts().filter({ hasText: `Pushed 2 commits to ${UPSTREAM}` })).toBeVisible()
+        expect(await requestsOf(page, "git.push")).toEqual([expect.objectContaining({ forceWithLeaseExpected: REMOTE_SHA })])
+        await expect(upstreamRow).toContainText("in sync")
+    })
+})
