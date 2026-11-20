@@ -192,6 +192,20 @@ test.describe("Compare", () => {
         await expect(compare.chip()).toContainText("a1b2c3d")
     })
 
+    test("should open the dialog with a branch as the head from the branch menu", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        const history = new GitHistoryPageObject(page)
+        await history.open()
+
+        // Act
+        await compare.chooseFromTheBranchMenu(history.branchRow("refs/heads/feature/later"), "Compare with…")
+
+        // Assert
+        await expect(compare.dialog()).toBeVisible()
+        await expect(page.getByTestId("compare-head")).toHaveValue("feature/later")
+    })
+
     test("should name a ref the folder does not have", async ({ page }) => {
         // Arrange
         const compare = new ComparePageObject(page)

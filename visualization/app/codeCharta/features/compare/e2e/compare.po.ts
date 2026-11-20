@@ -70,6 +70,11 @@ export class ComparePageObject {
         await this.page.getByTestId("commit-context-menu").getByRole("button", { name: item }).click()
     }
 
+    async chooseFromTheBranchMenu(branchRow: Locator, item: string) {
+        await branchRow.click({ button: "right" })
+        await this.page.getByTestId("branch-context-menu").getByRole("button", { name: item }).click()
+    }
+
     async leave() {
         await this.page.getByTestId("comparison-actions").click()
         await this.page.getByTestId("comparison-leave").click()
