@@ -58,6 +58,13 @@ Process
 - An extra `windows-latest` CI job for the desktop unit tests is fine.
 - The plans are executed by the owner's agents one milestone at a time; this folder is the only hand-over.
 
+Design review (settled 2026-11-18, details and plan impact in `design/owner-decisions.md`)
+- **One working folder at a time.** A project groups folders; the user works in one folder. No
+  side-by-side or combined display of several folders. Plan 03's `view.visibleFolderIds` becomes
+  `workingFolderId` (03-M1 is affected now).
+- Branch chip, analyses indicator and snapshot status are one nav-bar element with a progress fill;
+  Fetch / Pull / Push / Publish are one contextual button; the project home is a project overview page.
+
 ## Still open (not blocking)
 
 - Renaming the app to "CodeCharta Studio" (app name, userData folder, icons; BSD-3 notices must be kept). Not planned; would be its own small plan. Until then the store path keeps the upstream app name.

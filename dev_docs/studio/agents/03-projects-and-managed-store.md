@@ -67,15 +67,15 @@ Core
 - `core/` workspace with crates `codecharta-core` (library), `codecharta-core-api` (serde contract types, `ts-rs` derive), `codecharta-cored` (binary `codecharta-core`: `serve`, `askpass`, CLI). The JSON-RPC dispatcher with a method table, per-request error mapping to the stable `ErrorCode` of `codecharta-core-api`, and the notification channel. This plan only registers methods in that table.
 - `ErrorCode` / `CoreError` (`codecharta-core-api/src/error.rs`) with at least `BAD_REQUEST`, `NOT_FOUND`, `IO_ERROR`, `TOOL_NOT_FOUND`, `INTERNAL`; codes are append-only. This plan appends the store codes (section 3).
 - A tool runner in `codecharta-core/src/tools/` that runs the system `git` with an argument vector (no shell), stdin closed, timeout, hardened environment (`GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never`, `GIT_OPTIONAL_LOCKS=0`, `GIT_PAGER=cat`, `GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` removed), `TOOL_NOT_FOUND` when git is missing. This plan writes against a `trait GitRunner` seam (`fn run(&self, cwd: &Path, args: &[&str]) -> Result<GitOutput, CoreError>`) and adapts to plan 01's real type.
-- Settings and paths in the core: a settings file with `store_root: Option<PathBuf>`, `AppPaths::default_store_root()` (Windows `%APPDATA%\codecharta-visualization\store`; crate candidate `directories`), a `--store-root` flag / `CODECHARTA_STORE_ROOT` environment variable for CLI and tests, and the JSON-RPC methods `paths.get`, `paths.resetStoreRoot`. This plan implements `store.changeRoot` beside them.
+- Settings and paths in the core: a settings file with `store_root: Option<PathBuf>`, `AppPaths::default_store_root()` (Windows `%APPDATA%\codecharta-visualization\store`; crate candidate `directories`), a `--store-root` flag / `CODECHARTA_STORE_ROOT` environment variable for CLI and tests, and the JSON-RPC methods `paths.get`, `paths.resetStoreRoot`. This plan implements `store.changeRoot` beside them. As built (03-M0 item 0): `Paths::store_root()` (setting, else `<dataDir>/store`), `store_root: Option<String>`, no `directories` crate, and no `--store-root` / `CODECHARTA_STORE_ROOT` — CLI and tests isolate the store with `--data-dir` / `CODECHARTA_DATA_DIR`.
 - The method gate: methods flagged **shell-only** in the method table are refused when they come from the renderer (the shell relays renderer requests by name; it never relays shell-only names). This plan adds `projects.inspectFolder`, `projects.folderPath`, `projects.sourceFileLocation`, `snapshots.inspectImportFile`, `snapshots.mapLocation`, `store.changeRoot`.
-- Shell-composed bridge methods: the `DesktopBridge` offers a few methods that exist only in the shell because they combine a native dialog or a file read with core calls. Plan 01 defines how they appear in the generated contract (this plan assumes request/result types for them live in `codecharta-core-api/src/shell.rs`, marked "never served by the core"). This plan's shell-composed methods: `projects.pickFolder`, `projects.readSourceFile`, `snapshots.pickImportFile`, `snapshots.readMapChunk`, `store.chooseRoot`.
+- Shell-composed bridge methods: the `DesktopBridge` offers a few methods that exist only in the shell because they combine a native dialog or a file read with core calls. As built (03-M2 part B): they are not core methods and not in the generated contract; the renderer calls them through `bridge.request(method, params)` like a core method, the shell's relay runs them in the main process instead of forwarding them, and `DesktopBridge` declares their params and results by hand (`ShellMethods` in `util/desktop/desktopBridge.ts`). This plan's shell-composed methods: `projects.pickFolder`, `projects.readSourceFile`, `snapshots.pickImportFile`, `snapshots.readMapChunk`, `store.chooseRoot`, plus `projects.revealFolder` (reveal-in-explorer over `projects.folderPath`).
 - Test support: `cargo test` workspace setup, `tempfile` as dev-dependency, a way for integration tests to start the binary (`env!("CARGO_BIN_EXE_codecharta-core")` from `codecharta-cored/tests/`). This plan creates the temporary-git-repository fixture (M2.2).
 
 Renderer and shell (`visualization/`)
 - Generated contract in `visualization/app/codeCharta/model/coreApi/` and the regeneration command; this plan adds types by adding them to `codecharta-core-api` and regenerating, never by hand. Drift check in CI is plan 01's.
-- `DESKTOP_BRIDGE: InjectionToken<DesktopBridge | null>` (`null` in the web build), `DesktopEnvironment` (`isDesktop`, `requireBridge()`), `valueOrThrow` / `DesktopBridgeError` and the result envelope `{ ok: true; value } | { ok: false; error: { code, message } }` in `visualization/app/codeCharta/util/desktop/`. The bridge is grouped by the namespace of the dotted method name: `bridge.projects.list()` calls `projects.list` (UNVERIFIED: confirm plan 01's exact shape).
-- Fake: `createFakeDesktopBridge(seed?)` in `visualization/app/codeCharta/util/desktop/desktopBridge.mocks.ts` and `standInForTheDesktopBridge(page, seed)` in `visualization/app/playwright.helper.ts`, which injects `createFakeDesktopBridge.toString()` with `page.addInitScript`. The function must stay **self-contained** (no imports, no outside constants or helpers), so this plan's in-memory projects/snapshots backend (M2.7) is written inside its body, seeded through new optional `FakeDesktopSeed` fields (`projects`, `snapshots`, `activeProjectId`, `pickedImportFile`). Plan 01's spec "should work when rebuilt from its own source text" must stay green.
+- `DESKTOP_BRIDGE: InjectionToken<DesktopBridge | null>` (`null` in the web build), `DesktopEnvironment` (`isDesktop`, `requireBridge()`), `valueOrThrow` / `DesktopBridgeError` and the result envelope `{ ok: true; value } | { ok: false; error: { code, message } }` in `visualization/app/codeCharta/util/desktop/`. As built (plan 01, overview section 10): one generic `bridge.request("projects.list", params)`, no namespace groups.
+- Fake: `createFakeDesktopBridge(seed?)` in `visualization/app/codeCharta/util/desktop/desktopBridge.mocks.ts` and `standInForTheDesktopBridge(page, seed)` in `visualization/app/playwright.helper.ts`, which injects `createFakeDesktopBridge.toString()` with `page.addInitScript`. The function must stay **self-contained** (no imports, no outside constants or helpers), so this plan's in-memory projects/snapshots backend (M2.9) is written inside its body, seeded through new optional `FakeDesktopSeed` fields (`projects`, `snapshots`, `activeProjectId`, `pickedFolders`, `now`; 03-M3 adds `pickedImportFile` and `snapshotMaps`). Plan 01's spec "should work when rebuilt from its own source text" must stay green.
 - Shell (`visualization/electron/`, file layout per plan 01; this plan names `projectsShell.js` and `snapshotsShell.js` for the composed methods): the core client (`request(method, params)`), injectable dialog ports (open-folder, open-file, message box) and file reading, `app.relaunch()`, a reveal-in-explorer that resolves a `(projectId, folderId)` through the shell-only `projects.folderPath`, single-instance lock, `vscode:` in the allowed external protocols. Shell code is verified by plan 01's Playwright `_electron` smoke suite, not by Jest.
 
 ## Design
@@ -126,7 +126,7 @@ Renderer and shell (`visualization/`)
     "addedAt": "ISO"
   }],
   "analysisProfile": { "exclude": [], "without": [], "parallel": true },
-  "view": { "visibleFolderIds": ["f-…"], "shownSnapshotIdByFolder": { "f-…": "<snapshotId>" } }
+  "view": { "workingFolderId": "f-…", "shownSnapshotIdByFolder": { "f-…": "<snapshotId>" } }   // OD1: one working folder, null when the project has none
 }
 ```
 
@@ -149,28 +149,33 @@ Modules in `core/crates/codecharta-core/src/` (no function bodies here; signatur
 | Module | Holds |
 | --- | --- |
 | `ids.rs` | `new_project_id()`, `new_folder_id()`, `new_token()`, `imported_snapshot_id(sha256: &str, commit: Option<&FullCommit>) -> SnapshotId` |
-| `store/mod.rs` | `Store`, `Store::open(root: &Path) -> Result<Store, CoreError>`, `STORE_SCHEMA_VERSION`, `Migration { to_version: u32, migrate: fn(&Path) -> Result<(), CoreError> }`, `MIGRATIONS`, leftover sweep |
+| `store/mod.rs` | `Store`, `Store::open(root: &Path) -> Result<Store, CoreError>` (writing: lock, create, sweep, migrate), `Store::open_read_only`, `Store::session()`, `STORE_SCHEMA_VERSION`, `Migration { to_version: u32, migrate: fn(&Path) -> Result<(), CoreError> }`, `MIGRATIONS` (as built in 03-M1; the leftover sweep is in `store/sweep.rs`) |
+| `store/state.rs` | `StoreState::{Open, Unavailable}` held by `Core` (`Core::open_store`, `Core::store()`, `Core::store_status()`); the degraded `serve` start |
 | `store/paths.rs` | `StorePaths`, `confine_to_folder(folder: &Path, relative: &str) -> Result<PathBuf, CoreError>` |
 | `store/atomic.rs` | `read_json<T: DeserializeOwned>(path: &Path) -> Result<T, CoreError>`, `write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), CoreError>`, `ProjectLocks` |
 | `store/lock.rs` | `StoreLock::acquire(root: &Path) -> Result<StoreLock, CoreError>` (released on drop) |
 | `store/session.rs` | `SessionRepository::{active_project, set_active_project}` |
-| `store/root_change.rs` | `change_store_root(current: &Path, target: &Path) -> Result<StoreRootChange, CoreError>` (adopt an existing store, copy into an empty folder without `.lock`, else `BAD_REQUEST`) |
+| `store/root_change.rs` | `prepare_store_root(current: Option<&Path>, target: &Path) -> CoreResult<PreparedRoot>` (adopt an existing store, copy into an empty folder without `.lock`, else `BAD_REQUEST`); `Core::change_store_root(target)` / `Core::reset_store_root()` open the store there, update the settings and swap the open store at runtime (as built in 03-M6, owner decision OD5) |
 | `recycle.rs` | `trait Recycler { fn recycle(&self, path: &Path) -> Result<(), CoreError>; }`, `SystemRecycler` (crate candidate `trash`) |
-| `folders/inspector.rs` | `inspect_folder(git: &dyn GitRunner, path: &Path) -> FolderInspection`, `resolve_commit(git: &dyn GitRunner, folder: &Path, hash: &CommitHash) -> Result<Option<ResolvedCommit>, CoreError>` |
+| `git/runner.rs` | `trait GitRunner { fn run(&self, cwd: &Path, args: &[&str]) -> GitFuture }` (boxed future of `CoreResult<GitOutput { exit_code, stdout }>`), implemented by `Tools`; `GIT_TIMEOUT` (as built in 03-M2) |
+| `folders/inspector.rs` | `async inspect_folder(git: &dyn GitRunner, path: &Path) -> FolderInspection`, `resolve_commit(git: &dyn GitRunner, folder: &Path, hash: &CommitHash) -> Result<Option<ResolvedCommit>, CoreError>`, `commit_details(..) -> CoreResult<Option<CommitDetails { resolved, commit_date, parents }>>` (03-M3, for binding) |
 | `folders/relationships.rs` | pure: `normalise_remote_url(url: &str) -> String`, `derive_relationships(folders: &[ProjectFolder]) -> BTreeMap<FolderId, Vec<FolderRelationship>>` |
 | `projects/repository.rs` | `ProjectRepository` (CRUD, folder operations, derived status, `resolve_folder(&FolderRef) -> Result<ResolvedFolder, CoreError>` with `path`, `kind`, `status` — offered to plans 04/05/06) |
-| `projects/tokens.rs` | `PickTokens::{issue_folder, issue_file, take_folder, take_file}` (in-memory, 32 hex, 15-minute lifetime as a named constant, consumed on first successful use) |
+| `projects/tokens.rs` | `PickTokens::{issue_folder, issue_file, take_folder, take_folders, take_file, give_back, settle}` (in-memory, 32 hex, 15-minute lifetime as a named constant; taken before a use and given back when the use fails, so consumed on first successful use) |
+| `projects/{record,derived,folders,folder_operations,active,source_files}.rs` | as built in 03-M2: `ProjectRecord` (stored), derived fields, `FolderToAdd`/`attach_folder`, the folder operations, active project and `pick_folder`, `source_file_location` |
 | `snapshots/repository.rs` | `SnapshotRepository` (list, map location, delete, record facts, begin/commit/abort, find by commit) |
 | `snapshots/record.rs` | `SnapshotRecord` (the full `snapshot.json` of section 5 of the decisions file; plan 05 fills the `analysis`/`hosting` parts) |
-| `snapshots/import.rs` | `inspect_import_file`, `import_file`, `open_file`, `move_snapshot`, content hash, hint detection, gzip copy, bind to commit |
+| `snapshots/content.rs` | `ImportFile` (open a regular file, gzip detection, content hash, gzip copy), `commit_hint_of` (03-M3 split it out of `import.rs`) |
+| `snapshots/import.rs` | `inspect_import_file`, `import_file`, bind to commit, duplicate and existing-target lookup (methods of `SnapshotRepository`); `open_file` and `move_snapshot` are in `snapshots/open_file.rs` and `snapshots/move_snapshot.rs` (03-M3) |
 
 Types in `core/crates/codecharta-core-api/src/{error,store,projects,snapshots,shell}.rs`. Every type derives `Serialize, Deserialize, Clone, Debug, PartialEq` and `ts_rs::TS` (UNVERIFIED tool), uses `#[serde(rename_all = "camelCase")]`; request types add `#[serde(deny_unknown_fields)]`; unit enums serialise lowercase. Timestamps are ISO-8601 UTC strings. Validated newtypes use `#[serde(try_from = "String")]`, so an invalid value is a `BAD_REQUEST` before any handler runs.
 
 ```rust
 // error.rs — appended to plan 01's ErrorCode (serialised SCREAMING_SNAKE_CASE, stable)
 TokenExpired, DuplicateFolder, DuplicateLabel, FolderUnavailable, NotACommit,
-DifferentHistory, StoreLocked, StoreNewerSchema, TooLarge
-pub enum StoreProblemCode { StoreLocked, StoreNewerSchema, IoError }
+DifferentHistory, StoreLocked, StoreNewerSchema, TooLarge      // 03-M1 appended StoreNewerSchema, StoreLocked; 03-M2 TokenExpired, DuplicateFolder, DuplicateLabel, FolderUnavailable, DifferentHistory, TooLarge; NotACommit is 03-M3's
+pub enum StoreProblemCode { StoreLocked, StoreNewerSchema, Io }   // methods/store.rs; plan 01's IO code is `IO`
+// ids.rs — ProjectId, FolderId, SnapshotId (03-M1); the other newtypes join with their first user
 
 // newtypes: ProjectId, FolderId, SnapshotId  (^[a-z0-9-]{1,96}$);  CommitHash (^[0-9a-f]{7,40}$);
 // FullCommit (^[0-9a-f]{40}$);  PickToken (32 hex);  Label (1–60 chars, none of / \ : or control characters);
@@ -189,10 +194,11 @@ pub struct ProjectFolder { id: FolderId, path: String, label: Label, role: Folde
     git: Option<FolderGitFacts>, added_at: String,
     status: FolderStatus, relationships: Vec<FolderRelationship>, snapshot_count: u32 }   // last three derived
 pub struct AnalysisProfile { exclude: Vec<String> /* ≤ 50 × ≤ 200 chars, no line breaks */, without: Vec<AnalyserName>, parallel: bool }
-pub struct ProjectView { visible_folder_ids: Vec<FolderId>, shown_snapshot_id_by_folder: BTreeMap<FolderId, SnapshotId> }
+pub struct ProjectView { working_folder_id: Option<FolderId>, shown_snapshot_id_by_folder: BTreeMap<FolderId, SnapshotId> }   // OD1
 pub struct Project { id: ProjectId, name: ProjectName, description: Option<Description>, created_at: String, updated_at: String,
     folders: Vec<ProjectFolder>, analysis_profile: AnalysisProfile, view: ProjectView }
-pub struct ProjectSummary { id: ProjectId, name: String, folder_count: u32, missing_folder_count: u32, snapshot_count: u32, problem: Option<String> }
+pub struct ProjectSummary { id: ProjectId, name: String, updated_at: Option<String>, folders: Vec<ProjectSummaryFolder>, folder_count: u32, missing_folder_count: u32, snapshot_count: u32, problem: Option<String> }
+pub struct ProjectSummaryFolder { id: FolderId, label: Label, role: FolderRole, kind: FolderKind, status: FolderStatus }   // design 03 deviation 3 (03-M5)
 
 pub struct PickedFolder { pick_token: PickToken, path: String, suggested_label: String, kind: FolderKind, git: Option<FolderGitFacts> }
 pub struct NewFolder { pick_token: PickToken, label: Label, role: FolderRole }
@@ -215,9 +221,9 @@ pub struct OpenedFile { project: Project, snapshot: SnapshotSummary, created_pro
 pub struct StoreStatus { problem: Option<StoreProblemCode> }
 pub struct StoreRootChange { store_root: String, adopted: bool }
 
-// shell.rs — request/result types of shell-composed methods; never served by the core
-pub struct MapChunk { #[ts(type = "Uint8Array")] bytes: Vec<u8>, offset: u64, total_bytes: u64 }   // UNVERIFIED ts-rs override
-pub struct SourceFileBytes { #[ts(type = "Uint8Array")] bytes: Vec<u8> }
+// shell-composed results: declared by hand in visualization/app/codeCharta/util/desktop/desktopBridge.ts, not in codecharta-core-api (03-M2 part B)
+interface MapChunk { bytes: Uint8Array, offset: number, totalBytes: number }
+interface SourceFileBytes { bytes: Uint8Array }
 pub struct MapLocation { path: String }                                   // shell-only result of snapshots.mapLocation
 pub struct SourceFileLocation { path: String, folder_root: String, size_bytes: u64 }
 ```
@@ -226,10 +232,10 @@ JSON-RPC methods (params → result; `ok` types are the success payload; failure
 
 | Method | Params | Result | Notes |
 | --- | --- | --- | --- |
-| `projects.list` | — | `ProjectSummary[]` | |
+| `projects.list` | — | `ProjectList { projects: ProjectSummary[] }` | named wrapper: the contract export only names struct types (03-M2) |
 | `projects.get` | `{ projectId }` | `Project` | refreshes git facts and derived fields |
 | `projects.inspectFolder` | `{ path }` | `PickedFolder` | shell-only; issues the pick token |
-| `projects.pickFolder` | — | `PickedFolder \| null` | shell: native folder dialog → `projects.inspectFolder`; `null` = cancelled |
+| `projects.pickFolder` | `{ title }` | `PickedFolder \| null` | shell: native folder dialog (title from the caller) → `projects.inspectFolder`; `null` = cancelled |
 | `projects.create` | `{ name, description?, folders: NewFolder[] }` | `Project` | |
 | `projects.update` | `{ projectId, name?, description?, analysisProfile? }` | `Project` | |
 | `projects.delete` | `{ projectId, permanently }` | void | recycle bin unless `permanently` |
@@ -240,23 +246,24 @@ JSON-RPC methods (params → result; `ok` types are the success payload; failure
 | `projects.refreshFolder` | `FolderRef` | `Project` | |
 | `projects.getActive` / `projects.setActive` | — / `{ projectId \| null }` | `{ activeProjectId }` / void | `session.json` |
 | `projects.setView` | `{ projectId, view }` | void | |
-| `projects.resolveCommit` | `FolderRef & { hash }` | `ResolvedCommit \| null` | |
+| `projects.resolveCommit` | `FolderRef & { hash }` | `ResolveCommitResult { commit: ResolvedCommit \| null }` | `FOLDER_UNAVAILABLE` outside an `ok` git folder |
 | `projects.folderPath` | `FolderRef` | `{ path }` | shell-only; for reveal-in-explorer |
-| `projects.sourceFileLocation` | `FolderRef & { relativePath }` | `SourceFileLocation \| null` | shell-only; folder `ok`, `confine_to_folder`, ≤ 16 MiB else `TOO_LARGE`; `null` when absent; reads the **working tree**, not the snapshot's commit (plan 04) |
-| `projects.readSourceFile` | `FolderRef & { relativePath }` | `SourceFileBytes \| null` | shell: asks `sourceFileLocation`, checks the path is inside `folder_root`, reads |
-| `snapshots.list` | `FolderRef` | `SnapshotSummary[]` | newest first |
-| `snapshots.mapLocation` | `SnapshotRef` | `MapLocation` | shell-only |
-| `snapshots.readMapChunk` | `SnapshotRef & { offset, length }` | `MapChunk` | shell: `mapLocation`, path inside store root, `read(length at offset)` per call (`length` ≤ 32 MiB); the renderer allocates one `Uint8Array(totalBytes)` after the first chunk and fills it with 16 MiB chunks |
-| `snapshots.recordMapFacts` | `SnapshotRef & { checksum, rootName }` | void | |
+| `projects.sourceFileLocation` | `FolderRef & { relativePath }` | `SourceFileLookup { location: SourceFileLocation \| null }` | shell-only; folder `ok`, `confine_to_folder`, ≤ 16 MiB else `TOO_LARGE`; `null` when absent; reads the **working tree**, not the snapshot's commit (plan 04) |
+| `projects.readSourceFile` | `FolderRef & { relativePath }` | `SourceFileBytes \| null` | shell: asks `sourceFileLocation`, checks the realpath is inside the realpath of `folder_root`, reads at most `sizeBytes` |
+| `projects.revealFolder` | `FolderRef` | `null` | shell: `projects.folderPath` → open the folder in the file manager |
+| `snapshots.list` | `FolderRef` | `SnapshotList { snapshots: SnapshotSummary[] }` | newest first by `createdAt`; named wrapper (03-M3, like `ProjectList`) |
+| `snapshots.mapLocation` | `SnapshotRef` | `MapLocation` | shell-only; `shell.resolvePath` with a `snapshotMap` target answers the same path (03-M3) |
+| `snapshots.readMapChunk` | `SnapshotRef & { offset, length }` | `MapChunk` | shell: `mapLocation` and `paths.get`, the map's realpath inside the store root's realpath and ending in `.cc.json[.gz]`, `read(length at offset)` per call (`offset` a whole number ≤ the map size, `length` 1 to 32 MiB, else `BAD_REQUEST`); the renderer allocates one `Uint8Array(totalBytes)` after the first chunk and fills it with 16 MiB chunks |
+| `snapshots.recordMapFacts` | `SnapshotRef & { checksum, rootName }` | void | `checksum`: `MapChecksum` (1–128 ASCII letters/digits), `rootName`: `RootName` (1–255, no `/`) |
 | `snapshots.inspectImportFile` | `{ path }` | `PickedImportFile` | shell-only |
-| `snapshots.pickImportFile` | — | `PickedImportFile \| null` | shell: native open-file dialog (`*.cc.json`, `*.cc.json.gz`, `*.json`, `*.gz`) → `inspectImportFile` |
+| `snapshots.pickImportFile` | `{ title, filters? }` | `PickedImportFile \| null` | shell: native open-file dialog with the caller's title and filters (Electron takes extensions without dots, so the renderer passes `json`, `gz`) → `inspectImportFile` |
 | `snapshots.openFile` | `{ importToken, target: FolderRef \| null, bindToCommit: FullCommit \| null }` | `OpenedFile` | section 6 |
 | `snapshots.import` | `FolderRef & { importToken, bindToCommit }` | `SnapshotSummary` | |
 | `snapshots.move` | `SnapshotRef & { toFolderId, bindToCommit }` | `SnapshotSummary` | imported snapshots only |
 | `snapshots.delete` | `SnapshotRef & { permanently }` | void | |
 | `store.status` | — | `StoreStatus` | problem `Store::open` reported at startup |
-| `store.changeRoot` | `{ path }` | `StoreRootChange` | shell-only |
-| `store.chooseRoot` | — | `StoreRootChange \| null` | shell: native folder dialog → `store.changeRoot` → `app.relaunch()` |
+| `store.changeRoot` | `{ path }` | `StoreRootChange` | shell-only; replaces plan 01's `paths.setStoreRoot` (as built in 03-M6) |
+| `store.chooseRoot` | — | `PathsInfo \| null` | shell: the existing bridge function `chooseStoreRoot({ title })`: native folder dialog → `store.changeRoot` → `paths.get`; no relaunch (OD5, as built in 03-M6) |
 
 This plan adds **no notifications**: the store has a single writing process, so nothing changes behind the renderer's back.
 
@@ -269,7 +276,7 @@ Behaviour rules
 - `openFile` (section 6): `target: null` → reuse `existing_target` or create a project named after the containing folder with that folder as its only (`primary`) folder; then the same steps as `import`. A duplicate returns the existing snapshot with `was_already_imported: true` and writes nothing.
 - `import`: copies the file into a staging directory — gzip-compressing unless it starts with the gzip magic bytes — writes `snapshot.json`, renames the directory. With `bindToCommit` the core re-verifies the commit in the folder (`NOT_A_COMMIT`, or `FOLDER_UNAVAILABLE` when the folder is not an `ok` git folder) and fills `git.commit`, `shortCommit`, `subject`, `authorName`, `authorDate`, `commitDate`, `parents`, `dirty: false`, `remotes`; the other `git` fields are left empty (`branchesAtRun: []`, `tagsAtRun: []`, `headAtRun: null`).
 - `move`: imported snapshots only (`BAD_REQUEST` otherwise); target folder in the same project. With `bindToCommit` the commit is verified in the **target** folder. The new id is computed, `snapshot.json` rewritten atomically with the new id/folder/`git` block, then the directory renamed `snapshots/<from>/<old>` → `snapshots/<to>/<new>` (`Store::open` repairs a record whose `id`/`folderId` disagree with its directory after a crash in between). `toFolderId` equal to the current folder with a `bindToCommit` = "bind later". `view.shownSnapshotIdByFolder` entries pointing at the old id are updated.
-- `store.changeRoot`: adopt the target when it contains `store.json`; copy the current store into it when it is empty; otherwise `BAD_REQUEST` ("Choose an empty folder or an existing CodeCharta store"). Then update the core settings; the shell relaunches the app. The old folder is left untouched (owner default: copy, do not move).
+- `store.changeRoot`: adopt the target when it contains `store.json`; copy the current store into it when it is empty; otherwise `BAD_REQUEST` ("Choose an empty folder or an existing CodeCharta store"). Then update the core settings and serve the new store at once (no relaunch, OD5); requests already running finish on the old store. Refused with `CONFLICT` while analyses are queued or running. `paths.resetStoreRoot` does the same into the default folder. The old folder is left untouched (owner default: copy, do not move).
 
 Offered to plan 05 (library, `snapshots/repository.rs`):
 
@@ -282,7 +289,7 @@ impl SnapshotRepository {
 }
 ```
 
-CLI (`codecharta-cored/src/cli/projects.rs`, `cli/snapshots.rs`; calls the library directly with argv paths, no tokens; global `--store-root <dir>` and `--json`; exit 0 ok, 1 `CoreError`, 2 usage):
+CLI (`codecharta-cored/src/cli/projects.rs`, `cli/snapshots.rs`; calls the library directly with argv paths, no tokens; global `--data-dir <dir>` (the store is `<dataDir>/store` unless a store root is set) and `--json` per command; exit 0 ok, 1 `CoreError`, 2 usage):
 
 ```
 codecharta-core projects list
@@ -304,9 +311,9 @@ export interface ProjectSnapshotOrigin { projectId: string; folderId: string; sn
 - `FilesLoadedSource` gains `"project"`.
 - New `stores/fileStore/loaders/ccJson/util/rootName.ts`: `withRootName(content, rootName): { content; originalRootName }`. For cc.json 2.x it sets `content.files[0].name`. For 1.x it renames `nodes[0]` and rewrites the `/<old>` prefix of `edges[].fromNodeName`/`toNodeName`, `blacklist[].path`, `markedPackages[].path`. Exported through `fileStore.facade.ts` with the constant `PROJECT_ROOT_NAME = "root"`.
 - `LoadFileService.loadFiles(nameDataPairs, options: { replaceLoadedFiles?: boolean } = {})`: with the flag the working list starts as `[]` instead of `clone(this.filesRepo.getFiles())`. A failed load still throws before `setFiles`, so the previous map stays.
-- `indexedDBWriter.ts`: new module-private `persistableFiles(files) = files.filter(fileState => !fileState.file.fileMeta.projectSnapshot)`, applied in `isFilesWriteDue`, `writeCcFiles` and the files branch of `writeCcState` (one function for all three — LENS_DATA_RULES rule 2). `isFilesWriteDue` additionally returns `false` when nothing is persistable and nothing is persisted, so a project load neither writes an empty record nor raises the save spinner. `SaveCcStateEffect` needs no change. A session saved before the upgrade is overwritten with `[]` on the first project load, which frees the old maps.
+- `indexedDBWriter.ts`: new module-private `persistableFiles(files) = files.filter(fileState => !fileState.file.fileMeta.projectSnapshot)`, applied in `isFilesWriteDue`, `writeCcFiles` and the files branch of `writeCcState` (one function for all three — LENS_DATA_RULES rule 2). `isFilesWriteDue` additionally returns `false` when files are loaded, all of them project maps, and nothing is persisted (as built in 03-M4: an empty file list keeps today's behaviour), so a project load neither writes an empty record nor raises the save spinner. `SaveCcStateEffect` needs no change. A session saved before the upgrade is overwritten with `[]` on the first project load, which frees the old maps.
 
-`LoadFilesUseCase` additions (types exported from `load.facade.ts`):
+`LoadFilesUseCase` additions (types exported from `load.facade.ts`; as built in 03-M4 they and the read/rename/group step live in `load/services/projectSnapshotReader.ts`):
 
 ```ts
 export interface ProjectSnapshotToLoad { origin: ProjectSnapshotOrigin; displayName: string; readBytes: () => Promise<Uint8Array> }
@@ -393,7 +400,7 @@ UI placement
 - `cc-manage-project-dialog`: tabs "General" (name, description), "Folders" (the editor plus "Re-link…" on missing rows, "Refresh"), "Analysis profile" (exclude patterns as a textarea, one per line; checkbox per analyser for `without`; "Run analysers in parallel"), "Snapshots" (per folder: list with delete; imported rows show the imported badge and "Move to folder…" / "Bind to commit…", which open `cc-move-snapshot-dialog`), "Delete project" (confirm dialog naming the snapshot count: "Moves the project and its N snapshots to the recycle bin. Your folders are not touched.").
 - `cc-open-file-dialog`: opened after `snapshots.pickImportFile()`, in two modes. "Open cc.json…" (switcher, home (b), shortcut): target defaults to section 6's rule and is shown as one line ("New project **Downloads** with folder `C:\Users\…\Downloads`" or "Project **X**, folder **y**"), with "Change…" revealing a project/folder select. "Import cc.json…" (home (c), per folder): target fixed to that folder. Both show file name, size, the label **"Imported snapshot — analysis time unknown"**, "File date: `<fileModifiedAt>`" in muted text, and — when `hintCommit` is set — a checked option "Bind to commit `<short>` — `<subject>`"; when the hint exists but did not resolve (plain folder or unknown hash), "Look for commit `<hash>` in another folder…" (folder picker → add the folder to the project → `projects.resolveCommit`). A `duplicateOf` hit replaces the button text by "Show existing snapshot". Confirm → `ProjectsService.openFile` / `importSnapshot`.
 - `cc-move-snapshot-dialog`: target folder select (folders of the project), a hash input prefilled from the file-name hint, "Check" → `projects.resolveCommit` on the target folder, shows subject or "not a commit of this folder"; confirm → `snapshots.move`.
-- Store location: plan 01's desktop tools panel (`features/desktopTools`, row "Data folder: `<storeRoot>`" with "Show in file manager") gains "Change…" (→ `store.chooseRoot`, which relaunches on success) and, when the root is custom, "Use default" (→ `paths.resetStoreRoot`, then relaunch). No separate store-location component.
+- Store location: plan 01's desktop tools panel (`features/desktopTools`) gains a "Store folder" row with "Show", "Change…" (→ `chooseStoreRoot`) and, when the root is custom, "Use default" (→ `paths.resetStoreRoot`); neither relaunches: the core swaps the open store and the renderer reloads projects (OD5, design `01-desktop-tools.md` D3; as built in 03-M6 the flow is `StoreFolderService` in `features/desktopTools`). No separate store-location component.
 - `confirmResetMapDialog.component.ts`: replace `loadFilesUseCase.reloadAfterReset()` by `projectsBoot.reloadAfterReset()`, which calls the old method in the web build and `loadProjectSnapshots(await snapshotsToShow(), { discardMetricSelection: true })` in desktop (or `unloadAllFiles()` when there is nothing to show). The store is not touched by a reset.
 
 Error and edge states
@@ -466,23 +473,23 @@ Acceptance: `cargo test` green; starting the app creates `store.json` and `.lock
 ### M2 — Projects: core, RPC, CLI, shell, fake (L)
 
 1. `folders/relationships.rs` (pure). Tests: should treat ssh and https urls of one repository as equal; should report fork_of when a non-origin remote matches the other origin; should report shares_history_with for intersecting root commits; should report nothing for shallow clones without matching remotes. Commit: `feat(core): derive relationships between project folders`
-2. `core/crates/codecharta-core/tests/support/fixture_repo.rs` — temporary git repositories with a hermetic environment (`GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` → empty file, `GIT_CONFIG_NOSYSTEM=1`, `HOME`/`USERPROFILE` = temp dir, fixed author/committer names and dates, `-c init.defaultBranch=main -c commit.gpgsign=false -c core.autocrlf=false`) with `create()`, `commit(message, files)`, `add_remote(name, url)`, `clone_shallow()`; plan 04 extends it. Then `folders/inspector.rs`. Tests: should strip credentials from a remote url; should report no default branch when origin/HEAD is unset and HEAD has no commits; should classify a repository root as git; should flag a subfolder as not the repository root; should classify a plain folder; should classify everything as plain when git is unavailable (stub runner); should resolve a short hash to its commit; should return none for an unknown hash. Commit: `feat(core): inspect project folders with git`
+2. `core/crates/codecharta-core/tests/support/git_fixture.rs` (`TempRepo`, overview section 10) — temporary git repositories with a hermetic environment (`GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` → empty file, `GIT_CONFIG_NOSYSTEM=1`, `HOME`/`USERPROFILE` = temp dir, fixed author/committer names and dates, `-c init.defaultBranch=main -c commit.gpgsign=false -c core.autocrlf=false`) with `create()`, `commit(message, files)`, `add_remote(name, url)`, `clone_shallow()`; plan 04 extends it. Then `folders/inspector.rs`. Tests: should strip credentials from a remote url; should report no default branch when origin/HEAD is unset and HEAD has no commits; should classify a repository root as git; should flag a subfolder as not the repository root; should classify a plain folder; should classify everything as plain when git is unavailable (stub runner); should resolve a short hash to its commit; should return none for an unknown hash. Commit: `feat(core): inspect project folders with git`
 3. `projects/tokens.rs`. Tests: should consume a token once; should expire a token; should reject a label containing a path separator at deserialisation; should reject an unknown analyser name. Commit: `feat(core): add pick tokens and validated project requests`
 4. `projects/repository.rs`: create, get, list, update, delete with an injected `Recycler`. Tests: should write project.json atomically; should force the first folder to primary; should list a project with a newer schema as a problem; should recycle a deleted project's directory; should delete permanently when asked. Commit: `feat(core): store projects in the managed store`
 5. Folder operations: add, update, remove, relink, refresh, derived status, `resolve_folder`. Tests: should reject a folder already in the project; should reject a duplicate label; should demote the old primary; should flag a vanished folder as missing; should refuse a relink to a different history unless accepted; should keep snapshots when a folder is relinked. Commit: `feat(core): manage folders of a project`
-6. API types, `projects.*` and shell-only methods registered in `codecharta-cored/src/rpc/projects.rs`, `confine_to_folder` + `projects.sourceFileLocation`, regeneration of `model/coreApi/`. Tests (`codecharta-cored/tests/`, protocol over stdio): should answer BAD_REQUEST for an unknown request key; should answer BAD_REQUEST for an id containing a path separator; should answer BAD_REQUEST for a commit hash that is not lowercase hex (e.g. `--output=x`); should answer TOKEN_EXPIRED for a reused token; should refuse a source file larger than the limit; should return null for a missing source file; should refuse a source path that leaves the folder through a symlink. Commit: `feat(core): serve projects over json-rpc`
-7. CLI `projects list|create|add-folder`. Tests (binary with `--store-root`): should list no projects in a new store; should create a project from folder arguments; should add a folder with label and role; should exit 2 for a missing argument; should print json with `--json`. Commit: `feat(core): add project commands to the command line`
+6. API types, `projects.*` and shell-only methods registered in `codecharta-cored/src/serve/projects_routes.rs`, `confine_to_folder` + `projects.sourceFileLocation`, regeneration of `model/coreApi/`. Tests (`codecharta-cored/tests/`, protocol over stdio): should answer BAD_REQUEST for an unknown request key; should answer BAD_REQUEST for an id containing a path separator; should answer BAD_REQUEST for a commit hash that is not lowercase hex (e.g. `--output=x`); should answer TOKEN_EXPIRED for a reused token; should refuse a source file larger than the limit; should return null for a missing source file; should refuse a source path that leaves the folder through a symlink. Commit: `feat(core): serve projects over json-rpc`
+7. CLI `projects list|create|add-folder`. Tests (binary with `--data-dir`): should list no projects in a new store; should create a project from folder arguments; should add a folder with label and role; should exit 2 for a missing argument; should print json with `--json`. Commit: `feat(core): add project commands to the command line`
 8. Shell: `projectsShell.js` (`projects.pickFolder`, `projects.readSourceFile`, shell-only gate, `projects.folderPath` for reveal-in-explorer); preload exposure; add the same methods to `createFakeDesktopBridge` as minimal stubs (the compiler forces it). Covered by plan 01's relay specs plus an `_electron` smoke addition (stubbed dialog: pick → create → list). Commit: `feat(visualization): expose projects through the desktop shell`
 9. Replace the stubs with an in-memory projects/snapshots/store backend inside `createFakeDesktopBridge` (seedable through `FakeDesktopSeed`). Tests: should create and list a project; should report a seeded missing folder; should work when rebuilt from its own source text. Commit: `test(visualization): add projects to the fake desktop bridge`
 
-Acceptance: `codecharta-core projects create --name demo --folder .` then `projects list` shows it; from DevTools in the running app `await window.codeChartaDesktop.projects.pickFolder()` opens a native dialog and `create` writes `projects/<id>/project.json`.
+Acceptance: `codecharta-core projects create --name demo --folder .` then `projects list` shows it; from DevTools in the running app `await window.codeChartaDesktop.request("projects.pickFolder", { title: "Add Folder" })` opens a native dialog and `create` writes `projects/<id>/project.json`.
 
 ### M3 — Snapshots: core, RPC, CLI, shell (M)
 
 1. `snapshots/repository.rs` list/map location/delete/record facts and begin/commit/abort/find_by_commit. Tests: should list snapshots newest first; should skip a directory without snapshot.json; should make a snapshot visible only after commit; should remove the staging directory on abort; should recycle a deleted snapshot. Commit: `feat(core): list and manage snapshots of a folder`
 2. `snapshots/import.rs` — inspect and import. Tests: should gzip a plain json file on import; should copy a gzip file unchanged; should hash the uncompressed content so a json and its gzip are one content; should detect a commit hint from a ccsh file name; should not take a hint from a name without a hex prefix; should record the file date as a hint and no analysis time; should return the existing snapshot when the same content is imported twice into a project; should record git facts when bound to an existing commit; should answer NOT_A_COMMIT for an unknown commit. Commit: `feat(core): import cc.json files as snapshots`
 3. `snapshots/import.rs` — open_file and move (section 6). Tests: should create a project named after the containing folder; should register the containing folder as the project folder; should register a non-repository folder as plain; should reuse the project that already has the containing folder; should resolve the file-name hint in the containing repository; should show the existing snapshot when the same file is opened again; should not duplicate a snapshot that was moved to another folder; should move an imported snapshot to another folder and bind it; should refuse to move an analysed snapshot; should update the remembered snapshot of a folder after a move. Commit: `feat(core): open a cc.json file into a project`
-4. `snapshots.*` registered in `rpc/snapshots.rs`, `snapshots.mapLocation`, regeneration of `model/coreApi/`. Tests (protocol): should answer a map location inside the store root; should answer NOT_FOUND for an unknown snapshot. Commit: `feat(core): serve snapshots over json-rpc`
+4. `snapshots.*` registered in `codecharta-cored/src/serve/snapshots_routes.rs` (03-M3; the plan's `rpc/snapshots.rs` does not match the layout as built), `snapshots.mapLocation`, regeneration of `model/coreApi/`. Tests (protocol): should answer a map location inside the store root; should answer NOT_FOUND for an unknown snapshot. Commit: `feat(core): serve snapshots over json-rpc`
 5. CLI `snapshots list|import`. Tests: should import a file and list it; should print the existing snapshot when importing the same file twice; should exit 1 with the error code for an unknown folder. Commit: `feat(core): add snapshot commands to the command line`
 6. Shell: `snapshotsShell.js` (`snapshots.pickImportFile`, `snapshots.readMapChunk` with the inside-store-root check), preload exposure, fake-bridge support. Covered by plan 01's relay specs plus the `_electron` smoke (stubbed open-file dialog: open `sample1.cc.json`, read a map chunk). Commit: `feat(visualization): expose snapshots through the desktop shell`
 
@@ -521,7 +528,7 @@ Acceptance: in the desktop app, create a project with two folders, restart, land
 1. `cc-open-file-dialog` + switcher/home entry points + `Ctrl+O`. Tests: should name the new project after the containing folder; should target the existing project of the containing folder; should label the snapshot as imported with unknown analysis time; should show the file date as a hint; should offer binding when the hint resolves to a commit; should not offer binding for a plain folder; should offer show existing for a duplicate; should show the opened snapshot. Commit: `feat(visualization): open cc.json files in the desktop app`
 2. `cc-move-snapshot-dialog` + manage-dialog entries + the plain-folder hint row. Tests: should list the folders of the project as targets; should check the hash in the target folder; should move and show the snapshot. Commit: `feat(visualization): move imported snapshots between folders`
 3. Core: `store/root_change.rs` and `store.changeRoot`. Tests (core): should adopt a folder that already holds a store; should copy the store into an empty folder without the lock file; should refuse a non-empty folder without a store; should leave the old store in place. Commit: `feat(core): copy the managed store to a new folder`
-4. Shell `store.chooseRoot` (dialog → `store.changeRoot` → `app.relaunch()`) and "Change…" / "Use default" in plan 01's desktop tools panel. Tests (Jest): should not render in the web build; should call chooseRoot and show no change when the choice is cancelled; should offer Use default only for a custom root. Commit: `feat(visualization): change the store folder from the settings`
+4. Shell `store.chooseRoot` (dialog → `store.changeRoot` → `paths.get`; no `app.relaunch()`, owner decision OD5 — as built in 03-M6 it is the bridge function `chooseStoreRoot`) and "Change…" / "Use default" in plan 01's desktop tools panel. Tests (Jest): should not render in the web build; should call chooseRoot and show no change when the choice is cancelled; should offer Use default only for a custom root. Commit: `feat(visualization): change the store folder from the settings`
 5. Optional, only if spike M0.4 passed: drag-and-drop. The preload adds `snapshots.openDroppedFile(file: File)`, which calls `webUtils.getPathForFile(file)` and hands the path to the shell. The shell treats it as untrusted (absolute, regular file, allowed extension, ≤ the import size limit), shows a **native** message box ("Open `<file name>` from `<folder>`?", Open / Cancel), then calls `snapshots.inspectImportFile` as `pickImportFile` would; the renderer shows `cc-open-file-dialog` as usual. The drop handler lives on `views/codeCharta.component.ts` (`(drop)`/`(dragover)` host listeners, desktop only). Tests (Jest + smoke): should do nothing for a relative path; should refuse a directory; should not inspect when the confirmation is cancelled; should open the dialog for a dropped file. Commit: `feat(visualization): open a cc.json file by dropping it on the window`
 6. Changelog (Added) "**Open cc.json files**: the desktop app files an opened cc.json into a project for its folder, marked as imported with an unknown analysis time, and can tie it to the commit its name points to." and (Changed) "**Store folder**: the desktop settings can move where analyses are kept." Commit: `docs(visualization): announce opening cc.json files and the store folder`
 
@@ -546,7 +553,7 @@ Acceptance: in the desktop app, create a project with two folders, restart, land
 - **Commits**: commitlint scopes `core` (core work, added by plan 01) and `visualization` (Angular and shell), subject ≤ 72 characters; structural commits separate and first (M4.1).
 - **Security**: every id, hash, label and token is a validated newtype before a handler runs; ids match `^[a-z0-9-]{1,96}$` before any path join; every store path goes through `StorePaths`; source reads through `confine_to_folder` (canonicalised); shell-only methods are refused from the renderer; the shell reads only paths the core returned and checks them against the store root or folder root; git arguments are arrays and every user-derived value is validated hex or a generated id, so none starts with `-`; remote URLs lose embedded credentials before they are cached, logged or returned; no token, password or credential is ever stored.
 - **Changelog**: one bold title + one sentence per user-visible change, under `## [unreleased]`, sections in header order; rewrite an entry instead of adding a second one.
-- **Lockfile / dependencies**: no npm dependency added. Cargo dependencies (candidates, all UNVERIFIED): `serde`, `serde_json`, `thiserror`, `ts-rs`, `sha2`, `flate2`, `tempfile`, `trash`, `directories`, `dunce`, a file-lock crate (`fs4`), a time crate (`time`), `rand`/`getrandom`; keep `Cargo.lock` committed.
+- **Lockfile / dependencies**: no npm dependency added. Cargo dependencies: in use `serde`, `serde_json`, `thiserror`, `ts-rs`, `tempfile`, `humantime` (timestamps) and `getrandom` (ids, 03-M1); candidates `sha2`, `flate2`, `trash`, `dunce`. Not used: `directories` (pulls MPL-2.0 `option-ext`, refused by `core/deny.toml`) and `fs4` (std `File::try_lock` suffices; 03-M0 item 3). Keep `Cargo.lock` committed.
 
 ## Manual verification (packaged app, Windows)
 
@@ -605,5 +612,5 @@ Acceptance: in the desktop app, create a project with two folders, restart, land
 
 ## Open questions for the owner
 
-1. **May the "open local source files" preference be bypassed for project maps?** Default: yes — a project folder is an explicit link, so source opening is always on for project maps; the experimental switch keeps governing uploaded maps in the web build.
-2. **How many folders may be shown side by side?** Default: no limit; D6's "one or two maps in memory" becomes "as many as the user checked", with no warning.
+1. ~~**May the "open local source files" preference be bypassed for project maps?**~~ **Decided by the owner (2026-11-18):** yes — a project folder is an explicit link, so source opening is always on for project maps; the experimental switch keeps governing uploaded maps in the web build.
+2. ~~**How many folders may be shown side by side?**~~ **Moot (OD1): one working folder at a time.** Former default: no limit; D6's "one or two maps in memory" becomes "as many as the user checked", with no warning.

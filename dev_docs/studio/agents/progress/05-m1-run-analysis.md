@@ -1,0 +1,238 @@
+---
+name: 05-M1 run one analysis from the core
+state: complete
+version: 1
+---
+
+## Goal
+
+Run one `ccsh analyse` from the core: validated and hashed analysis profiles, the argv, output and failure
+parsing, progress from stderr, a scripted ccsh stand-in, per-platform launch resolution, and a cancellable
+runner on plan 01's process runner (plan 05, Milestones, M1).
+
+## Tasks
+
+Copied from `05-commit-analysis-and-snapshots.md`, Milestones, M1 (tests to write first are listed there).
+Branched from `feature/studio-04-m11` (plan 03 and 04 cores verified, merge pending).
+
+Must apply the 05-M0 findings (`05-m0-spikes.md`): direct-java launch holds; pass `-Dstdout.encoding=UTF-8`
+and `-Djava.io.tmpdir=<jobTempDir>`; exit 1 messages on stdout, exit 2 on stderr; progress keyed on the
+`Files` unit only (ignore `Byte`), never decreasing, capped at 99; strip control bytes from stdout; a
+signal exit (`code()` is `None`) never maps to `analysis-failed`; non-empty stderr is not a failure (JDK
+reflection warnings); never `-i`; a non-sha `--commit` silently analyses HEAD, so only full SHAs are passed.
+Output fixtures are the strings captured in 05-M0. Windows items are `#[cfg(windows)]` and unverified here.
+Gates with and without `--all-features`.
+
+1. Profiles
+2. Argv
+3. Output and failures
+4. Progress
+5. fake-ccsh and test helpers
+6. Launcher
+7. Runner
+
+## Steps
+
+- [x] 1. Profiles
+- [x] 2. Argv
+- [x] 3. Output and failures
+- [x] 4. Progress
+- [x] 5. fake-ccsh
+- [x] 6. Launcher
+- [x] 7. Runner
+
+## Notes
+
+Environment (2026-11-19): Linux, rustc 1.95 (workspace toolchain), OpenJDK 27.0.1, ccsh 2.4.0 built in this
+worktree with `cd analysis && ./gradlew installDist` (git-ignored). Windows code is `#[cfg(windows)]` or
+reached through `TargetOs::Windows` in unit tests; nothing Windows-specific ran.
+
+### Reconciliation of "Required from other plans" (overview section 10), against `core/` as built
+
+| Plan 05 assumes | Built (ground truth) | M1 consequence |
+|---|---|---|
+| 01 `ProcessRunner::run(RunSpec { program, args, cwd, env, timeout, max_output_bytes, cancel, on_stdout, on_stderr })`, `RunError::{Timeout, Cancelled, ToolNotFound, Io}` | `process::ProcessRunner::run(RunRequest { tool, program, args, cwd, env, env_remove, timeout, max_output_bytes, askpass, output: OutputMode::{Collect, Stream(mpsc::Sender<OutputChunk>)}, stdin }, &CancellationToken) -> CoreResult<RunOutput { exit_code: i32, stdout, stderr, duration }>`; errors are `CoreError::{Timeout, Cancelled, OutputTooLarge, ToolNotFound, ToolFailed, BadRequest, Io}`; a signal exit is `exit_code == -1` (`NO_EXIT_CODE`), never `None` | the runner streams through `OutputMode::Stream`; `NO_EXIT_CODE` made `pub` so `run_ccsh` can tell a signal from an exit |
+| 01 `launch::plan_launch` (`cmd.exe /d /s /v:off /c "…"`) for `.cmd`/`.bat` | no `plan_launch`: the runner spawns a batch file with std's own escaping after `launch::check_batch_args` (refuses `"`, `%`, `!`, CR, LF, NUL → `BAD_REQUEST`) | `CmdShim` runs the shim through `ProcessRunner` directly; its refusal maps to `INVALID_ARGUMENTS` with the plan's hint. No second quoting routine |
+| 01 `hardened_env()` | `process::env::hardened_env(parent, extra_search_folders)` | used as is (tests build `ProcessRunner::new(hardened_env(..))`) |
+| 01 `tools::ToolsService::{check, resolve}` → `ToolsReport { tools, can_use_git, can_analyse }`, states `ok/missing/failed/too_old`; test override env `CODECHARTA_CCSH_PATH` (UNVERIFIED) | `tools::Tools::{doctor, resolve, run, set_path, clear_path}` → `ToolsReport { checked_at, tools: Vec<ToolStatus>, can_use_git, can_analyse }`, `ToolState::{Ok, Missing, TooOld, Failed}`, `ToolSource::{Custom, JavaHome, Path, WellKnownFolder}`; no env override (tests use `SearchLocations::only` or custom tool paths) | `resolve_ccsh_launch` reads a `&ToolsReport`; tests use `LaunchOverride::Executable(fake-ccsh)`. M3's protocol test needs a way in: a custom ccsh path in the settings, not an env variable |
+| 01 JSON-RPC router, `EventSink::emit(CoreEvent)` | `serve/dispatch.rs` route table; `Notifier::{progress(ProgressParams), emit(name, payload)}`; long work reports `core.progress { requestId, message, done, total }` (04-M7) | not used in M1; M3 decides between `analysis.progress` and `core.progress` |
+| 01 contract generation | `npm run contract` (visualization) runs `export-contract`; only types reachable from a registered method or event are exported | M1 api types (`methods/analysis.rs`) are not reachable yet, so the generated contract does not change until M3 registers methods |
+| 03 `AnalysisProfile { without, exclude, extra_args }` | `codecharta_core_api::methods::projects::AnalysisProfile { exclude: Vec<ExcludePattern>, without: Vec<AnalyserName>, parallel: bool }`; `AnalyserName` is a closed enum (`rawtextparser … svn`, `gitlogparser` is rejected on deserialisation); `ExcludePattern` = 1..200 chars, no line break | no `extra_args`; `parallel` decides `-p`. See task 1 deviations |
+| 03 `SnapshotRecord` with `analysis.profile { without, exclude, extraArgs }`, `profileHash` | `snapshots::record::{SnapshotRecord, AnalysisRecord, AnalysisProfileRecord { without, exclude, extra_args }}` | the hash input keeps the record's three keys (`extraArgs` always `[]`) |
+| 03 `StorePaths`, `write_json_atomic`, `FolderRef`/`SnapshotRef`, a snapshot lister | `store::paths::StorePaths` (incl. `staging_dir`), `store::atomic::write_json_atomic`, api `FolderRef`/`SnapshotRef`, `snapshots::SnapshotRepository` | M2 extends `SnapshotRepository` instead of writing a second one |
+| 04 `GitService` (`resolve_commit`, `count_commits`, `merge_base`, `is_ancestor`, `refs_pointing_at`, `status`, `refs`, streaming `rev_list`) | `git::GitService::{resolve_commit, rev_list_count, merge_base, is_ancestor, measure_distances, refs_at, rev_list (streaming, `ShaSink`), status, refs, log, commit_details, …}` | names for M2/M5: `count_commits` = `rev_list_count`, `refs_pointing_at` = `refs_at` |
+| plan `Sha` newtype | api `values::CommitSha` (40 or 64 lowercase hex) | used instead of a new `Sha` |
+| plan `tests/common/` | `core/crates/codecharta-core/tests/support/` | test helpers go there |
+
+### 1. Profiles
+- Api first: `codecharta_core_api::methods::analysis::{JobProgress (tag "mode"), AnalysisErrorCode, JobError { code, message, hint }}`.
+  **`AnalysisErrorCode` serialises SCREAMING_SNAKE_CASE** (overview section 10 over the plan's kebab-case) and is
+  append-only. Two codes beyond the plan: `CRASHED` (the child ended by a signal the core did not send — never
+  `ANALYSIS_FAILED`, per 05-M0) and `OUTPUT_TOO_LARGE` (the runner's output cap fired). No method uses the types
+  yet, so `npm run contract` leaves the generated contract unchanged.
+- `analysis/profile.rs`: `ValidProfile` (sorted, deduped `exclude` and `without`, `parallel`), `validate_profile`
+  → `Result<ValidProfile, JobError>` (plan: `AnalysisError`; the core has no such type and every failure here is a
+  job failure), `profile_hash` = first 8 hex of SHA-256 (`sha2` 0.10, already a dependency) over
+  `{"exclude":[…],"extraArgs":[],"without":[…]}` — the snapshot record's three profile keys; `parallel` is left
+  out because it changes the speed, not the map.
+- Deviations (plan 03's profile as built): no `extra_args`, so "reject each forbidden extra argument" has nothing
+  to test — the argv guard of task 2 covers `-i`/`-q`/`-nc`; `without` is the closed enum `AnalyserName`, so
+  "normalise gitlogparser to git" is impossible (deserialisation rejects it; plan 03's own test asserts that) and
+  was replaced by `should_sort_and_dedupe_both_lists`; "reject an unknown without entry" is tested as a
+  deserialisation failure. `ExcludePattern` already guarantees non-empty and no line break; the validator adds
+  comma and NUL. Extra test: `should_hash_the_record_keys_and_ignore_parallel`.
+
+### 2. Argv
+- `analysis/argv.rs`: `AnalyseArgvInput { folder_path, output_base, profile: &ValidProfile, commit: Option<&CommitSha> }`,
+  `build_analyse_argv` → `analyse <folder> -o <output_base> [-p] [--without=<csv>] [--exclude=<pattern>]… [--commit=<sha>]`.
+  `-p` only when `profile.parallel` (plan: always). Exclude patterns are always written as one `--exclude=<p>`
+  argument, so a pattern `-i` reaches ccsh as `--exclude=-i`. Errors are `INVALID_ARGUMENTS` (relative path,
+  an element equal to `-i`/`--interactive`). `CommitSha` already guarantees a full lower-case sha; confirming it
+  with `git cat-file -e` stays with the caller (preflight, M3).
+- Extra tests: `should_leave_out_parallel_and_empty_lists`, `should_refuse_an_interactive_flag_as_a_whole_argument`.
+
+### 3. Output and failures
+- `analysis/output.rs`: `parse_map_line` (last `Map: ` line, trailing `\r`/spaces trimmed), `parse_not_in_map`,
+  `strip_control_characters` (drops C0/C1 controls except `\n \r \t`, 05-M0 finding 6), `classify_failure`,
+  `classify_start_failure`.
+- **Deviation — the run result is an enum, not flags:** `CcshRunResult { end: RunEnd, stdout, stderr }` with
+  `RunEnd::{Exited { code }, Signalled, Cancelled, TimedOut, InteractiveTrap, OutputTooLarge}` instead of
+  `exit_code: Option<i32>` + three booleans (no impossible combinations). It lives in `output.rs` because the
+  classifier needs it before the runner exists; `runner.rs` produces it.
+- **Deviation — `classify_failure(&CcshRunResult) -> Option<JobError>`**: `None` for a cancelled run (not a
+  failure); spawn errors go through `classify_start_failure(&CoreError)` because the built runner reports them as
+  `CoreError::ToolNotFound { tool }` (java for java-direct, ccsh otherwise) or `BadRequest` (batch-file argument
+  refusal → `INVALID_ARGUMENTS` with the plan's "set the ccsh path to the ccsh.bat …" hint), not as `io::Error`.
+- Order (first match wins): cancelled → none; stderr `ccsh needs Java` / `Unrecognized option: --enable-native-access`
+  → `JAVA_TOO_OLD` (hint: the marked line and the next non-empty one); interactive trap; timeout; output cap →
+  `OUTPUT_TOO_LARGE`; signal → `CRASHED`; exit 2 → `INVALID_ARGUMENTS` with the first non-empty **stderr** line;
+  stdout `No commit found for` → `UNKNOWN_COMMIT`; `Failed to create git worktree` → `WORKTREE_FAILED` (long-path
+  hint); `Git command timed out` → `GIT_TIMEOUT`; other non-zero exit → `ANALYSIS_FAILED` with the last non-empty
+  stdout line; exit 0 → `NO_OUTPUT` (the caller asks only when no map was found). stderr is otherwise ignored
+  (JDK 27 reflection warnings).
+- Fixtures are the 05-M0 strings (`--without=x`, `--nonsense`, the missing full sha, the JDK warning, the commit
+  run's summary block with `─`×72 and SO bytes); the java-too-old text follows `CcshLauncher.java`.
+
+### 4. Progress
+- `analysis/progress.rs`: `ProgressParser::{new, push(&str) -> Option<u8>, progress() -> JobProgress}`.
+  **Deviation:** `push` takes `&str`, because the built runner streams already-decoded UTF-8 chunks
+  (`OutputChunk::Stderr(String)`), not bytes.
+- **Rule changed per 05-M0 finding 5** (not the plan's `unit:total` sum): only bars with unit `Files` count; the
+  shown percent is `floor(100 · parsed / total)` of the most advanced `Files` bar seen so far, never decreasing,
+  capped at 99 until the process exits; `Byte` bars, logger lines and JDK warnings are ignored;
+  `Indeterminate` until the first bar.
+- Hand-written matcher of the plan's regex (no `regex` crate; the core has none and the tools version parser is
+  hand-written too): `<1-3 digits>% [=*> *] *<n>/<total> <unit>, ETA: <N/A|HH+:MM:SS>`. Segments split on `\r`
+  and `\n`; the unfinished last segment is kept and also read, but only once its ETA is complete, so a count cut
+  off by a chunk boundary is never read (`should_not_read_a_count_cut_off_inside_the_eta`). A segment longer than
+  4096 characters without a separator is dropped.
+- Test renamed: "aggregate two interleaved trackers" → `should_follow_the_most_advanced_of_two_interleaved_trackers`.
+  Extra: `should_ignore_the_byte_unit`, `should_follow_a_parallel_run_mixed_with_log_lines`. Fixture bars are
+  drawn by a test helper that reproduces `ProgressTracker.kt` exactly (05-M0 kept no raw stderr bytes).
+
+### 5. fake-ccsh
+- **Deviation — a binary of `codecharta-core`, not a workspace crate:** `core/crates/codecharta-core/src/bin/fake-ccsh.rs`
+  (beside `cc-fake-tool`), so integration tests get it through `env!("CARGO_BIN_EXE_fake-ccsh")`, which cargo
+  guarantees to build — no locator next to `deps/` and no nested `cargo build -p fake-ccsh` from inside a test
+  (the plan's UNVERIFIED fallback). Uses only `serde`/`serde_json`/`flate2`, which the crate already has.
+- Scenario (JSON file named by `FAKE_CCSH_SCENARIO`, set in the child's environment only — no process-wide env
+  races): `stdout[]`, `stderr_chunks[]`, `delay_ms` (pause after each stderr chunk), `exit_code`, `write_map`,
+  `hang`, plus `pid_file` (for the tree-kill check). Order: stdout, stderr, map + summary block (blank, `─`×72,
+  `Analysis done: …`, blank, `Map: <path>`), hang, exit. The map name follows ccsh: `-o` value, `<7 chars>.` prefix
+  when `--commit=` is present, `.gz`/`.json`/`.cc` stripped, `.cc.json.gz` appended; the map is a tiny gzipped 2.1
+  file (`meta` first, root `root`). `--version` alone answers like ccsh 2.4.0 (for a doctor run in M3).
+- Helpers in `tests/support/fake_ccsh.rs` (overview section 10 location; plan said `tests/common`): `fake_ccsh()`,
+  `FakeScenario` (+ `writing_map()`), `write_scenario(folder, &scenario)`, `SCENARIO_VARIABLE`.
+- Tests (`tests/fake_ccsh.rs`): the three plan names plus `should_name_a_working_tree_map_without_a_prefix`.
+  They start the fake with `std::process::Command` (test of the fake itself, not production code).
+- For M3: `codecharta-cored` tests cannot use `CARGO_BIN_EXE_fake-ccsh` (another package). Options: build it from
+  the test with `CARGO` once, or find it next to the cored test binary in `target/<profile>/` after a workspace
+  `cargo test` (cargo builds every member's bins for its integration tests).
+
+### 6. Launcher
+- `analysis/launcher.rs`: `LaunchMode::{JavaDirect, Executable, CmdShim}`, `CcshLaunch { command, prefix_args, env,
+  mode }` (+ `tool()`: java for java-direct, else ccsh; `check_arguments(argv)`), `LaunchOverride::Executable`,
+  `LaunchOptions { worktree_temp_dir, launch_override }` (plan: `override_`), `TargetOs::{Windows, Unix}` (+
+  `current()`), `resolve_ccsh_launch(&ToolsReport, TargetOs, &LaunchOptions) -> Result<CcshLaunch, JobError>`,
+  `CCSH_LAUNCHER_CLASS`.
+- Java-direct prefix (05-M0 findings 7, 8 and design 6): `--enable-native-access=ALL-UNNAMED -Dstdout.encoding=UTF-8
+  -Dstderr.encoding=UTF-8 [-Djava.io.tmpdir=<worktree_temp_dir>] -classpath <APP_HOME>/lib/* CcshLauncher`.
+  Executable and cmd-shim set `CCSH_OPTS="-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"` and **cannot move the
+  temp dir** (a path with spaces does not survive the scripts' word splitting).
+- **Deviation — java-direct on unix too**, when the canonicalised ccsh (npm's `bin/ccsh` symlink resolved) is
+  `<APP_HOME>/bin/ccsh` and `<APP_HOME>/lib` holds a jar: 05-M0 verified this launch on Linux, and it is the only
+  way to pass `-Djava.io.tmpdir=<jobTempDir>` safely. Anything else (a custom wrapper) runs as `Executable`
+  (`should_use_the_executable_itself_on_unix`).
+- **Deviation — the layout needs a `ccsh*.jar`** in `lib/` (plan: any `.jar`), so `/usr/local/bin/ccsh` next to an
+  unrelated `/usr/local/lib/*.jar` is not mistaken for an install (`should_not_take_a_lib_folder_without_a_ccsh_jar_for_an_install`).
+- **Deviation — no own `JAVA_HOME` lookup:** the java command is the tools report's java, and the doctor already
+  ranks a custom path > `$JAVA_HOME/bin` > `PATH` (`SearchLocations::find`); a second rule here could contradict
+  the user's chosen java. Test renamed: "should prefer JAVA_HOME" → `should_start_the_java_the_tools_check_resolved`.
+  A java/ccsh that is `missing`/`failed`/`tooOld` in the report fails with `JAVA_NOT_FOUND`/`CCSH_NOT_FOUND`/
+  `JAVA_TOO_OLD`/`CCSH_TOO_OLD` and the "check the tools" hint.
+- `.cmd` parsing: the first quoted string ending in `ccsh.bat`; `%dp0%`/`%~dp0` (case-insensitive) replaced by the
+  shim's folder, the rest split on `\`/`/` with `.`/`..` applied lexically (global and local npm shims verified
+  against `analysis/node-wrapper/binScripts`).
+- Cmd-shim refusal: `CcshLaunch::check_arguments` reuses plan 01's `process::launch::check_batch_args` (refuses `"`,
+  `%`, `!`, CR, LF, NUL) and maps it with `classify_start_failure` → `INVALID_ARGUMENTS` + the plan's hint; the
+  runner refuses the same arguments again on its own.
+- `tests/ccsh_launch_windows.rs` (`#![cfg(windows)]`, `cc-fake-tool echo-args` behind a `ccsh.cmd` in
+  `folder with spaces`): written, type-checked with `cargo clippy --all-targets --all-features --target
+  x86_64-pc-windows-gnu -- -D warnings`, **not run** (no Windows here).
+- Extra tests: `should_refuse_java_that_is_too_old_or_missing`, `should_refuse_a_missing_or_too_old_ccsh`,
+  `should_accept_any_argument_for_java_direct`, `should_resolve_java_direct_through_a_symlinked_gradle_install_on_unix`,
+  `should_use_the_override_without_a_tools_report`.
+
+### 7. Runner
+- `analysis/runner.rs`: `run_ccsh(&ProcessRunner, &CcshRun { launch, argv, cwd, log_file, timeout }, &RunHooks {
+  on_progress }, &CancellationToken) -> Result<CcshRunResult, JobError>`, `ANALYSIS_TIMEOUT` (30 min),
+  `MAX_CAPTURED_BYTES` (256 KiB per stream, kept from the end on a char boundary). **Deviation:** the plan's
+  `run_ccsh(launch, argv, cwd, hooks, cancel)` with a `LogSink` became a run description plus the runner
+  (≤ 4 parameters; the log is a file path; the timeout is injectable so tests need not wait 30 min).
+- Only plan 01's `ProcessRunner` starts the process (`OutputMode::Stream`, `max_output_bytes` =
+  `MAX_OUTPUT_CEILING_BYTES` 256 MiB, `cwd` = job folder, `tool` = java for java-direct else ccsh); no process-tree
+  code here. The runner's tree stop (SIGTERM → 3 s → SIGKILL on unix, job object on Windows) handles cancel,
+  timeout and the interactive watchdog. `process::runner::NO_EXIT_CODE` was made `pub` to tell a signal
+  (`RunEnd::Signalled`) from an exit.
+- Interactive watchdog: stdout containing `Select an analyser to execute` or `Unknown command:` cancels a child
+  token of the caller's token → `RunEnd::InteractiveTrap`. Caller's cancel → `RunEnd::Cancelled`; runner timeout →
+  `TimedOut`; output cap → `OutputTooLarge`; spawn failure → `Err(classify_start_failure)`; a cmd-shim refusal
+  (`check_arguments`) fails before anything starts.
+- stdout is cleaned with `strip_control_characters` before capture, log and marker search; stderr goes to
+  `ProgressParser`, each rise is passed to `on_progress` as `Determinate { percent }` (≤ 100 calls per run, so no
+  throttle here; the 250 ms notification throttle belongs to M3).
+- `analysis/run_log.rs` (private): `run.log` gets stdout as it came and stderr cut into lines at `\r`/`\n`, with
+  each run of consecutive progress bars collapsed to its last bar (`progress::is_progress_bar`). Written with
+  `std::fs` (tokio's `fs` feature is not enabled in the workspace); a failed write is a `tracing::warn`, not a job
+  failure; failing to create the log is `STORE_WRITE_FAILED`.
+- Tests (`tests/analysis_run.rs`, fake-ccsh): the six plan names plus `should_report_the_exit_code_of_a_failed_run`
+  and `should_report_a_missing_executable_as_ccsh_not_found`; unit tests `should_keep_only_the_end_of_a_long_stream_on_a_char_boundary`,
+  `should_map_runner_outcomes_to_run_ends`. Cancel: the fake writes its pid, the test cancels, the run ends
+  `Cancelled` well within 8 s and the pid is gone.
+- **Real-ccsh scratch test ran** (`tests/analysis_real_ccsh.rs`, returns early with a stderr note when
+  `analysis/build/install/codecharta-analysis/bin/ccsh[.bat]` or java on `PATH` is missing): ccsh 2.4.0 on
+  OpenJDK 27, java-direct (unix), a two-file `TempRepo`, `--commit=<sha>`, job folder `job dir` (with a space),
+  `-Djava.io.tmpdir=<job dir>/tmp`: exit 0 in about 1 s, `Map: <job dir>/afdb82c.map.cc.json.gz` (prefix of the
+  sha, file exists), `Not in the map: svn history: left out with --commit, which reads a git commit`, progress
+  hook `0 → 50 → 99`, `Map:` in `run.log`. ccsh removed its own worktree; the temp dir kept
+  `codecharta-tree-sitter-<user>/` (tree-sitter's native library cache), which goes away with the job folder.
+
+### What 05-M2 / 05-M3 must know
+- M2 `service.rs`: create `<snapshotsDir>/.tmp-<jobId>` (plan 03's `StorePaths::staging_dir` exists), pass
+  `worktree_temp_dir = <job>/tmp` (only java-direct honours it; executable/cmd-shim leave the worktree in the
+  system temp dir), `output_base = <job>/map`, `log_file = <job>/run.log`, `cwd = <job>`. After exit 0 check the
+  `Map:` file and that its name starts with a prefix of the requested sha (05-M0 design 4); otherwise call
+  `classify_failure` (it answers `NO_OUTPUT` for exit 0). `classify_failure` returns `None` for a cancel.
+- M2 janitor: match orphans by base name `codecharta-worktree-*` + HEAD sha (works in every launch mode), remove
+  with `git worktree remove -f -f`, then `prune` (05-M0 item 4).
+- M2 record: `profile_hash(&validate_profile(&project.analysis_profile)?)`; the record's `analysis.profile`
+  gets `{ without, exclude, extraArgs: [] }`.
+- M3: `AnalysisErrorCode`, `JobError`, `JobProgress` are in `codecharta_core_api::methods::analysis` already
+  (SCREAMING_SNAKE_CASE, append-only, incl. `CRASHED` and `OUTPUT_TOO_LARGE`); registering the first `analysis.*`
+  method exports them into the TypeScript contract. Decide `analysis.progress` vs plan 01/04's `core.progress`;
+  throttle notifications there (250 ms). The protocol test needs fake-ccsh from another package (see task 5) and a
+  way to point the core at it — there is no `CODECHARTA_CCSH_PATH`; a custom tool path in the settings works, but
+  `tools.setPath` runs `--version` (fake-ccsh answers like ccsh 2.4.0) and java-direct is chosen only for a Gradle
+  layout, so a bare fake-ccsh runs as `Executable`.
+- Windows: `tests/ccsh_launch_windows.rs` and the `.cmd`/`.bat` resolution are unverified on a real machine (05-M0
+  W1/W2 still open).
