@@ -776,6 +776,20 @@ describe("createFakeDesktopBridge", () => {
         ])
     })
 
+    it("should read the seeded source files of a folder and find no other file", async () => {
+        // Arrange
+        const bridge = createFakeDesktopBridge({ sourceFiles: { "f-1/src/app.ts": "export const app = 1" } })
+        const folderRef = { projectId: "p-1", folderId: "f-1" }
+
+        // Act
+        const seeded = await answerValue(bridge, "projects.readSourceFile", { ...folderRef, relativePath: "src/app.ts" })
+        const other = await answerValue(bridge, "projects.readSourceFile", { ...folderRef, relativePath: "src/other.ts" })
+
+        // Assert
+        expect(new TextDecoder().decode((seeded as { bytes: Uint8Array }).bytes)).toBe("export const app = 1")
+        expect(other).toBeNull()
+    })
+
     it("should deliver emitted events", () => {
         // Arrange
         const bridge = createFakeDesktopBridge()

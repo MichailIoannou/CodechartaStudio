@@ -2,10 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, ElementRef, signal, viewC
 import { toSignal } from "@angular/core/rxjs-interop"
 import { FormsModule } from "@angular/forms"
 import { map } from "rxjs"
-import { getVisibleFiles } from "../../../../model/files/files.helper"
 import { FileStoreReadWindow } from "../../../../stores/fileStore/fileStore.facade"
 import { SCENARIO_SETTING_KEYS, SCENARIO_SETTINGS, ScenarioSettingKey } from "../../model/scenarioSettings.registry"
 import { ScenariosService } from "../../services/scenarios.service"
+import { visibleMapBindingKeys } from "../../util/mapBindingKey"
 import { ScenarioSettingsPickerComponent } from "../scenarioSettingsPicker/scenarioSettingsPicker.component"
 import { settingCountLabel } from "../scenarioSettingsPicker/settingCountLabel"
 
@@ -32,12 +32,9 @@ export class SaveScenarioDialogComponent {
     readonly selectionSummary = computed(() => `${this.selectedKeys().size} of ${this.availableKeys.length} settings`)
     readonly saveLabel = computed(() => `Save ${settingCountLabel(this.selectedKeys().size)}`)
 
-    readonly visibleFileNames = toSignal(
-        this.fileStoreReadWindow.files$.pipe(map(fileStates => getVisibleFiles(fileStates).map(f => f.fileMeta.fileName))),
-        { initialValue: [] as string[] }
-    )
+    readonly visibleMapKeys = toSignal(this.fileStoreReadWindow.files$.pipe(map(visibleMapBindingKeys)), { initialValue: [] as string[] })
 
-    readonly hasFiles = computed(() => this.visibleFileNames().length > 0)
+    readonly hasFiles = computed(() => this.visibleMapKeys().length > 0)
 
     constructor(
         private readonly scenariosService: ScenariosService,
@@ -60,7 +57,7 @@ export class SaveScenarioDialogComponent {
         if (!this.nameValid() || this.selectedKeys().size === 0) {
             return
         }
-        const mapFileNames = this.bindToMap() && this.hasFiles() ? this.visibleFileNames() : undefined
+        const mapFileNames = this.bindToMap() && this.hasFiles() ? this.visibleMapKeys() : undefined
         await this.scenariosService.saveScenario({
             name: this.name(),
             description: this.description() || undefined,

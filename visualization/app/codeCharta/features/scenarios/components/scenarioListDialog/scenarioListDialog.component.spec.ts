@@ -355,6 +355,26 @@ describe("ScenarioListDialogComponent", () => {
             expect(view.mapMismatch).toBe(true)
         })
 
+        it("should show a scenario bound to a project folder as the current map for another commit of that folder", () => {
+            // Arrange
+            scenariosSubject.next([createTestScenario("Folder", "id-1", ["codecharta"])])
+            const anotherCommit = createFileState("codecharta@9f8e7d6")
+            anotherCommit.file.fileMeta.projectSnapshot = {
+                projectId: "p-1",
+                folderId: "f-1",
+                snapshotId: "s-2",
+                folderLabel: "codecharta"
+            }
+            store.setState({ ...defaultState, files: [anotherCommit] })
+
+            // Act
+            const groups = component.groupedScenarios()
+
+            // Assert
+            expect(groups[0].label).toBe("Current Map")
+            expect(groups[0].scenarios[0].mapMismatch).toBe(false)
+        })
+
         it("should precompute the setting groups on scenario views", () => {
             // Arrange
             const full = createTestScenario("Full", "id-1")

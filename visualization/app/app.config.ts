@@ -14,7 +14,7 @@ import { localSourceEffects } from "app/codeCharta/features/localSource/effects/
 import { mapExplorerEffects } from "app/codeCharta/features/mapExplorer/effects/mapExplorer.effects"
 import { metricsBarEffects } from "app/codeCharta/features/metricsBar/effects/metricsBar.effects"
 import { navBarEffects } from "app/codeCharta/features/navBar/effects/navBar.effects"
-import { ProjectsFacade } from "app/codeCharta/features/projects/facade"
+import { ProjectsFacade, provideLinkedProjectFolders } from "app/codeCharta/features/projects/facade"
 import { sharedEffects } from "app/codeCharta/features/shared/effects/shared.effects"
 import { provideSnapshotsForGitHistory } from "app/codeCharta/features/snapshots/facade"
 import { themeEffects } from "app/codeCharta/features/theme/effects/theme.effects"
@@ -71,6 +71,7 @@ export const appConfig: ApplicationConfig = {
         { provide: WORKING_FOLDER_SOURCE, useExisting: ProjectsFacade },
         ...provideSnapshotsForGitHistory(),
         ...provideCompareForGitHistory(),
+        ...provideLinkedProjectFolders(),
 
         provideEffects([
             ...codeMapEffects,

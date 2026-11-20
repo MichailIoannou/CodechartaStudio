@@ -3,13 +3,13 @@ import { toSignal } from "@angular/core/rxjs-interop"
 import { FormsModule } from "@angular/forms"
 import { map } from "rxjs"
 import { MetricData } from "../../../../model/codeCharta.model"
-import { getVisibleFiles } from "../../../../model/files/files.helper"
 import { FileStoreReadWindow } from "../../../../stores/fileStore/fileStore.facade"
 import { CCSCENARIO_EXTENSION, Scenario } from "../../model/scenario.model"
 import { ScenarioImportExportService } from "../../services/scenarioImportExport.service"
 import { ScenariosService } from "../../services/scenarios.service"
 import { ScenarioViewModelService } from "../../services/scenarioViewModel.service"
 import { ScenarioDialogStore } from "../../stores/scenarioDialog.store"
+import { visibleMapBindingKeys } from "../../util/mapBindingKey"
 import { DeleteConfirmDialogComponent } from "./deleteConfirmDialog/deleteConfirmDialog.component"
 import { ImportFeedbackDialogComponent } from "./importFeedbackDialog/importFeedbackDialog.component"
 import { ScenarioItemComponent } from "./scenarioItem/scenarioItem.component"
@@ -33,15 +33,17 @@ export class ScenarioListDialogComponent {
     readonly metricData = toSignal(this.scenarioDialogStore.metricData$, { requireSync: true })
     readonly searchTerm = signal("")
 
-    readonly visibleFileNames = toSignal(
-        this.fileStoreReadWindow.files$.pipe(map(fileStates => new Set(getVisibleFiles(fileStates).map(f => f.fileMeta.fileName)))),
-        { initialValue: new Set<string>() }
+    readonly visibleMapKeys = toSignal(
+        this.fileStoreReadWindow.files$.pipe(map(fileStates => new Set(visibleMapBindingKeys(fileStates)))),
+        {
+            initialValue: new Set<string>()
+        }
     )
 
     readonly filteredScenarios = computed(() => {
         const term = this.searchTerm().toLowerCase()
         const all = this.scenarios()
-        const visible = this.visibleFileNames()
+        const visible = this.visibleMapKeys()
         const filtered = term
             ? all.filter(s => s.name.toLowerCase().includes(term) || s.description?.toLowerCase().includes(term))
             : [...all]
@@ -49,7 +51,7 @@ export class ScenarioListDialogComponent {
     })
 
     readonly groupedScenarios = computed(() => {
-        const visible = this.visibleFileNames()
+        const visible = this.visibleMapKeys()
         const metricData = this.metricData()
         const groups = this.helpers.groupScenarios(this.filteredScenarios(), visible)
         return groups.map(group => ({

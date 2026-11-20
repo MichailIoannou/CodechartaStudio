@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChi
 import { ToastService } from "../../../shared/facade"
 import { FOLDER_DOES_NOT_FIT_MAP_MESSAGE, reportFolderChoice } from "../../services/folderChoiceToast"
 import { handLinkToTheSystem } from "../../services/handLinkToTheSystem"
-import { EditorTarget, LocalSourceService, SourceLookup } from "../../services/localSource.service"
+import { EditorTarget, FolderUnavailable, LocalSourceService, SourceLookup } from "../../services/localSource.service"
 import { mapNameOf, vscodeFileLink } from "../../services/localSourcePaths"
 import { READING_FAILED, reportingFailure } from "../../services/reportingFailure"
 import { decodeSource } from "../../services/sourceDecoding"
@@ -49,8 +49,8 @@ export class LocalSourceActionsComponent {
     readonly folderRequest = signal<FolderRequest | null>(null)
     readonly notShownFile = signal<NotShownFile | null>(null)
 
-    isMapRoot(nodePath: string): boolean {
-        return this.localSource.isMapRoot(nodePath)
+    offersFolderSettings(nodePath: string): boolean {
+        return this.localSource.offersFolderSettings(nodePath)
     }
 
     async showSource(nodePath: string) {
@@ -122,6 +122,10 @@ export class LocalSourceActionsComponent {
         if (!target || !isStillWanted()) {
             return
         }
+        if ("status" in target) {
+            this.toast.show(folderUnavailableMessage(target), "warning")
+            return
+        }
         const { mapFileName, relativePath, editorRootPath } = target
         // Browsers only hand a link to the editor while the click that asked for it is fresh, so a stale one
         // is renewed by the dialog's button.
@@ -135,7 +139,7 @@ export class LocalSourceActionsComponent {
     async setEditorFolder(nodePath: string) {
         const isStillWanted = this.beginRequest()
         const target = await this.findEditorTarget(nodePath)
-        if (target && isStillWanted()) {
+        if (target && !("status" in target) && isStillWanted()) {
             this.editorFolderDialog().ask({ mapFileName: target.mapFileName, editorRootPath: target.editorRootPath, fileToOpen: null })
         }
     }
@@ -160,13 +164,19 @@ export class LocalSourceActionsComponent {
             this.toast.show(`"${lookup.relativePath}" is not in the chosen folder`, "warning")
         } else if (lookup?.status === "doesNotFitMap") {
             this.toast.show(FOLDER_DOES_NOT_FIT_MAP_MESSAGE, "warning")
+        } else if (lookup?.status === "folderUnavailable") {
+            this.toast.show(folderUnavailableMessage(lookup), "warning")
         }
         return lookup
     }
 
-    private findEditorTarget(nodePath: string): Promise<EditorTarget | null> {
+    private findEditorTarget(nodePath: string): Promise<EditorTarget | FolderUnavailable | null> {
         return reportingFailure(this.toast, READING_FAILED, () => this.localSource.editorTargetOf(nodePath))
     }
+}
+
+function folderUnavailableMessage({ folderLabel }: FolderUnavailable): string {
+    return `The folder "${folderLabel}" is not available, so its files cannot be opened. Re-link it in the project.`
 }
 
 function folderProblemOf(lookup: SourceLookup | null): string | null {

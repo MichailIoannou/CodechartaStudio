@@ -22,7 +22,7 @@ describe("LocalSourceActionsComponent", () => {
         findSource: jest.fn(),
         chooseFolderAndFindSource: jest.fn(),
         chooseFolder: jest.fn(),
-        isMapRoot: jest.fn(),
+        offersFolderSettings: jest.fn(),
         editorTargetOf: jest.fn(),
         saveEditorRootPath: jest.fn()
     }
@@ -417,6 +417,22 @@ describe("LocalSourceActionsComponent", () => {
             )
         })
 
+        it("should say that the linked folder is not available without asking for a folder", async () => {
+            // Arrange
+            localSourceMock.findSource.mockResolvedValue({ status: "folderUnavailable", folderLabel: "codecharta" })
+            const component = (await renderActions()).componentInstance
+
+            // Act
+            await component.showSource("/root/src/Foo.kt")
+
+            // Assert
+            expect(toastMock.show).toHaveBeenCalledWith(
+                'The folder "codecharta" is not available, so its files cannot be opened. Re-link it in the project.',
+                "warning"
+            )
+            expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled()
+        })
+
         it("should report a folder that cannot be read", async () => {
             // Arrange
             localSourceMock.findSource.mockRejectedValue(new Error("no gesture"))
@@ -478,6 +494,24 @@ describe("LocalSourceActionsComponent", () => {
             expect(screen.getByTestId("local-source-editor-confirm")).not.toBe(null)
         })
 
+        it("should say that the linked folder is not available instead of asking for a path", async () => {
+            // Arrange
+            givenFreshClick(true)
+            localSourceMock.editorTargetOf.mockResolvedValue({ status: "folderUnavailable", folderLabel: "codecharta" })
+            const component = (await renderActions()).componentInstance
+
+            // Act
+            await component.openInEditor("/root/src/Foo.kt")
+
+            // Assert
+            expect(openedLinks).toEqual([])
+            expect(toastMock.show).toHaveBeenCalledWith(
+                'The folder "codecharta" is not available, so its files cannot be opened. Re-link it in the project.',
+                "warning"
+            )
+            expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled()
+        })
+
         it("should do nothing for a node outside the visible maps", async () => {
             // Arrange
             localSourceMock.editorTargetOf.mockResolvedValue(null)
@@ -531,18 +565,18 @@ describe("LocalSourceActionsComponent", () => {
         })
     })
 
-    describe("isMapRoot", () => {
-        it("should ask the local source whether a node is a map's root", async () => {
+    describe("offersFolderSettings", () => {
+        it("should ask the local source whether a node offers the map's folder settings", async () => {
             // Arrange
-            localSourceMock.isMapRoot.mockReturnValue(true)
+            localSourceMock.offersFolderSettings.mockReturnValue(true)
             const component = (await renderActions()).componentInstance
 
             // Act
-            const isMapRoot = component.isMapRoot("/root")
+            const offersFolderSettings = component.offersFolderSettings("/root")
 
             // Assert
-            expect(isMapRoot).toBe(true)
-            expect(localSourceMock.isMapRoot).toHaveBeenCalledWith("/root")
+            expect(offersFolderSettings).toBe(true)
+            expect(localSourceMock.offersFolderSettings).toHaveBeenCalledWith("/root")
         })
     })
 

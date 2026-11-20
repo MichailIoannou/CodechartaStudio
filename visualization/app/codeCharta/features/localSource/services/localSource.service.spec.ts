@@ -3,6 +3,7 @@ import { TestBed } from "@angular/core/testing"
 import { CodeMapNode, FileSelectionState, NodeType } from "../../../model/codeCharta.model"
 import { FileStoreReadWindow } from "../../../stores/fileStore/fileStore.facade"
 import { ToastService } from "../../shared/facade"
+import { LINKED_SOURCE_FOLDERS, LinkedSourceFolder } from "../ports/linkedSourceFolders.port"
 import { LocalDirectoryHandle } from "./fileSystemAccess"
 import { fakeDirectory } from "./fileSystemAccess.mocks"
 import { LocalSourceService } from "./localSource.service"
@@ -49,14 +50,17 @@ describe("LocalSourceService", () => {
     let visibleFileStates: ReturnType<typeof visibleMap>[]
     let loadedFileStates: ReturnType<typeof visibleMap>[]
     let savedFolders: Map<string, LocalSourceFolder>
+    let linkedFolders: Map<string, LinkedSourceFolder>
     let picker: jest.Mock
-    const availabilityMock = { isAvailable: signal(true), reportBlocked: jest.fn() }
+    const availabilityMock = { isAvailable: signal(true), canChooseFolders: signal(true), reportBlocked: jest.fn() }
     let service: LocalSourceService
 
     beforeEach(() => {
         visibleFileStates = [visibleMap("myproject.cc.json", projectMap)]
         loadedFileStates = [visibleMap("myproject.cc.json", projectMap), visibleMap("other.cc.json", otherMap, FileSelectionState.None)]
         savedFolders = new Map()
+        linkedFolders = new Map()
+        availabilityMock.canChooseFolders.set(true)
         picker = jest.fn()
         ;(window as unknown as { showDirectoryPicker: jest.Mock }).showDirectoryPicker = picker
         TestBed.configureTestingModule({
@@ -66,6 +70,10 @@ describe("LocalSourceService", () => {
                     useValue: { getVisibleFileStates: () => visibleFileStates, getFiles: () => loadedFileStates }
                 },
                 { provide: LocalSourceAvailability, useValue: availabilityMock },
+                {
+                    provide: LINKED_SOURCE_FOLDERS,
+                    useValue: { folderOf: ({ fileName }: { fileName: string }) => linkedFolders.get(fileName) ?? null }
+                },
                 {
                     provide: LocalSourceFoldersRepository,
                     useValue: {
@@ -94,6 +102,15 @@ describe("LocalSourceService", () => {
 
     function givenSavedFolder(mapKey: string, directory: LocalDirectoryHandle, editorRootPath: string | null = null) {
         savedFolders.set(mapKey, { mapKey, directory, editorRootPath })
+    }
+
+    function givenLinkedFolder(mapFileName: string, files: Record<string, string>) {
+        const readFile = jest.fn(async (relativePath: string) => {
+            const content = files[relativePath]
+            return content === undefined ? null : new File([content], relativePath.split("/").at(-1))
+        })
+        linkedFolders.set(mapFileName, { status: "available", rootPath: "C:/repos/myproject", readFile })
+        return readFile
     }
 
     function givenTwoVisibleMaps() {
@@ -173,6 +190,53 @@ describe("LocalSourceService", () => {
 
             // Assert
             expect(lookup).toEqual({ status: "notFound", relativePath: "/root/gone.cc.json/main.py" })
+            expect(picker).not.toHaveBeenCalled()
+        })
+    })
+
+    describe("findSource with a linked folder", () => {
+        it("should read a file through the linked folder without a picker", async () => {
+            // Arrange
+            givenSavedFolder("myproject.cc.json", projectFolder())
+            const readFile = givenLinkedFolder("myproject.cc.json", { "src/Foo.kt": "class Foo // linked" })
+
+            // Act
+            const lookup = await service.findSource("/root/src/Foo.kt")
+
+            // Assert
+            expect(readFile).toHaveBeenCalledWith("src/Foo.kt")
+            expect(lookup).toEqual(
+                expect.objectContaining({
+                    status: "found",
+                    relativePath: "src/Foo.kt",
+                    folder: { mapKey: "myproject.cc.json", directory: null, editorRootPath: "C:/repos/myproject" }
+                })
+            )
+            expect(lookup.status === "found" && (await lookup.file.text())).toBe("class Foo // linked")
+            expect(picker).not.toHaveBeenCalled()
+        })
+
+        it("should answer notFound when the linked folder has no such file", async () => {
+            // Arrange
+            givenLinkedFolder("myproject.cc.json", {})
+
+            // Act
+            const lookup = await service.findSource("/root/src/Foo.kt")
+
+            // Assert
+            expect(lookup).toEqual({ status: "notFound", relativePath: "src/Foo.kt" })
+            expect(picker).not.toHaveBeenCalled()
+        })
+
+        it("should name the linked folder that is not available instead of asking for a folder", async () => {
+            // Arrange
+            linkedFolders.set("myproject.cc.json", { status: "unavailable", label: "myproject" })
+
+            // Act
+            const lookup = await service.findSource("/root/src/Foo.kt")
+
+            // Assert
+            expect(lookup).toEqual({ status: "folderUnavailable", folderLabel: "myproject" })
             expect(picker).not.toHaveBeenCalled()
         })
     })
@@ -262,11 +326,11 @@ describe("LocalSourceService", () => {
         })
     })
 
-    describe("isMapRoot", () => {
+    describe("offersFolderSettings", () => {
         it("should take the root as the map's root while one map is visible", () => {
             // Act & Assert
-            expect(service.isMapRoot("/root")).toBe(true)
-            expect(service.isMapRoot("/root/src")).toBe(false)
+            expect(service.offersFolderSettings("/root")).toBe(true)
+            expect(service.offersFolderSettings("/root/src")).toBe(false)
         })
 
         it("should take each map's folder as its root while several maps are visible", () => {
@@ -274,8 +338,8 @@ describe("LocalSourceService", () => {
             givenTwoVisibleMaps()
 
             // Act & Assert
-            expect(service.isMapRoot("/root/other.cc.json")).toBe(true)
-            expect(service.isMapRoot("/root")).toBe(false)
+            expect(service.offersFolderSettings("/root/other.cc.json")).toBe(true)
+            expect(service.offersFolderSettings("/root")).toBe(false)
         })
 
         it("should take the first map's root in the delta view", () => {
@@ -286,7 +350,38 @@ describe("LocalSourceService", () => {
             ]
 
             // Act & Assert
-            expect(service.isMapRoot("/root")).toBe(true)
+            expect(service.offersFolderSettings("/root")).toBe(true)
+        })
+
+        it("should offer no folder settings for a map with a linked folder", () => {
+            // Arrange
+            givenLinkedFolder("myproject.cc.json", {})
+
+            // Act & Assert
+            expect(service.offersFolderSettings("/root")).toBe(false)
+        })
+
+        it("should offer no folder settings while folders cannot be chosen", () => {
+            // Arrange
+            availabilityMock.canChooseFolders.set(false)
+
+            // Act & Assert
+            expect(service.offersFolderSettings("/root")).toBe(false)
+        })
+    })
+
+    describe("canChooseFolderFor", () => {
+        it("should let a folder be chosen for a map without a linked folder", () => {
+            // Act & Assert
+            expect(service.canChooseFolderFor("other.cc.json")).toBe(true)
+        })
+
+        it("should not let a folder be chosen for a loaded map with a linked folder", () => {
+            // Arrange
+            linkedFolders.set("other.cc.json", { status: "unavailable", label: "other" })
+
+            // Act & Assert
+            expect(service.canChooseFolderFor("other.cc.json")).toBe(false)
         })
     })
 
@@ -488,12 +583,35 @@ describe("LocalSourceService", () => {
             expect(picker).not.toHaveBeenCalled()
         })
 
+        it("should give the linked root path to the editor target", async () => {
+            // Arrange
+            savedFolders.set("myproject.cc.json", { mapKey: "myproject.cc.json", directory: null, editorRootPath: "C:/dev/old" })
+            givenLinkedFolder("myproject.cc.json", {})
+
+            // Act
+            const target = await service.editorTargetOf("/root/src/Foo.kt")
+
+            // Assert
+            expect(target).toEqual({ mapFileName: "myproject.cc.json", relativePath: "src/Foo.kt", editorRootPath: "C:/repos/myproject" })
+        })
+
+        it("should name the linked folder that is not available instead of an editor target", async () => {
+            // Arrange
+            linkedFolders.set("myproject.cc.json", { status: "unavailable", label: "myproject" })
+
+            // Act
+            const target = await service.editorTargetOf("/root/src/Foo.kt")
+
+            // Assert
+            expect(target).toEqual({ status: "folderUnavailable", folderLabel: "myproject" })
+        })
+
         it("should name no path while none is saved", async () => {
             // Act
             const target = await service.editorTargetOf("/root/src/Foo.kt")
 
             // Assert
-            expect(target.editorRootPath).toBeNull()
+            expect(target).toEqual(expect.objectContaining({ editorRootPath: null }))
         })
 
         it("should name nothing for a node outside the visible maps", async () => {
