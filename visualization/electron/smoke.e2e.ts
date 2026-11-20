@@ -26,6 +26,10 @@ const BRIDGE_KEYS = [
     "subscribe"
 ]
 
+// CI runners have no GPU, and Electron no longer falls back to software WebGL by itself: without this
+// switch the map is never drawn and its loading overlay covers the window.
+const SOFTWARE_WEBGL_SWITCH = "--enable-unsafe-swiftshader"
+
 let userDataDir: string
 let desktopApp: ElectronApplication
 
@@ -34,7 +38,7 @@ function desktopEnv(extraEnv: Record<string, string> = {}) {
 }
 
 async function launchDesktopApp(extraEnv: Record<string, string> = {}) {
-    return _electron.launch({ args: [BUNDLE_FOLDER], env: desktopEnv(extraEnv) })
+    return _electron.launch({ args: [SOFTWARE_WEBGL_SWITCH, BUNDLE_FOLDER], env: desktopEnv(extraEnv) })
 }
 
 async function waitForBoot(page: Page) {

@@ -348,11 +348,9 @@ fn should_keep_a_chosen_store_root_in_the_settings_file() {
     // Assert
     assert_eq!(answer["result"]["storeRoot"], json!(path));
     let settings_file = core.data_dir.path().join("core-settings.json");
-    assert!(
-        std::fs::read_to_string(settings_file)
-            .unwrap()
-            .contains(path)
-    );
+    let settings: Value =
+        serde_json::from_str(&std::fs::read_to_string(settings_file).unwrap()).unwrap();
+    assert_eq!(settings["storeRoot"], json!(path));
 }
 
 #[test]
