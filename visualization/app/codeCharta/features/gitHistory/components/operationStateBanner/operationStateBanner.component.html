@@ -1,6 +1,6 @@
 @if (notice(); as notice) {
-    <div role="status" class="alert alert-warning mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="history-operation-notice">
-        <span class="flex-1" data-testid="history-operation-notice-text">{{ notice.text }}</span>
+    <div role="status" class="alert alert-warning mx-2 mt-2 flex flex-wrap justify-start gap-x-2 gap-y-1 px-2 py-1 text-xs" data-testid="history-operation-notice">
+        <span data-testid="history-operation-notice-text">{{ notice.text }}</span>
         @if (notice.abortable; as operation) {
             <button
                 type="button"
