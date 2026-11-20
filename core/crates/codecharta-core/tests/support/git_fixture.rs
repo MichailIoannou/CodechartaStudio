@@ -3,7 +3,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use codecharta_core::git::runner::GIT_TIMEOUT;
+use codecharta_core::git::{GitFuture, GitOutput, GitRunner};
+use codecharta_core::process::env::hardened_env;
+use codecharta_core::process::{ProcessRunner, RunRequest};
+use codecharta_core_api::methods::tools::ToolId;
 use tempfile::TempDir;
+use tokio_util::sync::CancellationToken;
 
 use super::system_git;
 
@@ -24,13 +30,58 @@ pub struct TempRepo {
 
 impl TempRepo {
     pub fn new() -> Self {
-        let repo = Self {
+        let repo = Self::in_new_folders();
+        repo.git(&["init", "--quiet", "--initial-branch", INITIAL_BRANCH]);
+        repo
+    }
+
+    fn in_new_folders() -> Self {
+        Self {
             folder: tempfile::tempdir().expect("a temporary repository folder"),
             home: tempfile::tempdir().expect("a temporary home folder"),
             git: system_git(),
-        };
-        repo.git(&["init", "--quiet", "--initial-branch", INITIAL_BRANCH]);
-        repo
+        }
+    }
+
+    /// A clone of this repository whose `origin` points here.
+    pub fn clone_full(&self) -> TempRepo {
+        self.clone_with(&[])
+    }
+
+    /// A clone of the latest commit only; its root commit is a graft point.
+    pub fn clone_shallow(&self) -> TempRepo {
+        self.clone_with(&["--depth", "1"])
+    }
+
+    fn clone_with(&self, options: &[&str]) -> TempRepo {
+        let clone = Self::in_new_folders();
+        let source = file_url(self.path());
+        let target = clone.path().to_string_lossy().into_owned();
+        let mut args = vec!["clone", "--quiet"];
+        args.extend_from_slice(options);
+        args.extend([source.as_str(), target.as_str()]);
+        self.git(&args);
+        clone
+    }
+
+    pub fn add_remote(&self, name: &str, url: &str) {
+        self.git(&["remote", "add", name, url]);
+    }
+
+    /// Creates a folder inside the repository and returns its path.
+    pub fn subfolder(&self, name: &str) -> PathBuf {
+        let folder = self.path().join(name);
+        fs::create_dir_all(&folder).expect("the subfolder can be created");
+        folder
+    }
+
+    /// Runs git the way the core does, with this repository's hermetic variables.
+    pub fn runner(&self) -> FixtureGit {
+        FixtureGit {
+            runner: ProcessRunner::new(hardened_env(std::env::vars_os(), &[])),
+            program: self.git.clone(),
+            env: self.env(),
+        }
     }
 
     pub fn path(&self) -> &Path {
@@ -84,5 +135,40 @@ impl TempRepo {
         self.git(&["add", "--", name]);
         self.git(&["commit", "--quiet", "--message", message]);
         self.git(&["rev-parse", "HEAD"])
+    }
+}
+
+/// `--depth` needs a `file://` url; with a plain path git clones everything.
+fn file_url(path: &Path) -> String {
+    let forward = path.to_string_lossy().replace('\\', "/");
+    if forward.starts_with('/') {
+        format!("file://{forward}")
+    } else {
+        format!("file:///{forward}")
+    }
+}
+
+/// The git runner of the integration tests: the system git, started by the core's own process runner.
+pub struct FixtureGit {
+    runner: ProcessRunner,
+    program: PathBuf,
+    env: Vec<(OsString, OsString)>,
+}
+
+impl GitRunner for FixtureGit {
+    fn run<'call>(&'call self, cwd: &'call Path, args: &'call [&'call str]) -> GitFuture<'call> {
+        Box::pin(async move {
+            let args = args.iter().map(OsString::from).collect();
+            let request = RunRequest {
+                cwd: Some(cwd.to_path_buf()),
+                env: self.env.clone(),
+                ..RunRequest::new(ToolId::Git, self.program.clone(), args, GIT_TIMEOUT)
+            };
+            let output = self.runner.run(request, &CancellationToken::new()).await?;
+            Ok(GitOutput {
+                exit_code: output.exit_code,
+                stdout: output.stdout,
+            })
+        })
     }
 }

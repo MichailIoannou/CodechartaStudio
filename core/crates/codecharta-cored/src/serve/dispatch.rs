@@ -1,5 +1,4 @@
 use std::future::Future;
-use std::path::Path;
 use std::pin::Pin;
 
 use codecharta_core::{CORE_VERSION, Core, CoreError, path_to_wire};
@@ -9,8 +8,19 @@ use codecharta_core_api::events::{CoreProgress, ProgressParams};
 use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
-use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot};
+use codecharta_core_api::methods::projects::{
+    ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
+    ProjectsGetActive, ProjectsInspectFolder, ProjectsList, ProjectsRefreshFolder,
+    ProjectsRelinkFolder, ProjectsRemoveFolder, ProjectsResolveCommit, ProjectsSetActive,
+    ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
+};
 use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
+use codecharta_core_api::methods::snapshots::{
+    SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
+    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsRecordMapFacts,
+};
+use codecharta_core_api::methods::store::{StoreChangeRoot, StoreGetStatus};
 use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 use codecharta_core_api::protocol::{
     INVALID_PARAMS, METHOD_NOT_FOUND, Notification, RequestId, ResponseError,
@@ -21,7 +31,7 @@ use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
-use super::tools_routes;
+use super::{projects_routes, snapshots_routes, store_routes, tools_routes};
 
 pub type DispatchResult = Result<Value, ResponseError>;
 pub type HandlerFuture<'core> = Pin<Box<dyn Future<Output = DispatchResult> + Send + 'core>>;
@@ -50,10 +60,6 @@ const ROUTES: &[Route] = &[
         handler: paths_get,
     },
     Route {
-        name: PathsSetStoreRoot::NAME,
-        handler: paths_set_store_root,
-    },
-    Route {
         name: PathsResetStoreRoot::NAME,
         handler: paths_reset_store_root,
     },
@@ -72,6 +78,114 @@ const ROUTES: &[Route] = &[
     Route {
         name: ShellResolvePath::NAME,
         handler: shell_resolve_path,
+    },
+    Route {
+        name: StoreGetStatus::NAME,
+        handler: store_routes::status,
+    },
+    Route {
+        name: StoreChangeRoot::NAME,
+        handler: store_routes::change_root,
+    },
+    Route {
+        name: ProjectsList::NAME,
+        handler: projects_routes::list,
+    },
+    Route {
+        name: ProjectsGet::NAME,
+        handler: projects_routes::get,
+    },
+    Route {
+        name: ProjectsInspectFolder::NAME,
+        handler: projects_routes::inspect_folder,
+    },
+    Route {
+        name: ProjectsCreate::NAME,
+        handler: projects_routes::create,
+    },
+    Route {
+        name: ProjectsUpdate::NAME,
+        handler: projects_routes::update,
+    },
+    Route {
+        name: ProjectsDelete::NAME,
+        handler: projects_routes::delete,
+    },
+    Route {
+        name: ProjectsAddFolder::NAME,
+        handler: projects_routes::add_folder,
+    },
+    Route {
+        name: ProjectsUpdateFolder::NAME,
+        handler: projects_routes::update_folder,
+    },
+    Route {
+        name: ProjectsRemoveFolder::NAME,
+        handler: projects_routes::remove_folder,
+    },
+    Route {
+        name: ProjectsRelinkFolder::NAME,
+        handler: projects_routes::relink_folder,
+    },
+    Route {
+        name: ProjectsRefreshFolder::NAME,
+        handler: projects_routes::refresh_folder,
+    },
+    Route {
+        name: ProjectsGetActive::NAME,
+        handler: projects_routes::get_active,
+    },
+    Route {
+        name: ProjectsSetActive::NAME,
+        handler: projects_routes::set_active,
+    },
+    Route {
+        name: ProjectsSetView::NAME,
+        handler: projects_routes::set_view,
+    },
+    Route {
+        name: ProjectsResolveCommit::NAME,
+        handler: projects_routes::resolve_commit,
+    },
+    Route {
+        name: ProjectsFolderPath::NAME,
+        handler: projects_routes::folder_path,
+    },
+    Route {
+        name: ProjectsSourceFileLocation::NAME,
+        handler: projects_routes::source_file_location,
+    },
+    Route {
+        name: SnapshotsList::NAME,
+        handler: snapshots_routes::list,
+    },
+    Route {
+        name: SnapshotsMapLocation::NAME,
+        handler: snapshots_routes::map_location,
+    },
+    Route {
+        name: SnapshotsRecordMapFacts::NAME,
+        handler: snapshots_routes::record_map_facts,
+    },
+    Route {
+        name: SnapshotsInspectImportFile::NAME,
+        handler: snapshots_routes::inspect_import_file,
+    },
+    Route {
+        name: SnapshotsOpenFile::NAME,
+        handler: snapshots_routes::open_file,
+    },
+    Route {
+        name: SnapshotsImport::NAME,
+        handler: snapshots_routes::import,
+    },
+    Route {
+        name: SnapshotsMove::NAME,
+        handler: snapshots_routes::move_snapshot,
+    },
+    Route {
+        name: SnapshotsDelete::NAME,
+        handler: snapshots_routes::delete,
     },
 ];
 
@@ -210,14 +324,6 @@ fn paths_get(core: &Core, _context: RequestContext, params: Value) -> HandlerFut
     })
 }
 
-fn paths_set_store_root(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
-    Box::pin(async move {
-        let params = read_params::<PathsSetStoreRoot>(params)?;
-        let info = core.paths().set_store_root(Path::new(&params.path)).await;
-        write_result::<PathsSetStoreRoot>(info.map_err(domain_error)?)
-    })
-}
-
 fn paths_reset_store_root(
     core: &Core,
     _context: RequestContext,
@@ -225,7 +331,7 @@ fn paths_reset_store_root(
 ) -> HandlerFuture<'_> {
     Box::pin(async move {
         read_params::<PathsResetStoreRoot>(params)?;
-        let info = core.paths().reset_store_root().await;
+        let info = core.reset_store_root().await;
         write_result::<PathsResetStoreRoot>(info.map_err(domain_error)?)
     })
 }
@@ -233,7 +339,7 @@ fn paths_reset_store_root(
 fn shell_resolve_path(core: &Core, _context: RequestContext, params: Value) -> HandlerFuture<'_> {
     Box::pin(async move {
         let params = read_params::<ShellResolvePath>(params)?;
-        let resolved = core.paths().resolve(&params.target).map_err(domain_error)?;
+        let resolved = core.resolve_path(&params.target).map_err(domain_error)?;
         let path = path_to_wire(&resolved).map_err(domain_error)?;
         write_result::<ShellResolvePath>(ResolvePathResult { path })
     })

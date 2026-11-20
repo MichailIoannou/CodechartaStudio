@@ -19,10 +19,19 @@ pub enum ErrorCode {
     ProtocolMismatch,
     CoreUnavailable,
     Internal,
+    StoreNewerSchema,
+    StoreLocked,
+    TokenExpired,
+    DuplicateFolder,
+    DuplicateLabel,
+    FolderUnavailable,
+    DifferentHistory,
+    TooLarge,
+    NotACommit,
 }
 
 impl ErrorCode {
-    pub const ALL: [ErrorCode; 13] = [
+    pub const ALL: [ErrorCode; 22] = [
         ErrorCode::BadRequest,
         ErrorCode::NotFound,
         ErrorCode::NotAllowed,
@@ -36,6 +45,15 @@ impl ErrorCode {
         ErrorCode::ProtocolMismatch,
         ErrorCode::CoreUnavailable,
         ErrorCode::Internal,
+        ErrorCode::StoreNewerSchema,
+        ErrorCode::StoreLocked,
+        ErrorCode::TokenExpired,
+        ErrorCode::DuplicateFolder,
+        ErrorCode::DuplicateLabel,
+        ErrorCode::FolderUnavailable,
+        ErrorCode::DifferentHistory,
+        ErrorCode::TooLarge,
+        ErrorCode::NotACommit,
     ];
 }
 
