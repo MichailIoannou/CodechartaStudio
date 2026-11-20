@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **Bars beside the side panels**: the bar under the map, the word cloud or the dependency graph centres in the space the open explorer and inspector leave free, so its controls stay within reach.
 - **Blended file extension bar**: neighbouring colours in the file extension bar fade into each other instead of meeting at a hard edge with a white gap.
 - **Messages below the nav bar**: messages appear at the top right just below the nav bar instead of covering Settings.
+- **Source files in projects**: maps of a desktop project show their source files and open them in VS Code straight from the project folder, without switching on local source files or choosing a folder.
+- **Scenarios for project folders**: a scenario bound to a map of a desktop project applies to every analysis of that project folder.
 
 ### Fixed 🐞
 
