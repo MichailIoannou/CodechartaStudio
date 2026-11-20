@@ -101,6 +101,54 @@ describe("CompareDialogComponent", () => {
         )
     })
 
+    it("should compare the head of another folder of the project and state the limits", async () => {
+        // Arrange
+        await renderDialog()
+
+        // Act
+        await userEvent.click(screen.getByTestId("compare-across-folders"))
+        await settle()
+        await userEvent.type(input("compare-base"), "main")
+        await userEvent.type(input("compare-head"), "feature/x")
+        await settle()
+        await userEvent.click(screen.getByTestId("compare-submit"))
+
+        // Assert
+        expect(screen.getByTestId("compare-across-folders-limits").textContent).toContain("Paths are matched as they are.")
+        expect((screen.getByTestId("compare-head-folder") as HTMLSelectElement).value).toBe("f-api")
+        expect(service.compareSides).toHaveBeenCalledWith(
+            { ref: { projectId: "p-billing", folderId: "f-fork" }, label: "billing-fork" },
+            {
+                base: "main",
+                head: "feature/x",
+                baseMode: "mergeBase",
+                unresolved: [],
+                headFolder: { ref: { projectId: "p-billing", folderId: "f-api" }, label: "billing-api" }
+            }
+        )
+    })
+
+    it("should keep the head folder of a recent comparison across two folders", async () => {
+        // Arrange
+        localStorage.setItem(
+            "codeChartaRecentComparisons",
+            JSON.stringify({
+                "p-billing": [
+                    { folderId: "f-api", headFolderId: "f-fork", base: "main", head: "main", baseMode: "tip", comparedAt: Date.now() }
+                ]
+            })
+        )
+        await renderDialog()
+
+        // Act
+        await userEvent.click(screen.getByTestId("compare-recent-row"))
+
+        // Assert
+        expect(screen.getByTestId("compare-recent-row").textContent).toContain("billing-api → billing-fork")
+        expect((screen.getByTestId("compare-across-folders") as HTMLInputElement).checked).toBe(true)
+        expect((screen.getByTestId("compare-head-folder") as HTMLSelectElement).value).toBe("f-fork")
+    })
+
     it("should fill both sides from a recent comparison", async () => {
         // Arrange
         localStorage.setItem(

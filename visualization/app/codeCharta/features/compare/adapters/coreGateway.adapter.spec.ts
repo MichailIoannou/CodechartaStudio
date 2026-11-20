@@ -63,6 +63,33 @@ describe("CoreGatewayAdapter", () => {
         )
     })
 
+    it("should compare the sides of two folders tip vs tip, each in its own folder", async () => {
+        // Arrange
+        const fork = { projectId: FOLDER.projectId, folderId: "f-fork" }
+        const gateway = createGateway({
+            git: {
+                [FOLDER.folderId]: { refs: REFS, commits: [aCommit(BASE_SHA, [])] },
+                [fork.folderId]: { refs: REFS, commits: [aCommit(HEAD_SHA, [])] }
+            }
+        })
+
+        // Act
+        const resolved = await gateway.resolve(
+            {
+                kind: "explicit",
+                base: { folder: FOLDER, rev: { kind: "rev", name: "main" } },
+                head: { folder: fork, rev: { kind: "rev", name: "feature/x" } },
+                baseMode: "mergeBase"
+            },
+            null
+        )
+
+        // Assert
+        expect([resolved.origin, resolved.baseMode, resolved.status.kind]).toEqual(["folders", "tip", "ready"])
+        expect([resolved.base.requested.folder, resolved.head.requested.folder]).toEqual([FOLDER, fork])
+        expect([resolved.base.requested.commit, resolved.head.requested.commit]).toEqual([BASE_SHA, HEAD_SHA])
+    })
+
     it("should compare a branch from its merge base with the current branch and offer the nearest analysis", async () => {
         // Arrange
         const gateway = createGateway({ snapshots: [aCommitSnapshot(ROOT_SHA)] })

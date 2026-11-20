@@ -33,6 +33,7 @@ import type { PromptKind } from "../../model/coreApi/PromptKind"
 import type { PrunePolicy } from "../../model/coreApi/PrunePolicy"
 import type { RefInput } from "../../model/coreApi/RefInput"
 import type { ResolvedCommit } from "../../model/coreApi/ResolvedCommit"
+import type { SideInput } from "../../model/coreApi/SideInput"
 import type { SnapshotResolution } from "../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 import type { UpdateProjectParams } from "../../model/coreApi/UpdateProjectParams"
@@ -1635,8 +1636,79 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return bytes > 15 * megabyte ? "warn" : "ok"
     }
 
+    function preflightOf(sides: ReturnType<typeof comparedSide>[]) {
+        const shown = sides.map(side =>
+            side.status.status === "exact" ? (side.status.snapshot as SnapshotSummary) : (side.status.nearest?.snapshot ?? null)
+        )
+        const checksums = shown.map(snapshot => snapshot?.checksum ?? null)
+        const combinedBytes = shown.reduce((total, snapshot) => total + (snapshot?.mapBytes ?? 0), 0)
+        return {
+            identicalChecksums: checksums[0] !== null && checksums[0] === checksums[1],
+            profilesDiffer: false,
+            combinedBytes,
+            sizeVerdict: sizeVerdictOf(combinedBytes)
+        }
+    }
+
+    function snapshotSide(side: SideInput) {
+        const { rev } = side
+        const snapshot =
+            rev.kind === "rev"
+                ? undefined
+                : snapshotsOf(side.folder.projectId, side.folder.folderId).find(candidate => candidate.ref.snapshotId === rev.snapshotId)
+        if (!snapshot) {
+            return null
+        }
+        const label =
+            rev.kind === "workingTree"
+                ? { kind: "workingTree", name: "working tree" }
+                : { kind: "imported", name: snapshot.originalFileName ?? "imported" }
+        const requested = {
+            folder: side.folder,
+            kind: rev.kind,
+            commit: null,
+            shortCommit: null,
+            snapshotId: snapshot.ref.snapshotId,
+            label
+        }
+        return { requested, status: { status: "exact", snapshot: JSON.parse(JSON.stringify(snapshot)) } }
+    }
+
+    function sideOfInput(side: SideInput) {
+        if (side.rev.kind !== "rev") {
+            return snapshotSide(side)
+        }
+        const revision = revisionOfTyped(side.folder.folderId, side.rev.name)
+        return revision === null ? null : comparedSide(side.folder, revision)
+    }
+
+    /** Two folders, or a snapshot without a commit: each side on its own, tip vs tip. */
+    function resolveSideBySide(base: SideInput, head: SideInput) {
+        const sides = [sideOfInput(base), sideOfInput(head)]
+        if (sides.some(side => side === null)) {
+            return refuse("UNKNOWN_REVISION", "The revision is not in the repository.")
+        }
+        return succeed({
+            status: { kind: "ready" },
+            origin: base.folder.folderId === head.folder.folderId ? "commits" : "folders",
+            baseMode: "tip",
+            base: sides[0],
+            head: sides[1],
+            baseTip: null,
+            preflight: preflightOf(sides as ReturnType<typeof comparedSide>[])
+        })
+    }
+
     function resolveComparison(params: FakeRequestParams) {
         const intent = params.intent as CompareIntent
+        const isSideBySide =
+            intent.kind === "explicit" &&
+            (intent.base.folder.folderId !== intent.head.folder.folderId ||
+                intent.base.rev.kind !== "rev" ||
+                intent.head.rev.kind !== "rev")
+        if (intent.kind === "explicit" && isSideBySide) {
+            return resolveSideBySide(intent.base, intent.head)
+        }
         const folder = comparedFolder(intent)
         const revisions = comparedRevisions(intent, params.shownCommit ?? null)
         if (!revisions) {
@@ -1656,11 +1728,6 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         if (intent.kind === "changeRequest") {
             head.requested.label = { kind: "pullRequest", name: `#${intent.number}` }
         }
-        const shown = [base, head].map(side =>
-            side.status.status === "exact" ? (side.status.snapshot as SnapshotSummary) : (side.status.nearest?.snapshot ?? null)
-        )
-        const checksums = shown.map(snapshot => snapshot?.checksum ?? null)
-        const combinedBytes = shown.reduce((total, snapshot) => total + (snapshot?.mapBytes ?? 0), 0)
         const isSameCommit = base.requested.commit === head.requested.commit
         return succeed({
             status: { kind: isSameCommit ? "sameCommit" : "ready" },
@@ -1669,12 +1736,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
             base,
             head,
             baseTip: mergeBase ? comparedSide(folder, baseRevision).requested : null,
-            preflight: {
-                identicalChecksums: checksums[0] !== null && checksums[0] === checksums[1],
-                profilesDiffer: false,
-                combinedBytes,
-                sizeVerdict: sizeVerdictOf(combinedBytes)
-            }
+            preflight: preflightOf([base, head])
         })
     }
 

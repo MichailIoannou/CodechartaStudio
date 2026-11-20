@@ -22,7 +22,7 @@ import { CompareStore } from "../stores/compare.store"
 import { CompareWriteStore } from "../stores/compare.write.store"
 import { ChangedFilesService } from "./changedFiles.service"
 import { refName } from "./comparisonText"
-import { batchOutcome, missingSidesOf, pendingJobIds, queuedAnalysis, withFailures } from "./missingSides"
+import { batchOutcome, folderOfSide, missingSidesOf, pendingJobIds, queuedAnalysis, withFailures } from "./missingSides"
 
 const METRIC_VIEW_TOAST = "Compare runs in the metric view — the domain and dependency views show a single map."
 const TREEMAP_TOAST = "Switched to the treemap layout — the radial layouts show a single map."
@@ -39,6 +39,8 @@ export interface TypedSides {
     baseMode: BaseMode
     /** The sides no picker could name, base first: an unknown revision is blamed on the first of them. */
     unresolved: string[]
+    /** The head's folder when it is another folder of the project than the base's. */
+    headFolder?: ComparedFolder
 }
 
 /** The snapshot a side would show (its own, else its nearest) and how many commits that is away from it. */
@@ -106,10 +108,9 @@ export class CompareService {
         const ticket = ++this.latestTicket
         this.snapshots.holdMap()
         try {
-            const folder = resolved.head.requested.folder
             const queued = await Promise.all(
                 missingSidesOf(resolved).map(async analysis =>
-                    queuedAnalysis(analysis, await this.analyses.enqueue(folder, analysis.commit))
+                    queuedAnalysis(analysis, await this.analyses.enqueue(folderOfSide(resolved, analysis), analysis.commit))
                 )
             )
             if (ticket === this.latestTicket) {
@@ -294,8 +295,10 @@ export class CompareService {
             return
         }
         const base = resolved.baseTip ?? resolved.base.requested
+        const headFolderId = resolved.head.requested.folder.folderId
         this.recents.remember(base.folder.projectId, {
             folderId: base.folder.folderId,
+            ...(headFolderId === base.folder.folderId ? {} : { headFolderId }),
             base: refName(base),
             head: refName(resolved.head.requested),
             baseMode: resolved.baseMode,
@@ -344,15 +347,17 @@ function loadErrorOf(error: unknown): CompareError {
     return compareError.kind === "coreError" ? { kind: "loadFailed", message: compareError.message } : compareError
 }
 
-function explicitIntent(folder: FolderRef, { base, head, baseMode }: TypedSides): CompareIntent {
-    const side = (name: string) => ({ folder, rev: { kind: "rev" as const, name: name.trim() } })
-    return { kind: "explicit", base: side(base), head: side(head), baseMode }
+function explicitIntent(folder: FolderRef, { base, head, baseMode, headFolder }: TypedSides): CompareIntent {
+    const side = (sideFolder: FolderRef, name: string) => ({ folder: sideFolder, rev: { kind: "rev" as const, name: name.trim() } })
+    return { kind: "explicit", base: side(folder, base), head: side(headFolder?.ref ?? folder, head), baseMode }
 }
 
 function typedSidesErrorOf(error: unknown, folder: ComparedFolder, sides: TypedSides): CompareError {
     const isUnknown = error instanceof DesktopBridgeError && (error.code === "UNKNOWN_REVISION" || error.code === "BAD_REQUEST")
     const input = (sides.unresolved[0] ?? sides.base).trim()
-    return isUnknown ? { kind: "refNotFound", message: "", input, folderLabel: folder.label } : compareErrorOf(error)
+    const isTheHead = sides.headFolder !== undefined && input === sides.head.trim() && input !== sides.base.trim()
+    const folderLabel = isTheHead ? sides.headFolder.label : folder.label
+    return isUnknown ? { kind: "refNotFound", message: "", input, folderLabel } : compareErrorOf(error)
 }
 
 function compareErrorOf(error: unknown): CompareError {

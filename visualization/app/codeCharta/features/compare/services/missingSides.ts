@@ -3,11 +3,11 @@ import type { AnalysisJob, EnqueueResult, ResolvedComparison, ResolvedSide, Side
 type AnalysisState = "pending" | "done" | "failed" | "cancelled"
 export type BatchOutcome = "pending" | "cancelled" | "finished"
 
-/** One analysis per side without its own snapshot; a commit on both sides is analysed once. */
-export function missingSidesOf({ base, head }: ResolvedComparison): SideAnalysis[] {
+/** One analysis per side without its own snapshot; a commit on both sides of one folder is analysed once. */
+export function missingSidesOf(resolved: ResolvedComparison): SideAnalysis[] {
     const sides: [SideAnalysis["side"], ResolvedSide][] = [
-        ["base", base],
-        ["head", head]
+        ["base", resolved.base],
+        ["head", resolved.head]
     ]
     const missing = sides
         .filter(([, side]) => side.status.status === "missing")
@@ -18,7 +18,19 @@ export function missingSidesOf({ base, head }: ResolvedComparison): SideAnalysis
             jobId: null,
             failure: null
         }))
-    return missing.filter((analysis, index) => missing.findIndex(other => other.commit === analysis.commit) === index)
+    const isFirstOfItsFolder = (analysis: SideAnalysis, index: number) =>
+        missing.findIndex(other => other.commit === analysis.commit && folderIdOf(resolved, other) === folderIdOf(resolved, analysis)) ===
+        index
+    return missing.filter(isFirstOfItsFolder)
+}
+
+/** The folder a side's commit is analysed in: its own, which differs from the other side's across two folders. */
+export function folderOfSide(resolved: ResolvedComparison, analysis: SideAnalysis) {
+    return resolved[analysis.side].requested.folder
+}
+
+function folderIdOf(resolved: ResolvedComparison, analysis: SideAnalysis): string {
+    return folderOfSide(resolved, analysis).folderId
 }
 
 /** What the queue answered for one side: its job, nothing to wait for, or why it was refused. */

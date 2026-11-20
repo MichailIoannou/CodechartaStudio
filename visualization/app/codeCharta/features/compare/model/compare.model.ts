@@ -130,6 +130,8 @@ export interface ComparePrefill {
     folder?: FolderRef
     base?: string
     head?: string
+    /** The head's folder when it is another folder than `folder`. */
+    headFolder?: FolderRef
 }
 
 export const IDLE_COMPARISON: CompareState = {

@@ -1,3 +1,4 @@
+import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { Store, StoreModule } from "@ngrx/store"
 import { render, screen } from "@testing-library/angular"
@@ -5,9 +6,11 @@ import userEvent from "@testing-library/user-event"
 import { TEST_FILE_DATA, TEST_FILE_DATA_JAVA } from "../../../../mocks/dataMocks"
 import { addFile, setDelta } from "../../../../stores/fileStore/store/files.actions"
 import { appReducers, setStateMiddleware } from "../../../../stores/rootStore/store"
+import { ProjectsFacade } from "../../../projects/facade"
+import { aFolder, aProject } from "../../../projects/projects.mocks"
 import { ToastService } from "../../../shared/facade"
 import { LoadedSide, ResolvedComparison } from "../../model/compare.model"
-import { aCommitSnapshot, aComparedCommit, aResolvedComparison, BASE_SHA, FOLDER, HEAD_SHA } from "../../ports/compareGateways.mocks"
+import { aCommitSnapshot, aComparedCommit, aResolvedComparison, BASE_SHA, FOLDER, FORK, HEAD_SHA } from "../../ports/compareGateways.mocks"
 import { CompareService } from "../../services/compare.service"
 import { CompareStore } from "../../stores/compare.store"
 import { ComparisonChipComponent } from "./comparisonChip.component"
@@ -31,30 +34,33 @@ const HEAD: LoadedSide = {
     checksum: TEST_FILE_DATA_JAVA.fileMeta.fileChecksum
 }
 
+const BILLING = aProject("p-billing", [aFolder("f-api", { label: "billing-api" }), aFolder("f-fork", { label: "billing-fork" })])
+
 describe("ComparisonChipComponent", () => {
     let service: { swap: jest.Mock; exit: jest.Mock }
     let toast: jest.Mock
 
-    async function renderChip(phase: "active" | "noDifferences" = "active", resolved: ResolvedComparison | null = null) {
+    async function renderChip(phase: "active" | "noDifferences" = "active", resolved: ResolvedComparison | null = null, head = HEAD) {
         service = { swap: jest.fn(), exit: jest.fn() }
         toast = jest.fn()
         await render(ComparisonChipComponent, {
             imports: [StoreModule.forRoot(appReducers, { metaReducers: [setStateMiddleware] })],
             providers: [
                 { provide: CompareService, useValue: service },
-                { provide: ToastService, useValue: { show: toast } }
+                { provide: ToastService, useValue: { show: toast } },
+                { provide: ProjectsFacade, useValue: { activeProject: signal(BILLING) } }
             ]
         })
         const store = TestBed.inject(Store)
         store.dispatch(addFile({ file: TEST_FILE_DATA }))
         store.dispatch(addFile({ file: TEST_FILE_DATA_JAVA }))
         store.dispatch(setDelta({ referenceFile: TEST_FILE_DATA, comparisonFile: TEST_FILE_DATA_JAVA }))
-        const head = phase === "noDifferences" ? { ...HEAD, checksum: TEST_FILE_DATA.fileMeta.fileChecksum } : HEAD
+        const shownHead = phase === "noDifferences" ? { ...head, checksum: TEST_FILE_DATA.fileMeta.fileChecksum } : head
         TestBed.inject(CompareStore).set({
             phase,
             resolved,
             base: BASE,
-            head,
+            head: shownHead,
             error: null,
             analyses: [],
             changedFiles: null,
@@ -257,6 +263,25 @@ describe("ComparisonChipComponent", () => {
         // Assert
         expect(prefillFromSide).toEqual({ folder: FOLDER, base: "main", head: "a1b2c3d" })
         expect(store.dialogPrefill()).toEqual(prefillFromSide)
+    })
+
+    it("should name each side's folder and keep the head folder when two folders are compared", async () => {
+        // Arrange
+        const forkHead = { ...HEAD, requested: aComparedCommit(HEAD_SHA, { kind: "branch", name: "main" }, FORK) }
+        const resolved = aResolvedComparison({
+            origin: "folders",
+            head: { requested: forkHead.requested, status: { status: "exact", snapshot: HEAD.snapshot } }
+        })
+        await renderChip("active", resolved, forkHead)
+        const store = TestBed.inject(CompareStore)
+
+        // Act
+        await chooseAction("Change…")
+
+        // Assert
+        expect(screen.getByTestId("comparison-head").getAttribute("title")).toBe("Head: a1b2c3d main in billing-fork")
+        expect(screen.getByTestId("comparison-base").getAttribute("title")).toBe("Base: 9f8e7d6 main in billing-api")
+        expect(store.dialogPrefill()).toEqual({ folder: FOLDER, base: "main", head: "main", headFolder: FORK })
     })
 
     it("should copy the range as text", async () => {
