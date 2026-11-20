@@ -1,6 +1,6 @@
 import type { ErrorCode } from "../../../model/coreApi/ErrorCode"
 import type { GitError } from "../model/gitError"
-import { gitErrorCommands, gitErrorSentence, problemNoticeOf } from "./gitErrorText"
+import { gitErrorCommands, gitErrorFollowUp, gitErrorSentence, problemNoticeOf } from "./gitErrorText"
 
 const FOLDER = { label: "billing-api", path: "C:\\work\\billing-api" }
 
@@ -242,6 +242,45 @@ describe("gitErrorText", () => {
 
         // Assert
         expect(sentence).toBe("Git failed: An operation is in progress.")
+    })
+
+    it("should word a rejected push, a moved remote branch and a branch without upstream", () => {
+        // Arrange & Act
+        const sentences = [
+            gitErrorSentence(anError("PUSH_REJECTED")),
+            gitErrorSentence(anError("STALE_PUSH_LEASE")),
+            gitErrorSentence(anError("NO_UPSTREAM"), { branch: "feature/x" })
+        ]
+
+        // Assert
+        expect(sentences).toEqual([
+            "The remote has commits you do not have. Pull first, then push.",
+            "The remote branch moved since you last fetched. Fetch, review, and try again.",
+            "'feature/x' has no upstream branch."
+        ])
+    })
+
+    it("should fall back to git's message for a branch without upstream when the branch is unknown", () => {
+        // Arrange & Act
+        const sentence = gitErrorSentence(anError("NO_UPSTREAM", "There is no tracking information."))
+
+        // Assert
+        expect(sentence).toBe("Git failed: There is no tracking information.")
+    })
+
+    it("should name the follow-up each sync failure offers", () => {
+        // Arrange & Act
+        const followUps = (["PUSH_REJECTED", "STALE_PUSH_LEASE", "NO_UPSTREAM", "INDEX_LOCKED"] as const).map(code =>
+            gitErrorFollowUp(anError(code))
+        )
+
+        // Assert
+        expect(followUps).toEqual([
+            { kind: "pull", label: "Pull" },
+            { kind: "fetch", label: "Fetch" },
+            { kind: "publish", label: "Publish branch" },
+            null
+        ])
     })
 
     it("should word nothing to commit and a failed hook, naming the commit where it stopped one", () => {

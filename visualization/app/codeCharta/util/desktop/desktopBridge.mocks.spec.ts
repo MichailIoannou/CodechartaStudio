@@ -1191,6 +1191,142 @@ describe("createFakeDesktopBridge", () => {
             expect(errorCodeOf(answer)).toBe("CONFLICTS")
         })
 
+        function trackingSeed(
+            tracking: { ahead: number; behind: number },
+            extra: Partial<NonNullable<FakeDesktopSeed["git"]>[string]> = {}
+        ) {
+            const seed = writableSeed(extra)
+            const repository = seed.git?.["f-1"]
+            const upstream = { refName: "refs/remotes/origin/x", name: "origin/x", isGone: false, ...tracking }
+            if (repository?.refs && repository.status) {
+                repository.refs.localBranches[0].upstream = upstream
+                repository.status.upstream = upstream
+            }
+            return seed
+        }
+
+        async function statusOf(bridge: DesktopBridge) {
+            const answer = await bridge.request("git.status", { repo })
+            return answer.ok ? answer.value : null
+        }
+
+        it("should fast-forward a pull onto the upstream and refuse the modes it was seeded to refuse", async () => {
+            // Arrange
+            const refusal = { code: "NOT_FAST_FORWARD" as const, message: "Not possible to fast-forward, aborting.", details: {} }
+            const bridge = createFakeDesktopBridge(trackingSeed({ ahead: 0, behind: 1 }, { pullRefusals: { rebase: refusal } }))
+
+            // Act
+            const refused = await bridge.request("git.pull", { repo, mode: "rebase" })
+            const pulled = await bridge.request("git.pull", { repo, mode: "ffOnly" })
+            const status = await statusOf(bridge)
+
+            // Assert
+            expect(errorCodeOf(refused)).toBe("NOT_FAST_FORWARD")
+            expect(pulled.ok).toBe(true)
+            expect(status?.head.commit).toBe(B)
+            expect(status?.upstream).toEqual(expect.objectContaining({ ahead: 0, behind: 0 }))
+        })
+
+        it("should refuse a pull without an upstream", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(writableSeed())
+
+            // Act
+            const answer = await bridge.request("git.pull", { repo, mode: "ffOnly" })
+
+            // Assert
+            expect(errorCodeOf(answer)).toBe("NO_UPSTREAM")
+        })
+
+        it("should stop a merge pull on the seeded conflicts and abort the merge", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(trackingSeed({ ahead: 1, behind: 1 }, { pullConflicts: ["src/a.ts"] }))
+
+            // Act
+            const stopped = await bridge.request("git.pull", { repo, mode: "merge" })
+            const merging = await statusOf(bridge)
+            const wrongAbort = await bridge.request("git.abortOperation", { repo, operation: "rebase" })
+            const aborted = await bridge.request("git.abortOperation", { repo, operation: "merge" })
+            const after = await statusOf(bridge)
+
+            // Assert
+            expect(errorCodeOf(stopped)).toBe("CONFLICTS")
+            expect(merging).toEqual(
+                expect.objectContaining({ operationInProgress: "merge", counts: expect.objectContaining({ conflicted: 1 }) })
+            )
+            expect(errorCodeOf(wrongAbort)).toBe("NOT_ALLOWED")
+            expect(aborted.ok).toBe(true)
+            expect(after).toEqual(
+                expect.objectContaining({ operationInProgress: null, counts: expect.objectContaining({ conflicted: 0 }) })
+            )
+        })
+
+        it("should stop a rebase pull on the seeded conflicts as a rebase", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(trackingSeed({ ahead: 1, behind: 1 }, { pullConflicts: ["src/a.ts"] }))
+
+            // Act
+            await bridge.request("git.pull", { repo, mode: "rebase" })
+
+            // Assert
+            expect((await statusOf(bridge))?.operationInProgress).toBe("rebase")
+        })
+
+        it("should push onto the upstream, reject a push the remote is ahead of and force it only with the right lease", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(trackingSeed({ ahead: 2, behind: 1 }))
+            const push = { repo, branchRefName: "refs/heads/main", remote: "origin", setUpstream: false }
+
+            // Act
+            const rejected = await bridge.request("git.push", { ...push, forceWithLeaseExpected: null })
+            const stale = await bridge.request("git.push", { ...push, forceWithLeaseExpected: A })
+            const forced = await bridge.request("git.push", { ...push, forceWithLeaseExpected: B })
+            const remote = await bridge.request("git.branches", { repo })
+
+            // Assert
+            expect([rejected, stale].map(errorCodeOf)).toEqual(["PUSH_REJECTED", "STALE_PUSH_LEASE"])
+            expect(forced.ok).toBe(true)
+            expect(remote.ok && remote.value.remoteBranches[0].commit).toBe(A)
+            expect((await statusOf(bridge))?.upstream).toEqual(expect.objectContaining({ ahead: 0, behind: 0 }))
+        })
+
+        it("should publish a branch without upstream to the remote and track it", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(writableSeed())
+
+            // Act
+            const answer = await bridge.request("git.push", {
+                repo,
+                branchRefName: "refs/heads/main",
+                remote: "origin",
+                setUpstream: true,
+                forceWithLeaseExpected: null
+            })
+            const branches = await bridge.request("git.branches", { repo })
+
+            // Assert
+            expect(answer.ok).toBe(true)
+            expect(branches.ok && branches.value.remoteBranches.map(branch => branch.name)).toEqual(["origin/x", "origin/main"])
+            expect((await statusOf(bridge))?.upstream).toEqual(expect.objectContaining({ name: "origin/main", ahead: 0, behind: 0 }))
+        })
+
+        it("should refuse to push a branch it does not know", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(writableSeed())
+
+            // Act
+            const answer = await bridge.request("git.push", {
+                repo,
+                branchRefName: "refs/heads/gone",
+                remote: "origin",
+                setUpstream: false,
+                forceWithLeaseExpected: null
+            })
+
+            // Assert
+            expect(errorCodeOf(answer)).toBe("NOT_FOUND")
+        })
+
         it("should fetch with the seeded number of updated refs", async () => {
             // Arrange
             const bridge = createFakeDesktopBridge(writableSeed({ fetchedRefs: 3 }))

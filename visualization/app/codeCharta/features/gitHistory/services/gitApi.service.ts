@@ -1,5 +1,6 @@
 import { Injectable, inject } from "@angular/core"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
+import type { GitAbortOperationParams } from "../../../model/coreApi/GitAbortOperationParams"
 import type { GitBranchCreateParams } from "../../../model/coreApi/GitBranchCreateParams"
 import type { GitBranchDeleteParams } from "../../../model/coreApi/GitBranchDeleteParams"
 import type { GitBranchRenameParams } from "../../../model/coreApi/GitBranchRenameParams"
@@ -9,6 +10,8 @@ import type { GitDiscardParams } from "../../../model/coreApi/GitDiscardParams"
 import type { GitFetchParams } from "../../../model/coreApi/GitFetchParams"
 import type { GitIsAncestorParams } from "../../../model/coreApi/GitIsAncestorParams"
 import type { GitLogParams } from "../../../model/coreApi/GitLogParams"
+import type { GitPullParams } from "../../../model/coreApi/GitPullParams"
+import type { GitPushParams } from "../../../model/coreApi/GitPushParams"
 import type { GitSetUpstreamParams } from "../../../model/coreApi/GitSetUpstreamParams"
 import type { GitStageParams } from "../../../model/coreApi/GitStageParams"
 import type { GitSwitchParams } from "../../../model/coreApi/GitSwitchParams"
@@ -108,6 +111,18 @@ export class GitApiService {
 
     commit(params: GitCreateCommitParams, operationId: string) {
         return this.call("git.commit", params, operationId)
+    }
+
+    pull(params: GitPullParams, operationId: string) {
+        return this.call("git.pull", params, operationId)
+    }
+
+    push(params: GitPushParams, operationId: string) {
+        return this.call("git.push", params, operationId)
+    }
+
+    abortOperation(params: GitAbortOperationParams, operationId: string) {
+        return this.call("git.abortOperation", params, operationId)
     }
 
     isAncestor(params: GitIsAncestorParams) {
