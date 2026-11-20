@@ -1,0 +1,37 @@
+@if (view().graphRow; as graphRow) {
+    <cc-commit-graph-cell [row]="graphRow" [isHead]="view().isHead" />
+}
+<span class="flex min-w-0 items-center gap-1.5 overflow-hidden">
+    <span class="min-w-0 truncate" data-testid="commit-subject">{{ view().commit.subject }}</span>
+    @if (view().labels.length > 0) {
+        <span class="flex min-w-0 max-w-[calc(100%-10rem)] shrink-0 items-center gap-1.5">
+            @for (label of shownLabels(); track label.refName) {
+                <span
+                    class="badge badge-xs inline-flex min-w-0 max-w-40 shrink gap-1 font-normal"
+                    [class]="labelClassOf(label)"
+                    [title]="label.refName"
+                    data-testid="ref-label"
+                >
+                    @if (labelIconOf(label); as icon) {
+                        <i class="fa-solid" [class]="icon"></i>
+                    }
+                    <span class="truncate">{{ label.name }}</span>
+                </span>
+            }
+            @if (hiddenLabelCount() > 0) {
+                <span class="badge badge-ghost badge-xs shrink-0 font-normal" [title]="allLabelsTitle()" data-testid="ref-label-overflow"
+                    >+{{ hiddenLabelCount() }}</span
+                >
+            }
+        </span>
+    }
+</span>
+@if (isAnalysisShown()) {
+    <span class="flex min-w-0" data-testid="commit-analysis">
+        @if (analysisBadge(); as badge) {
+            <span class="badge badge-soft badge-xs font-normal" [class]="badge.toneClass" [title]="badge.title">{{ badge.label }}</span>
+        }
+    </span>
+}
+<span class="truncate font-normal" [title]="authorTitle()" data-testid="commit-author">{{ view().commit.authorName }}</span>
+<span class="text-right font-normal tabular-nums text-base-content/60" [title]="absoluteDate()" data-testid="commit-date">{{ relativeDate() }}</span>

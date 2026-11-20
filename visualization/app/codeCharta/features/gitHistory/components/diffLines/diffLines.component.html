@@ -1,0 +1,16 @@
+<div #viewport class="min-h-0 flex-1 overflow-auto font-mono text-xs" tabindex="0" aria-label="Diff" data-testid="diff-lines" (scroll)="onScroll()">
+    <div class="w-max min-w-full" [style.height.px]="window().totalHeight" [style.padding-top.px]="window().offsetTop">
+        @for (line of visibleLines(); track $index) {
+            <div class="flex h-5 leading-5" [class]="classOf(line.kind)" data-testid="diff-line">
+                <span
+                    class="sticky left-0 flex w-20 shrink-0 select-none justify-end gap-2 border-r border-base-300 bg-base-200 pr-2 tabular-nums text-base-content/50"
+                    aria-hidden="true"
+                >
+                    <span class="w-8 text-right">{{ line.oldNumber }}</span>
+                    <span class="w-8 text-right">{{ line.newNumber }}</span>
+                </span>
+                <span class="whitespace-pre px-3">{{ line.text }}</span>
+            </div>
+        }
+    </div>
+</div>

@@ -1,15 +1,18 @@
 import { NgTemplateOutlet } from "@angular/common"
 import { ChangeDetectionStrategy, Component, computed, ElementRef, HostListener, inject, signal, viewChild } from "@angular/core"
+import type { FolderRef } from "../../../../model/coreApi/FolderRef"
 import type { ProjectSummary } from "../../../../model/coreApi/ProjectSummary"
 import type { ProjectSummaryFolder } from "../../../../model/coreApi/ProjectSummaryFolder"
+import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
 import { OpenFileService } from "../../services/openFile.service"
 import { ProjectsService } from "../../services/projects.service"
-import { counted } from "../../util/folderWording"
+import { branchLabel, counted } from "../../util/folderWording"
 import { CreateProjectDialogComponent } from "../createProjectDialog/createProjectDialog.component"
 import { ManageProjectDialogComponent } from "../manageProjectDialog/manageProjectDialog.component"
 import { OpenFileDialogComponent } from "../openFileDialog/openFileDialog.component"
 
 const MENU_ITEM_SELECTOR = "[data-menu-item]:not([disabled])"
+const UNKNOWN_BRANCH = "…"
 const TEXT_INPUT_TAGS: ReadonlySet<string> = new Set(["INPUT", "TEXTAREA"])
 
 interface MenuFolder {
@@ -17,6 +20,7 @@ interface MenuFolder {
     projectId: string
     path: string | null
     isWorking: boolean
+    branch: string | null
 }
 
 interface MenuProject {
@@ -34,6 +38,7 @@ interface MenuProject {
 })
 export class ProjectSwitcherComponent {
     private readonly projects = inject(ProjectsService)
+    private readonly gitRepository = inject(GitRepositoryService)
     private readonly openFileService = inject(OpenFileService)
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
     private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>("trigger")
@@ -153,6 +158,10 @@ export class ProjectSwitcherComponent {
         this.expandedProjectIds.set(new Set())
         this.isOpen.set(true)
         void this.projects.refreshProjects().catch(() => undefined)
+        const project = this.activeProject()
+        if (project) {
+            void this.refreshBranches(project.id, project.folders)
+        }
     }
 
     private close() {
@@ -163,10 +172,19 @@ export class ProjectSwitcherComponent {
         const expanded = new Set(this.expandedProjectIds())
         if (isExpanded) {
             expanded.add(projectId)
+            const project = this.projects.projects().find(candidate => candidate.id === projectId)
+            void this.refreshBranches(projectId, project?.folders ?? [])
         } else {
             expanded.delete(projectId)
         }
         this.expandedProjectIds.set(expanded)
+    }
+
+    private refreshBranches(projectId: string, folders: ProjectSummaryFolder[]) {
+        const refs: FolderRef[] = folders
+            .filter(folder => folder.kind === "git" && folder.status === "ok")
+            .map(folder => ({ projectId, folderId: folder.id }))
+        return this.gitRepository.refreshFolders(refs)
     }
 
     private menuProject(project: ProjectSummary): MenuProject {
@@ -180,7 +198,18 @@ export class ProjectSwitcherComponent {
 
     private menuFolder(projectId: string, folder: ProjectSummaryFolder, path: string | null): MenuFolder {
         const isWorking = projectId === this.activeProject()?.id && folder.id === this.workingFolder()?.id
-        return { folder, projectId, path, isWorking }
+        return { folder, projectId, path, isWorking, branch: this.branchOf(projectId, folder) }
+    }
+
+    private branchOf(projectId: string, folder: ProjectSummaryFolder): string | null {
+        if (folder.kind !== "git" || folder.status !== "ok") {
+            return null
+        }
+        const status = this.gitRepository.statusOf({ projectId, folderId: folder.id })
+        if (status === undefined) {
+            return UNKNOWN_BRANCH
+        }
+        return isGitStatus(status) ? branchLabel(status) : null
     }
 
     private menuItems(): HTMLElement[] {

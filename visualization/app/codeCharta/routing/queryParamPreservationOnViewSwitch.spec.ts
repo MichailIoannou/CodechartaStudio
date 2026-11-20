@@ -28,10 +28,14 @@ class DomainViewStubComponent {}
 @Component({ selector: "cc-dependency-view-stub", template: "dependencies" })
 class DependencyViewStubComponent {}
 
+@Component({ selector: "cc-history-view-stub", template: "history" })
+class HistoryViewStubComponent {}
+
 const stubComponentByPath = {
     [routePaths.metrics]: MetricsViewStubComponent,
     [routePaths.domain]: DomainViewStubComponent,
-    [routePaths.dependencies]: DependencyViewStubComponent
+    [routePaths.dependencies]: DependencyViewStubComponent,
+    [routePaths.history]: HistoryViewStubComponent
 }
 
 // The domain and dependency routes are lazy, so `loadComponent` has to go with it — Angular rejects a route that

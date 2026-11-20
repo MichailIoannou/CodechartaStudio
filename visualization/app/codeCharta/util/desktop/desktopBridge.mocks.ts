@@ -2,11 +2,22 @@ import type { ErrorCode } from "../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
 import type { FolderRef } from "../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../model/coreApi/FolderRole"
+import type { GitCommitDetails } from "../../model/coreApi/GitCommitDetails"
+import type { GitCommitSummary } from "../../model/coreApi/GitCommitSummary"
+import type { GitDiff } from "../../model/coreApi/GitDiff"
+import type { GitEntryKind } from "../../model/coreApi/GitEntryKind"
+import type { GitFileChange } from "../../model/coreApi/GitFileChange"
+import type { GitLogParams } from "../../model/coreApi/GitLogParams"
+import type { GitRefs } from "../../model/coreApi/GitRefs"
+import type { GitRepositoryInfo } from "../../model/coreApi/GitRepositoryInfo"
+import type { GitStatus } from "../../model/coreApi/GitStatus"
+import type { GitWorkingTreeEntry } from "../../model/coreApi/GitWorkingTreeEntry"
 import type { NewFolder } from "../../model/coreApi/NewFolder"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
 import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { Project } from "../../model/coreApi/Project"
 import type { ProjectView } from "../../model/coreApi/ProjectView"
+import type { PromptKind } from "../../model/coreApi/PromptKind"
 import type { ResolvedCommit } from "../../model/coreApi/ResolvedCommit"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 import type { UpdateProjectParams } from "../../model/coreApi/UpdateProjectParams"
@@ -24,6 +35,61 @@ type FakeAnswerKey =
     | "setColorScheme"
     | "restartCore"
 
+type FakeGitMethod =
+    | "git.repositoryInfo"
+    | "git.status"
+    | "git.branches"
+    | "git.refsFingerprint"
+    | "git.log"
+    | "git.commitDetails"
+    | "git.resolveCommit"
+    | "git.measureDistances"
+    | "git.fetch"
+    | "git.switch"
+    | "git.branchCreate"
+    | "git.branchRename"
+    | "git.branchDelete"
+    | "git.setUpstream"
+    | "git.workingTree"
+    | "git.diffFile"
+    | "git.stage"
+    | "git.unstage"
+    | "git.discard"
+    | "git.commit"
+    | "git.isAncestor"
+
+/**
+ * A write that does not answer at once: it reports its progress and asks its prompts under the caller's operation id,
+ * then waits — for every prompt to be answered (it then answers as usual), a prompt to be cancelled
+ * (`AUTHENTICATION_CANCELLED`) or the operation to be cancelled (`CANCELLED`).
+ */
+interface FakeSlowOperation {
+    progress?: { message: string; done: number | null; total: number | null }
+    prompts?: { kind: PromptKind; message: string }[]
+}
+
+/** What the fake answers for one folder; a method without a value fails with `NOT_A_REPOSITORY`. */
+interface FakeGitRepository {
+    info?: GitRepositoryInfo
+    status?: GitStatus
+    refs?: GitRefs
+    /** Children before parents; `git.log` pages them 500 at a time. */
+    commits?: GitCommitSummary[]
+    /** By SHA; a listed commit without details answers its summary with no files. */
+    details?: Record<string, GitCommitDetails>
+    failures?: Partial<Record<FakeGitMethod, ErrorPayload>>
+    /** Local branch names git refuses to delete without force. */
+    unmergedBranches?: string[]
+    /** What `git.fetch` reports as updated. */
+    fetchedRefs?: number
+    slow?: Partial<Record<FakeGitMethod, FakeSlowOperation>>
+    /** The working-tree listing; once seeded, the status counts follow it. */
+    changes?: GitWorkingTreeEntry[]
+    areChangesTruncated?: boolean
+    /** By `<kind>:<path>`; a listed row without one answers an empty diff. */
+    diffs?: Record<string, GitDiff>
+}
+
 export interface FakeDesktopSeed {
     protocolVersion?: number
     coreState?: CoreState
@@ -35,6 +101,11 @@ export interface FakeDesktopSeed {
     pickedFolders?: PickedFolder[]
     pickedImportFile?: PickedImportFile
     snapshotMaps?: Record<string, number[]>
+    /** By folder id. */
+    git?: Record<string, FakeGitRepository>
+    /** Shorthands for `git` with only a status or only commits. */
+    gitStatuses?: Record<string, GitStatus>
+    gitLogs?: Record<string, GitCommitSummary[]>
     commits?: Record<string, ResolvedCommit[]>
     now?: string
 }
@@ -62,12 +133,48 @@ interface FakeRequestParams extends Partial<UpdateProjectParams> {
     view?: ProjectView
     checksum?: string
     importToken?: string
-    target?: FolderRef | null
+    target?: FolderRef | string | null
+    candidates?: string[]
+    force?: boolean
     bindToCommit?: string | null
     toFolderId?: string
     hash?: string
     offset?: number
     length?: number
+    repo?: FolderRef
+    sha?: string
+    revision?: string
+    scope?: GitLogParams["scope"]
+    filter?: GitLogParams["filter"]
+    cursor?: string | null
+    promptId?: string
+    name?: string
+    startPoint?: string
+    checkout?: boolean
+    refName?: string
+    newName?: string
+    upstreamRefName?: string | null
+    path?: string
+    kind?: GitEntryKind
+    paths?: string[]
+    entries?: { path: string; kind: GitEntryKind; change: GitFileChange }[]
+    subject?: string
+    body?: string
+    amend?: boolean
+    ancestor?: string
+    descendant?: string
+}
+
+type FakeGitTarget =
+    | { kind: "local"; refName: string; force?: boolean }
+    | { kind: "trackRemote"; remoteRefName: string; localName: string }
+    | { kind: "remote"; remoteRefName: string }
+
+interface FakeHeldOperation {
+    method: BridgeMethod
+    params: unknown
+    promptIds: Set<string>
+    finish: (answer: FakeAnswer) => void
 }
 
 type FakeAnswer = { ok: true; value: unknown } | { ok: false; error: ErrorPayload }
@@ -97,8 +204,19 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         pickedImportFiles: new Map<string, PickedImportFile>(),
         importedContent: new Map<string, FolderRef & { snapshotId: string }>(),
         snapshotMaps: { ...seed.snapshotMaps },
+        git: JSON.parse(JSON.stringify(seed.git ?? {})) as Record<string, FakeGitRepository>,
         commits: { ...seed.commits },
+        heldOperations: new Map<string, FakeHeldOperation>(),
         createdIds: 0
+    }
+    for (const [folderId, status] of Object.entries(seed.gitStatuses ?? {})) {
+        store.git[folderId] = { ...store.git[folderId], status }
+    }
+    for (const [folderId, commits] of Object.entries(seed.gitLogs ?? {})) {
+        store.git[folderId] = { ...store.git[folderId], commits }
+    }
+    for (const repository of Object.values(store.git).filter(candidate => candidate.changes)) {
+        countChanges(repository)
     }
 
     const succeed = (value: unknown): FakeAnswer => ({ ok: true, value })
@@ -444,7 +562,7 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         if (!file) {
             return refuse("TOKEN_EXPIRED", "Pick the file again.")
         }
-        const target = params.target ?? existingTargetOf(file)
+        const target = (params.target as FolderRef | null | undefined) ?? existingTargetOf(file)
         return target ? openInto(file, target, params.bindToCommit, false) : openIntoNewProject(file, params.bindToCommit)
     }
 
@@ -498,6 +616,463 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return succeed({ bytes: new Uint8Array(map.slice(offset, offset + (params.length ?? 0))), offset, totalBytes: map.length })
     }
 
+    function gitAnswer(method: FakeGitMethod, read: (repository: FakeGitRepository, params: FakeRequestParams) => unknown) {
+        return (params: FakeRequestParams): FakeAnswer => {
+            const folderId = params.repo?.folderId ?? ""
+            const repository = Object.hasOwn(store.git, folderId) ? store.git[folderId] : undefined
+            const failure = repository?.failures?.[method]
+            if (failure) {
+                return { ok: false, error: failure }
+            }
+            const value = repository ? read(repository, params) : undefined
+            if (value && typeof value === "object" && "code" in value) {
+                return { ok: false, error: value as ErrorPayload }
+            }
+            return value === undefined
+                ? refuse("NOT_A_REPOSITORY", `The fake desktop bridge has no repository for ${folderId}.`)
+                : succeed(JSON.parse(JSON.stringify(value)))
+        }
+    }
+
+    function reachableCommits(commits: GitCommitSummary[], tips: string[]) {
+        const parentsBySha = new Map(commits.map(commit => [commit.sha, commit.parents]))
+        const reached = new Set<string>()
+        const waiting = [...tips]
+        while (waiting.length > 0) {
+            const sha = waiting.pop() as string
+            if (!reached.has(sha) && parentsBySha.has(sha)) {
+                reached.add(sha)
+                waiting.push(...(parentsBySha.get(sha) ?? []))
+            }
+        }
+        return commits.filter(commit => reached.has(commit.sha))
+    }
+
+    function scopedCommits(repository: FakeGitRepository, scope: FakeRequestParams["scope"]) {
+        const commits = repository.commits ?? []
+        if (!scope || scope.kind !== "refs") {
+            return commits
+        }
+        const refs = repository.refs
+        const tips = [...(refs?.localBranches ?? []), ...(refs?.remoteBranches ?? []), ...(refs?.tags ?? [])]
+            .filter(ref => scope.refNames.includes(ref.refName))
+            .map(ref => ref.commit)
+        return reachableCommits(commits, tips)
+    }
+
+    function matchesLogFilter(repository: FakeGitRepository, commit: GitCommitSummary, filter: FakeRequestParams["filter"]) {
+        const contains = (text: string, part: string | null | undefined) => !part || text.toLowerCase().includes(part.toLowerCase())
+        const files = repository.details?.[commit.sha]?.files ?? []
+        const isPathMatched = !filter?.path || files.some(file => file.path === filter.path || file.path.startsWith(`${filter.path}/`))
+        return (
+            contains(`${commit.subject} ${commit.sha}`, filter?.text) &&
+            contains(`${commit.authorName} ${commit.authorEmail}`, filter?.author) &&
+            isPathMatched
+        )
+    }
+
+    function gitLogPage(repository: FakeGitRepository, params: FakeRequestParams) {
+        if (!repository.commits) {
+            return undefined
+        }
+        const pageSize = 500
+        const offset = params.cursor ? Number(params.cursor.replace("page-", "")) : 0
+        if (Number.isNaN(offset)) {
+            return { code: "LOG_SESSION_EXPIRED", message: "The fake desktop bridge has no such log session.", details: {} }
+        }
+        const filter = params.filter
+        const isFiltered = Boolean(filter?.text || filter?.author || filter?.path)
+        const matching = scopedCommits(repository, params.scope).filter(commit => matchesLogFilter(repository, commit, filter))
+        const commits = matching.slice(offset, offset + pageSize)
+        const nextCursor = offset + pageSize < matching.length ? `page-${offset + pageSize}` : null
+        return { commits, nextCursor, isGraphAvailable: !isFiltered }
+    }
+
+    function gitCommitDetails(repository: FakeGitRepository, params: FakeRequestParams) {
+        const sha = params.sha ?? ""
+        const summary = repository.commits?.find(commit => commit.sha === sha)
+        if (repository.details?.[sha]) {
+            return repository.details[sha]
+        }
+        if (!summary) {
+            return { code: "UNKNOWN_REVISION", message: `The fake desktop bridge has no commit ${sha}.`, details: {} }
+        }
+        const noChanges = { files: [], areFilesTruncated: false, totals: { filesChanged: 0, insertions: 0, deletions: 0 } }
+        const committer = { committerName: summary.authorName, committerEmail: summary.authorEmail }
+        return { ...summary, ...committer, ...noChanges, message: summary.subject, comparedToParent: summary.parents[0] ?? null }
+    }
+
+    function gitDistances(repository: FakeGitRepository, params: FakeRequestParams) {
+        const commits = repository.commits ?? []
+        const known = new Set(commits.map(commit => commit.sha))
+        const target = String(params.target ?? "")
+        const reachedFromTarget = new Set(reachableCommits(commits, [target]).map(commit => commit.sha))
+        const distances = (params.candidates ?? [])
+            .filter(candidate => known.has(candidate))
+            .map(candidate => {
+                const reachedFromCandidate = new Set(reachableCommits(commits, [candidate]).map(commit => commit.sha))
+                const onlyInTarget = [...reachedFromTarget].filter(sha => !reachedFromCandidate.has(sha)).length
+                const onlyInCandidate = [...reachedFromCandidate].filter(sha => !reachedFromTarget.has(sha)).length
+                return { sha: candidate, onlyInCandidate, onlyInTarget }
+            })
+        return { distances }
+    }
+
+    function gitWrite(method: FakeGitMethod, change: (repository: FakeGitRepository, params: FakeRequestParams) => FakeAnswer | null) {
+        const read = gitAnswer(method, (repository, params) => {
+            if (!repository.refs || !repository.status) {
+                return undefined
+            }
+            const refusal = change(repository, params)
+            if (refusal && "error" in refusal) {
+                return refusal.error
+            }
+            repository.refs.fingerprint = `${repository.refs.fingerprint}+`
+            return { status: repository.status, refs: repository.refs, message: null }
+        })
+        return (params: FakeRequestParams): FakeAnswer => {
+            const answer = read(params)
+            announceChange(params)
+            return answer
+        }
+    }
+
+    function announceChange(params: FakeRequestParams) {
+        const repository = store.git[params.repo?.folderId ?? ""]
+        if (params.repo && repository?.refs) {
+            const parts = ["status", "refs", "workingTree"]
+            const change = { repo: params.repo, repositoryId: repository.info?.repositoryId ?? "", parts }
+            const fingerprint = repository.refs.fingerprint
+            Promise.resolve().then(() => emit("repository.changed", { ...change, fingerprint }))
+        }
+    }
+
+    function localBranchOf(repository: FakeGitRepository, refName: string) {
+        return repository.refs?.localBranches.find(branch => branch.refName === refName)
+    }
+
+    function upstreamOf(remote: { refName: string; name: string }) {
+        return { refName: remote.refName, name: remote.name, ahead: 0, behind: 0, isGone: false }
+    }
+
+    function checkOut(repository: FakeGitRepository, refName: string) {
+        const refs = repository.refs
+        const status = repository.status
+        const branch = localBranchOf(repository, refName)
+        if (!refs || !status || !branch) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no branch ${refName}.`)
+        }
+        for (const candidate of refs.localBranches) {
+            candidate.isCurrent = candidate.refName === refName
+        }
+        refs.head = { kind: "branch", name: branch.name, commit: branch.commit }
+        Object.assign(status, { head: refs.head, upstream: branch.upstream })
+        return null
+    }
+
+    function addLocalBranch(repository: FakeGitRepository, name: string, commit: string) {
+        const refs = repository.refs
+        if (!refs) {
+            return refuse("NOT_A_REPOSITORY", "The fake desktop bridge has no refs.")
+        }
+        if (refs.localBranches.some(branch => branch.name === name)) {
+            return refuse("BRANCH_EXISTS", "A branch with that name already exists.")
+        }
+        const subject = repository.commits?.find(candidate => candidate.sha === commit)?.subject ?? ""
+        refs.localBranches.push({
+            refName: `refs/heads/${name}`,
+            name,
+            commit,
+            isCurrent: false,
+            upstream: null,
+            checkedOutInOtherWorktree: null,
+            lastCommit: { subject, committedAt: 0 }
+        })
+        return null
+    }
+
+    function switchBranch(repository: FakeGitRepository, params: FakeRequestParams) {
+        const target = params.target as unknown as FakeGitTarget
+        if (target.kind === "local") {
+            return checkOut(repository, target.refName)
+        }
+        if (target.kind === "remote") {
+            return refuse("BAD_REQUEST", "The fake desktop bridge cannot switch to that.")
+        }
+        const remote = repository.refs?.remoteBranches.find(branch => branch.refName === target.remoteRefName)
+        if (!remote) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no branch ${target.remoteRefName}.`)
+        }
+        const refusal = addLocalBranch(repository, target.localName, remote.commit)
+        const created = localBranchOf(repository, `refs/heads/${target.localName}`)
+        if (refusal || !created) {
+            return refusal
+        }
+        created.upstream = upstreamOf(remote)
+        return checkOut(repository, created.refName)
+    }
+
+    function createBranch(repository: FakeGitRepository, params: FakeRequestParams) {
+        const name = params.name ?? ""
+        const refusal = addLocalBranch(repository, name, params.startPoint ?? "")
+        return refusal ?? (params.checkout ? checkOut(repository, `refs/heads/${name}`) : null)
+    }
+
+    function renameBranch(repository: FakeGitRepository, params: FakeRequestParams) {
+        const branch = localBranchOf(repository, params.refName ?? "")
+        const newName = params.newName ?? ""
+        if (!branch) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no branch ${params.refName}.`)
+        }
+        if (repository.refs?.localBranches.some(candidate => candidate.name === newName)) {
+            return refuse("BRANCH_EXISTS", "A branch with that name already exists.")
+        }
+        Object.assign(branch, { name: newName, refName: `refs/heads/${newName}` })
+        return branch.isCurrent ? checkOut(repository, branch.refName) : null
+    }
+
+    function deleteBranch(repository: FakeGitRepository, params: FakeRequestParams) {
+        const target = params.target as unknown as FakeGitTarget
+        const refs = repository.refs
+        if (!refs || target.kind === "trackRemote") {
+            return refuse("BAD_REQUEST", "The fake desktop bridge cannot delete that.")
+        }
+        if (target.kind === "remote") {
+            refs.remoteBranches = refs.remoteBranches.filter(branch => branch.refName !== target.remoteRefName)
+            return null
+        }
+        const branch = localBranchOf(repository, target.refName)
+        if (branch && !target.force && repository.unmergedBranches?.includes(branch.name)) {
+            return refuse("BRANCH_NOT_FULLY_MERGED", "The branch has commits that no other branch contains.")
+        }
+        refs.localBranches = refs.localBranches.filter(candidate => candidate.refName !== target.refName)
+        return null
+    }
+
+    function setUpstream(repository: FakeGitRepository, params: FakeRequestParams) {
+        const branch = localBranchOf(repository, params.refName ?? "")
+        const remote = repository.refs?.remoteBranches.find(candidate => candidate.refName === params.upstreamRefName)
+        if (!branch) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no branch ${params.refName}.`)
+        }
+        branch.upstream = remote ? upstreamOf(remote) : null
+        if (branch.isCurrent && repository.status) {
+            repository.status.upstream = branch.upstream
+        }
+        return null
+    }
+
+    function fetchAll(params: FakeRequestParams): FakeAnswer {
+        const answer = gitWrite("git.fetch", () => null)(params)
+        const repository = store.git[params.repo?.folderId ?? ""]
+        return answer.ok ? succeed({ updatedRefs: repository?.fetchedRefs ?? 0, refs: repository?.refs }) : answer
+    }
+
+    function workingTreeOf(repository: FakeGitRepository) {
+        const entries = repository.changes ?? []
+        return { status: repository.status, entries, areEntriesTruncated: repository.areChangesTruncated ?? false }
+    }
+
+    function countChanges(repository: FakeGitRepository) {
+        const entries = repository.changes ?? []
+        const countOf = (kind: GitEntryKind) => entries.filter(entry => entry.kind === kind).length
+        if (repository.status) {
+            const counts = { staged: countOf("staged"), unstaged: countOf("unstaged"), untracked: countOf("untracked") }
+            repository.status.counts = { ...counts, conflicted: countOf("conflicted") }
+        }
+    }
+
+    function workingTreeWrite(
+        method: FakeGitMethod,
+        change: (repository: FakeGitRepository, params: FakeRequestParams) => FakeAnswer | null
+    ) {
+        const read = gitAnswer(method, (repository, params) => {
+            if (!repository.status) {
+                return undefined
+            }
+            const refusal = change(repository, params)
+            if (refusal && "error" in refusal) {
+                return refusal.error
+            }
+            countChanges(repository)
+            return workingTreeOf(repository)
+        })
+        return (params: FakeRequestParams): FakeAnswer => {
+            const answer = read(params)
+            announceChange(params)
+            return answer
+        }
+    }
+
+    function listedEntry(repository: FakeGitRepository, path: string, kinds: GitEntryKind[]) {
+        return (repository.changes ?? []).find(entry => entry.path === path && kinds.includes(entry.kind))
+    }
+
+    function moveEntry(repository: FakeGitRepository, entry: GitWorkingTreeEntry, kind: GitEntryKind, change: GitFileChange) {
+        const others = (repository.changes ?? []).filter(candidate => candidate !== entry)
+        const isMerged = others.some(candidate => candidate.path === entry.path && candidate.kind === kind)
+        repository.changes = isMerged ? others : [...others, { ...entry, kind, change, conflict: null }]
+    }
+
+    function stageChanges(repository: FakeGitRepository, params: FakeRequestParams) {
+        const target = params.target as unknown as { kind: "paths"; paths: string[] } | { kind: "all" }
+        const stageable: GitEntryKind[] = ["unstaged", "untracked", "conflicted"]
+        const paths =
+            target.kind === "all"
+                ? (repository.changes ?? []).filter(entry => stageable.includes(entry.kind)).map(entry => entry.path)
+                : target.paths
+        const entries = paths.map(path => listedEntry(repository, path, stageable))
+        if (entries.some(entry => !entry)) {
+            return refuse("CHANGED_SINCE_LISTED", "The working tree changed since it was listed.")
+        }
+        for (const entry of entries as GitWorkingTreeEntry[]) {
+            moveEntry(repository, entry, "staged", entry.kind === "untracked" ? "added" : entry.change)
+        }
+        return null
+    }
+
+    function unstageChanges(repository: FakeGitRepository, params: FakeRequestParams) {
+        const entries = (params.paths ?? []).map(path => listedEntry(repository, path, ["staged"]))
+        if (entries.some(entry => !entry)) {
+            return refuse("CHANGED_SINCE_LISTED", "The working tree changed since it was listed.")
+        }
+        for (const entry of entries as GitWorkingTreeEntry[]) {
+            moveEntry(repository, entry, entry.change === "added" ? "untracked" : "unstaged", entry.change)
+        }
+        return null
+    }
+
+    function discardChanges(repository: FakeGitRepository, params: FakeRequestParams) {
+        const rows = params.entries ?? []
+        if (rows.some(row => row.kind === "conflicted")) {
+            return refuse("NOT_ALLOWED", "A conflicted file cannot be discarded.")
+        }
+        const listed = rows.map(row =>
+            (repository.changes ?? []).find(entry => entry.path === row.path && entry.kind === row.kind && entry.change === row.change)
+        )
+        if (listed.some(entry => !entry)) {
+            return refuse("CHANGED_SINCE_LISTED", "The working tree changed since it was listed.")
+        }
+        repository.changes = (repository.changes ?? []).filter(entry => !listed.includes(entry))
+        return null
+    }
+
+    function diffOf(repository: FakeGitRepository, params: FakeRequestParams) {
+        const kind = params.kind ?? "unstaged"
+        const path = params.path ?? ""
+        if (!listedEntry(repository, path, [kind])) {
+            return { code: "NOT_FOUND", message: `The fake desktop bridge lists no ${kind} ${path}.`, details: {} }
+        }
+        return repository.diffs?.[`${kind}:${path}`] ?? { path, text: "", isBinary: false, isTruncated: false }
+    }
+
+    function commitChanges(repository: FakeGitRepository, params: FakeRequestParams) {
+        const changes = repository.changes ?? []
+        const status = repository.status
+        const refs = repository.refs
+        const isMerging = status?.operationInProgress === "merge"
+        if (changes.some(entry => entry.kind === "conflicted")) {
+            return refuse("CONFLICTS", "Committing is not possible because you have unmerged files.")
+        }
+        if (!params.amend && !isMerging && !changes.some(entry => entry.kind === "staged")) {
+            return refuse("NOTHING_TO_COMMIT", "nothing added to commit")
+        }
+        const head = status?.head.commit ?? null
+        const replaced = params.amend ? repository.commits?.find(commit => commit.sha === head) : undefined
+        const sha = nextId("commit").replace(/\D/g, "").padStart(40, "c")
+        const parents = replaced ? replaced.parents : head ? [head] : []
+        const authored = { authorName: "Mia Chen", authorEmail: "mia@example.com", authoredAt: 0, committedAt: 0 }
+        const commit = { sha, parents, subject: params.subject ?? "", ...authored }
+        repository.commits = [commit, ...(repository.commits ?? []).filter(candidate => candidate !== replaced)]
+        repository.changes = changes.filter(entry => entry.kind !== "staged")
+        countChanges(repository)
+        if (status && refs) {
+            status.head = { ...status.head, commit: sha }
+            refs.head = status.head
+            for (const branch of refs.localBranches.filter(candidate => candidate.isCurrent)) {
+                branch.commit = sha
+            }
+        }
+        return null
+    }
+
+    function isAncestor(repository: FakeGitRepository, params: FakeRequestParams) {
+        const reached = reachableCommits(repository.commits ?? [], [params.descendant ?? ""])
+        return reached.some(commit => commit.sha === params.ancestor)
+    }
+
+    function slowOperationOf(method: BridgeMethod, params: unknown) {
+        const folderId = (params as FakeRequestParams | undefined)?.repo?.folderId ?? ""
+        return Object.hasOwn(store.git, folderId) ? store.git[folderId].slow?.[method as FakeGitMethod] : undefined
+    }
+
+    function folderLabelOf(folderId: string) {
+        const folders = store.projects.flatMap(project => project.folders)
+        return folders.find(folder => folder.id === folderId)?.label ?? null
+    }
+
+    function holdOperation(method: BridgeMethod, params: FakeRequestParams, operationId: string, slow: FakeSlowOperation) {
+        return new Promise<FakeAnswer>(resolve => {
+            const repositoryLabel = folderLabelOf(params.repo?.folderId ?? "")
+            const prompts = (slow.prompts ?? []).map(prompt => ({
+                promptId: nextId("prompt"),
+                requestId: operationId,
+                repositoryLabel,
+                ...prompt
+            }))
+            const promptIds = new Set(prompts.map(prompt => prompt.promptId))
+            store.heldOperations.set(operationId, { method, params, promptIds, finish: resolve })
+            Promise.resolve().then(() => {
+                if (slow.progress) {
+                    emit("core.progress", { requestId: operationId, ...slow.progress })
+                }
+                for (const prompt of prompts) {
+                    emit("prompt.requested", prompt)
+                }
+            })
+        })
+    }
+
+    function releaseOperation(operationId: string, answer: FakeAnswer) {
+        const held = store.heldOperations.get(operationId)
+        if (!held) {
+            return
+        }
+        store.heldOperations.delete(operationId)
+        for (const promptId of held.promptIds) {
+            emit("prompt.closed", { promptId })
+        }
+        held.finish(answer)
+    }
+
+    function heldOperationOfPrompt(promptId: string) {
+        return [...store.heldOperations.entries()].find(([, held]) => held.promptIds.has(promptId))
+    }
+
+    function answerPrompt(params: FakeRequestParams) {
+        const promptId = params.promptId ?? ""
+        const found = heldOperationOfPrompt(promptId)
+        if (!found) {
+            return refuse("NOT_FOUND", "The prompt is closed.")
+        }
+        const [operationId, held] = found
+        held.promptIds.delete(promptId)
+        emit("prompt.closed", { promptId })
+        if (held.promptIds.size === 0) {
+            releaseOperation(operationId, answerFromBackend(held.method, held.params))
+        }
+        return succeed(null)
+    }
+
+    function cancelPrompt(params: FakeRequestParams) {
+        const found = heldOperationOfPrompt(params.promptId ?? "")
+        if (!found) {
+            return refuse("NOT_FOUND", "The prompt is closed.")
+        }
+        releaseOperation(found[0], refuse("AUTHENTICATION_CANCELLED", "The sign-in was cancelled."))
+        return succeed(null)
+    }
+
     const backend: Partial<Record<FakeAnswerKey, (params: FakeRequestParams) => FakeAnswer>> = {
         "store.status": () => succeed({ problem: null }),
         "projects.list": () => succeed({ projects: store.projects.map(summaryOf) }),
@@ -524,7 +1099,33 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         "snapshots.openFile": openFile,
         "snapshots.import": importSnapshot,
         "snapshots.move": moveSnapshot,
-        "snapshots.readMapChunk": readMapChunk
+        "snapshots.readMapChunk": readMapChunk,
+        "git.repositoryInfo": gitAnswer("git.repositoryInfo", repository => repository.info),
+        "git.status": gitAnswer("git.status", repository => repository.status),
+        "git.branches": gitAnswer("git.branches", repository => repository.refs),
+        "git.refsFingerprint": gitAnswer("git.refsFingerprint", repository => repository.refs?.fingerprint),
+        "git.log": gitAnswer("git.log", gitLogPage),
+        "git.commitDetails": gitAnswer("git.commitDetails", gitCommitDetails),
+        "git.measureDistances": gitAnswer("git.measureDistances", gitDistances),
+        "git.resolveCommit": gitAnswer("git.resolveCommit", (repository, params) => {
+            const found = repository.commits?.find(commit => commit.sha === params.revision)
+            return found ?? { code: "UNKNOWN_REVISION", message: `The fake desktop bridge has no commit ${params.revision}.`, details: {} }
+        }),
+        "git.fetch": fetchAll,
+        "git.switch": gitWrite("git.switch", switchBranch),
+        "git.branchCreate": gitWrite("git.branchCreate", createBranch),
+        "git.branchRename": gitWrite("git.branchRename", renameBranch),
+        "git.branchDelete": gitWrite("git.branchDelete", deleteBranch),
+        "git.setUpstream": gitWrite("git.setUpstream", setUpstream),
+        "git.workingTree": gitAnswer("git.workingTree", repository => (repository.status ? workingTreeOf(repository) : undefined)),
+        "git.diffFile": gitAnswer("git.diffFile", diffOf),
+        "git.stage": workingTreeWrite("git.stage", stageChanges),
+        "git.unstage": workingTreeWrite("git.unstage", unstageChanges),
+        "git.discard": workingTreeWrite("git.discard", discardChanges),
+        "git.commit": gitWrite("git.commit", commitChanges),
+        "git.isAncestor": gitAnswer("git.isAncestor", isAncestor),
+        "prompt.answer": answerPrompt,
+        "prompt.cancel": cancelPrompt
     }
 
     function answerFromBackend(method: BridgeMethod, params: unknown) {
@@ -568,17 +1169,17 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
             failures[key] = error
         },
         protocolVersion: seed.protocolVersion ?? FALLBACK_PROTOCOL_VERSION,
-        request: ((method: BridgeMethod, params: unknown, options?: unknown) =>
-            recordAndAnswer(
-                "request",
-                method,
-                () => answerFromBackend(method, params),
-                method,
-                params,
-                options
-            )) as DesktopBridge["request"],
+        request: ((method: BridgeMethod, params: unknown, options?: { operationId?: string }) => {
+            const slow = slowOperationOf(method, params)
+            if (slow && options?.operationId) {
+                record("request", method, params, options)
+                return holdOperation(method, params as FakeRequestParams, options.operationId, slow)
+            }
+            return recordAndAnswer("request", method, () => answerFromBackend(method, params), method, params, options)
+        }) as DesktopBridge["request"],
         cancel: operationId => {
             record("cancel", operationId)
+            releaseOperation(operationId, refuse("CANCELLED", "The operation was cancelled."))
             return Promise.resolve()
         },
         subscribe: subscribe as DesktopBridge["subscribe"],

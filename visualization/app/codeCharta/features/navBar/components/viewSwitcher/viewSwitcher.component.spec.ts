@@ -1,4 +1,5 @@
 import { MOCK_PLATFORM_LOCATION_CONFIG } from "@angular/common/testing"
+import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { provideRouter, Router } from "@angular/router"
 import { State } from "@ngrx/store"
@@ -10,6 +11,7 @@ import { hasDomainDataSelector } from "../../../../lenses/domain/domainLens.faca
 import { routeLinks, routePaths } from "../../../../routing/routePaths"
 import { isDeltaStateSelector } from "../../../../stores/fileStore/fileStore.facade"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
+import { GitHistoryAvailability } from "../../../gitHistory/facade"
 import { FileSelectionModeService } from "../../services/fileSelectionMode.service"
 import { ViewSwitcherComponent } from "./viewSwitcher.component"
 
@@ -18,13 +20,14 @@ const deepLinkedUrl = "http://localhost:9009/index.html?file=fileOne.json&area=f
 const hrefOf = (routeLink: string) => `${deepLinkedUrl}#${routeLink}`
 
 describe("ViewSwitcherComponent", () => {
-    async function setup(hasDomainData: boolean, isDeltaState = false, hasDependencyData = false) {
+    async function setup(hasDomainData: boolean, isDeltaState = false, hasDependencyData = false, isHistoryAvailable = false) {
         return render(ViewSwitcherComponent, {
             providers: [
                 provideRouter([
                     { path: routePaths.metrics, children: [] },
                     { path: routePaths.domain, children: [] },
-                    { path: routePaths.dependencies, children: [] }
+                    { path: routePaths.dependencies, children: [] },
+                    { path: routePaths.history, children: [] }
                 ]),
                 locationStrategyProvider,
                 { provide: MOCK_PLATFORM_LOCATION_CONFIG, useValue: { startUrl: deepLinkedUrl } },
@@ -37,7 +40,8 @@ describe("ViewSwitcherComponent", () => {
                     ]
                 }),
                 { provide: State, useValue: { getValue: () => defaultState } },
-                { provide: FileSelectionModeService, useValue: { toggle: jest.fn() } }
+                { provide: FileSelectionModeService, useValue: { toggle: jest.fn() } },
+                { provide: GitHistoryAvailability, useValue: { isAvailable: signal(isHistoryAvailable) } }
             ]
         })
     }
@@ -257,5 +261,50 @@ describe("ViewSwitcherComponent", () => {
 
         // Assert — a bar left open would keep covering the view right below the nav bar
         expect(fixture.componentInstance.previewedView()).toBeNull()
+    })
+
+    it("should hide the history tab while the history view is unavailable", async () => {
+        // Arrange & Act
+        await setup(true)
+
+        // Assert — the web build and a project without a git folder have no history to show
+        expect(screen.queryByTestId("view-switcher-history")).toBeNull()
+    })
+
+    it("should show the history tab as the fourth tab while the history view is available", async () => {
+        // Arrange & Act
+        await setup(true, false, true, true)
+
+        // Assert
+        const historyTab = screen.getByTestId("view-switcher-history")
+        expect(historyTab.textContent.trim()).toBe("History")
+        expect(historyTab.getAttribute("title")).toBe("Show branches and commit history")
+        expect(historyTab.getAttribute("href")).toBe(hrefOf(routeLinks.history))
+        expect(screen.getAllByRole("link").map(tab => tab.textContent.trim())).toEqual(["Metric", "Domain", "Dependencies", "History"])
+    })
+
+    it("should open no mode bar when the history tab is hovered", async () => {
+        // Arrange
+        const { fixture, detectChanges } = await setup(true, false, false, true)
+
+        // Act
+        fireEvent.mouseEnter(screen.getByTestId("view-switcher-history"))
+        detectChanges()
+
+        // Assert — the history view has no modes, so a bar would open empty
+        expect(fixture.componentInstance.previewedView()).toBeNull()
+        expect(screen.queryByTestId("view-mode-bar-overlay")).toBeNull()
+    })
+
+    it("should draw no drawer handle while the history view is active", async () => {
+        // Arrange
+        const { detectChanges } = await setup(true, false, false, true)
+
+        // Act
+        await TestBed.inject(Router).navigateByUrl(routeLinks.history)
+        detectChanges()
+
+        // Assert
+        expect(screen.queryByTestId("view-mode-bar-handle")).toBeNull()
     })
 })

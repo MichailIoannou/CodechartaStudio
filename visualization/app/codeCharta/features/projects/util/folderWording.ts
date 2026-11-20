@@ -1,6 +1,9 @@
 import type { GitRemote } from "../../../model/coreApi/GitRemote"
+import type { GitStatus } from "../../../model/coreApi/GitStatus"
+import { counted, shortSha } from "../../../util/wording"
 
-const SHORT_SHA_LENGTH = 7
+export { counted, relativeTime, shortSha } from "../../../util/wording"
+
 const SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i
 const SCP_LIKE = /^[^@/]+@([^:/]+):(.+)$/
 const GIT_SUFFIX = /\.git$/
@@ -8,12 +11,36 @@ const TRAILING_SLASH = /\/+$/
 const BYTES_PER_KB = 1000
 const BYTE_UNITS = ["B", "kB", "MB", "GB", "TB"]
 
-export function counted(count: number, singular: string, plural = `${singular}s`): string {
-    return `${count} ${count === 1 ? singular : plural}`
+export function branchLabel(status: GitStatus): string {
+    return status.head.kind === "branch" ? status.head.name : `detached at ${shortSha(status.head.commit)}`
 }
 
-export function shortSha(sha: string): string {
-    return sha.slice(0, SHORT_SHA_LENGTH)
+export interface UpstreamState {
+    sentence: string | null
+    toPush: number
+    toPull: number
+}
+
+export function upstreamState(status: GitStatus): UpstreamState {
+    const upstream = status.upstream
+    if (!upstream || upstream.isGone) {
+        return { sentence: upstream ? "upstream gone" : "no upstream", toPush: 0, toPull: 0 }
+    }
+    const toPush = upstream.ahead ?? 0
+    const toPull = upstream.behind ?? 0
+    return { sentence: toPush + toPull === 0 ? "in sync" : null, toPush, toPull }
+}
+
+export function changesSentence(status: GitStatus): string {
+    const { staged, unstaged, untracked, conflicted } = status.counts
+    if (status.operationInProgress) {
+        return `${operationName(status)} in progress — ${counted(conflicted, "conflict")}`
+    }
+    const uncommitted = staged + unstaged + untracked + conflicted
+    if (uncommitted === 0) {
+        return "clean"
+    }
+    return staged > 0 ? `${uncommitted} uncommitted (${staged} staged)` : `${uncommitted} uncommitted`
 }
 
 export function remoteDisplay(remote: GitRemote): string {
@@ -44,4 +71,9 @@ export function fileDate(timestamp: string): string {
     const date = new Date(timestamp)
     const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
     return `${longDate(timestamp)}, ${time}`
+}
+
+function operationName(status: GitStatus): string {
+    const names = { merge: "merge", rebase: "rebase", cherryPick: "cherry-pick", revert: "revert", bisect: "bisect" }
+    return status.operationInProgress ? names[status.operationInProgress] : ""
 }

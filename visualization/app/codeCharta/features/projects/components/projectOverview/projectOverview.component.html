@@ -35,9 +35,37 @@
 
         @if (workingFolder(); as folder) {
             <div class="grid gap-1.5 md:grid-cols-2">
-                <cc-working-folder-card [folder]="folder" (relink)="relink.start(folder)" />
+                <cc-working-folder-card [folder]="folder" [lastCommit]="commits()?.[0] ?? null" [now]="now()" (relink)="relink.start(folder)" />
                 <cc-analyses-card [snapshots]="workingSnapshots()" />
             </div>
+
+            @if (folder.kind === "git" && recentCommits().length > 0) {
+                <section class="flex flex-col gap-2" data-testid="project-overview-commits">
+                    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Recent commits</h2>
+                    <ul class="flex flex-col overflow-hidden rounded-[10px] bg-base-100 py-1">
+                        @for (commit of recentCommits(); track commit.sha) {
+                            <li class="grid grid-cols-[1rem_4.5rem_minmax(0,1fr)_8rem_6rem_5rem] items-center gap-3 px-4 py-1 text-sm">
+                                @if (commit.isHead) {
+                                    <i class="fa-regular fa-circle-dot text-primary" title="Current checkout"></i>
+                                } @else {
+                                    <i class="fa-solid fa-circle text-[0.5rem] text-primary"></i>
+                                }
+                                <span class="font-mono">{{ commit.sha }}</span>
+                                <span class="truncate" [title]="commit.subject">{{ commit.subject }}</span>
+                                <span class="truncate text-base-content/60" [title]="commit.author">{{ commit.author }}</span>
+                                <span class="text-right text-base-content/60">{{ commit.when }}</span>
+                                <span>
+                                    @if (commit.badge === "in map") {
+                                        <span class="badge badge-primary badge-sm">in map</span>
+                                    } @else if (commit.badge === "analysed") {
+                                        <span class="badge badge-success badge-sm">analysed</span>
+                                    }
+                                </span>
+                            </li>
+                        }
+                    </ul>
+                </section>
+            }
         }
 
         <section class="flex flex-col gap-2" data-testid="project-overview-folders">

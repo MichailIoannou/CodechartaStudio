@@ -1,0 +1,73 @@
+<span class="hidden text-xs text-base-content/60 xl:inline">Repository</span>
+<span class="inline-flex shrink-0 items-center gap-1.5 font-medium" [title]="repositoryTitle()" data-testid="history-repository">
+    <i class="fa-solid fa-code-branch"></i>
+    {{ folderLabel() }}
+</span>
+@if (head(); as head) {
+    @if (head.kind === "branch") {
+        <button
+            type="button"
+            class="btn btn-ghost btn-sm min-w-0 gap-1.5 px-1 font-normal"
+            [title]="head.name"
+            data-testid="history-current-branch"
+            (click)="scopeToCurrentBranch()"
+        >
+            <span class="hidden xl:inline">on</span>
+            <i class="fa-solid fa-code-branch"></i>
+            <span class="max-w-32 truncate font-medium xl:max-w-56">{{ head.name }}</span>
+        </button>
+    } @else {
+        <span class="text-sm" data-testid="history-current-branch">
+            at <span class="font-mono">{{ detachedAt() }}</span> (detached)
+        </span>
+    }
+    @if (operationBadge(); as badge) {
+        <span class="badge badge-warning badge-xs">{{ badge }}</span>
+    }
+    <cc-sync-button />
+}
+<div role="tablist" class="ml-auto flex items-center gap-1" data-testid="history-tabs">
+    <button
+        type="button"
+        role="tab"
+        class="btn btn-ghost btn-sm relative"
+        [class.font-bold]="tab() === 'log'"
+        [attr.aria-selected]="tab() === 'log'"
+        data-testid="history-tab-log"
+        (click)="selectTab('log')"
+    >
+        Log
+        @if (tab() === "log") {
+            <span class="cc-current-underline"></span>
+        }
+    </button>
+    <button
+        type="button"
+        role="tab"
+        class="btn btn-ghost btn-sm relative gap-1.5"
+        [class.font-bold]="tab() === 'changes'"
+        [attr.aria-selected]="tab() === 'changes'"
+        data-testid="history-tab-changes"
+        (click)="selectTab('changes')"
+    >
+        Changes
+        @if (changedFileCount() > 0) {
+            <span class="badge badge-sm tabular-nums" [class.badge-warning]="hasConflicts()" data-testid="history-changes-count">{{
+                changedFileCount()
+            }}</span>
+        }
+        @if (tab() === "changes") {
+            <span class="cc-current-underline"></span>
+        }
+    </button>
+</div>
+<button
+    type="button"
+    class="btn btn-ghost btn-sm btn-square"
+    title="Refresh (F5)"
+    aria-label="Refresh (F5)"
+    data-testid="history-refresh"
+    (click)="refresh()"
+>
+    <i class="fa-solid fa-rotate" [class.fa-spin]="isRefreshing()"></i>
+</button>

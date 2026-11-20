@@ -8,7 +8,7 @@ import { FloatingMenuAnchor, FloatingMenuComponent } from "./floatingMenu.compon
     imports: [FloatingMenuComponent],
     template: `
         @if (anchor(); as anchor) {
-            <cc-floating-menu data-testid="menu" [anchor]="anchor" (dismissed)="dismissed()">
+            <cc-floating-menu data-testid="menu" [anchor]="anchor" (dismissed)="dismissed()" (positioned)="positioned()">
                 <button type="button">Inside</button>
             </cc-floating-menu>
         }
@@ -17,6 +17,7 @@ import { FloatingMenuAnchor, FloatingMenuComponent } from "./floatingMenu.compon
 class FloatingMenuHostComponent {
     readonly anchor = signal<FloatingMenuAnchor | null>({ x: 40, y: 80 })
     readonly dismissed = jest.fn()
+    readonly positioned = jest.fn()
 }
 
 describe("FloatingMenuComponent", () => {
@@ -41,6 +42,36 @@ describe("FloatingMenuComponent", () => {
 
         // Assert
         expect(screen.getByTestId("menu").style.visibility).toBe("hidden")
+    })
+
+    it("should say when it has its position and is about to show", async () => {
+        // Arrange
+        const { host, detectChanges } = await setup()
+        const beforeMeasuring = host.positioned.mock.calls.length
+
+        // Act
+        await new Promise(resolve => requestAnimationFrame(resolve))
+        detectChanges()
+
+        // Assert
+        expect(beforeMeasuring).toBe(0)
+        expect(host.positioned).toHaveBeenCalledTimes(1)
+        expect(screen.getByTestId("menu").style.visibility).toBe("visible")
+    })
+
+    it("should not announce a position once it is gone, even when its frame was not cancelled", async () => {
+        // Arrange
+        const cancelAnimationFrame = jest.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined)
+        const { host, detectChanges } = await setup()
+
+        // Act
+        host.anchor.set(null)
+        detectChanges()
+        await new Promise(resolve => requestAnimationFrame(resolve))
+
+        // Assert
+        expect(host.positioned).not.toHaveBeenCalled()
+        cancelAnimationFrame.mockRestore()
     })
 
     it("should dismiss on a click outside", async () => {

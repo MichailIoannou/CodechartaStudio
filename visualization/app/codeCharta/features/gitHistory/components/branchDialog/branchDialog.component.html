@@ -1,0 +1,67 @@
+<dialog #dialog class="modal" aria-labelledby="cc-branch-dialog-title" data-testid="branch-dialog" (close)="onClosed()">
+    <form class="modal-box max-w-md" (submit)="submit($event)">
+        <h2 id="cc-branch-dialog-title" class="mb-4 text-xl font-bold">{{ title() }}</h2>
+        @if (request(); as request) {
+            @if (request.kind === "setUpstream") {
+                <div class="form-control mb-4">
+                    <select
+                        class="select select-bordered w-full font-mono"
+                        aria-label="Upstream"
+                        data-testid="branch-dialog-upstream"
+                        [value]="upstream()"
+                        (change)="upstream.set($any($event.target).value)"
+                    >
+                        <option [value]="noUpstream" [selected]="upstream() === noUpstream">No upstream</option>
+                        @for (remote of remoteBranches(); track remote.refName) {
+                            <option [value]="remote.refName" [selected]="upstream() === remote.refName">{{ remote.name }}</option>
+                        }
+                    </select>
+                </div>
+            } @else {
+                <div class="form-control mb-4">
+                    <label class="label" for="cc-branch-dialog-name">
+                        <span class="label-text">Name</span>
+                    </label>
+                    <input
+                        #nameInput
+                        id="cc-branch-dialog-name"
+                        class="input input-bordered w-full font-mono"
+                        autocomplete="off"
+                        spellcheck="false"
+                        data-testid="branch-dialog-name"
+                        [value]="name()"
+                        (input)="name.set($any($event.target).value)"
+                    />
+                    @if (nameCheck().message; as message) {
+                        <span class="mt-1 text-xs text-error" data-testid="branch-dialog-rule">{{ message }}</span>
+                    }
+                </div>
+                @if (startText(); as start) {
+                    <p class="mb-4 text-sm" data-testid="branch-dialog-start">
+                        Starts at <span class="font-mono">{{ start.sha }}</span> {{ start.subject }}
+                    </p>
+                    <label class="label mb-2 cursor-pointer justify-start gap-3">
+                        <input
+                            type="checkbox"
+                            class="checkbox checkbox-sm"
+                            data-testid="branch-dialog-switch"
+                            [checked]="isSwitching()"
+                            (change)="isSwitching.set($any($event.target).checked)"
+                        />
+                        <span class="label-text">Switch to the new branch</span>
+                    </label>
+                }
+                @if (renameText(); as text) {
+                    <p class="text-xs text-base-content/60" data-testid="branch-dialog-effect">{{ text }}</p>
+                }
+            }
+        }
+        <div class="modal-action">
+            <button type="button" class="btn" data-testid="branch-dialog-cancel" (click)="cancel()">Cancel</button>
+            <button type="submit" class="btn btn-primary" data-testid="branch-dialog-submit" [disabled]="!isSubmittable()">{{ submitLabel() }}</button>
+        </div>
+    </form>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>

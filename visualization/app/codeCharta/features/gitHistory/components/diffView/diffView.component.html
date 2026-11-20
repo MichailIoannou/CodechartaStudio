@@ -1,0 +1,29 @@
+@if (row(); as row) {
+    <div class="flex min-h-10 items-center gap-2 border-b border-base-300 px-2 py-1">
+        <span class="truncate font-mono text-sm" [title]="row.entry.path" data-testid="diff-path">{{ row.entry.path }}</span>
+        <span class="badge badge-sm shrink-0" [class]="kindBadgeClass()" data-testid="diff-kind">{{ row.entry.kind }}</span>
+    </div>
+    @if (isLoading()) {
+        <div class="flex flex-col gap-2 p-3" data-testid="diff-loading">
+            @for (line of skeletonLines; track line) {
+                <div class="skeleton h-4 w-full"></div>
+            }
+        </div>
+    } @else if (failure(); as sentence) {
+        <div role="alert" class="alert alert-error m-2 flex px-2 py-1 text-xs" data-testid="diff-failure">
+            <span class="flex-1">{{ sentence }}</span>
+            <button type="button" class="btn btn-ghost btn-xs" (click)="retry()">Retry</button>
+        </div>
+    } @else if (diff(); as diff) {
+        @if (diff.isBinary) {
+            <p class="p-4 text-sm text-base-content/60" data-testid="diff-binary">Binary file — no text diff.</p>
+        } @else {
+            <cc-diff-lines [lines]="lines()" [fileKey]="row.key" />
+        }
+        @if (diff.isTruncated) {
+            <div role="status" class="alert alert-info m-2 px-2 py-1 text-xs" data-testid="diff-truncated">Diff cut at 2 MB.</div>
+        }
+    }
+} @else {
+    <p class="p-4 text-sm text-base-content/60" data-testid="diff-nothing-selected">Select a file to see its changes.</p>
+}
