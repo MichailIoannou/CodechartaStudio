@@ -5,7 +5,7 @@ import type { GitCommitDetails } from "../../../../model/coreApi/GitCommitDetail
 import { routeLinks } from "../../../../routing/routePaths"
 import { ViewHandoffStore } from "../../../../routing/viewHandoff.store"
 import { CopyToClipboardService } from "../../../../util/copyToClipboard.service"
-import { counted, shortSha } from "../../../../util/wording"
+import { counted, relativeTime, shortSha } from "../../../../util/wording"
 import { SelectionItem, WORKING_TREE_KEY } from "../../model/commitSelection"
 import { failureOf, readyValueOf } from "../../model/loadState"
 import type { CommitAction } from "../../ports/commitActions.port"
@@ -91,12 +91,20 @@ export class CommitDetailsComponent {
         const details = this.details()
         return details ? personLine(details.authorName, details.authorEmail, details.authoredAt) : ""
     })
+    readonly authorTitle = computed(() => {
+        const details = this.details()
+        return details ? withRelativeDate(this.authorLine(), details.authoredAt) : ""
+    })
     readonly committerLine = computed(() => {
         const details = this.details()
-        if (!details || (details.committerName === details.authorName && details.committerEmail === details.authorEmail)) {
-            return null
-        }
-        return personLine(details.committerName, details.committerEmail, details.committedAt)
+        return details && isCommittedByAnother(details)
+            ? personLine(details.committerName, details.committerEmail, details.committedAt)
+            : null
+    })
+    readonly committerTitle = computed(() => {
+        const details = this.details()
+        const line = this.committerLine()
+        return details && line ? withRelativeDate(line, details.committedAt) : ""
     })
     readonly isMerge = computed(() => (this.details()?.parents.length ?? 0) > 1)
     readonly fileCountText = computed(() => counted(this.details()?.totals.filesChanged ?? 0, "file"))
@@ -161,6 +169,18 @@ function bodyOf(details: GitCommitDetails | null): string {
     }
     const [, ...rest] = details.message.split("\n")
     return rest.join("\n").replace(/^\n+/, "")
+}
+
+function isCommittedByAnother(details: GitCommitDetails): boolean {
+    return (
+        details.committerName !== details.authorName ||
+        details.committerEmail !== details.authorEmail ||
+        details.committedAt !== details.authoredAt
+    )
+}
+
+function withRelativeDate(line: string, epochSeconds: number): string {
+    return `${line} (${relativeTime(epochSeconds, Date.now())})`
 }
 
 function personLine(name: string, email: string, epochSeconds: number): string {
