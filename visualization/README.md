@@ -70,6 +70,30 @@ next to Metric, Domain and Dependencies once the open project has a folder that 
   The History then shows the command that marks the folder as safe, to run in a terminal if you trust it:
   `git config --global --add safe.directory <path>`. CodeCharta never changes your git configuration itself.
 
+### Git actions
+
+- **Sync button** next to the current branch: its main part does what the branch needs now — **Publish** a branch
+  without upstream (to `origin`, or the only remote), **Pull** when the branch is behind, **Push** when it is ahead,
+  **Fetch** otherwise. Its menu lists all of them, plus Fetch and Remove Deleted Branches, Force Push (with Lease)
+  and Set Upstream. The branch menu of the branches tree offers Push and Force Push for other local branches too.
+- **Pull** only fast-forwards. When the branch and its upstream have diverged, CodeCharta asks whether to merge or
+  to rebase your commits. If git stops on conflicts, a notice above the panes says how to finish — resolve the files
+  in your editor, stage them, then commit (merge) or continue in a terminal (rebase) — and offers to abort.
+- **Force push** always uses a lease on the remote commit its confirmation names, so it fails when the remote moved
+  since; CodeCharta never runs a plain `--force`.
+- **Branches**: switch, create, rename, delete (unmerged branches ask a second time), set the upstream, check out a
+  remote branch. **Changes**: stage, unstage, discard (untracked files go to the recycle bin), commit and amend.
+- **Hooks**: git runs the repository's hooks and filters as it would in a terminal; the first git action per
+  repository and session says so first. A failing hook's output is under "Details" of its message.
+- **Credentials**: git keeps using your credential helper (for example Git Credential Manager) and your ssh agent.
+  When git asks for a username, password, passphrase or a host key decision, CodeCharta shows the question in a
+  dialog, passes the answer to git once and stores nothing. For ssh keys with a passphrase, load the key into
+  ssh-agent (Pageant on Windows) so git does not need to ask.
+- **Identity**: when git does not know who you are, the commit fails with the two commands to run in a terminal,
+  `git config --global user.name "Your Name"` and `git config --global user.email "you@example.com"`.
+- **Not in the app**: resolving conflicts (use your editor), continuing a rebase, cherry-pick, revert, stash,
+  staging parts of a file, and managing remotes; use a terminal or your git tool for those.
+
 The core answers the same questions on the command line, for a folder of a project or any folder:
 
 ```bash
