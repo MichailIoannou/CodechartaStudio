@@ -86,8 +86,8 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 04-M8 Fetch and branches | core + UI | core and task 2 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
 | 04-M9 Changes and diff | core + UI | core and task 2 merged into `feature/studio-stack`; **web e2e pending** (paused) | — | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
 | 04-M10 Commit | core + UI | core and task 2 merged into `feature/studio-stack`; **web e2e pending** (paused) | — | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
-| 04-M11 Pull, push, abort | core + UI | core in the stack; task 2 (UI) in progress with 04-M12 on `feature/studio-04-m11-ui` (from 04-M6) | — | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
-| 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
+| 04-M11 Pull, push, abort | core + UI | done on `feature/studio-next` (UI 116e4fedb) | — | feature/studio-04-m11-ui | merged e8e5bd3b0 |
+| 04-M12 Workflow e2e, docs, stash | UI | done on `feature/studio-next` without stash (core has none) | stash: core support | feature/studio-04-m11-ui | merged e8e5bd3b0 |
 | 05-M0 Spikes on a real Windows machine | spike | done (Linux); Windows items W1–W5 open for owner | owner hardware (W1–W5) | feature/studio-05-m0 | 071cfd98a |
 | 05-M1 Run one analysis from the core | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m1 | a6eff44c7 (verified, not merged) |
 | 05-M2 Snapshot records | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m2 | 3eff64af5 (verified, not merged) |
@@ -98,11 +98,11 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 05-M7 E2E and docs | UI | done on `feature/studio-next` (with 05-M6 UI) | — | feature/studio-05-m6-ui | 2ec7551bc (merged 7dd31b1e7) |
 | 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
 | 06-M1 Compare core: commit vs commit | core + UI | done on `feature/studio-stack` (renderer web e2e 180/180) | integration merge: as 03-M2 | feature/studio-06-m1 | 698643e98 (verified, not merged) |
-| 06-M2 Entry points (+ core tasks 1–2) | core + UI | merged into `feature/studio-stack` (417ef52b9, fix 8a409bed3); **web e2e pending** (paused); PR segment and branch-menu compare entries open | — | feature/studio-06-m2m3 | 96232878b |
+| 06-M2 Entry points (+ core tasks 1–2) | core + UI | done on `feature/studio-next` (open entries with 06-M4/M5 UI) | — | feature/studio-06-m4m5-ui | merged da931a47d |
 | 06-M3 Missing snapshots and staleness | UI (no core tasks) | merged into `feature/studio-stack` with 06-M2; **web e2e pending** (paused) | — | feature/studio-06-m2m3 | 96232878b |
-| 06-M4 Changed files | core + UI | core in the stack; UI in progress (with 06-M5 UI, 06-M2 open entries, design O8.4) | — | feature/studio-06-m4 | 919fb2972 (verified, not merged) |
-| 06-M5 PRs and merge requests | core + UI | core tasks 1, 4 verified, **merge pending** (top of the unmerged stack); tasks 2, 3, 8 blocked; UI todo | merge: as 03-M2; tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner); UI: core stack merge | feature/studio-06-m5 | fc5e4f3a1 (verified, not merged) |
-| 06-M6 Polish and stretch | UI | todo | 06-M5 | — | — |
+| 06-M4 Changed files | core + UI | done on `feature/studio-next` | — | feature/studio-06-m4m5-ui | c9e21dd84 (merged da931a47d) |
+| 06-M5 PRs and merge requests | core + UI | core tasks 1, 4 and UI tasks 5–7 (number entry, C7 states) done on `feature/studio-next`; tasks 2, 3, 8 (listing) blocked | tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner) | feature/studio-06-m4m5-ui | merged da931a47d |
+| 06-M6 Polish and stretch | core + UI | in progress (tasks 1–5) | — | feature/studio-06-m6 | — |
 
 The core/UI split of mixed milestones is provisional; it is confirmed against the plan text when
 the milestone is started.
@@ -442,6 +442,12 @@ None open.
 Design questions are in `design/open-questions.md`.
 
 ## Session log
+
+- 2026-11-21: merged 06-M4/M5 UI (+ 06-M2 open entries, C2) with an orchestrator fix: compare opens the desktop
+  tools through the shared `GlobalConfigurationOpener` instead of a second dialog (7ff85ace5 and its test update); then
+  04-M11 UI + 04-M12. Gates at e8e5bd3b0: format, lint, tsc, npm test 797/797 (6504 tests), build,
+  test:electron, e2e:desktop 18/18, web e2e 215/215. Designer questions added to O9 (items 5, 6). Started
+  06-M6 and the H5 sync-button placements (workspace status, project overview).
 
 - 2026-11-20: merged 03-M7 (gates at 1153cdf13: format, lint, tsc, npm test 768/768, build, test:electron
   80/80, e2e:desktop 16/16, web e2e 196/196), then 02 side panels give way + 01 D2 deep link, 04-M6 + 04

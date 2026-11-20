@@ -248,3 +248,22 @@ answer that differs means the named file is changed, nothing else.
      missing folder: "The folder "<label>" is not available, so its files cannot be opened. Re-link it in
      the project." A project map's source shows the folder's current files, not the analysed commit, with
      no hint. Should there be one?
+  5. Compare (`progress/06-m4-m5-ui.md`):
+     - **chip width (most important):** even with the four C2 give-way steps the chip does not fit beside
+       the project menu and workspace status: at 1920 px the PR badge is cut off, at 1024 px only the base
+       side fits. What else gives way (head label, swap button, a narrower project menu, a second row)?
+     - with gh/glab working but no core listing yet, the Pull requests segment shows only the number entry
+       with no message; C7 has no state for this. "Core has hosting support" was read as "`hosting.status`
+       answers for the folder". OK?
+     - number-entry label "Open pull request by number" / "Open merge request by number"; delta colours in
+       the Changes rows ignore inverted delta colours. OK?
+  6. Pull, push, abort (`progress/04-M11-pull-push.md`):
+     - error toasts (top right) cover the right end of the History toolbar and of the first notice; the
+       conflicts toast appears exactly when "Abort merge…" is needed. Should git error toasts start below
+       the History notices, or the notice keep its actions on the left?
+     - should the sync button and Force Push be disabled during a merge or rebase (now git refuses with the
+       `operationInProgress` toast)?
+     - Push of a non-current branch without upstream is disabled ("'x' has no upstream branch."); should it
+       publish instead? Force Push is disabled when nothing on the remote would be replaced. OK?
+     - wording supplied: "HEAD is detached: switch to a branch first", "This repository has no remote",
+       "The remote has no commits that your branch lacks — use Push". Approve or replace?
