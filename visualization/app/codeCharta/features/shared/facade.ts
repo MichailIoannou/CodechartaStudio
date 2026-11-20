@@ -31,6 +31,8 @@ export { UnfocusToolComponent } from "./components/unfocusTool/unfocusTool.compo
 export { provideViewScopedCssVariables } from "./cssVariableHost"
 export { ExcludeGuard } from "./effects/addExcludedNodesIfNotResultsInEmptyMap/excludeGuard"
 export { getPartialDefaultState } from "./getPartialDefaultState"
+export { InspectorWidthService } from "./services/inspectorWidth.service"
+export { registerSidePanel, SidePanelRoom } from "./services/sidePanelRoom.service"
 export { ToastService } from "./services/toast.service"
 export { SharedFocusStore } from "./stores/sharedFocus.store"
 export { injectIsAnyPopoverOpen } from "./util/injectIsAnyPopoverOpen"

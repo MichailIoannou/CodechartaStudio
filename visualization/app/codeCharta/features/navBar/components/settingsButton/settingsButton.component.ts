@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, viewChild } from "@angular/core"
-import { GlobalConfigurationDialogComponent } from "../../../globalSettings/facade"
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, viewChild } from "@angular/core"
+import { GlobalConfigurationDialogComponent, GlobalConfigurationOpener } from "../../../globalSettings/facade"
 
 @Component({
     selector: "cc-settings-button",
@@ -9,6 +9,11 @@ import { GlobalConfigurationDialogComponent } from "../../../globalSettings/faca
 })
 export class SettingsButtonComponent {
     dialog = viewChild.required<GlobalConfigurationDialogComponent>("configDialog")
+
+    constructor() {
+        const stopServing = inject(GlobalConfigurationOpener).serve(target => this.dialog().open(target))
+        inject(DestroyRef).onDestroy(stopServing)
+    }
 
     showSettings() {
         this.dialog().open()

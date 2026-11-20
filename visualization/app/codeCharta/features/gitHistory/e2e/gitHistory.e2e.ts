@@ -7,6 +7,7 @@ import type { GitEntryKind } from "../../../model/coreApi/GitEntryKind"
 import type { GitFileChange } from "../../../model/coreApi/GitFileChange"
 import type { GitWorkingTreeEntry } from "../../../model/coreApi/GitWorkingTreeEntry"
 import type { FakeDesktopSeed } from "../../../util/desktop/desktopBridge.mocks"
+import { aToolsReport, PATHS } from "../../desktopTools/desktopTools.mocks"
 import { aFolder, aProject, aSnapshot } from "../../projects/projects.mocks"
 import {
     aLocalBranch,
@@ -149,6 +150,25 @@ test.describe("History", () => {
         // Assert
         await expect(history.problemNotice()).toContainText("Git does not trust '/work/billing-api' because another user owns it.")
         await expect(history.problemNotice()).toContainText("git config --global --add safe.directory /work/billing-api")
+    })
+
+    test("should open the desktop tools at git's row when git is missing", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const missingGit = anErrorPayload("TOOL_NOT_FOUND", "git was not found")
+        await standInForTheDesktopBridge(page, {
+            ...billingSeed({ "f-api": { failures: { "git.repositoryInfo": missingGit } } }),
+            responses: { "tools.doctor": aToolsReport({ git: { state: "missing", path: null, version: null } }), "paths.get": PATHS }
+        })
+        await goto(page)
+        await history.open()
+
+        // Act
+        await history.problemNotice().getByRole("button", { name: "Open desktop tools" }).click()
+
+        // Assert
+        await expect(page.getByTestId("desktop-tools")).toBeInViewport()
+        await expect(page.getByTestId("desktop-tool-git").getByRole("button", { name: "Choose…" })).toBeFocused()
     })
 
     test("should offer no history without a bridge and explain the desktop app at its address", async ({ page }) => {

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing"
 import type { PathsInfo } from "../../../../model/coreApi/PathsInfo"
+import type { ToolsReport } from "../../../../model/coreApi/ToolsReport"
 import type { CoreResult } from "../../../../util/desktop/desktopBridge"
 import { createFakeDesktopBridge, FakeDesktopBridge, FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
@@ -268,5 +269,87 @@ describe("DesktopToolsPanelComponent", () => {
         // Assert
         expect(element().querySelector("[data-testid='desktop-tools-failure']")).toBeNull()
         expect(row("git")).not.toBeNull()
+    })
+
+    describe("revealed from an Open desktop tools link", () => {
+        const scrollIntoView = jest.fn()
+
+        beforeEach(() => {
+            scrollIntoView.mockClear()
+            Element.prototype.scrollIntoView = scrollIntoView
+        })
+
+        afterEach(() => {
+            delete (Element.prototype as Partial<Element>).scrollIntoView
+        })
+
+        function chooseButtonOf(tool: string) {
+            return buttonNamed("Choose…", row(tool))
+        }
+
+        it("should scroll the section into view at once and focus the failing tool's Choose button", async () => {
+            // Arrange
+            await renderPanel()
+
+            // Act
+            fixture.componentInstance.reveal("java")
+            await settle()
+
+            // Assert
+            expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" })
+            expect(scrollIntoView.mock.contexts[0]).toBe(element().querySelector("section"))
+            expect(document.activeElement).toBe(chooseButtonOf("java"))
+        })
+
+        it("should focus Check again when no tool failed", async () => {
+            // Arrange
+            await renderPanel()
+
+            // Act
+            fixture.componentInstance.reveal()
+            await settle()
+
+            // Assert
+            expect(document.activeElement).toBe(buttonNamed("Check again"))
+        })
+
+        it("should focus the tool's Choose button once the report arrives", async () => {
+            // Arrange
+            let answerDoctor: (result: CoreResult<ToolsReport>) => void = () => {}
+            await renderPanel({}, fake => {
+                const request = fake.request.bind(fake)
+                jest.spyOn(fake, "request").mockImplementation((method, ...rest) =>
+                    method === "tools.doctor"
+                        ? new Promise(resolve => (answerDoctor = resolve as typeof answerDoctor))
+                        : request(method, ...rest)
+                )
+            })
+            fixture.componentInstance.reveal("git")
+            await settle()
+            const focusedBeforeReport = document.activeElement
+
+            // Act
+            answerDoctor({ ok: true, value: aToolsReport() })
+            await settle()
+
+            // Assert
+            expect(focusedBeforeReport).not.toBe(chooseButtonOf("git"))
+            expect(document.activeElement).toBe(chooseButtonOf("git"))
+        })
+
+        it("should focus only once, not on every later check", async () => {
+            // Arrange
+            await renderPanel()
+            fixture.componentInstance.reveal("java")
+            await settle()
+            buttonNamed("Check again").focus()
+
+            // Act
+            buttonNamed("Check again").click()
+            await settle()
+
+            // Assert
+            expect(document.activeElement).toBe(buttonNamed("Check again"))
+        })
     })
 })

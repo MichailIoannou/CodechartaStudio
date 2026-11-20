@@ -30,5 +30,5 @@ export class LegendPanelComponent {
 
     readonly isDeltaState = toSignal(this.fileStoreReadWindow.isDeltaState$, { initialValue: false })
     readonly isRadialLayout = injectIsRadialLayout()
-    readonly isInspectorVisible = inject(InspectorVisibilityService).isVisible
+    readonly isInspectorExpanded = inject(InspectorVisibilityService).isExpanded
 }
