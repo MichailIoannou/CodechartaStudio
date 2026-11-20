@@ -43,6 +43,10 @@ export class GitHistoryPageObject {
         return this.page.getByTestId("commit-details")
     }
 
+    commitContextMenu() {
+        return this.page.getByTestId("commit-context-menu")
+    }
+
     changedFiles() {
         return this.page.getByTestId("changed-file")
     }

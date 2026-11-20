@@ -1,8 +1,9 @@
-import { spawn } from "node:child_process"
+import { execFile, spawn } from "node:child_process"
 import { once } from "node:events"
 import { access, copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { promisify } from "node:util"
 import { _electron, ElectronApplication, expect, Page, test } from "@playwright/test"
 
 const BUNDLE_FOLDER = join(__dirname, "..", "dist", "bundler", "browser")
@@ -394,4 +395,57 @@ test("should inspect a dropped cc.json file once the native confirmation is acce
     expect(await desktopApp.evaluate(() => (globalThis as any).confirmations)).toEqual([
         `Open 'sample1.cc.json' from '${join(userDataDir, "dropped")}'?`
     ])
+})
+
+const runFile = promisify(execFile)
+/** A narrow window starts the History with its side panes collapsed; this is the layout of a user who opened them. */
+const OPEN_BRANCHES_PANE = { isBranchesCollapsed: false }
+
+/** git with a configuration of its own, so the user's settings cannot change the fixture. */
+async function runGit(repository: string, args: string[]) {
+    const isolated = { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: join(userDataDir, "gitconfig") }
+    const identity = ["-c", "user.name=Mia Chen", "-c", "user.email=mia@example.com", "-c", "commit.gpgSign=false"]
+    await runFile("git", [...identity, ...args], { cwd: repository, env: isolated })
+}
+
+async function aFixtureRepository(repository: string) {
+    await mkdir(repository, { recursive: true })
+    await runGit(repository, ["init", "--quiet", "--initial-branch=main"])
+    await writeFile(join(repository, "app.ts"), "export {}\n")
+    await runGit(repository, ["add", "app.ts"])
+    await runGit(repository, ["commit", "--quiet", "-m", "Start the app"])
+    await runGit(repository, ["tag", "v1.0"])
+    await runGit(repository, ["branch", "feature/login"])
+}
+
+test("should list the branches of a fixture repository in the History", async () => {
+    // Arrange
+    const page = await bootedWindow()
+    const repository = join(userDataDir, "work", "billing-api")
+    await aFixtureRepository(repository)
+    await pickWithTheNativeDialog(repository)
+    await page.evaluate(async () => {
+        const bridge = (window as any).codeChartaDesktop
+        const picked = await bridge.request("projects.pickFolder", { title: "Add Folder" })
+        const folder = { pickToken: picked.value.pickToken, label: picked.value.suggestedLabel, role: "primary" }
+        const created = await bridge.request("projects.create", { name: "Billing", folders: [folder] })
+        await bridge.request("projects.setActive", { projectId: created.value.id })
+    })
+    await page.evaluate(layout => localStorage.setItem("codeChartaHistoryLayout", JSON.stringify(layout)), OPEN_BRANCHES_PANE)
+    await page.reload()
+    await waitForBoot(page)
+
+    // Act
+    await page.evaluate(() => {
+        location.hash = "#/history"
+    })
+    await page.locator('[data-row-id="tags"]').click()
+
+    // Assert
+    await expect(page.getByTestId("history-repository")).toHaveText("billing-api")
+    await expect(page.getByTestId("history-current-branch")).toContainText("main")
+    await expect(page.locator('[data-row-id="refs/heads/main"]')).toBeVisible()
+    await expect(page.locator('[data-row-id="refs/heads/feature/login"]')).toBeVisible()
+    await expect(page.locator('[data-row-id="refs/tags/v1.0"]')).toBeVisible()
+    await expect(page.getByTestId("commit-row")).toHaveText([/Start the app/])
 })
