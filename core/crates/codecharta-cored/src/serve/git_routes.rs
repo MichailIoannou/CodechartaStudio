@@ -159,7 +159,9 @@ folder_route!(
 );
 
 /// git's progress as `core.progress` notifications of the request.
-fn progress_of(context: &RequestContext) -> impl Fn(ProgressUpdate) + Send + Sync + use<> {
+pub(super) fn progress_of(
+    context: &RequestContext,
+) -> impl Fn(ProgressUpdate) + Send + Sync + use<> {
     let notifier = context.notifier.clone();
     let request_id = context.id.clone();
     move |update: ProgressUpdate| {

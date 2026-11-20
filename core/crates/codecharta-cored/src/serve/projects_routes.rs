@@ -129,6 +129,7 @@ pub fn update_folder(core: &Core, _context: RequestContext, params: Value) -> Ha
         let changes = FolderChanges {
             label: params.label,
             role: params.role,
+            hosting: params.hosting,
         };
         let updated = async { core.projects()?.update_folder(&target, changes).await };
         answer::<ProjectsUpdateFolder>(updated.await)

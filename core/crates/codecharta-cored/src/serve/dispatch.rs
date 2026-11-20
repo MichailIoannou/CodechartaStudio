@@ -5,6 +5,11 @@ use codecharta_core::{CORE_VERSION, Core, CoreError, path_to_wire};
 use codecharta_core_api::PROTOCOL_VERSION;
 use codecharta_core_api::error::{ErrorCode, ErrorPayload};
 use codecharta_core_api::events::{CoreProgress, ProgressParams};
+use codecharta_core_api::methods::analysis::{
+    AnalysisCancel, AnalysisCancelBatch, AnalysisClearFinished, AnalysisEnqueue,
+    AnalysisEnqueueBatch, AnalysisList, AnalysisPreflight, AnalysisReadLog,
+};
+use codecharta_core_api::methods::compare::{CompareChangedFiles, CompareResolve};
 use codecharta_core_api::methods::core::{
     CoreHello, CorePing, CoreShutdown, HelloResult, PingResult,
 };
@@ -17,6 +22,7 @@ use codecharta_core_api::methods::git::{
     GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
     GitUnstageMethod, GitWorkingTreeMethod,
 };
+use codecharta_core_api::methods::hosting::{HostingFetchChangeRequestHead, HostingStatusMethod};
 use codecharta_core_api::methods::paths::{PathsGet, PathsResetStoreRoot};
 use codecharta_core_api::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
@@ -28,7 +34,8 @@ use codecharta_core_api::methods::prompt::{PromptAnswerMethod, PromptCancelMetho
 use codecharta_core_api::methods::shell::{ResolvePathResult, ShellResolvePath};
 use codecharta_core_api::methods::snapshots::{
     SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
-    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsRecordMapFacts,
+    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsPlanPrune, SnapshotsPrune,
+    SnapshotsReadLog, SnapshotsRecordMapFacts, SnapshotsResolveForCommit, SnapshotsUsage,
 };
 use codecharta_core_api::methods::store::{StoreChangeRoot, StoreGetStatus};
 use codecharta_core_api::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
@@ -42,7 +49,8 @@ use tokio_util::sync::CancellationToken;
 
 use super::output::OutputLines;
 use super::{
-    git_routes, projects_routes, prompt_routes, snapshots_routes, store_routes, tools_routes,
+    analysis_routes, compare_routes, git_routes, hosting_routes, projects_routes, prompt_routes,
+    snapshots_routes, store_routes, tools_routes,
 };
 
 pub type DispatchResult = Result<Value, ResponseError>;
@@ -198,6 +206,74 @@ const ROUTES: &[Route] = &[
     Route {
         name: SnapshotsDelete::NAME,
         handler: snapshots_routes::delete,
+    },
+    Route {
+        name: SnapshotsReadLog::NAME,
+        handler: snapshots_routes::read_log,
+    },
+    Route {
+        name: SnapshotsResolveForCommit::NAME,
+        handler: snapshots_routes::resolve_for_commit,
+    },
+    Route {
+        name: SnapshotsUsage::NAME,
+        handler: snapshots_routes::usage,
+    },
+    Route {
+        name: SnapshotsPlanPrune::NAME,
+        handler: snapshots_routes::plan_prune,
+    },
+    Route {
+        name: SnapshotsPrune::NAME,
+        handler: snapshots_routes::prune,
+    },
+    Route {
+        name: CompareResolve::NAME,
+        handler: compare_routes::resolve,
+    },
+    Route {
+        name: CompareChangedFiles::NAME,
+        handler: compare_routes::changed_files,
+    },
+    Route {
+        name: HostingStatusMethod::NAME,
+        handler: hosting_routes::status,
+    },
+    Route {
+        name: HostingFetchChangeRequestHead::NAME,
+        handler: hosting_routes::fetch_change_request_head,
+    },
+    Route {
+        name: AnalysisPreflight::NAME,
+        handler: analysis_routes::preflight,
+    },
+    Route {
+        name: AnalysisEnqueue::NAME,
+        handler: analysis_routes::enqueue,
+    },
+    Route {
+        name: AnalysisCancel::NAME,
+        handler: analysis_routes::cancel,
+    },
+    Route {
+        name: AnalysisEnqueueBatch::NAME,
+        handler: analysis_routes::enqueue_batch,
+    },
+    Route {
+        name: AnalysisCancelBatch::NAME,
+        handler: analysis_routes::cancel_batch,
+    },
+    Route {
+        name: AnalysisList::NAME,
+        handler: analysis_routes::list,
+    },
+    Route {
+        name: AnalysisReadLog::NAME,
+        handler: analysis_routes::read_log,
+    },
+    Route {
+        name: AnalysisClearFinished::NAME,
+        handler: analysis_routes::clear_finished,
     },
     Route {
         name: GitRepositoryInfoMethod::NAME,

@@ -1,6 +1,9 @@
 use std::fmt::Write;
+use std::time::SystemTime;
 
-use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
+use codecharta_core_api::ids::{
+    BatchId, FolderId, JobId, ProjectId, SnapshotId, WORKING_TREE_SNAPSHOT_PREFIX,
+};
 use codecharta_core_api::secret::Secret;
 use codecharta_core_api::values::{FullCommit, PICK_TOKEN_LENGTH, PickToken, PromptId};
 
@@ -8,6 +11,8 @@ use crate::error::{CoreError, CoreResult};
 
 const PROJECT_ID_PREFIX: &str = "p-";
 const FOLDER_ID_PREFIX: &str = "f-";
+const JOB_ID_PREFIX: &str = "job-";
+const BATCH_ID_PREFIX: &str = "batch-";
 const RANDOM_ID_BYTES: usize = 8;
 const STAGING_SUFFIX_BYTES: usize = 4;
 const IMPORTED_MARKER: &str = "imported";
@@ -25,6 +30,16 @@ pub fn new_project_id() -> CoreResult<ProjectId> {
 pub fn new_folder_id() -> CoreResult<FolderId> {
     let id = random_hex(FOLDER_ID_PREFIX, RANDOM_ID_BYTES)?;
     FolderId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
+}
+
+pub fn new_job_id() -> CoreResult<JobId> {
+    let id = random_hex(JOB_ID_PREFIX, RANDOM_ID_BYTES)?;
+    JobId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
+}
+
+pub fn new_batch_id() -> CoreResult<BatchId> {
+    let id = random_hex(BATCH_ID_PREFIX, RANDOM_ID_BYTES)?;
+    BatchId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
 }
 
 pub fn new_token() -> CoreResult<PickToken> {
@@ -76,6 +91,28 @@ pub fn imported_snapshot_id(
         Some(commit) => format!("{commit}-{IMPORTED_MARKER}-{hash_prefix}"),
         None => format!("{IMPORTED_MARKER}-{hash_prefix}"),
     };
+    SnapshotId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
+}
+
+/// `<fullSha>-<profileHash>`: one snapshot per commit and profile.
+pub fn commit_snapshot_id(commit: &FullCommit, profile_hash: &str) -> CoreResult<SnapshotId> {
+    snapshot_id(format!("{commit}-{profile_hash}"))
+}
+
+/// `worktree-<YYYYMMDD>T<HHmmssSSS>Z-<profileHash>` in UTC: no `:` or `.`, which Windows file names do not
+/// allow or trim.
+pub fn working_tree_snapshot_id(at: SystemTime, profile_hash: &str) -> CoreResult<SnapshotId> {
+    let compact: String = humantime::format_rfc3339_millis(at)
+        .to_string()
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .collect();
+    snapshot_id(format!(
+        "{WORKING_TREE_SNAPSHOT_PREFIX}{compact}-{profile_hash}"
+    ))
+}
+
+fn snapshot_id(id: String) -> CoreResult<SnapshotId> {
     SnapshotId::try_from(id).map_err(|error| CoreError::Internal(error.to_string()))
 }
 

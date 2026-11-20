@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
+use codecharta_core_api::ids::{FolderId, JobId, ProjectId, SnapshotId};
 
 use crate::error::{CoreError, CoreResult};
 
@@ -14,6 +14,15 @@ pub const SNAPSHOT_FILE_NAME: &str = "snapshot.json";
 pub const MAP_FILE_NAME: &str = "map.cc.json.gz";
 pub const RUN_LOG_FILE_NAME: &str = "run.log";
 pub const STAGING_FOLDER_PREFIX: &str = ".incoming-";
+/// The snapshot a replacing commit moved aside; deleted once the new one is in place.
+pub const REPLACED_FOLDER_PREFIX: &str = ".replaced-";
+/// The staging directory of a failed analysis, kept for its `run.log` until the next start.
+pub const FAILED_FOLDER_PREFIX: &str = ".failed-";
+/// What a running analysis needs cleaned up after a crash, in its staging directory; such a directory is
+/// left to the analysis recovery, which runs the worktree janitor first.
+pub const JOB_FILE_NAME: &str = "job.json";
+/// Locked by the process that runs the analysis for as long as it runs.
+pub const JOB_LOCK_FILE_NAME: &str = "job.lock";
 
 /// The only place that builds paths inside the store.
 #[derive(Debug, Clone)]
@@ -104,8 +113,42 @@ impl StorePaths {
         folder: &FolderId,
         suffix: &str,
     ) -> CoreResult<PathBuf> {
+        self.hidden_dir(project, folder, &format!("{STAGING_FOLDER_PREFIX}{suffix}"))
+    }
+
+    /// Where a replacing commit moves the old snapshot; `suffix` is generated.
+    pub fn replaced_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        suffix: &str,
+    ) -> CoreResult<PathBuf> {
+        self.hidden_dir(
+            project,
+            folder,
+            &format!("{REPLACED_FOLDER_PREFIX}{suffix}"),
+        )
+    }
+
+    /// Where the staging directory of a failed analysis is kept for its log.
+    pub fn failed_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        job: &JobId,
+    ) -> CoreResult<PathBuf> {
+        self.hidden_dir(project, folder, &format!("{FAILED_FOLDER_PREFIX}{job}"))
+    }
+
+    /// `name` starts with a dot, so it is never a snapshot id.
+    fn hidden_dir(
+        &self,
+        project: &ProjectId,
+        folder: &FolderId,
+        name: &str,
+    ) -> CoreResult<PathBuf> {
         let folder_dir = self.folder_snapshots_dir(project, folder)?;
-        self.inside_root(folder_dir.join(format!("{STAGING_FOLDER_PREFIX}{suffix}")))
+        self.inside_root(folder_dir.join(name))
     }
 
     fn inside_root(&self, candidate: PathBuf) -> CoreResult<PathBuf> {

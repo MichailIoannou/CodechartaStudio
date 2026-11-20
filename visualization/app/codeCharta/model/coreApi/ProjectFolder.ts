@@ -5,6 +5,7 @@ import type { FolderKind } from "./FolderKind"
 import type { FolderRelationship } from "./FolderRelationship"
 import type { FolderRole } from "./FolderRole"
 import type { FolderStatus } from "./FolderStatus"
+import type { HostingOverride } from "./HostingOverride"
 import type { Label } from "./Label"
 
 export type ProjectFolder = {
@@ -18,4 +19,8 @@ export type ProjectFolder = {
     status: FolderStatus
     relationships: Array<FolderRelationship>
     snapshotCount: number
+    /**
+     * The provider the user chose for a host the core does not recognise.
+     */
+    hosting?: HostingOverride
 }

@@ -3,7 +3,7 @@ use codecharta_core_api::error::ErrorCode;
 /// git's English messages (reads run with `LC_ALL=C`, mutations with `LC_MESSAGES=C`) and the code each
 /// one means; the first match wins. A push reports a stale lease next to "failed to push some refs", and
 /// a refused tag push as "already exists", so the pull and push rules come before the branch rules.
-const RULES: [(&str, ErrorCode); 33] = [
+const RULES: [(&str, ErrorCode); 34] = [
     ("dubious ownership", ErrorCode::DubiousOwnership),
     ("not a git repository", ErrorCode::NotARepository),
     ("index.lock", ErrorCode::IndexLocked),
@@ -30,6 +30,7 @@ const RULES: [(&str, ErrorCode); 33] = [
         "Host key verification failed",
         ErrorCode::AuthenticationRequired,
     ),
+    ("couldn't find remote ref", ErrorCode::RefNotOnRemote),
     ("Could not resolve host", ErrorCode::NetworkUnavailable),
     ("unable to access", ErrorCode::NetworkUnavailable),
     ("Connection timed out", ErrorCode::NetworkUnavailable),

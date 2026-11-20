@@ -4,6 +4,13 @@ use serde::{Serialize, de::DeserializeOwned};
 use ts_rs::{Config, ExportError, TS};
 
 use crate::events::CoreProgress;
+use crate::methods::analysis::{
+    AnalysisCancel, AnalysisCancelBatch, AnalysisCancelledEvent, AnalysisClearFinished,
+    AnalysisEnqueue, AnalysisEnqueueBatch, AnalysisFailedEvent, AnalysisFinishedEvent,
+    AnalysisList, AnalysisPreflight, AnalysisProgressEvent, AnalysisQueuedEvent, AnalysisReadLog,
+    AnalysisStartedEvent, SnapshotsChangedEvent,
+};
+use crate::methods::compare::{CompareChangedFiles, CompareResolve};
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
 use crate::methods::git::{
     GitAbortOperationMethod, GitBranchCreateMethod, GitBranchDeleteMethod, GitBranchRenameMethod,
@@ -14,6 +21,7 @@ use crate::methods::git::{
     GitRevListCountMethod, GitSetUpstreamMethod, GitStageMethod, GitStatusMethod, GitSwitchMethod,
     GitUnstageMethod, GitWorkingTreeMethod, RepositoryChangedEvent,
 };
+use crate::methods::hosting::{HostingFetchChangeRequestHead, HostingStatusMethod};
 use crate::methods::paths::{PathsGet, PathsResetStoreRoot};
 use crate::methods::projects::{
     ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
@@ -27,7 +35,8 @@ use crate::methods::prompt::{
 use crate::methods::shell::ShellResolvePath;
 use crate::methods::snapshots::{
     SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
-    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsRecordMapFacts,
+    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsPlanPrune, SnapshotsPrune,
+    SnapshotsReadLog, SnapshotsRecordMapFacts, SnapshotsResolveForCommit, SnapshotsUsage,
 };
 use crate::methods::store::{StoreChangeRoot, StoreGetStatus};
 use crate::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
@@ -162,6 +171,23 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<SnapshotsImport>(),
     MethodSpec::of::<SnapshotsMove>(),
     MethodSpec::of::<SnapshotsDelete>(),
+    MethodSpec::of::<SnapshotsReadLog>(),
+    MethodSpec::of::<SnapshotsResolveForCommit>(),
+    MethodSpec::of::<SnapshotsUsage>(),
+    MethodSpec::of::<SnapshotsPlanPrune>(),
+    MethodSpec::of::<SnapshotsPrune>(),
+    MethodSpec::of::<CompareResolve>(),
+    MethodSpec::of::<CompareChangedFiles>(),
+    MethodSpec::of::<HostingStatusMethod>(),
+    MethodSpec::of::<HostingFetchChangeRequestHead>(),
+    MethodSpec::of::<AnalysisPreflight>(),
+    MethodSpec::of::<AnalysisEnqueue>(),
+    MethodSpec::of::<AnalysisCancel>(),
+    MethodSpec::of::<AnalysisEnqueueBatch>(),
+    MethodSpec::of::<AnalysisCancelBatch>(),
+    MethodSpec::of::<AnalysisList>(),
+    MethodSpec::of::<AnalysisReadLog>(),
+    MethodSpec::of::<AnalysisClearFinished>(),
     MethodSpec::of::<GitRepositoryInfoMethod>(),
     MethodSpec::of::<GitStatusMethod>(),
     MethodSpec::of::<GitBranchesMethod>(),
@@ -199,6 +225,13 @@ pub const EVENTS: &[EventSpec] = &[
     EventSpec::of::<RepositoryChangedEvent>(),
     EventSpec::of::<PromptRequestedEvent>(),
     EventSpec::of::<PromptClosedEvent>(),
+    EventSpec::of::<AnalysisQueuedEvent>(),
+    EventSpec::of::<AnalysisStartedEvent>(),
+    EventSpec::of::<AnalysisProgressEvent>(),
+    EventSpec::of::<AnalysisFinishedEvent>(),
+    EventSpec::of::<AnalysisFailedEvent>(),
+    EventSpec::of::<AnalysisCancelledEvent>(),
+    EventSpec::of::<SnapshotsChangedEvent>(),
 ];
 
 pub const CLIENT_NOTIFICATIONS: &[EventSpec] = &[EventSpec::of::<CoreCancel>()];

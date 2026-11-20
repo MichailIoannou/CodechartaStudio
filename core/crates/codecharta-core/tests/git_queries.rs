@@ -329,3 +329,40 @@ async fn should_honour_first_parent() {
         [merge.as_str(), main.as_str(), root.as_str()]
     );
 }
+
+#[tokio::test]
+async fn should_tell_merge_commits_apart_in_a_walk_with_parents() {
+    // Arrange
+    let (repo, root, main, side) = diverged();
+    let merge = repo.merge(&["side"], "Merge side");
+    let runner = repo.runner();
+    let service = GitService::new(&runner, repo.data_dir());
+    let mut walked = Vec::new();
+
+    // Act
+    service
+        .rev_list_with_parents(
+            &folder(&repo),
+            &request(&[&merge], &[]),
+            &cancel(),
+            &mut |batch| {
+                walked.extend(batch.iter().cloned());
+                ControlFlow::Continue(())
+            },
+        )
+        .await
+        .expect("the walk succeeds");
+
+    // Assert
+    let merges: Vec<&str> = walked
+        .iter()
+        .filter(|commit| commit.is_merge)
+        .map(|commit| commit.sha.as_str())
+        .collect();
+    let mut shas: Vec<&str> = walked.iter().map(|commit| commit.sha.as_str()).collect();
+    shas.sort_unstable();
+    let mut expected = vec![merge.as_str(), main.as_str(), side.as_str(), root.as_str()];
+    expected.sort_unstable();
+    assert_eq!(merges, [merge.as_str()]);
+    assert_eq!(shas, expected);
+}

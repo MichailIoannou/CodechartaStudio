@@ -23,6 +23,10 @@ pub struct StoreWorkspace {
 
 impl StoreWorkspace {
     pub fn new() -> Self {
+        Self::with_recycler(RecordingRecycler::new())
+    }
+
+    pub fn with_recycler(recycler: RecordingRecycler) -> Self {
         let store_root = tempfile::tempdir().expect("a temporary store root");
         let store = Arc::new(Store::open(store_root.path()).expect("the store opens"));
         let repo = TempRepo::new();
@@ -33,7 +37,7 @@ impl StoreWorkspace {
             store,
             repo,
             git,
-            recycler: RecordingRecycler::new(),
+            recycler,
         }
     }
 

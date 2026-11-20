@@ -147,6 +147,10 @@ pub fn message_for(code: ErrorCode) -> &'static str {
         ErrorCode::StalePushLease => {
             "The remote branch moved since you looked at it; fetch, review and try again."
         }
+        ErrorCode::RefNotOnRemote => "The remote has no such pull or merge request.",
+        ErrorCode::HeadNotLocal => {
+            "The head commit of the pull or merge request is not in this clone; fetch it first."
+        }
         _ => "git failed.",
     }
 }

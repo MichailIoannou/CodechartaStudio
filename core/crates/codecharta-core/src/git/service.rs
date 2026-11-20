@@ -6,22 +6,24 @@ use codecharta_core_api::methods::git::{
     GitChangedFiles, GitCommitDetails, GitCommitDistance, GitCommitSummary, GitHead, GitLogPage,
     GitRefs, GitRepositoryInfo, GitStatus, GitUpstream, OperationInProgress, RefsAt,
 };
-use codecharta_core_api::methods::projects::FolderRef;
+use codecharta_core_api::methods::projects::{FolderRef, GitRemote};
 use codecharta_core_api::values::{CommitSha, Revision};
 use tokio_util::sync::CancellationToken;
 
 use super::changes::RepositoryChanges;
 use super::command::{GitCommand, QUERY_LIMITS, UserEnvironment};
-use super::details::{ChangedFilesRequest, changed_files, commit_details};
+use super::details::{ChangedFilesRequest, changed_files, changed_paths, commit_details};
 use super::locator::{Repository, locate};
 use super::log::{LogContext, LogRequest, log_page};
 use super::memory::{GitMemory, QueryKey, Remembered};
 use super::operation::Operations;
+use super::parse::changed_files::NameStatus;
 use super::parse::status::{StatusSummary, StatusUpstream, operation_in_progress};
 use super::query::check_candidate_count;
-use super::query::{self, RevListRequest, ShaSink};
-use super::read::{read_refs, status_summary};
+use super::query::{self, RevListRequest, ShaSink, WalkSink};
+use super::read::{read_refs, remotes, status_summary};
 use super::runner::{FolderGit, GitCli, GitProcess};
+use super::worktrees::{self, WorktreeEntry};
 use crate::error::CoreResult;
 
 const REMOTE_BRANCHES_PREFIX: &str = "refs/remotes/";
@@ -205,6 +207,17 @@ impl<'core> GitService<'core> {
         self.remembered(folder, cancel, key, ask).await
     }
 
+    /// The files between two commits with paths relative to `folder`, all of them; for comparisons.
+    pub async fn changed_paths(
+        &self,
+        folder: &GitFolder,
+        from: &CommitSha,
+        to: &CommitSha,
+        cancel: &CancellationToken,
+    ) -> CoreResult<Vec<NameStatus>> {
+        changed_paths(self.at(folder, cancel), from, to).await
+    }
+
     /// Not remembered: `HEAD` and refs move.
     pub async fn resolve_commit(
         &self,
@@ -289,6 +302,61 @@ impl<'core> GitService<'core> {
             .collect())
     }
 
+    /// The commit a unique hash prefix names; `None` when no commit or several commits start with it.
+    pub async fn resolve_abbreviated(
+        &self,
+        folder: &GitFolder,
+        prefix: &str,
+        cancel: &CancellationToken,
+    ) -> CoreResult<Option<CommitSha>> {
+        query::resolve_abbreviated(self.at(folder, cancel), prefix).await
+    }
+
+    /// The tree a commit records.
+    pub async fn tree_of(
+        &self,
+        folder: &GitFolder,
+        sha: &CommitSha,
+        cancel: &CancellationToken,
+    ) -> CoreResult<String> {
+        query::tree_of(self.at(folder, cancel), sha).await
+    }
+
+    /// The remotes, with credentials stripped from their urls.
+    pub async fn remotes(
+        &self,
+        folder: &GitFolder,
+        cancel: &CancellationToken,
+    ) -> CoreResult<Vec<GitRemote>> {
+        remotes(&self.git, &folder.path, cancel).await
+    }
+
+    pub async fn worktrees(
+        &self,
+        folder: &GitFolder,
+        cancel: &CancellationToken,
+    ) -> CoreResult<Vec<WorktreeEntry>> {
+        worktrees::list_worktrees(&self.git, &folder.path, cancel).await
+    }
+
+    /// Removes the worktree and its folder, even when it is locked.
+    pub async fn remove_worktree(
+        &self,
+        folder: &GitFolder,
+        worktree: &Path,
+        cancel: &CancellationToken,
+    ) -> CoreResult<()> {
+        worktrees::remove_worktree(&self.git, &folder.path, worktree, cancel).await
+    }
+
+    pub async fn prune_worktrees(
+        &self,
+        folder: &GitFolder,
+        cancel: &CancellationToken,
+    ) -> CoreResult<()> {
+        worktrees::prune_worktrees(&self.git, &folder.path, cancel).await
+    }
+
     /// Not remembered: refs move.
     pub async fn refs_at(
         &self,
@@ -308,6 +376,17 @@ impl<'core> GitService<'core> {
         sink: &mut ShaSink<'_>,
     ) -> CoreResult<u64> {
         query::rev_list(self.at(folder, cancel), request, sink).await
+    }
+
+    /// Streams the walked commits with whether each is a merge; see `query::rev_list_with_parents`.
+    pub async fn rev_list_with_parents(
+        &self,
+        folder: &GitFolder,
+        request: &RevListRequest,
+        cancel: &CancellationToken,
+        sink: &mut WalkSink<'_>,
+    ) -> CoreResult<u64> {
+        query::rev_list_with_parents(self.at(folder, cancel), request, sink).await
     }
 
     /// For operations that move refs or fetch: see `GitMemory::fetched` and `GitMemory::forget_logs`.
