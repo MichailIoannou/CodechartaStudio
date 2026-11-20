@@ -1,6 +1,6 @@
 ---
 name: 04-M11 pull, push, abort
-state: progress
+state: complete
 version: 1
 ---
 
@@ -28,7 +28,7 @@ SCREAMING_SNAKE_CASE (`notFastForward` → `NOT_FAST_FORWARD`, `pushRejected` �
 ## Steps
 
 - [x] 1. Core
-- [ ] 2. Renderer (later)
+- [x] 2. Renderer
 
 ## Notes
 
@@ -120,3 +120,100 @@ origin by path and a second clone; no network).
 - Publish: `setUpstream: true` without an upstream. Force push: `forceWithLeaseExpected` = the remote-tracking
   commit shown in the confirmation (`GitRemoteBranch.commit` of the upstream); the core leases the destination.
 
+### 2. Renderer (as built, 2026-11-20)
+Branch `feature/studio-04-m11-ui` from `feature/studio-04-m6` (the latest History work, on `feature/studio-next`).
+Core built into `core/target/studio-04-m11-ui` (linked as `core/target/debug/codecharta-core`); no core change.
+
+- **Api and failures.** `GitApiService.pull`, `push`, `abortOperation` under the caller's operation id;
+  `GitOperationKind` gains `pull`, `push` (both cancellable, like fetch) and `abort` (local, not cancellable).
+  `gitErrorText.ts`: `PUSH_REJECTED`, `STALE_PUSH_LEASE`, `NO_UPSTREAM` (with the branch) per H6, and
+  `gitErrorFollowUp(error)` naming the one follow-up H6 gives ("Pull", "Fetch", "Publish branch");
+  `GitFailureReport.report(error, context, followUps)` turns it into the toast's action when the caller can run it.
+- **`SyncActionsService`** (root): `pull()` — fast-forward only; diverged branches (ahead and behind) ask the pull
+  choice first, a `NOT_FAST_FORWARD` answer asks it afterwards (H5: "Pull on diverged branches opens the pull
+  choice"); the counts and names of the choice come from a fresh `git.status`. Success toasts "Pulled n commits"
+  counted with `git.measureDistances` between the old and new HEAD ("Already up to date" when HEAD did not move),
+  since the counts before the pull may be older than the last fetch. `CONFLICTS` → H6 sentence with
+  `conflictedFiles` from a fresh status (the toast says "Git stopped on conflicts in n files…"), and the merge /
+  rebase notice appears with the re-read status. `push(branch?)` onto the upstream's remote (the longest configured
+  remote name the upstream ref starts with) — "Pushed n commits to origin/x"; `publish(branch?)` with `setUpstream:
+  true` to `origin`, else the first remote — "Published 'x' to origin"; `forcePush(branch?)` asks H15's Force Push
+  (both short SHAs, the remote's commits the branch lacks = `behind`), then pushes with `forceWithLeaseExpected` =
+  the remote branch commit the text named; `abort()` asks H15's Abort Merge / Abort Rebase, then
+  `git.abortOperation`. Follow-ups: Pull → `pull()`, Fetch → `BranchActionsService.fetch(false)`, Publish branch →
+  `publish()`.
+- **Sync button (H5).** Main part per H5's table (`util/syncState.ts mainSyncAction`): detached → Fetch; no upstream →
+  Publish; upstream gone → Fetch with the gone title; behind → Pull `↓n` (diverged also `↑n`, diverged title); ahead
+  → Push `↑n`; else Fetch. Counts `text-xs tabular-nums` with `fa-arrow-down` / `fa-arrow-up`; the label hides below
+  `xl`, icon and counts stay. Running: "Fetching…" / "Pulling…" / "Pushing…", disabled, static icon, caret becomes
+  Cancel ("Cancel the pull"). Caret menu (`syncMenuItems`): Fetch · Fetch and Remove Deleted Branches · Pull · Push ·
+  Publish Branch (no upstream only) · Force Push (with Lease)… · Set Upstream… (on a branch), disabled items keep
+  their reason in `title` (`disabledReason`, so the hover works).
+- **Branch menu (H10).** Current local: Rename…, Push, Set Upstream…; other local: …, Set Upstream…, Push, Force
+  Push (with Lease)…, with the same reasons as the sync menu (`pushReasonOf`, `forcePushReasonOf`).
+- **Pull choice and force push (H15).** `GitConfirmationService.choose(GitChoice)` → value or null; the dialog's third
+  layout: title, text, Cancel (focused) then the options as plain `btn` (no default): Cancel / Merge / Rebase my
+  commits. Force Push and Abort use the destructive layout.
+- **Operation notice (H6).** `cc-operation-state-banner` under the toolbar (first of the notices): merge "Merging into
+  'main'. Resolve the conflicts in your editor, stage the files, then commit. 2 files have conflicts." + "Abort
+  merge…" + "Refresh"; rebase "Rebasing 'x'. … continue the rebase in a terminal." + "Abort rebase…" + "Refresh";
+  cherry-pick / revert / bisect "A <name> is in progress. Finish or abort it in a terminal." + "Refresh". Abort is
+  disabled with "Waiting for the previous git operation…" while one runs.
+- **W1.** `workspaceTrigger.ts` words "Pulling" (`fa-arrow-down`) and "Pushing" (`fa-arrow-up`), pulsing, as W1 lists.
+- **Stand-in bridge.** `git.pull` (per-mode `pullRefusals`; `pullConflicts` stop a merge / rebase pull with the merge
+  or rebase in progress and conflicted rows; otherwise the branch moves onto its upstream for every mode), `git.push`
+  (a push without lease is `PUSH_REJECTED` while the branch is behind; a lease must equal the remote commit, else
+  `STALE_PUSH_LEASE`; `setUpstream` creates `<remote>/<branch>` and tracks it), `git.abortOperation` (`NOT_ALLOWED`
+  unless that operation is in progress; drops conflicted rows).
+- Tests (plan names where they apply): `syncActions.service.spec.ts` — **fast-forward-only by default**; **rebase /
+  merge offered only after `notFastForward`** (and before pulling diverged branches); cancel sends nothing; merge
+  chosen; **conflicts counted**; network failure names the remote; **publish without upstream**; **Pull offered after a
+  rejected push** (and runs a pull); Publish branch after `NO_UPSTREAM`; **force-push text with both SHAs and that
+  SHA sent**; declined force push; Fetch after a stale lease; **abort merge confirmed**, rebase on a detached HEAD,
+  nothing to abort. `syncState.spec.ts` (main action table, **ahead/behind counts**, reasons, remotes, menu),
+  `syncButton.component.spec.ts`, `branchMenu.spec.ts`, `branchContextMenu.component.spec.ts`,
+  `gitConfirmDialog.component.spec.ts` (choices), `operationNotice.spec.ts`, `operationStateBanner.component.spec.ts`,
+  `effectText.spec.ts`, `gitErrorText.spec.ts`, `gitFailureReport.service.spec.ts`, `gitOperation.service.spec.ts`,
+  `gitApi.service.spec.ts`, `workspaceTrigger.spec.ts`, fake bridge spec. E2E: `gitWorkflow.e2e.ts` (04-M12).
+
+### Decisions and readings (renderer)
+- **Design over plan:** one split button (OD3, H5) instead of `syncButtons`; no `pullChoiceDialog` / `pushDialog`
+  components — the choice and the force-push confirmation are layouts of the existing `cc-git-confirm-dialog`; Push
+  and Publish have no confirmation (H15). The "conflicted files listed" of the plan's test list is the toast's count
+  plus the Changes tab's Conflicted group (H6 / H11); the notice itself names the count only.
+- **Wording supplied here** (no design text): disabled reasons "HEAD is detached: switch to a branch first" (Pull,
+  Push, Force Push on a detached HEAD), "Nothing to push" (H10's example, reused for the sync menu), "The remote has
+  no commits that your branch lacks — use Push" (Force Push while `behind` is 0: the confirmation would say "0 commits
+  … removed"), "This repository has no remote" (Publish without a remote; also the main part's title then); a
+  rebase on a detached HEAD (git detaches while rebasing) reads "A rebase is in progress. …" and its abort
+  confirmation "return the branch to the state before the pull"; a merge notice with no conflicted file leaves out
+  the count sentence; a merge into a detached HEAD names its short SHA. Force push success reuses "Pushed n commits
+  to <upstream>" (n = ahead). Menu icons: `fa-arrow-down` Pull, `fa-arrow-up` Push and Force Push,
+  `fa-cloud-arrow-up` Publish Branch; no hover hints besides Fetch's.
+- **Push without upstream** in the branch menu is disabled with H6's "'x' has no upstream branch." (the sync menu
+  has Publish Branch for the current branch; a non-current branch is published by switching to it first).
+- **Publish remote:** `origin` when configured, else the first remote (H5's title names "origin").
+- **The sync button stays in the History toolbar only.** H5 also puts it in W1's GIT section and on the project
+  overview card (owned by areas 05 and 03, which other agents change now); not done here, so
+  `cc-git-confirm-dialog` stays hosted in the History panel. Left for the orchestrator.
+- **Notice layout:** the merge / rebase notice's buttons follow its text (`flex-wrap justify-start`) instead of
+  sitting at the right end like the shallow and slow notices: the conflicts error toast, which H6 shows at the same
+  time and which stays until dismissed, covered "Abort merge…" at the right end (found by the e2e; the toast sits at
+  the top right below the nav bar, OD8). At 1280 px the buttons are now clear of the toast; below roughly 1100 px a
+  long notice still reaches under it. The toast also covers the toolbar's Log / Changes tabs and Refresh — question
+  for the designer below.
+- During a merge or rebase the sync button still offers Pull / Push from the counts; git refuses with
+  `OPERATION_IN_PROGRESS`, worded by H6 ("A merge is in progress. Finish or abort it first."). The design does not
+  disable it; left as is.
+
+### Questions for the designer (renderer)
+1. Error toasts sit over the right end of the History toolbar (Log / Changes tabs, Refresh) and of the first notice;
+   the conflicts toast appears exactly when the notice's Abort is needed. Should git error toasts start below the
+   History notices, or should the notice keep its actions on the left?
+2. Should the sync button (and Force Push) be disabled while a merge or rebase is in progress, with a reason?
+3. Push of a non-current local branch without upstream: disabled (as built), or publish it like Publish Branch?
+4. Wording of the supplied disabled reasons above, and whether Force Push should stay enabled when nothing on the
+   remote would be replaced.
+
+### Gates at the end of task 2 (Linux)
+See `04-M12-workflow-e2e.md` (one run for both milestones).
