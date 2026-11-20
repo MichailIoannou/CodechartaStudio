@@ -29,13 +29,15 @@
                 <i class="fa-solid fa-layer-group fa-fw"></i>
                 Analyse several…
             </button>
-            <label class="ml-auto flex items-center gap-2 text-sm text-base-content/60" for="snapshots-folder">Folder</label>
-            <select id="snapshots-folder" class="select select-sm w-40" data-testid="snapshots-folder" (change)="chooseFolder($any($event.target).value)">
-                <option [value]="allFolders" [selected]="folderFilter() === allFolders">All</option>
-                @for (folder of folders(); track folder.id) {
-                    <option [value]="folder.id" [selected]="folder.id === folderFilter()">{{ folder.label }}</option>
-                }
-            </select>
+            <div class="ml-auto flex items-center gap-2">
+                <label class="text-sm text-base-content/60" for="snapshots-folder">Folder</label>
+                <select id="snapshots-folder" class="select select-sm w-40" data-testid="snapshots-folder" (change)="chooseFolder($any($event.target).value)">
+                    <option [value]="allFolders" [selected]="folderFilter() === allFolders">All</option>
+                    @for (folder of folders(); track folder.id) {
+                        <option [value]="folder.id" [selected]="folder.id === folderFilter()">{{ folder.label }}</option>
+                    }
+                </select>
+            </div>
         </div>
 
         @if (problems(); as problems) {

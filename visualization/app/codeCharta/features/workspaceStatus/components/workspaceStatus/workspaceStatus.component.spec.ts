@@ -330,12 +330,13 @@ describe("WorkspaceStatusComponent", () => {
         expect(screen.queryByTestId("workspace-status-menu")).toBeNull()
     })
 
-    it("should open its activity when a batch was started", async () => {
+    it("should open its activity when a batch was started, also while the starting click reaches the page", async () => {
         // Arrange
         await renderStatus({ analysisJobs: [aJob("job-1", { batchId: "batch-1" })] })
 
         // Act
         TestBed.inject(BatchAnalysisDialogService).announceStarted("batch-1")
+        document.body.click()
         await settle()
 
         // Assert

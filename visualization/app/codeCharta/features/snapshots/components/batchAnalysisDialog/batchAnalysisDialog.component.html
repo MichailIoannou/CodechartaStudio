@@ -36,7 +36,7 @@
                     <label for="batch-branch">commits of</label>
                     <select
                         id="batch-branch"
-                        class="select select-sm w-40"
+                        class="select select-sm w-32"
                         data-testid="batch-branch"
                         [disabled]="mode() !== 'lastCommits'"
                         (change)="chosenBranch.set($any($event.target).value)"

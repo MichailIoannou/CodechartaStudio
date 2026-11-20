@@ -55,19 +55,21 @@
                 <span class="text-base-content/70">Nothing to clean up with these settings.</span>
             } @else if (plan()) {
                 <span>{{ summary() }}</span>
-                <details class="collapse collapse-arrow rounded-box border border-base-300" data-testid="cleanup-list">
+                <details class="collapse collapse-arrow shrink-0 rounded-box border border-base-300" data-testid="cleanup-list">
                     <summary class="collapse-title min-h-0 px-3 py-2 text-sm">{{ listLabel() }}</summary>
-                    <div class="collapse-content grid max-h-60 grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 overflow-y-auto px-3 text-sm">
-                        @for (row of rows(); track row.snapshotId) {
-                            <span class="flex min-w-0 gap-2" data-testid="cleanup-row">
-                                <span class="shrink-0 font-mono">{{ row.label }}</span>
-                                @if (row.subject) {
-                                    <span class="truncate" [title]="row.subject">{{ row.subject }}</span>
-                                }
-                            </span>
-                            <span class="text-base-content/60">{{ row.date }}</span>
-                            <span class="text-right tabular-nums">{{ row.size }}</span>
-                        }
+                    <div class="collapse-content px-0 pb-1">
+                        <div class="grid max-h-60 grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-1 overflow-y-auto px-3 text-sm">
+                            @for (row of rows(); track row.snapshotId) {
+                                <span class="flex min-w-0 gap-2" data-testid="cleanup-row">
+                                    <span class="shrink-0 font-mono">{{ row.label }}</span>
+                                    @if (row.subject) {
+                                        <span class="truncate" [title]="row.subject">{{ row.subject }}</span>
+                                    }
+                                </span>
+                                <span class="text-base-content/60">{{ row.date }}</span>
+                                <span class="text-right tabular-nums">{{ row.size }}</span>
+                            }
+                        </div>
                     </div>
                 </details>
             }
