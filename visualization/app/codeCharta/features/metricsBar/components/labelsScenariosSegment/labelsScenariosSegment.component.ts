@@ -9,13 +9,19 @@ import {
     ScenarioListDialogComponent,
     ScenariosService
 } from "../../../scenarios/facade"
-import { injectIsRadialLayout, SettingsPopoverShellComponent } from "../../../shared/facade"
+import {
+    BAR_CELL_CLASSES,
+    injectIsAnyPopoverOpen,
+    injectIsRadialLayout,
+    openBarCellClasses,
+    SettingsPopoverShellComponent
+} from "../../../shared/facade"
 
 @Component({
     selector: "cc-labels-scenarios-segment",
     templateUrl: "./labelsScenariosSegment.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: "group flex flex-col items-stretch px-3 py-2 transition-colors relative" },
+    host: { class: `group relative flex min-w-0 flex-col items-stretch ${BAR_CELL_CLASSES}`, "[class]": "openClasses()" },
     imports: [
         LabelSettingsPanelComponent,
         ScenarioListDialogComponent,
@@ -27,6 +33,9 @@ import { injectIsRadialLayout, SettingsPopoverShellComponent } from "../../../sh
 export class LabelsScenariosSegmentComponent implements OnInit {
     private readonly scenariosService = inject(ScenariosService)
     readonly isRadialLayout = injectIsRadialLayout()
+    readonly labelSettingsPopoverId = "metric-settings-popover-labels"
+    private readonly isLabelSettingsOpen = injectIsAnyPopoverOpen(() => [this.labelSettingsPopoverId])
+    protected readonly openClasses = computed(() => openBarCellClasses(this.isLabelSettingsOpen()))
 
     readonly listDialog = viewChild.required<ScenarioListDialogComponent>("listDialog")
     readonly saveDialog = viewChild.required<SaveScenarioDialogComponent>("saveDialog")

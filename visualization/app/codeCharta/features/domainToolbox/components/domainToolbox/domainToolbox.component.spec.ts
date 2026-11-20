@@ -74,14 +74,6 @@ describe("DomainToolboxComponent", () => {
         expect(viewStore.fitRequest()).toBe(fitRequestBefore + 1)
     })
 
-    it("should offer no divider while nothing is focused", async () => {
-        // Arrange & Act
-        await render(DomainToolboxComponent)
-
-        // Assert
-        expect(screen.queryByTestId("domain-tools-divider")).toBeNull()
-    })
-
     it("should let go of the focus when Unfocus is clicked", async () => {
         // Arrange
         isFocused.set(true)
@@ -92,6 +84,5 @@ describe("DomainToolboxComponent", () => {
 
         // Assert
         expect(unfocus).toHaveBeenCalledTimes(1)
-        expect(screen.getByTestId("domain-tools-divider")).toBeTruthy()
     })
 })

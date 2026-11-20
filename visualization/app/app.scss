@@ -41,23 +41,6 @@ body {
     display: none !important;
 }
 
-// Tailwind's `ring-*` utilities don't currently expose a dashed variant; the
-// metrics-bar link button uses a dashed outline to signal the "unlinked" state.
-.cc-link-button-dashed {
-    outline-style: dashed;
-    outline-width: 1px;
-    outline-offset: 1px;
-}
-
-// The metrics bar uses `divide-x` to draw vertical separators between every
-// segment, but the link button visually belongs together with the color
-// segment that immediately follows it, so suppress the divider on the link
-// button. `display: contents` on the surrounding segments means the right
-// border lands on the link button element itself.
-cc-metrics-bar > cc-link-color-height-button {
-    border-inline-end-width: 0;
-}
-
 // Marks the current item in the top bar: the Metric/Domain tabs and the modes in the bar below them
 // all wear the same primary underline hugging their bottom edge. Extracted from the templates
 // because five copies of the utility chain drift apart, and the marker has to stay identical for

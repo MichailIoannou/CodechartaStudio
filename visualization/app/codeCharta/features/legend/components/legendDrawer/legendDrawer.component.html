@@ -1,6 +1,6 @@
 @if (isOpen()) {
     <div
-        id="legend-panel"
+        [id]="legendPanelId"
         data-testid="legend-panel"
         class="rounded-box border-base-300 bg-base-100 fixed z-[60] flex w-72 max-w-[30vw] flex-col border shadow-lg transition-[right] duration-300"
         [style.right]="panelRight()"
@@ -11,5 +11,3 @@
         </div>
     </div>
 }
-
-<cc-legend-toggle-button [isOpen]="isOpen()" [isMovedAsideByInspector]="isMovedAsideByInspector()" (togglePanel)="toggleIsOpen()"></cc-legend-toggle-button>

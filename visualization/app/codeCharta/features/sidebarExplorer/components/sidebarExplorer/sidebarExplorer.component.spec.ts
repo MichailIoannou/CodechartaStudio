@@ -141,6 +141,20 @@ describe("SidebarExplorerComponent", () => {
         expect(host.style.height).toContain("var(--cc-file-extension-bar-height, 0px)")
     })
 
+    it("should tell the floating bars the width it covers, and nothing once collapsed to its top strip", async () => {
+        // Arrange
+        const { detectChanges } = await render(SidebarExplorerComponent)
+        const coveredWhileOpen = document.documentElement.style.getPropertyValue("--cc-bar-inset-left")
+
+        // Act
+        TestBed.inject(ExplorerCollapseService).toggle()
+        detectChanges()
+
+        // Assert
+        expect(coveredWhileOpen).toBe(`${EXPLORER_DEFAULT_WIDTH + 6}px`)
+        expect(document.documentElement.style.getPropertyValue("--cc-bar-inset-left")).toBe("0px")
+    })
+
     it("should render only the expand button and the projected strip when collapsed", async () => {
         // Arrange
         const { container, detectChanges } = await render(SidebarExplorerComponent)

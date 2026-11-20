@@ -7,7 +7,7 @@ import {
     DependencyMapArrival,
     DependencyMapComponent
 } from "../../features/dependencyMap/facade"
-import { LegendDrawerComponent } from "../../features/legend/facade"
+import { LegendDrawerComponent, LegendDrawerStore, LegendToolComponent } from "../../features/legend/facade"
 import {
     HANDED_OVER_MAP_NODE_ARRIVAL,
     MAP_EXPLORER_SEARCH,
@@ -53,12 +53,14 @@ import { DependencyExplorerSelection } from "./explorer/dependencyExplorerSelect
         DependencyMapComponent,
         DependencyBarComponent,
         LegendDrawerComponent,
+        LegendToolComponent,
         DependencyEdgeLegendComponent,
         NodeContextMenuComponent,
         BottomBarComponent,
         LoadingFileProgressSpinnerComponent
     ],
     providers: [
+        LegendDrawerStore,
         DependencyExplorerRow,
         { provide: EXPLORER_ROW, useExisting: DependencyExplorerRow },
         DependencyExplorerSelection,

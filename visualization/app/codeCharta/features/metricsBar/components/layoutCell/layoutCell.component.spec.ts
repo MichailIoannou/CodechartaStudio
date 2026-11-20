@@ -4,9 +4,9 @@ import { LayoutAlgorithm } from "../../../../model/codeCharta.model"
 import { MapStateReadWindow } from "../../../../stores/mapState/mapState.read.facade"
 import { PreferencesReadWindow } from "../../../../stores/preferences/preferences.read.facade"
 import { MetricsBarWriteStore } from "../../stores/metricsBar.write.store"
-import { LayoutTabComponent } from "./layoutTab.component"
+import { LayoutCellComponent } from "./layoutCell.component"
 
-describe("LayoutTabComponent", () => {
+describe("LayoutCellComponent", () => {
     afterEach(() => {
         jest.useRealTimers()
     })
@@ -14,7 +14,7 @@ describe("LayoutTabComponent", () => {
     async function setup(layoutAlgorithm = LayoutAlgorithm.SquarifiedTreeMap) {
         const layoutAlgorithm$ = new BehaviorSubject(layoutAlgorithm)
         const writeStore = { setLayoutAlgorithm: jest.fn(), setMaxTreeMapFiles: jest.fn(), setRadialLevels: jest.fn() }
-        const renderResult = await render(LayoutTabComponent, {
+        const renderResult = await render(LayoutCellComponent, {
             providers: [
                 { provide: MapStateReadWindow, useValue: { layoutAlgorithm$ } },
                 { provide: PreferencesReadWindow, useValue: { maxTreeMapFiles$: of(100), radialLevels$: of(3) } },
@@ -26,15 +26,15 @@ describe("LayoutTabComponent", () => {
 
     const layoutTile = (layout: LayoutAlgorithm) => screen.getByRole("button", { name: new RegExp(`^${layout}`) })
 
-    it("should name the current layout on the tab", async () => {
+    it("should name the current layout on the cell", async () => {
         // Arrange & Act
         await setup(LayoutAlgorithm.StreetMap)
 
         // Assert
-        expect(screen.getByTestId("metrics-bar-layout-tab").textContent).toContain(LayoutAlgorithm.StreetMap)
+        expect(screen.getByTestId("metrics-bar-layout-cell").textContent).toContain(LayoutAlgorithm.StreetMap)
     })
 
-    it("should rename the tab when the layout changes", async () => {
+    it("should rename the cell when the layout changes", async () => {
         // Arrange
         const { layoutAlgorithm$, fixture } = await setup()
 
@@ -43,7 +43,7 @@ describe("LayoutTabComponent", () => {
         fixture.detectChanges()
 
         // Assert
-        expect(screen.getByTestId("metrics-bar-layout-tab").textContent).toContain(LayoutAlgorithm.Sunburst)
+        expect(screen.getByTestId("metrics-bar-layout-cell").textContent).toContain(LayoutAlgorithm.Sunburst)
     })
 
     it("should offer one tile for every layout", async () => {

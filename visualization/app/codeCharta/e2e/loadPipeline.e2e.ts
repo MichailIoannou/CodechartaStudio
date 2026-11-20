@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { CC_URL, clearIndexedDB, collapseExplorer, goto, waitForCcStatePersisted, withDiskBackedPage } from "../../playwright.helper"
+import { CC_URL, clearIndexedDB, goto, waitForCcStatePersisted, withDiskBackedPage } from "../../playwright.helper"
 import sample1 from "../assets/sample1.cc.json"
 import sample2 from "../assets/sample2.cc.json"
 import { MetricsBarPageObject } from "../features/metricsBar/components/metricsBar/metricsBar.po"
@@ -102,10 +102,8 @@ test.describe("load pipeline", () => {
     })
 
     test("should reset the metric selection back to the default when the map is reset", async ({ page }) => {
-        // Arrange — pick a metric that is NOT what the default combination would choose. The metrics bar
-        // sits behind the open explorer, so collapse it first.
+        // Arrange — pick a metric that is NOT what the default combination would choose.
         await goto(page)
-        await collapseExplorer(page)
         const metricsBar = new MetricsBarPageObject(page)
         await metricsBar.openAreaMetricSelect()
         await metricsBar.selectAreaMetricOption("functions")
