@@ -18,7 +18,14 @@ orchestrator after every change of state. Another machine continues from this fi
   `feature/studio-integration` (fast path; resolve progress-file add/add conflicts with the stack's
   versions). Verified at 491068258: cargo fmt/clippy/test with and without features 833/837, cargo-deny,
   contract drift, format, lint, tsc, npm test 663/663, build, test:electron 45/45, e2e:desktop 10/10.
-- Builds: Rust output goes to the main checkout's `core/target` (real disk) via `CARGO_TARGET_DIR`; never
+- **Parallel UI agents (owner request, 2026-11-19):** several agents may change `visualization/` at the
+  same time, each in its own worktree on its own area, all branched from `feature/studio-stack`. The
+  orchestrator merges them into the stack one at a time, resolves conflicts in shared files (nav bar,
+  `VIEW_TABS`, `app.config.ts`, fake bridge, `CHANGELOG.md`) and re-runs every gate after each merge. This
+  replaces the prompt's "at most one agent changing `visualization/`" rule for UI work.
+- Builds: Rust output goes to a per-branch folder under the main checkout's `core/target` (e.g.
+  `core/target/studio-05-m4`; the stack uses `core/target/stack`) via `CARGO_TARGET_DIR` — a single shared
+  folder let one agent's smoke test run another branch's binary; never
   under `/tmp` (16 GB RAM tmpfs — filled once on 2026-11-19).
 
 ## Design gate
@@ -47,38 +54,39 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 02-M4 Dependency graph, color-range diagram | UI | done | — | feature/studio-02-m4 | ddf7e6b7f (merged 2daeb8b08) |
 | 02-M5 Editor schemes (quick toggle dropped, OD10) | UI | done | — | feature/studio-02-m5 | 057018bc9 (merged a0827d426) |
 | 02-M6 Native window appearance | UI | done | — | feature/studio-02-m6 | b0e051814 (merged 7523f1965) |
+| 02-M7 Metrics bar, file extension bar, toasts (OD6, OD7, OD8; new) | UI | done on `feature/studio-stack` (a965b437e; web e2e 188/188) | integration merge: as 03-M2 | feature/studio-02-m7 | fb2af451a |
 | 03-M0 Spikes | spike | in progress (items 0, 3 done on Linux; 1, 2, 4 wait) | 01-M3 for items 1, 2, 4; owner hardware for item 3 on Windows | feature/studio-03-m0a | 0432ed0ad |
 | 03-M1 Store core | core | done (Windows lock/rename paths not run) | — | feature/studio-03-m1 | 218bdffad (merged 2aedf471f) |
-| 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | part A (tasks 1–7) verified, **merge pending**; part B todo | merge: uncommitted owner/designer edits to plan 03 in the main checkout; part B (tasks 8–9): 01-M4.1 | feature/studio-03-m2 | 168d4fa21 (verified, not merged) |
-| 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | part A (tasks 1–5) verified, **merge pending** (after 03-M2; resolve the add/add conflict on `03-m3-snapshots.md` with the branch's version); part B todo | merge: same as 03-M2; part B (task 6): 01-M4.1 | feature/studio-03-m3 | f93165d40 (verified, not merged) |
-| 03-M4 Renderer load path | renderer | todo | 03-M3; check for visible parts first | — | — |
-| 03-M5 Projects UI | UI | todo | 03-M4 | — | — |
-| 03-M6 Import and store settings | UI | todo | 03-M5 | — | — |
+| 03-M2 Projects: core, RPC, CLI, shell, fake | core + shell | done on `feature/studio-stack` (part B via feature/studio-03-shell); integration merge pending | integration merge: owner's uncommitted plan 03 edit | feature/studio-03-m2, feature/studio-03-shell | 598d6ffd7 (merged into stack e8de7965e) |
+| 03-M3 Snapshots: core, RPC, CLI, shell | core + shell | done on `feature/studio-stack` (task 6 via feature/studio-03-shell); integration merge pending | integration merge: as 03-M2 | feature/studio-03-m3, feature/studio-03-shell | 1b51a0bb3 (merged into stack e8de7965e) |
+| 03-M4 Renderer load path | renderer | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m4 | ce4e78324 (merged into stack e041d661a) |
+| 03-M5 Projects UI | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m5 | 8c93d3f13 (merged into stack 10b8b4135) |
+| 03-M6 Import and store settings | UI + core | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m6 | 0994d5f75 (merged into stack 1ebe30d2c) |
 | 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
-| 04-M3 History view, branches pane, chip | UI | todo | 04-M2; plan 03 renderer (03-M4/M5) | — | — |
-| 04-M4 Commit list with graph, filters, details | UI | todo | 04-M3 | — | — |
-| 04-M5 Selection, keyboard, context menu, ports | UI | todo | 04-M4 | — | — |
+| 04-M3 History view, branches pane (chip replaced by W1) | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-04-m3 | 5877e3661 (merged into stack 14881e68f, fix 5b2462566) |
+| 04-M4 Commit list with graph, filters, details | UI | done on `feature/studio-stack` (385adc20f; web e2e 176/176) | integration merge: as 03-M2 | feature/studio-04-m4 | 8642672fb |
+| 04-M5 Selection, keyboard, context menu, ports (+ 05-M4 task 5 badges) | UI | done on `feature/studio-stack` (1b38f5819; web e2e 177/177) | integration merge: as 03-M2 | feature/studio-04-m5 | 9e5c3d35c |
 | 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
-| 04-M7 Operation queue, progress, prompts | core + UI | core half (tasks 1–4) verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (UI): 04 History UI | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
-| 04-M8 Fetch and branches | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
-| 04-M9 Changes and diff | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
-| 04-M10 Commit | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
+| 04-M7 Operation queue, progress, prompts | core + UI | core and task 5 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
+| 04-M8 Fetch and branches | core + UI | core and task 2 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
+| 04-M9 Changes and diff | core + UI | core and task 2 merged into `feature/studio-stack`; **web e2e pending** (paused) | — | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
+| 04-M10 Commit | core + UI | core and task 2 merged into `feature/studio-stack`; **web e2e pending** (paused) | — | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
 | 04-M11 Pull, push, abort | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
 | 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
 | 05-M0 Spikes on a real Windows machine | spike | done (Linux); Windows items W1–W5 open for owner | owner hardware (W1–W5) | feature/studio-05-m0 | 071cfd98a |
 | 05-M1 Run one analysis from the core | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m1 | a6eff44c7 (verified, not merged) |
 | 05-M2 Snapshot records | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m2 | 3eff64af5 (verified, not merged) |
 | 05-M3 Queue, preflight, RPC, CLI | core (+ fake bridge) | tasks 1–4 verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (fake bridge): core stack merge | feature/studio-05-m3 | b3b7a6164 (verified, not merged) |
-| 05-M4 Analyse from the UI, browse snapshots | UI | todo | 05-M3; 04 UI | — | — |
-| 05-M5 Nearest snapshot and stale notice | core + UI | core half verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge, 05-M4 | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
+| 05-M4 Analyse from the UI, browse snapshots | UI | done on `feature/studio-stack` (8747e752b; web e2e 175/175); history badges (task 5) after 04-M4 | integration merge: as 03-M2 | — | — |
+| 05-M5 Nearest snapshot and stale notice | core + UI | done on `feature/studio-stack` (UI web e2e 177/177) | integration merge: as 03-M2 | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
 | 05-M6 Batches, retention, cleanup | core + UI | core tasks 1, 3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge; design O4 | feature/studio-05-m6 | 9acf7a56b (verified, not merged) |
 | 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
 | 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
-| 06-M1 Compare core: commit vs commit | core + UI | core tasks 1–3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI tasks 4–11: core stack merge | feature/studio-06-m1 | 698643e98 (verified, not merged) |
-| 06-M2 Entry points | UI | todo | 06-M1 | — | — |
-| 06-M3 Missing snapshots and staleness | UI (no core tasks) | todo | 06-M1 UI; core stack merge | — | — |
+| 06-M1 Compare core: commit vs commit | core + UI | done on `feature/studio-stack` (renderer web e2e 180/180) | integration merge: as 03-M2 | feature/studio-06-m1 | 698643e98 (verified, not merged) |
+| 06-M2 Entry points (+ core tasks 1–2) | core + UI | merged into `feature/studio-stack` (417ef52b9, fix 8a409bed3); **web e2e pending** (paused); PR segment and branch-menu compare entries open | — | feature/studio-06-m2m3 | 96232878b |
+| 06-M3 Missing snapshots and staleness | UI (no core tasks) | merged into `feature/studio-stack` with 06-M2; **web e2e pending** (paused) | — | feature/studio-06-m2m3 | 96232878b |
 | 06-M4 Changed files | core + UI | core task 1 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: 06-M3 | feature/studio-06-m4 | 919fb2972 (verified, not merged) |
 | 06-M5 PRs and merge requests | core + UI | core tasks 1, 4 verified, **merge pending** (top of the unmerged stack); tasks 2, 3, 8 blocked; UI todo | merge: as 03-M2; tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner); UI: core stack merge | feature/studio-06-m5 | fc5e4f3a1 (verified, not merged) |
 | 06-M6 Polish and stretch | UI | todo | 06-M5 | — | — |
@@ -282,6 +290,115 @@ the milestone is started.
   not in the clone is the new error `HEAD_NOT_LOCAL`; a missing base branch is `UNKNOWN_REVISION` (the plan's
   base-branch fetch is not built); folder record gains an optional `hosting` override (cannot be cleared
   yet); new codes `REF_NOT_ON_REMOTE`, `HEAD_NOT_LOCAL`.
+- 03-M2/M3 shell (see `03-m2-projects.md`, `03-m3-snapshots.md` on the stack): shell-composed methods go through
+  `bridge.request(...)` (no new bridge keys): `projects.pickFolder`, `projects.readSourceFile`,
+  `projects.revealFolder` (new name), `snapshots.pickImportFile` (filters from the caller: `json`, `gz`),
+  `snapshots.readMapChunk` (≤ 32 MiB, realpath inside the store root). The relay runs composed methods
+  before the allow-list; the composed set is exactly those five (checked) and shell-only core methods stay
+  out of the allow-list (checked). Fake bridge gained an in-memory projects/snapshots backend. 03-M0 item 1
+  (64 MiB IPC timing) still not run.
+- 03-M4 (see `03-m4-renderer-load-path.md` on the stack): read/rename/checksum step in
+  `load/services/projectSnapshotReader.ts`; `LoadFilesOptions` exported via the facade; `isFilesWriteDue`
+  false only when every loaded map is a project map and nothing is persisted; `readSnapshotMap` kept for now.
+  API for 03-M5: `loadProjectSnapshots`, `bootFromProject`, `showSampleFiles`, `unloadAllFiles`.
+  One e2e flake ("Cluster explorer › should keep every rendered row the same height") seen only when run
+  concurrently with the desktop smoke suite; passed when run alone.
+- 03-M5 (see `03-m5-projects-ui.md` on the stack): followed the design over the plan — overview page at
+  `#/project` (P3) instead of a home component; no folder selector (OD1), folders switch in P1; P1 replaces
+  the upload button in the desktop app only; P6 has no Snapshots tab; dialog errors inline. Core:
+  `ProjectSummary` carries folders and `updatedAt`. `FolderGitService` in the feature until area 04's
+  `GitRepositoryService` exists. `readSnapshotMap` retired. Picker titles chosen by the implementer → O5.
+  Left: 03-M6 (open/import P8, P11, Snapshots…), area 04 (sync, Open History), area 05 (W1 status,
+  Analyse), reload after core reconnect (OD5).
+- 03-M6 (see `03-m6-import-store.md` on the stack): `store.changeRoot` replaces plan 01's `paths.setStoreRoot`
+  (copies or adopts; old store left in place; refused while analyses run); no relaunch (OD5: the core swaps the
+  store live); drag and drop built after spike item 4 passed on Linux (`webUtils.getPathForFile` works in the
+  sandboxed preload); dropped paths checked (absolute, cc.json ending, regular file, ≤ 4 GiB) and confirmed
+  natively before inspection (checked); move dialog (P9) built without a host until area 05's snapshots dialog.
+  Commit 27dd9d99d does not build alone (fixed in aa02ef516; interactive rebase unavailable). Wording supplied
+  → O5 addendum.
+- 04-M3 (see `04-M3-history-view.md` on the stack): History tab only when the active project has a git
+  folder; `GitRepositoryService` follows the working folder and replaces 03-M5's `FolderGitService`;
+  projects import git (not the reverse) — git reads projects through the `WORKING_FOLDER_SOURCE` port; no
+  branch chip (W1), no Log/Changes tabs or sync button yet (M8/M9); merge/rebase banners wait for M11.
+  Merge into the stack conflicted with 03-M6 in two projects components and the fake bridge — resolved by
+  keeping both sides (03-M6's `OpenFileService`/`StoreFolderService`, 04-M3's `GitRepositoryService`; fake
+  `git` store plus `commits` seed); an import-order slip in that resolution fixed in 5b2462566.
+  Open for the owner/designer (in the progress Notes): "folder select" in the not-a-repository notice vs. the
+  design's no-folder-select rule; "Open desktop tools" cannot jump to the section yet; `gitTooOld` version
+  read from message text.
+- 05-M4 (see `05-m4-analyse-ui.md` on the stack): W1 workspace status (`features/workspaceStatus`) replaces the
+  jobs indicator and branch chip; snapshots dialog (S4) hosts the move/bind dialog (P9); log dialog (S9) via the
+  new core method `analysis.readLog`; fake bridge analysis handlers (05-M3 task 5). Not built: the loaded-snapshot
+  registry (task 2; `shownSnapshot` already covers it with one working folder), the "other profile" flag (no
+  profile hash in the renderer), W1's "Show commit…/Show current checkout/Analyse <short>" (05-M5, area 06),
+  history badges (task 5, after 04-M4), entry points on the overview (would create a projects→snapshots cycle).
+  Merge into the stack conflicted with 04-M3 (05-M4 still used `FolderGitService`): ported the snapshots dialog
+  and W1 to `GitRepositoryService`, kept 04-M3's fake `git` handlers plus 05-M4's analysis handlers, removed a
+  duplicated `activeProject`/`workingFolder` in `projectsFacade.ts`.
+- 04-M4 (see `04-M4-commit-list.md` on the stack): 100 000 commits — first rows 146 ms, page median 33 ms,
+  scroll frames median 16.6 ms, 35 rows in the DOM. Design over plan: lanes join at the fork dot; filters in the
+  COMMITS pane header (`commitFilters`), no folder picker (OD1); uncommitted changes as a dashed lane into HEAD.
+  Design gaps left open (no invented wording): committer line label, "Open changes" (no Changes tab yet), git's
+  `unknown` change kind, analysing without percent. cc-light contrast notes (two blue lanes, faint selection)
+  left to the designer. Merge conflict in the fake bridge with 05-M4: kept both sides' handlers.
+- 05-M5 UI (see `05-m5-nearest-snapshot.md` on the stack): the stale notice is a persistent toast projected into
+  `cc-toast` (OD9), over the map views only; the plan's snapshot chip became W1 changes (staleness badge,
+  "Asked for", "Show current checkout", "Analyse <short>"); the map follows the design's table and replaces
+  05-M4's "last asked analysis switches the map". Follow-up bug (not assigned): a folder without a remembered
+  snapshot can load twice (newest snapshot, then the resolved one). For 02-M7: keep `<ng-content />` first in
+  the toast `<output>` and the notice projected inside `<cc-toast>`.
+- 04-M5 (see `04-M5-selection-menu-ports.md` on the stack): `CommitAction.label` Title Case + optional
+  `detailsLabel`; second selection gets the left primary border; analysed markers with job states winning over
+  snapshots; map locator reads `shownSnapshot` instead of a file-name registry; Check Out / New Branch arrive with
+  04-M8. Plan 06 needs a disabled state on `CommitAction` (C1: disabled "Compare with Parent" for a root commit).
+  CHANGELOG conflict with 05-M5 resolved by keeping 04-M5's broader "Analyses in the app" entry plus "Nearest
+  analysis".
+- Weekly budget 79% at 2026-11-19 13:08 (resets 2026-11-20 13:00): one agent per related group of tasks from now
+  on (e.g. 04-M7 task 5 + 04-M8 task 2 + the "Show in map" action in one agent).
+- 06-M1 renderer (see `06-m1-compare-core.md` on the stack): no `cc-compare-button` — the Compare tab opens the
+  dialog in a desktop project with a git folder; chip with clickable sides, swap and a caret menu; workspace status
+  shrinks to icon-only beside the chip; legend caption "Δ = head … − base …". The M1 dialog sends the `commits`
+  intent, so the core orders the sides (M2's ref picker + `explicit` intent fixes "Base stays base"). Gap against
+  the owner decision until M3: "Use nearest" offered but not "Analyse missing". Designer finding: at 1280 px the
+  base/head captions still show and branch names truncate first.
+- 04-M7/M8 renderer (see `04-M7-M8-ui-prompts-fetch-branches.md` on the stack): shell fix — `main.js` now maps
+  `prompt.requested.requestId` to the caller's operation id (`shellPolicy.pageNotificationOf`; a prompt without an
+  operation id is passed on with `requestId: null` instead of being dropped); one `cc-sync-button` (OD3), fetch
+  only until M11; fetch progress in W1 ahead of a running analysis; failures are error toasts that stay until
+  dismissed (shared `ToastService` change — overlaps 02-M7/OD8, reconcile when 02-M7 merges); Show in map only
+  when the folder has an analysis; confirm and branch dialogs hosted in the History panel. Security tests: the
+  answer never reaches console/HTML/state, input cleared before sending, sent once, Cancel/Escape send
+  `prompt.cancel`. Wording supplied by the implementer: branch-menu icons, reused hints, "Upstream" label.
+- Owner answers 2026-11-19 (`design/open-questions.md`, uncommitted owner edits in the main checkout at the time):
+  O2 (picker title "Choose <tool>"; "Custom path not found: <path>"; keep "Programs" and the generic failure
+  toast; light summary contrast unchanged), O3 (keep Rider Day values; Darcula and VS Dark get their own neutral
+  graph palettes), O4 (recycle-bin failure → persistent error toast, no "Delete permanently"; forced re-analysis
+  replace accepted; clean-up for the working folder only), O5 (keep "Add folder"/"Re-link"; truncation OK; keep
+  import wording; remove the 4 GiB drop limit; cancelling "Look for commit… in another folder" removes the
+  just-created project), O6 (keep the Dependencies Legend tool; legend above the bar stands), O7 (option A).
+  Applied in: 02-M7 (O6/O7), `feature/studio-fixes-owner-answers` (O2, O3, O5 — merged into the stack, web e2e
+  done on the stack, web e2e 185/185), 05-M6 renderer later (O4). Drop safeguards after removing the size limit: absolute `.cc.json(.gz)`
+  path, regular file, native confirmation (checked).
+  Designer follow-ups named in the answers: T4 in `02-themes.md`, `05-snapshots.md` (recycle failure state,
+  working-folder clean-up), `03-projects.md` (cancel removes the project).
+- 02-M7 option A (see `02-m7-metrics-bar.md`): panels publish `--cc-bar-inset-left/right`; bars centre between them,
+  min 30rem, slide over 300 ms; cells shrink and truncate; layout name icon-only below 1280 px; #4557's test now
+  asserts centring in the free space. **Known limit (for the designer, to be added to `open-questions.md` once the
+  owner's pending edits there are committed):** at ~900 px with both panels open only 236 px are free; the bar stops
+  at 30rem and its right part (tools incl. Legend) lies under the inspector until it closes; Layout and metric cells
+  stay reachable. Options: a compact bar mode, or a z-order change.
+- 04-M9/M10 renderer (see `04-M9-M10-ui-changes-commit.md` on the stack): worded badges, Log/Changes tabs in the
+  toolbar, commit box at the bottom of the changes panel, Discard only on unstaged/untracked rows, diff always
+  virtualised, >1000 paths sent in chunks under one operation id; "Open changes" link added. Design gaps:
+  identity commands as plain lines in a toast (H6 wants copy blocks); `CONFLICTS`/`OUTPUT_TOO_LARGE` fall back to
+  "Git failed: …"; the mock-up has no Changes tab. Merged cleanly.
+- 06-M2/M3 (see `06-m2-m3-entry-points-missing.md` on the stack): core branch and explicit intents; ref picker in
+  `features/gitHistory`; `explicit` intent keeps Base as base; base mode remembered per project; History Compare
+  entries incl. disabled Compare with Parent via the new `disabledReasonFor?`; `BRANCH_ACTIONS` port (branch-menu
+  entries appear once rendered); Pull requests segment left out (no `hosting.list*`, no design state). Merge
+  conflict in the shared `contextMenuItem`: 04-M7/M8's `disabled` (real `disabled` attribute) and 06's
+  `disabledReason` (`aria-disabled` + title) both kept (8a409bed3).
 
 ## Known environment issues (not caused by the milestones)
 
@@ -313,6 +430,33 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-19, **paused by the owner**: 04-M9/M10 renderer and 06-M2/M3 merged into `feature/studio-stack`;
+  gates on the final stack (8a409bed3): cargo fmt/clippy/test with and without features 853/857, contract drift,
+  format, tsc, lint, npm test 766/766, build, test:electron 80/80, e2e:desktop 16/16. **Not yet run: web e2e:ci on
+  the final stack** — run it first when resuming. For the owner: a sample repository (scratchpad `sample-shop`,
+  built from `sample-projects/`, with a merged feature branch, a tag `v1.0` and one uncommitted change) was added
+  as project "sample shop" to the real store (`~/.config/codecharta-visualization`) with two analyses (ec16692,
+  c96efe2), and the current stack build was launched with the real ccsh. Remaining when resuming: 04-M6, 04-M11
+  renderer, 04-M12; 05-M6 renderer (with O4 answers) and 05-M7; 06-M4/M5 renderer, 06-M6; 03-M7; integration merge of
+  `feature/studio-stack` once the owner's plan edits are committed; design follow-ups (900 px bar limit, O-answers
+  needing design edits).
+- 2026-11-19: O2/O3/O5 fixes passed web e2e 185/185 on the stack. 02-M7 merged; the toast conflict resolved as 02-M7's positioned container with the stack's `<ng-content />` (stale notice) first, both sides' specs kept (one missing brace fixed); gates: format, tsc, lint, npm test 752/752, build, test:electron 80/80, e2e:desktop 16/16; web e2e running.
+- 2026-11-19: fixes for O2/O3/O5 merged cleanly into the stack; gates: format, tsc, lint, npm test 749/749, build, test:electron 80/80, e2e:desktop 16/16; web e2e running. 02-M7 resumed to commit its option-A work.
+- 2026-11-19: owner answered O2–O7; resumed 02-M7 for option A, started a Sonnet fixes agent for O2/O3/O5. Closed the old CodeCharta window (opened by the orchestrator) and launched the current stack build with the real ccsh on PATH for the owner.
+- 2026-11-19: 04-M7/M8 renderer passed web e2e 185/185 on the stack. Weekly usage 83%: started the last agent before the reset (04-M9/M10 renderer: changes, diff, commit); no new agents until the weekly reset (2026-11-20 13:00) apart from fixes.
+- 2026-11-19: 04-M7/M8 renderer merged into the stack (fake-bridge conflict resolved); gates: format, tsc, lint, npm test 749/749, build, test:electron 79/79, e2e:desktop 16/16; full web e2e running (the agent's last full run had 185/186 before its fix).
+- 2026-11-19: 06-M1 renderer merged cleanly into the stack; gates: format, tsc, lint, npm test 739/739, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 06-M2+M3 started as one agent (weekly 80%).
+- 2026-11-19: 04-M5 merged into the stack (CHANGELOG conflict resolved); gates: format, tsc, lint, npm test 730/730, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. Renderer of 04-M7 task 5 + 04-M8 task 2 + Show in map started in parallel with the 06-M1 renderer.
+- 2026-11-19: 05-M5 UI merged cleanly into the stack; gates: format, tsc, lint, npm test 722/722, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 06-M1 renderer started in parallel (5-hour 72%, weekly 77%).
+- 2026-11-19: 04-M4 merged into the stack (fake-bridge conflict resolved); gates on the merged stack: format, lint, tsc, npm test 720/720, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 04-M5 (+ history badges) started in parallel with the 05-M5 UI.
+- 2026-11-19: 05-M4 merged into the stack with conflicts resolved and ported; gates on the merged stack: cargo with and without features 844/848, contract drift, format, lint, tsc, npm test 708/708, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 05-M5 UI started in parallel (weekly usage 75%: two UI agents at a time).
+- 2026-11-19: 04-M3 stack merge passed web e2e 173/173 — done on the stack. 02-M7 held: its wider bar sits under the open explorer (Layout cell unreachable by mouse at 1920 px); the agent had switched the e2e page object to keyboard, which hides it. Fixing needs a design change (T4 and upstream PR #4557 keep the bar centred on the window) — asked as O7.
+- 2026-11-19: 04-M3 merged into the stack with conflicts resolved; gates on the merged stack: format (after an import-order fix), lint, tsc, npm test 698/698, build, test:electron 76/76, e2e:desktop 16/16; web e2e running. 04-M4 started in parallel.
+- 2026-11-19: 03-M6 verified on `feature/studio-stack` (cargo with and without features 843/847, cargo-deny, contract drift, format, lint, tsc, npm test 686/686, build, test:electron 76/76, e2e:desktop 16/16; web e2e running on port 9031). 05-M4 started in parallel; running agents told to use per-branch cargo folders and their own e2e port.
+- 2026-11-19: owner asked for UI agents in parallel. Started 04-M3 (History view) and the new 02-M7 (metrics bar, file extension bar, toasts) alongside 03-M6, three UI agents at once, each on its own branch from the stack.
+- 2026-11-19: 03-M5 verified on `feature/studio-stack` (cargo with and without features 834/838, contract drift, format, lint, tsc, npm test 681/681, build, test:electron 69/69, e2e:desktop 14/14, web e2e:ci 169/169). Screenshots sent to the owner. 03-M6 started.
+- 2026-11-19: 03-M4 verified on `feature/studio-stack` (format, lint, tsc, npm test 664/664, build, test:electron 70/70, e2e:desktop 14/14, web e2e:ci run alone 165/165) and merged into the stack. 03-M5 started.
+- 2026-11-19: 03-M2/M3 shell and fake bridge verified on `feature/studio-stack` (format, lint, tsc, contract drift, npm test 663/663, build, test:electron 70/70, e2e:desktop 14/14, web e2e:ci 165/165) and merged into the stack. 03-M4 started from the stack.
 - 2026-11-19: owner asked why no custom UI was being built in parallel. Orchestrator error: UI agents were
   only allowed to start from `feature/studio-integration`, which lacked the unmerged core stack. Fixed by
   creating `feature/studio-stack` (verified, see Branching) and starting the UI lane from it. `/tmp` (tmpfs)

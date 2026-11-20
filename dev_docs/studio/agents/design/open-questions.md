@@ -91,24 +91,100 @@ answer that differs means the named file is changed, nothing else.
 - **O2 (2026-11-19). Desktop tools: wording the implementer had to supply (01-M4.2).** Neither
   `01-desktop-tools.md` nor plan 01 gives these, so 01-M4.2 used placeholders. Please confirm or replace:
   1. Native picker title for "Choose…": "Choose the <tool> executable".
+     - *Answer (owner, 2026-11-19):* shorter title: "Choose <tool>" (e.g. "Choose git"), not "Choose
+       the <tool> executable".
   2. Windows file-type filter name in that picker: "Programs" (`exe, cmd, bat`).
+     - *Answer (owner, 2026-11-19):* keep "Programs" (`exe, cmd, bat`).
   3. Toast after a failed "Choose…": the renderer never learns which file was picked, so it reads
      "The chosen file is not a working <tool>: <message>" instead of naming the file.
+     - *Answer (owner, 2026-11-19):* keep the generic wording "The chosen file is not a working
+       <tool>: <message>", without the file name.
   4. A custom path whose file was deleted still shows "not found on PATH" — which text should it show?
+     - *Answer (owner, 2026-11-19):* name the custom path, e.g. "Custom path not found: <path>",
+       instead of "not found on PATH" (implementer must change the text in the 01-M4.2 tools panel).
+     *Applied (designer):* `01-desktop-tools.md` D1 lists the "custom path missing" text, the picker title and the toast wording from O2.1–O2.3.
   5. In the light theme, the success and warning summary lines are pale on white — token choice?
+     - *Answer (owner, 2026-11-19):* nothing, leave as is; decided, no change.
 
 - **O3 (2026-11-19). Rider Day token values (02-M5).** `02-themes.md` names the light JetBrains scheme
   "Rider Day" but gives no token values. 02-M5 derived them from Rider 2026.2's `RiderDay.theme.json`
-  (values listed in `progress/02-m5-editor-schemes.md`). Please confirm or replace them. Also: the shared
+  (values listed in `progress/02-m5-editor-schemes.md`). Please confirm or replace them.
+  - *Answer (owner, 2026-11-19), first question:* keep the derived Rider Day token values. The second
+    question (shared dark graph palette) is answered below.
+
+  Also: the shared
   dark dependency-graph palette has a slight blue cast on the neutral Darcula and VS Dark chrome — keep
   one shared dark graph palette, or give those two their own?
+  - *Answer (owner, 2026-11-19), second question:* own palettes: Darcula and VS Dark get their own
+    neutral graph palettes matching their chrome, instead of the shared slightly blue one (implementer
+    must change this in plan 02 / 02-M5).
 
 - **O4 (2026-11-19). Snapshot deletion edge cases (05-M6 core).**
   1. The core no longer falls back to permanent deletion when the recycle bin fails (owner decision:
      deletions go to the recycle bin); it answers `RECYCLE_FAILED` and removes nothing. `05-snapshots.md`
      has no state for this. What should the delete and clean-up dialogs show, and should they offer
      "Delete permanently" (the core accepts `permanently: true`)?
+     - *Answer (owner, 2026-11-19):* an error toast stating what happened (the recycle bin failed and
+       nothing was deleted); persistent error toast per the Q5 decision. No "Delete permanently" offer in
+       the dialogs (designer must change `05-snapshots.md` to add this state).
+       *Applied (designer):* `05-snapshots.md` S4 states — error toast with Details, no permanent delete.
   2. Re-analysing a commit with "force" replaces its snapshot; the old copy (same commit and profile) is
      removed for good, not recycled. Acceptable as a replace, or should it go to the recycle bin too?
+     - *Answer (owner, 2026-11-19):* accepted as a replace; the old copy is removed, not recycled.
   3. `snapshots.planPrune` / `prune` work per folder; the design's project-wide clean-up dialog would call
      them once per folder. Fine?
+     - *Answer (owner, 2026-11-19):* for now just clear the folder you are on, not the entire project's.
+       Clean-up/prune applies to the working folder only; a project-wide clean-up is a possible later
+       addition (designer must change `05-snapshots.md` to reduce the project-wide clean-up dialog to the
+       working folder).
+       *Applied (designer):* `05-snapshots.md` S8 now cleans up the working folder only; S4 footer title says so.
+
+- **O5 (2026-11-19). Native picker titles for projects (03-M5).** `03-projects.md` names no titles for the
+  native folder pickers. 03-M5 used "Add folder" (P4/P5 add) and "Re-link '<label>'" (P6 re-link). Please
+  confirm or replace.
+  - *Answer (owner, 2026-11-19), first question:* keep "Add folder" and "Re-link '<label>'".
+
+  Also: at 1024–1279 px the project trigger truncates to e.g. "bill…" with the full name
+  in the tooltip, as the width budget implies — acceptable?
+  - *Answer (owner, 2026-11-19), second question:* acceptable.
+- **O5 addendum (03-M6).** More wording 03-M6 had to supply: the import picker's filter name "cc.json files",
+  its picker titles, and a 4 GiB size limit on dropped files (no import limit exists otherwise). Also: "Look
+  for commit… in another folder" creates the new project as soon as the folder is picked, so cancelling
+  afterwards keeps that project — acceptable? Store change has no confirmation step (per the design) and
+  no relaunch (OD5: the core swaps the store live).
+  - *Answer (owner, 2026-11-19), first part:* keep the wording (filter name "cc.json files" and picker
+    titles) but no size limit: remove the 4 GiB check on dropped files so dropped and picked imports
+    behave the same (03-M6 implementer must change this).
+  - *Answer (owner, 2026-11-19), second part:* remove it on cancel: cancelling the following step also
+    removes the just-created project (03-M6 implementer must change this; designer must change
+    `03-projects.md` to say so).
+    *Applied (designer):* `03-projects.md` P8 commit binding.
+
+- **O6 (2026-11-19). Metrics bar refresh (02-M7), two points for sign-off.**
+  1. The Dependencies view had a rotated LEGEND tab too; 02-M7 replaced it with a Legend tool in the
+     dependency bar, like the metrics and domain bars. `02-themes.md` T4 names only the metrics and domain bars.
+     Keep it?
+     - *Answer (owner, 2026-11-19):* keep it (designer must change `02-themes.md` T4 to name the
+       dependency bar too).
+       *Applied (designer):* `02-themes.md` T4 names the dependency bar and its Legend tool.
+  2. The open legend used to cover the bar's right end (including the new Legend tool), so it now opens above
+     the bar. Acceptable?
+     - *Answer (owner, 2026-11-19):* no preference; the implementation stands (legend opens above the
+       bar).
+  Also noted: the blend width in the file extension bar is `min(12px, 100%/3)` per side because the design's
+  "narrower than 48 px" rule contradicts its own numbers at exactly 48 px.
+  - *Answer (owner, 2026-11-19):* the blend-width note is informational; noted.
+
+- **O7 (2026-11-19). The refreshed metrics bar sits partly under the open explorer (02-M7).** With the Layout
+  and tools cells inside the bar it is wider; at 1920 px the open explorer covers its Layout cell (Area was
+  already covered before). T4 keeps the bar's position and width unchanged, and upstream PR #4557 centred the
+  bars on the whole window on purpose (with an e2e test). Options: A — centre the bar between explorer and
+  inspector (offset returns, amends T4 and #4557's test); B — keep window centring but cap the bar's width at
+  the free area so it shrinks and truncates beside open panels (amends T4's "unchanged width"); C — no change,
+  the covered cells stay a known limitation (tests collapse the explorer first, as scenarios.e2e does).
+  Asked of the owner the same day.
+  - *Answer (owner, 2026-11-19):* option A: centre the bar between the explorer and the inspector (the
+    offset returns). Amends `02-themes.md` T4 ("position and width unchanged") and upstream PR #4557's
+    window-centring e2e test (designer must change `02-themes.md` T4; 02-M7 implementer must change the bar
+    position and that test).
+    *Applied (designer):* `02-themes.md` T4 "Position" bullet; the shell no longer claims an unchanged position.
