@@ -7,6 +7,7 @@
 ## Jump to Section
 
 - [Installation](#installation)
+- [Commit history (desktop app)](#commit-history-desktop-app)
 - [Development Tasks](#tasks)
 - [Testing](#testing)
 - [JSON structure](#json-structure)
@@ -52,6 +53,30 @@ $ codecharta-visualization
 
 - Remove the 'downloaded' attributes from the OS:
   `$ xattr -cr codecharta-visualization.app/`
+
+## Commit history (desktop app)
+
+The desktop app shows the history of a project's git working folder in the **History** view. The tab appears
+next to Metric, Domain and Dependencies once the open project has a folder that is a git clone.
+
+- **Git 2.31 or newer** must be installed and on the `PATH`; CodeCharta runs that git and brings none of its own.
+  The desktop tools check (Global Configuration) shows which git was found.
+- **Log**: local branches, remote branches and tags on the left (a click limits the list to that branch), the
+  commits with their graph in the middle (search by message or hash, author and path), and the details of the
+  selected commit on the right: message, author, committer, parents and changed files.
+- **Changes**: the changed files of the working folder, a diff of the selected file, staging and committing.
+- The working folder is chosen in the project menu; the History follows it.
+- Git refuses to read a repository that another user owns (for example a clone made from an elevated shell).
+  The History then shows the command that marks the folder as safe, to run in a terminal if you trust it:
+  `git config --global --add safe.directory <path>`. CodeCharta never changes your git configuration itself.
+
+The core answers the same questions on the command line, for a folder of a project or any folder:
+
+```bash
+$ codecharta-core git status --project <id> --folder <id>
+$ codecharta-core git branches --path <folder>
+$ codecharta-core git log --path <folder> --limit 20 [--branch main] [--json]
+```
 
 ## Build it yourself
 
