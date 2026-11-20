@@ -1,3 +1,4 @@
+import type { Provider } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { Router } from "@angular/router"
 import { Subject } from "rxjs"
@@ -16,7 +17,10 @@ export interface ProjectsTestBed {
     requestsOf(method: string): unknown[]
 }
 
-export async function setUpProjects(seed: FakeDesktopSeed, { initialise = true } = {}): Promise<ProjectsTestBed> {
+export async function setUpProjects(
+    seed: FakeDesktopSeed,
+    { initialise = true, providers = [] as Provider[] } = {}
+): Promise<ProjectsTestBed> {
     const bridge = createFakeDesktopBridge(seed)
     const loadFilesUseCase = {
         loadProjectSnapshots: jest.fn().mockImplementation((toLoad: ProjectSnapshotToLoad[]) =>
@@ -36,7 +40,8 @@ export async function setUpProjects(seed: FakeDesktopSeed, { initialise = true }
             { provide: DESKTOP_BRIDGE, useValue: bridge },
             { provide: LoadFilesUseCase, useValue: loadFilesUseCase },
             { provide: ToastService, useValue: toastService },
-            { provide: Router, useValue: router }
+            { provide: Router, useValue: router },
+            ...providers
         ]
     })
     const projects = TestBed.inject(ProjectsService)
