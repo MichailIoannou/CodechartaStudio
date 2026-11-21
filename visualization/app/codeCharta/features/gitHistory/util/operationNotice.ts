@@ -1,18 +1,12 @@
 import type { GitAbortableOperation } from "../../../model/coreApi/GitAbortableOperation"
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
-import type { OperationInProgress } from "../../../model/coreApi/OperationInProgress"
 import { counted, shortSha } from "../../../util/wording"
+import { OPERATION_NAMES } from "./operationNames"
 
 /** Design H6: the lasting notice of an operation git is in the middle of; only a merge or rebase can be aborted here. */
 export interface OperationNotice {
     text: string
     abortable: GitAbortableOperation | null
-}
-
-const TERMINAL_OPERATIONS: Readonly<Record<Exclude<OperationInProgress, GitAbortableOperation>, string>> = {
-    cherryPick: "cherry-pick",
-    revert: "revert",
-    bisect: "bisect"
 }
 
 export function operationNoticeOf(status: GitStatus): OperationNotice | null {
@@ -25,7 +19,7 @@ export function operationNoticeOf(status: GitStatus): OperationNotice | null {
             return { text: rebaseText(status), abortable: "rebase" }
         default:
             return {
-                text: `A ${TERMINAL_OPERATIONS[status.operationInProgress]} is in progress. Finish or abort it in a terminal.`,
+                text: `A ${OPERATION_NAMES[status.operationInProgress]} is in progress. Finish or abort it in a terminal.`,
                 abortable: null
             }
     }

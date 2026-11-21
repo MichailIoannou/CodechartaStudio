@@ -1,6 +1,7 @@
 import type { OperationInProgress } from "../../../model/coreApi/OperationInProgress"
 import { counted } from "../../../util/wording"
 import type { GitError } from "../model/gitError"
+import { OPERATION_NAMES } from "./operationNames"
 
 type ProblemAction = "openDesktopTools" | "relinkFolder" | "workInFolder" | "chooseWorkingFolder"
 
@@ -69,14 +70,6 @@ const MAX_LISTED_FILES = 10
 const IDENTITY_COMMANDS = ['git config --global user.name "Your Name"', 'git config --global user.email "you@example.com"']
 const LISTED_FILE = /^\s+(\S.*)$/
 
-const IN_PROGRESS_NAMES: Record<OperationInProgress, string> = {
-    merge: "merge",
-    rebase: "rebase",
-    cherryPick: "cherry-pick",
-    revert: "revert",
-    bisect: "bisect"
-}
-
 /** Commands the user must run to fix the failure, shown as copy blocks next to its sentence. */
 export function gitErrorCommands(error: GitError): string[] {
     return error.code === "IDENTITY_UNKNOWN" ? [...IDENTITY_COMMANDS] : []
@@ -135,7 +128,7 @@ const CONTEXT_SENTENCES: Partial<Record<GitError["code"], ContextSentence>> = {
     HOOK_FAILED: ({ operation }) => (operation === "commit" ? "A git hook stopped the commit." : null),
     CONFLICTS: conflictsSentence,
     OPERATION_IN_PROGRESS: ({ inProgress }) =>
-        inProgress ? `A ${IN_PROGRESS_NAMES[inProgress]} is in progress. Finish or abort it first.` : null,
+        inProgress ? `A ${OPERATION_NAMES[inProgress]} is in progress. Finish or abort it first.` : null,
     BRANCH_CHECKED_OUT_ELSEWHERE: ({ branch, worktreePath }) =>
         branch && worktreePath ? `'${branch}' is checked out in another worktree (${worktreePath}).` : null,
     BRANCH_EXISTS: ({ branch }) => (branch ? `A branch named '${branch}' already exists.` : null),
