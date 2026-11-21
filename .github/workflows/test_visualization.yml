@@ -214,6 +214,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       working-directory: ./visualization
+      # forks without the secret skip the scan instead of failing every pull request
+      HAS_SONAR_TOKEN: ${{ secrets.SONAR_TOKEN != '' }}
 
     steps:
       - uses: actions/checkout@v6
@@ -225,7 +227,12 @@ jobs:
           name: coverage
           path: ./visualization/dist/
 
+      - name: Note the skipped SonarCloud scan
+        if: env.HAS_SONAR_TOKEN != 'true'
+        run: echo "::notice::SonarCloud scan skipped because this repository has no SONAR_TOKEN secret"
+
       - name: SonarCloud Scan
+        if: env.HAS_SONAR_TOKEN == 'true'
         uses: SonarSource/sonarcloud-github-action@v5.0.0
         with:
           projectBaseDir: ./visualization
