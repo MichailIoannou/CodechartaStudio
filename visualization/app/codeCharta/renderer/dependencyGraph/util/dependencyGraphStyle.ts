@@ -1,27 +1,77 @@
 import { DEPENDENCY_EDGE_TYPES, DependencyEdgeColors, DependencyEdgeType, LineStyleMeaning } from "../../../model/dependencyGraph.model"
+import { activeRenderPalette } from "../../../util/theme/activeTheme"
 import { isDashedEdgeType } from "./lineStyle"
 
-export const TEXT_COLOR = "#1f2937"
-export const SELECTED_COLOR = "#1b9cfc"
-export const HOVERED_COLOR = "#1f2937"
+export function textColor(): string {
+    return activeRenderPalette().dependencyGraph.text
+}
+
+export function selectedColor(): string {
+    return activeRenderPalette().dependencyGraph.selected
+}
+
+export function hoveredColor(): string {
+    return activeRenderPalette().dependencyGraph.hovered
+}
+
+export function folderStroke(): string {
+    return activeRenderPalette().dependencyGraph.folderStroke
+}
+
+export function closedFolderFill(): string {
+    return activeRenderPalette().dependencyGraph.closedFolderFill
+}
+
+export function closedFolderStroke(): string {
+    return activeRenderPalette().dependencyGraph.closedFolderStroke
+}
+
+export function packageStroke(): string {
+    return activeRenderPalette().dependencyGraph.packageStroke
+}
+
+export function closedPackageFill(): string {
+    return activeRenderPalette().dependencyGraph.closedPackageFill
+}
+
+export function closedPackageStroke(): string {
+    return activeRenderPalette().dependencyGraph.closedPackageStroke
+}
+
+export function fileFill(): string {
+    return activeRenderPalette().dependencyGraph.fileFill
+}
+
+export function declarationFill(): string {
+    return activeRenderPalette().dependencyGraph.declarationFill
+}
+
+export function fileStroke(): string {
+    return activeRenderPalette().dependencyGraph.fileStroke
+}
+
+export function openFileFill(): string {
+    return activeRenderPalette().dependencyGraph.openFileFill
+}
+
+export function quietBadgeColor(): string {
+    return activeRenderPalette().dependencyGraph.quietBadge
+}
+
+export function levelSeparatorColor(): string {
+    return activeRenderPalette().dependencyGraph.levelSeparator
+}
+
+export function cycleMarkColor(): string {
+    return activeRenderPalette().dependencyGraph.cycleMark
+}
+
+export function badgeContrastColor(): string {
+    return activeRenderPalette().dependencyGraph.badgeContrast
+}
+
 export const HOVERED_LINE_WIDTH_PX = 2
 export const CORNER_RADIUS_PX = 4
-
-const FOLDER_FILLS_BY_DEPTH = ["#f4f6f9", "#e9edf2", "#dfe5ec", "#d5dce5"]
-export const FOLDER_STROKE = "#b8c2cf"
-export const CLOSED_FOLDER_FILL = "#dbe7f5"
-export const CLOSED_FOLDER_STROKE = "#7a9cc6"
-const PACKAGE_FILLS_BY_DEPTH = ["#f8f6fd", "#f0ecfa", "#e9e3f7", "#e1d9f3"]
-export const PACKAGE_STROKE = "#c6bce2"
-export const CLOSED_PACKAGE_FILL = "#e6e0f7"
-export const CLOSED_PACKAGE_STROKE = "#8f7fc7"
-export const FILE_FILL = "#ffffff"
-export const DECLARATION_FILL = "#f7f9fc"
-export const FILE_STROKE = "#9aa5b4"
-export const OPEN_FILE_FILL = "#fbfcfe"
-export const QUIET_BADGE_COLOR = "#8a94a3"
-export const LEVEL_SEPARATOR_COLOR = "#c3cbd6"
-export const CYCLE_MARK_COLOR = "#dc2626"
 
 export const EDGE_TYPE_LABELS: Record<DependencyEdgeType, string> = {
     regular: "Dependency",
@@ -74,9 +124,13 @@ export function seeThrough(hexColor: string): string {
 }
 
 export function folderFill(depth: number): string {
-    return FOLDER_FILLS_BY_DEPTH[Math.min(depth, FOLDER_FILLS_BY_DEPTH.length - 1)]
+    return fillAtDepth(activeRenderPalette().dependencyGraph.folderFillsByDepth, depth)
 }
 
 export function packageFill(depth: number): string {
-    return PACKAGE_FILLS_BY_DEPTH[Math.min(depth, PACKAGE_FILLS_BY_DEPTH.length - 1)]
+    return fillAtDepth(activeRenderPalette().dependencyGraph.packageFillsByDepth, depth)
+}
+
+function fillAtDepth(fillsByDepth: readonly string[], depth: number): string {
+    return fillsByDepth[Math.min(depth, fillsByDepth.length - 1)]
 }

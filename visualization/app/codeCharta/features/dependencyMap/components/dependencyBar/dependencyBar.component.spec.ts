@@ -361,15 +361,16 @@ describe("DependencyBarComponent", () => {
         expect(screen.getByTestId("dependency-bar-edges-segment").textContent).toContain("All")
     })
 
-    it("should carry the graph view tools in the tab on its edge", async () => {
+    it("should carry the graph view tools in its last cell", async () => {
         // Arrange
         const { fixture } = await renderBar()
 
         // Act
-        const viewTools = fixture.nativeElement.querySelector("cc-bar-tools-tab cc-graph-view-tools")
+        const viewTools = fixture.nativeElement.querySelector("cc-bar-tools-cell cc-graph-view-tools")
 
         // Assert
         expect(viewTools).not.toBeNull()
+        expect(viewTools.parentElement.nextElementSibling).toBeNull()
     })
 
     it("should offer the badges only for a map that tells its declarations, as All while every badge is shown", async () => {

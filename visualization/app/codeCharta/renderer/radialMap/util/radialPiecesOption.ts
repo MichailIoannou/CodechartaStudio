@@ -1,4 +1,5 @@
-import { Border, borderWidthThatFits, pieceAnimation, pieceBorder, WHITE } from "./radialChartStyle"
+import { chartTooltipStyle } from "../../../util/theme/chartTooltipStyle"
+import { Border, borderWidthThatFits, pieceAnimation, pieceBorder } from "./radialChartStyle"
 import { nodeColor } from "./radialColor"
 import { describeNode, RadialDatum } from "./radialDatum"
 import { Frame, fadedElement, shapeElement, TWELVE_O_CLOCK } from "./radialElements"
@@ -7,7 +8,7 @@ import { AnnularSector, PlacedSector, RadialPlacement } from "./radialPlacement"
 import { RadialOptionInputs } from "./radialShape"
 import { buildTooltipFormatter } from "./radialTooltip"
 
-const WEDGE_OUTLINE = { color: WHITE, widthPx: 2.5 }
+const WEDGE_OUTLINE_WIDTH_PX = 2.5
 
 export interface RadialPieceDatum extends RadialDatum {
     id: string
@@ -40,7 +41,7 @@ export function buildRadialPiecesOption(inputs: RadialOptionInputs, placements: 
     return {
         aria: { enabled: true },
         hoverLayerThreshold: NEVER_DRAW_HOVER_ON_ITS_OWN_LAYER,
-        tooltip: { show: true, confine: true, formatter: buildTooltipFormatter(inputs.metrics, inputs) },
+        tooltip: { show: true, confine: true, formatter: buildTooltipFormatter(inputs.metrics, inputs), ...chartTooltipStyle() },
         series: [
             {
                 type: "custom",
@@ -103,8 +104,8 @@ function drawPlacement(placement: RadialPlacement, datum: RadialPieceDatum, canv
 
 function drawSector(sector: PlacedSector, color: string, { frame, border }: Canvas) {
     if (sector.role === "outline") {
-        const lineWidth = borderWidthThatFits(WEDGE_OUTLINE.widthPx, thinnestSidePx(sector, frame))
-        return shapeElement("sector", toScreenShape(sector, frame), { fill: "none", stroke: WEDGE_OUTLINE.color, lineWidth }, false)
+        const lineWidth = borderWidthThatFits(WEDGE_OUTLINE_WIDTH_PX, thinnestSidePx(sector, frame))
+        return shapeElement("sector", toScreenShape(sector, frame), { fill: "none", stroke: border.color, lineWidth }, false)
     }
     if (sector.role === "centre") {
         const shape = { cx: frame.centreX, cy: frame.centreY, r: sector.outerRadius * frame.radiusPx }

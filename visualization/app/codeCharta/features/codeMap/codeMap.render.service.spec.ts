@@ -160,7 +160,8 @@ describe("codeMapRenderService", () => {
             setMapMesh: jest.fn(),
             getMapMesh: jest.fn().mockReturnValue(undefined),
             updateMapMeshInPlace: jest.fn(),
-            recolorMapMesh: jest.fn()
+            recolorMapMesh: jest.fn(),
+            redrawFloorLabels: jest.fn()
         })()
         Object.defineProperty(codeMapRenderService, "threeSceneService", { value: threeSceneService })
     }
@@ -254,6 +255,31 @@ describe("codeMapRenderService", () => {
             // Assert
             expect(codeMapRenderService["setNewMapMesh"]).not.toHaveBeenCalled()
             expect(threeSceneService.recolorMapMesh).toHaveBeenCalled()
+        })
+
+        it("should redraw floor labels without rebuilding the buildings", () => {
+            // Arrange
+            codeMapRenderService.load(map)
+            codeMapRenderService["setNewMapMesh"] = jest.fn()
+
+            // Act
+            codeMapRenderService.load(map, propagate({ colors: true, floorLabels: true }))
+
+            // Assert
+            expect(codeMapRenderService["setNewMapMesh"]).not.toHaveBeenCalled()
+            expect(threeSceneService.recolorMapMesh).toHaveBeenCalled()
+            expect(threeSceneService.redrawFloorLabels).toHaveBeenCalled()
+        })
+
+        it("should leave the floor labels alone when only the colors changed", () => {
+            // Arrange
+            codeMapRenderService.load(map)
+
+            // Act
+            codeMapRenderService.load(map, propagate({ colors: true }))
+
+            // Assert
+            expect(threeSceneService.redrawFloorLabels).not.toHaveBeenCalled()
         })
 
         it("should lay the map out again when the geometry changed", () => {

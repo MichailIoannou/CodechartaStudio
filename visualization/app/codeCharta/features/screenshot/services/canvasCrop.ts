@@ -1,5 +1,7 @@
 import type { Rectangle } from "../../../renderer/dependencyGraph/dependencyGraphRegistry.facade"
 
+const EXPORT_BACKGROUND_PADDING_PX = 16
+
 export function cropTransparentMargins(canvas: HTMLCanvasElement): HTMLCanvasElement {
     const width = canvas.width
     const height = canvas.height
@@ -35,4 +37,19 @@ export function cropToRectangle(canvas: HTMLCanvasElement, { x, y, width, height
     croppedCanvas.height = height
     croppedCanvas.getContext("2d").drawImage(canvas, x, y, width, height, 0, 0, width, height)
     return croppedCanvas
+}
+
+/** Light text on a transparent image cannot be read once pasted on white, so a dark theme lays its export on its surface. */
+export function onExportBackground(canvas: HTMLCanvasElement, background: string | null): HTMLCanvasElement {
+    if (background === null) {
+        return canvas
+    }
+    const framedCanvas = document.createElement("canvas")
+    framedCanvas.width = canvas.width + 2 * EXPORT_BACKGROUND_PADDING_PX
+    framedCanvas.height = canvas.height + 2 * EXPORT_BACKGROUND_PADDING_PX
+    const context = framedCanvas.getContext("2d")
+    context.fillStyle = background
+    context.fillRect(0, 0, framedCanvas.width, framedCanvas.height)
+    context.drawImage(canvas, EXPORT_BACKGROUND_PADDING_PX, EXPORT_BACKGROUND_PADDING_PX)
+    return framedCanvas
 }

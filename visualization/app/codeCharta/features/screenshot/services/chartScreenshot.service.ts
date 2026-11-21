@@ -2,8 +2,9 @@ import { inject, Signal } from "@angular/core"
 import { createPNGFileName } from "../../../model/files/files.helper"
 import { FilesRepo } from "../../../stores/fileStore/fileStore.facade"
 import { ChartRegistry } from "../../../util/chartRegistry"
+import { activeRenderPalette } from "../../../util/theme/activeTheme"
 import { ScreenshotCapture } from "../screenshotCapture"
-import { cropTransparentMargins } from "./canvasCrop"
+import { cropTransparentMargins, onExportBackground } from "./canvasCrop"
 import { checkWriteToClipboardAllowed, setToClipboard } from "./clipboardWriter"
 import { downloadPng } from "./pngScreenshot"
 
@@ -52,6 +53,6 @@ export abstract class ChartScreenshotService implements ScreenshotCapture {
         if (!canvas) {
             throw new Error(`There is no ${this.subject} to capture`)
         }
-        return cropTransparentMargins(canvas)
+        return onExportBackground(cropTransparentMargins(canvas), activeRenderPalette().exportBackground)
     }
 }

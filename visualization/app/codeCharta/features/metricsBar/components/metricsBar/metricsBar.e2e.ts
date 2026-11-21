@@ -10,9 +10,6 @@ test.describe("MetricsBar", () => {
         await goto(page)
         const uploadFilesButton = new NavBarFolderButtonPageObject(page)
         await uploadFilesButton.openFiles(["./app/codeCharta/resources/sample1_with_different_edges.cc.json"])
-        // The metrics bar is centered on the viewport and intentionally sits behind the open explorer,
-        // so collapse the explorer to expose its left-most (area) segment for interaction.
-        await collapseExplorer(page)
     })
 
     test.afterEach(async ({ page }) => {
@@ -59,7 +56,7 @@ test.describe("MetricsBar", () => {
     })
 })
 
-test.describe("MetricsBar layout tab", () => {
+test.describe("MetricsBar layout cell", () => {
     test.beforeEach(async ({ page }) => {
         await goto(page)
     })
@@ -68,7 +65,19 @@ test.describe("MetricsBar layout tab", () => {
         await clearIndexedDB(page)
     })
 
-    test("should switch the map layout and name it on the tab", async ({ page }) => {
+    test("should open the layout picker from the keyboard as well", async ({ page }) => {
+        // Arrange
+        const metricsBar = new MetricsBarPageObject(page)
+        await metricsBar.layoutCell().focus()
+
+        // Act
+        await page.keyboard.press("Enter")
+
+        // Assert
+        await expect(page.getByTestId("metrics-bar-layout-picker")).toBeVisible()
+    })
+
+    test("should switch the map layout and name it on the cell", async ({ page }) => {
         // Arrange
         const metricsBar = new MetricsBarPageObject(page)
         await metricsBar.openLayoutPicker()
@@ -77,7 +86,7 @@ test.describe("MetricsBar layout tab", () => {
         await metricsBar.pickLayout("StreetMap")
 
         // Assert
-        await expect(metricsBar.layoutTab()).toContainText("StreetMap")
+        await expect(metricsBar.layoutCell()).toContainText("StreetMap")
         await expect(page.locator("[data-testid='metrics-bar-layout-picker'] button[data-layout='StreetMap']")).toHaveAttribute(
             "aria-pressed",
             "true"
@@ -128,17 +137,42 @@ test.describe("MetricsBar layout tab", () => {
         await expect(metricsBar.areaMetricSummary()).toContainText(bootMapTotal.toLocaleString("en-US"))
     })
 
-    test("should stay on the bar's top edge without making the bar taller", async ({ page }) => {
+    test("should sit inside the bar, with nothing sticking out of it", async ({ page }) => {
         // Arrange
         const metricsBar = new MetricsBarPageObject(page)
         const bar = await boundingBoxOf(page.locator("cc-metrics-bar"))
 
         // Act
-        const tab = await boundingBoxOf(metricsBar.layoutTab())
+        const cells = await Promise.all([metricsBar.layoutCell(), metricsBar.viewTools()].map(boundingBoxOf))
 
         // Assert
-        expect(tab.y + tab.height).toBeCloseTo(bar.y + 1, 0)
-        expect(tab.x).toBeGreaterThan(bar.x)
+        for (const cell of cells) {
+            expect(isInside(cell, bar)).toBe(true)
+        }
+    })
+})
+
+test.describe("MetricsBar legend tool", () => {
+    test.beforeEach(async ({ page }) => {
+        await goto(page)
+    })
+
+    test.afterEach(async ({ page }) => {
+        await clearIndexedDB(page)
+    })
+
+    test("should open the legend from the bar and close it again", async ({ page }) => {
+        // Arrange
+        const metricsBar = new MetricsBarPageObject(page)
+        await metricsBar.legendTool().click()
+        await expect(page.getByTestId("legend-panel")).toBeVisible()
+
+        // Act
+        await metricsBar.legendTool().click()
+
+        // Assert
+        await expect(page.getByTestId("legend-panel")).toHaveCount(0)
+        await expect(metricsBar.legendTool()).toHaveAttribute("aria-expanded", "false")
     })
 })
 
@@ -151,20 +185,33 @@ test.describe("MetricsBar beside the explorer", () => {
         await clearIndexedDB(page)
     })
 
-    test("should stay in place under the open explorer and be fully visible once it is collapsed", async ({ page }) => {
+    test("should centre in the space beside the open explorer, and on the window once it is collapsed", async ({ page }) => {
         // Arrange
         const explorer = page.locator("cc-sidebar-explorer")
         const bar = page.locator("cc-metrics-bar")
-        const barWhileExplorerIsOpen = await boundingBoxOf(bar)
-        expect(overlaps(await boundingBoxOf(explorer), barWhileExplorerIsOpen)).toBe(true)
+        const viewportWidth = page.viewportSize().width
+        const explorerRight = await boundingBoxOf(explorer).then(box => box.x + box.width)
+        await expect
+            .poll(async () => centreOf(await boundingBoxOf(bar)), { timeout: 5000 })
+            .toBeCloseTo((explorerRight + viewportWidth) / 2, -1)
+        expect(overlaps(await boundingBoxOf(explorer), await boundingBoxOf(bar))).toBe(false)
 
         // Act
         await collapseExplorer(page)
 
         // Assert
-        const barWhileExplorerIsCollapsed = await boundingBoxOf(bar)
-        expect(barWhileExplorerIsCollapsed).toEqual(barWhileExplorerIsOpen)
-        expect(overlaps(await boundingBoxOf(explorer), barWhileExplorerIsCollapsed)).toBe(false)
+        await expect.poll(async () => centreOf(await boundingBoxOf(bar)), { timeout: 5000 }).toBeCloseTo(viewportWidth / 2, -1)
+    })
+
+    test("should be clickable from its first cell with the explorer open", async ({ page }) => {
+        // Arrange
+        const metricsBar = new MetricsBarPageObject(page)
+
+        // Act
+        await metricsBar.openLayoutPicker()
+
+        // Assert
+        await expect(page.getByTestId("metrics-bar-layout-picker")).toBeVisible()
     })
 })
 
@@ -176,6 +223,16 @@ async function boundingBoxOf(locator: Locator): Promise<Box> {
         throw new Error("The element has not been laid out")
     }
     return box
+}
+
+function centreOf(box: Box) {
+    return box.x + box.width / 2
+}
+
+function isInside(inner: Box, outer: Box) {
+    const isInsideHorizontally = inner.x >= outer.x && inner.x + inner.width <= outer.x + outer.width
+    const isInsideVertically = inner.y >= outer.y && inner.y + inner.height <= outer.y + outer.height
+    return isInsideHorizontally && isInsideVertically
 }
 
 function overlaps(first: Box, second: Box) {

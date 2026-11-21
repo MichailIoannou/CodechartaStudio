@@ -8,6 +8,7 @@ const {
     isTrustedSender,
     isReadableMapPath,
     isValidOperationId,
+    isColorScheme,
     isWindowBackgroundColor,
     judgeNavigation,
     planCoreRestart,
@@ -333,6 +334,17 @@ describe("shell actions", () => {
 
         // Assert
         assert.deepEqual(verdicts, [true, true, false, false, false, false, false, false])
+    })
+
+    test("should accept only the three colour schemes", () => {
+        // Arrange
+        const schemes = ["light", "dark", "system", "Dark", "sepia", "", null, 1]
+
+        // Act
+        const verdicts = schemes.map(isColorScheme)
+
+        // Assert
+        assert.deepEqual(verdicts, [true, true, true, false, false, false, false, false])
     })
 
     test("should keep only well-formed picker titles and filters", () => {

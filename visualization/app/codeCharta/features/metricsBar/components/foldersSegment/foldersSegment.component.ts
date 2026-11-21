@@ -3,7 +3,7 @@ import { toSignal } from "@angular/core/rxjs-interop"
 import { RadialFolderStyle, RadialFolderValue } from "../../../../model/codeCharta.model"
 import { MapStateReadWindow } from "../../../../stores/mapState/mapState.read.facade"
 import { PreferencesReadWindow } from "../../../../stores/preferences/preferences.read.facade"
-import { describeRadialFolderValue } from "../../../../util/radialFolderValues"
+import { describeRadialFolderValue, folderSwatchBackground } from "../../../../util/radialFolderValues"
 import { AxisCardComponent } from "../../../shared/facade"
 import { MetricsBarWriteStore } from "../../stores/metricsBar.write.store"
 import { FolderStylePopoverComponent } from "../folderStylePopover/folderStylePopover.component"
@@ -32,8 +32,16 @@ export class FoldersSegmentComponent {
     readonly isNeutral = toSignal(this.preferencesReadWindow.isRadialFolderNeutral$, { requireSync: true })
     private readonly tint = toSignal(this.preferencesReadWindow.radialFolderTint$, { requireSync: true })
     readonly colorMetric = toSignal(this.mapStateReadWindow.colorMetric$, { requireSync: true })
-    readonly swatch = toSignal(this.preferencesReadWindow.radialFolderSwatch$, { requireSync: true })
-    readonly tintedSwatch = toSignal(this.preferencesReadWindow.radialTintedFolderSwatch$, { requireSync: true })
+    private readonly swatchInputs = toSignal(this.preferencesReadWindow.radialFolderSwatchInputs$, { requireSync: true })
+
+    readonly swatch = computed(() => {
+        const { mapColors, style, tint } = this.swatchInputs()
+        return folderSwatchBackground(mapColors, style, tint)
+    })
+    readonly tintedSwatch = computed(() => {
+        const { mapColors, tint } = this.swatchInputs()
+        return folderSwatchBackground(mapColors, RadialFolderStyle.Tinted, tint)
+    })
 
     readonly tintPercent = computed(() => Math.round(this.tint() * PERCENT))
     readonly valueLabel = computed(() => describeRadialFolderValue(this.folderValue()).label)

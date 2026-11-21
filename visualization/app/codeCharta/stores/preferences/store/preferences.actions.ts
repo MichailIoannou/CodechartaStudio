@@ -14,6 +14,7 @@ import { setRadialFolderValue } from "./radialFolderValue/radialFolderValue.acti
 import { setRadialLevels } from "./radialLevels/radialLevels.actions"
 import { setResetCameraIfNewFileIsLoaded } from "./resetCameraIfNewFileIsLoaded/resetCameraIfNewFileIsLoaded.actions"
 import { setSortingOption, toggleSortingOrderAscending } from "./sorting/sorting.actions"
+import { setThemePreference } from "./theme/theme.actions"
 
 // The durable-preference actions that trigger a CcState save (consumed by actionsRequiringSaveCcState).
 export const preferencesActions = [
@@ -24,6 +25,7 @@ export const preferencesActions = [
     setMaxTreeMapFiles,
     setScreenshotToClipboardEnabled,
     setLocalSourceEnabled,
+    setThemePreference,
     setIsColorMetricLinkedToHeightMetricAction,
     toggleIsColorMetricLinkedToHeightMetric,
     setSortingOption,

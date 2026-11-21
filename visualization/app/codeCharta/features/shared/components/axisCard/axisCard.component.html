@@ -16,7 +16,7 @@
         @if (metricName(); as name) {
             <div
                 [class.opacity-50]="disabled() || dimmed()"
-                class="text-sm font-semibold leading-tight text-center whitespace-nowrap overflow-hidden text-ellipsis"
+                class="truncate text-center text-sm font-semibold leading-tight"
             >
                 {{ name }}
             </div>

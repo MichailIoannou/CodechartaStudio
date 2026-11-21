@@ -1,5 +1,8 @@
 import { MeshLambertMaterial } from "three"
+import { activeRenderPalette } from "../../util/theme/activeTheme"
 
-export const getBaseMaterialEdge = () => new MeshLambertMaterial({ color: 0xfc_fd_ff })
-export const getBaseMaterialFace = () => new MeshLambertMaterial({ color: 0xfc_fd_ff })
-export const getBaseMaterialVertices = () => new MeshLambertMaterial({ color: 0xfc_fd_ff })
+const themedCubeMaterial = () => new MeshLambertMaterial({ color: activeRenderPalette().viewCube.face })
+
+export const getBaseMaterialEdge = themedCubeMaterial
+export const getBaseMaterialFace = themedCubeMaterial
+export const getBaseMaterialVertices = themedCubeMaterial

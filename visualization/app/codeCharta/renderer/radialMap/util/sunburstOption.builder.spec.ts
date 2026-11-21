@@ -1,3 +1,5 @@
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { themeById } from "../../../util/theme/themes"
 import { fileNode, folderNode, TEST_COLORING } from "../testing/radialChart.stub"
 import { RadialPieceDatum } from "./radialPiecesOption"
 import { RadialOptionInputs } from "./radialShape"
@@ -94,5 +96,28 @@ describe("buildSunburstOption", () => {
         // Assert
         expect(huge.style).toMatchObject({ stroke: "#ffffff", lineWidth: 1 })
         expect(tiny.style.stroke).toBe(tiny.style.fill)
+    })
+
+    it("should style the tooltip with the theme", () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+
+        // Act
+        const { tooltip } = buildSunburstOption(inputs(TREE), 3)
+
+        // Assert
+        expect(tooltip).toMatchObject({ backgroundColor: "#262c34", borderColor: "#3a424d", textStyle: { color: "#e6e9ee" } })
+    })
+
+    it("should outline segments in the theme surface", () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+        const { drawItem } = drawn(TREE)
+
+        // Act
+        const [segment] = drawItem("/root/src").children
+
+        // Assert
+        expect(segment.style.stroke).toBe("#1e2329")
     })
 })

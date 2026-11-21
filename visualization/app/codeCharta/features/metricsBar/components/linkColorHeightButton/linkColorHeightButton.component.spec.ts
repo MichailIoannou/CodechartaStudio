@@ -87,4 +87,24 @@ describe("LinkColorHeightButtonComponent", () => {
         expect(container.querySelector("i.fa.fa-unlink")).not.toBeNull()
         expect(container.querySelector("i.fa.fa-link")).toBeNull()
     })
+
+    it("should be a filled square while linked", async () => {
+        // Act
+        await setup(true)
+
+        // Assert
+        const button = screen.getByTestId("metric-link-button")
+        expect(button.classList).toContain("btn-square")
+        expect(button.classList).toContain("btn-soft")
+    })
+
+    it("should be a square with a dashed outline while unlinked", async () => {
+        // Act
+        await setup(false)
+
+        // Assert
+        const button = screen.getByTestId("metric-link-button")
+        expect(button.classList).toContain("btn-square")
+        expect(button.classList).toContain("border-dashed")
+    })
 })

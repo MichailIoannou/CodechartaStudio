@@ -1,5 +1,7 @@
 import { DomainWord } from "../../../model/codeCharta.model"
 import { defaultWordCloudSettings, WordCloudSettings, WordCloudShape, WordCloudSizingMode } from "../../../model/wordCloud.model"
+import { setActiveTheme } from "../../../util/theme/activeTheme"
+import { themeById } from "../../../util/theme/themes"
 import { buildWordCloudOption } from "./wordCloudOption.builder"
 
 jest.mock("./color.util", () => ({
@@ -13,6 +15,18 @@ describe("buildWordCloudOption", () => {
     function settings(overrides: Partial<WordCloudSettings> = {}): WordCloudSettings {
         return { ...defaultWordCloudSettings, ...overrides }
     }
+
+    it("should cast the shadow of the hovered word in the color of the theme", () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+        const words: DomainWord[] = [{ text: "invoice", frequency: 12 }]
+
+        // Act
+        const option = buildWordCloudOption(words, settings(), context)
+
+        // Assert
+        expect(option.series[0].emphasis.textStyle.textShadowColor).toBe("#000000")
+    })
 
     it("should map each word to an ECharts datum keyed by text and frequency", () => {
         // Arrange
@@ -208,6 +222,17 @@ describe("buildWordCloudOption", () => {
         // Assert
         expect(option.aria.enabled).toBe(true)
         expect(option.tooltip.show).toBe(true)
+    })
+
+    it("should style the tooltip with the theme", () => {
+        // Arrange
+        setActiveTheme(themeById("cc-dark"))
+
+        // Act
+        const option = buildWordCloudOption([{ text: "invoice", frequency: 12 }], settings(), context)
+
+        // Assert
+        expect(option.tooltip).toMatchObject({ backgroundColor: "#262c34", borderColor: "#3a424d", textStyle: { color: "#e6e9ee" } })
     })
 
     it("should report both metrics in the tooltip, with the word emphasized", () => {

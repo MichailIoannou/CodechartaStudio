@@ -1,6 +1,7 @@
 import { Injectable } from "@angular/core"
-import { BufferAttribute, BufferGeometry, LineBasicMaterial, LineSegments, Vector3 } from "three"
+import { BufferAttribute, BufferGeometry, Color, LineBasicMaterial, LineSegments, Vector3 } from "three"
 import { ThreeRendererService, ThreeSceneService } from "../../../renderer/threeViewer/threeViewer.facade"
+import { activeRenderPalette } from "../../../util/theme/activeTheme"
 import { BASE_OFFSET_PX, MAX_CONNECTORS, MAX_DISPLACEMENT_PX, MIN_CONNECTOR_DISTANCE } from "./label.constants"
 import { InternalLabel } from "./labelCreation.service"
 
@@ -128,7 +129,7 @@ export class ConnectorDrawingService {
         geometry.setDrawRange(0, 0)
 
         const material = new LineBasicMaterial({
-            color: 0xb4_b4_b4,
+            color: new Color(activeRenderPalette().map.connector),
             transparent: true,
             opacity: 0.9,
             depthTest: true

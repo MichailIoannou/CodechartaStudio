@@ -9,11 +9,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ### Added 🚀
 
+- **Color themes**: CodeCharta now starts in a dark theme, and the settings offer CodeCharta Light, Nord, One Dark, VS Dark, VS Light, Darcula, Rider Day or Follow system; the whole app, from the 3D map and radial layouts to the word cloud, Dependencies view and screenshots, follows the chosen theme, and in the desktop app so do the window and its title bar.
 - **Desktop tools check**: the settings of the desktop app show whether git, ccsh, Java and the GitHub and GitLab command lines were found and in which version, and let you pick another executable.
 
 ### Changed
 
 - **One desktop window**: starting the desktop app a second time brings the running window to the front instead of opening another one.
+- **Refreshed metrics bar**: the bar under the map is one rounded panel that holds the layout picker, the metric controls, the view tools and a Legend button, with nothing sticking out of it.
+- **Bars beside the side panels**: the bar under the map, the word cloud or the dependency graph centres in the space the open explorer and inspector leave free, so its controls stay within reach.
+- **Blended file extension bar**: neighbouring colours in the file extension bar fade into each other instead of meeting at a hard edge with a white gap.
+- **Messages below the nav bar**: messages appear at the top right just below the nav bar instead of covering Settings.
 
 ## [2.11.0] - 2026-11-10
 

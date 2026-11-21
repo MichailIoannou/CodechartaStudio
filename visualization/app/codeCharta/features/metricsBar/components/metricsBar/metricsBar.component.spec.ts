@@ -43,7 +43,7 @@ describe("MetricsBarComponent", () => {
         return render(MetricsBarComponent, { providers: barProviders(options) })
     }
 
-    it("should carry the tools it is given in the tab on its edge", async () => {
+    it("should carry the tools it is given in its last cell, after a divider", async () => {
         // Act
         const { container } = await render('<cc-metrics-bar><button type="button" barTools>Center map</button></cc-metrics-bar>', {
             imports: [MetricsBarComponent],
@@ -51,7 +51,18 @@ describe("MetricsBarComponent", () => {
         })
 
         // Assert
-        expect(container.querySelector("cc-bar-tools-tab").textContent).toContain("Center map")
+        const toolsCell = container.querySelector("cc-metrics-bar > cc-bar-tools-cell")
+        expect(toolsCell.textContent).toContain("Center map")
+        expect(toolsCell.nextElementSibling).toBeNull()
+        expect(toolsCell.previousElementSibling.tagName).toBe("CC-BAR-DIVIDER")
+    })
+
+    it("should open with the layout cell, inside the bar", async () => {
+        // Act
+        const { fixture } = await setup()
+
+        // Assert
+        expect(fixture.nativeElement.firstElementChild.tagName).toBe("CC-LAYOUT-CELL")
     })
 
     it("should render scenario, area, height, color and labels segments by default", async () => {
@@ -63,7 +74,7 @@ describe("MetricsBarComponent", () => {
         expect(screen.getByTestId("metric-segment-color")).not.toBeNull()
         expect(screen.getByTestId("metric-segment-labels")).not.toBeNull()
         expect(screen.queryByTestId("metric-segment-edges")).toBeNull()
-        expect(screen.getByTestId("metrics-bar-layout-tab")).not.toBeNull()
+        expect(screen.getByTestId("metrics-bar-layout-cell")).not.toBeNull()
     })
 
     it("should leave out height, edges and labels while the sunburst is shown", async () => {
@@ -103,12 +114,12 @@ describe("MetricsBarComponent", () => {
         expect(screen.queryByTestId("metric-segment-folders")).toBeNull()
     })
 
-    it("should keep the layout tab on the bar while the sunburst is shown", async () => {
+    it("should keep the layout cell on the bar while the sunburst is shown", async () => {
         // Arrange & Act
         await setup({ isRadialLayout: true })
 
         // Assert
-        expect(screen.getByTestId("metrics-bar-layout-tab")).not.toBeNull()
+        expect(screen.getByTestId("metrics-bar-layout-cell")).not.toBeNull()
     })
 
     it("should swap color metric segment for color settings segment in delta state", async () => {

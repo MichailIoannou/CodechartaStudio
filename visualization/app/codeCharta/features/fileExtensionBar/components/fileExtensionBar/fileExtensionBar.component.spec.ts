@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing"
-import { provideMockStore } from "@ngrx/store/testing"
+import { By } from "@angular/platform-browser"
+import { MockStore, provideMockStore } from "@ngrx/store/testing"
 import { screen, waitFor } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import { provideMockState } from "../../../../mocks/state.mocks"
@@ -13,6 +14,7 @@ import { selectedNodePathSelector } from "../../../../stores/sharedView/store/se
 import { CategorizedMetricDistribution } from "../../../../util/fileExtension/fileExtensionCalculator"
 import { hoveredNodeMetricDistributionSelector } from "../../selectors/hoveredNodeMetricDistribution.selector"
 import { metricDistributionSelector } from "../../selectors/metricDistribution.selector"
+import { FileExtensionBarSegmentComponent } from "../fileExtensionBarSegment/fileExtensionBarSegment.component"
 import { FileExtensionBarComponent } from "./fileExtensionBar.component"
 
 describe("FileExtensionBarComponent", () => {
@@ -99,6 +101,35 @@ describe("FileExtensionBarComponent", () => {
 
         await waitFor(() => expect(screen.queryByText(relativeValue)).toBeFalsy())
         await waitFor(() => expect(screen.getByText(absoluteValue)).toBeTruthy())
+    })
+
+    it("should hand each segment the colours of its visible neighbours, none beyond the ends", () => {
+        // Arrange
+        const store = TestBed.inject(MockStore)
+        store.overrideSelector(hoveredNodeMetricDistributionSelector, {
+            none: [],
+            visible: [
+                { fileExtension: "kt", absoluteMetricValue: 3, relativeMetricValue: 50, color: "#4ea8de" },
+                { fileExtension: "scss", absoluteMetricValue: 2, relativeMetricValue: 30, color: "#e07a3f" },
+                { fileExtension: "ts", absoluteMetricValue: 1, relativeMetricValue: 20, color: "#6cc24a" }
+            ],
+            others: []
+        })
+
+        // Act
+        store.refreshState()
+        fixture.detectChanges()
+
+        // Assert
+        const neighbours = fixture.debugElement
+            .queryAll(By.directive(FileExtensionBarSegmentComponent))
+            .map(segment => segment.componentInstance as FileExtensionBarSegmentComponent)
+            .map(segment => [segment.previousColor(), segment.nextColor()])
+        expect(neighbours).toEqual([
+            [null, "#e07a3f"],
+            ["#4ea8de", "#6cc24a"],
+            ["#e07a3f", null]
+        ])
     })
 
     describe("Hover", () => {

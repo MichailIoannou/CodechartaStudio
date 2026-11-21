@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, inject, viewChild } from "@angular/core"
-import { ColumnResizeHandleDirective } from "../../../shared/facade"
+import { ColumnResizeHandleDirective, PANEL_ISLAND_MARGIN_PX, publishBarInset } from "../../../shared/facade"
 import { EXPLORER_CAPABILITIES } from "../../explorerCapabilities"
 import { EXPLORER_METRIC_RULES } from "../../explorerMetricRules.port"
 import { ExplorerCollapseService } from "../../services/explorerCollapse.service"
@@ -31,13 +31,12 @@ export const COLLAPSED_STRIP_WIDTH_PX = 300
         RulesPopoverComponent
     ],
     host: {
-        class: "fixed left-0 z-[60] bg-base-100 flex flex-col shadow-[2px_0_8px_-2px_rgba(0,0,0,0.15)]",
+        class: "fixed left-0 z-[60] m-1.5 rounded-[10px] bg-base-100 flex flex-col shadow-lg",
         "[class.overflow-hidden]": "!isCollapsed()",
-        "[class.rounded-br-md]": "isCollapsed()",
         "[style.width.px]": "displayWidth()",
         "[style.top]": "'var(--cc-bars-height, 49px)'",
         "[style.height]":
-            "isCollapsed() ? 'auto' : 'calc(100vh - var(--cc-bars-height, 49px) - var(--cc-file-extension-bar-height, 0px) - var(--cc-bottom-bar-height, 32px))'"
+            "isCollapsed() ? 'auto' : 'calc(100vh - var(--cc-bars-height, 49px) - var(--cc-file-extension-bar-height, 0px) - var(--cc-bottom-bar-height, 32px) - 0.75rem)'"
     }
 })
 export class SidebarExplorerComponent {
@@ -61,6 +60,7 @@ export class SidebarExplorerComponent {
 
     constructor() {
         effect(() => this.scrollHostService.register(this.scrollHost()?.nativeElement ?? null))
+        publishBarInset("left", () => (this.isCollapsed() ? "0px" : `${this.width() + PANEL_ISLAND_MARGIN_PX}px`))
     }
 
     toggle() {

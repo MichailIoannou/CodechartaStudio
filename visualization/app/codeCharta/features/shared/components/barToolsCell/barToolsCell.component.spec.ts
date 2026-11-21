@@ -1,11 +1,11 @@
 import { render, screen } from "@testing-library/angular"
-import { BarToolsTabComponent } from "./barToolsTab.component"
+import { BarToolsCellComponent } from "./barToolsCell.component"
 
-describe("BarToolsTabComponent", () => {
+describe("BarToolsCellComponent", () => {
     it("should group the tools it is given into one toolbar", async () => {
         // Act
-        await render('<cc-bar-tools-tab><button type="button">Screenshot</button></cc-bar-tools-tab>', {
-            imports: [BarToolsTabComponent]
+        await render('<cc-bar-tools-cell><button type="button">Screenshot</button></cc-bar-tools-cell>', {
+            imports: [BarToolsCellComponent]
         })
 
         // Assert

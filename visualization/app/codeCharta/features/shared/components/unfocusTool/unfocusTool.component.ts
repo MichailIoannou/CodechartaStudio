@@ -14,7 +14,7 @@ import { BarToolComponent } from "../barTool/barTool.component"
     ></cc-bar-tool>`,
     imports: [BarToolComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: "contents" }
+    host: { class: "contents", "[attr.data-revealed]": "isFocused() ? '' : null" }
 })
 export class UnfocusToolComponent {
     readonly isFocused = input.required<boolean>()

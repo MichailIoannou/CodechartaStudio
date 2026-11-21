@@ -1,6 +1,9 @@
-import { Color, Mesh, PerspectiveCamera, Vector3, WebGLRenderer } from "three"
+import { TestBed } from "@angular/core/testing"
+import { Color, Mesh, MeshLambertMaterial, PerspectiveCamera, Scene, Vector3, WebGLRenderer } from "three"
 import { MapControls } from "three/addons/controls/MapControls.js"
 import { ThreeCameraService, ThreeMapControlsService } from "../../renderer/threeViewer/threeViewer.facade"
+import { setActiveTheme } from "../../util/theme/activeTheme"
+import { resolveTheme } from "../../util/theme/resolveTheme"
 import { ViewCubeComponent } from "./viewCube.component"
 import { ViewCubeMouseEventsService } from "./viewCube.mouseEvents.service"
 
@@ -18,7 +21,44 @@ describe("ViewCubeComponent", () => {
         ViewCubeComponent.prototype["initRenderer"] = jest.fn()
         ViewCubeComponent.prototype["onAnimationFrame"] = jest.fn()
         const elementReference = { nativeElement: {} as HTMLElement }
-        viewCubeComponent = new ViewCubeComponent(elementReference, threeMapControlsService, viewCubeMouseEventsService)
+        viewCubeComponent = TestBed.runInInjectionContext(
+            () => new ViewCubeComponent(elementReference, threeMapControlsService, viewCubeMouseEventsService)
+        )
+    })
+
+    describe("theme", () => {
+        it("should recolor the cube when the theme changes", () => {
+            // Arrange
+            const render = jest.fn()
+            viewCubeComponent["renderer"] = { render } as unknown as WebGLRenderer
+            viewCubeComponent["scene"] = new Scene()
+            viewCubeComponent["initCube"]()
+            TestBed.tick()
+            render.mockClear()
+
+            // Act
+            setActiveTheme(resolveTheme("cc-dark", "light"))
+            TestBed.tick()
+
+            // Assert
+            const face = viewCubeComponent["cubeDefinition"].top.front.center as Mesh<never, MeshLambertMaterial>
+            expect(`#${face.material.color.getHexString()}`).toBe("#3a424d")
+            expect(`#${viewCubeComponent["cubeBoundingBox"].material.color.getHexString()}`).toBe("#c9ced6")
+            expect(render).toHaveBeenCalled()
+        })
+
+        it("should not touch the cube before it was built", () => {
+            // Arrange
+            const render = jest.fn()
+            viewCubeComponent["renderer"] = { render } as unknown as WebGLRenderer
+
+            // Act
+            setActiveTheme(resolveTheme("cc-dark", "light"))
+            TestBed.tick()
+
+            // Assert
+            expect(render).not.toHaveBeenCalled()
+        })
     })
 
     describe("onCameraChanged", () => {

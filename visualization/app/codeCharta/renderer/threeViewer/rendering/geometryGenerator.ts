@@ -1,6 +1,7 @@
 import { Box3, InstancedBufferAttribute, InstancedMesh, Material, Matrix4, Vector3 } from "three"
 import { CcState, Node } from "../../../model/codeCharta.model"
 import { ColorConverter } from "../../../util/color/colorConverter"
+import { activeRenderPalette } from "../../../util/theme/activeTheme"
 import { treeMapSize } from "../algorithm/treeMapLayout/treeMapHelper"
 import { CodeMapBuilding } from "./codeMapBuilding"
 import { CodeMapGeometricDescription } from "./codeMapGeometricDescription"
@@ -38,7 +39,7 @@ export class GeometryGenerator {
     private floorGradient: string[]
 
     build(nodes: Node[], material: Material, state: CcState, isDeltaState: boolean): BuildResult {
-        this.floorGradient = ColorConverter.gradient("#333333", "#DDDDDD", this.getMaxNodeDepth(nodes))
+        this.floorGradient = this.floorGradientFor(nodes)
 
         const count = nodes.length
         const templateGeometry = createTemplateBoxGeometry()
@@ -71,6 +72,11 @@ export class GeometryGenerator {
         return { mesh: ctx.mesh, desc: ctx.desc }
     }
 
+    private floorGradientFor(nodes: Node[]) {
+        const { root, deepest } = activeRenderPalette().map.floorGradient
+        return ColorConverter.gradient(root, deepest, this.getMaxNodeDepth(nodes))
+    }
+
     private getMaxNodeDepth(nodes: Node[]) {
         return nodes.reduce((max, { depth }) => Math.max(depth, max), 0)
     }
@@ -96,7 +102,7 @@ export class GeometryGenerator {
      * `CodeMapMesh.canUpdateInPlace` is the caller's check.
      */
     update(nodes: Node[], mesh: InstancedMesh, desc: CodeMapGeometricDescription, state: CcState, isDeltaState: boolean) {
-        this.floorGradient = ColorConverter.gradient("#333333", "#DDDDDD", this.getMaxNodeDepth(nodes))
+        this.floorGradient = this.floorGradientFor(nodes)
 
         const { geometry } = mesh
         const ctx: BuildContext = {
@@ -132,7 +138,7 @@ export class GeometryGenerator {
 
     /** Repaint buildings the last `build()` produced, for a change that moved none of them. */
     recolorBuildings(nodes: Node[], buildings: CodeMapBuilding[]) {
-        this.floorGradient = ColorConverter.gradient("#333333", "#DDDDDD", this.getMaxNodeDepth(nodes))
+        this.floorGradient = this.floorGradientFor(nodes)
         for (const building of buildings) {
             building.resetDefaultColor(this.colorForNode(nodes[building.id]))
         }

@@ -5,6 +5,8 @@ import { BehaviorSubject } from "rxjs"
 import { DomainWord } from "../../../../model/codeCharta.model"
 import { defaultWordCloudSettings, WordCloudSettings, WordCloudShape, WordCloudSizingMode } from "../../../../model/wordCloud.model"
 import { ViewReadinessStore } from "../../../../routing/viewReadiness.store"
+import { setActiveTheme } from "../../../../util/theme/activeTheme"
+import { themeById } from "../../../../util/theme/themes"
 import { WordCloudReadStore } from "../../stores/wordCloud.read.store"
 import { WORD_CLOUD_M_MASK_DATA_URI } from "../../util/wordCloudMask"
 import { WordCloudComponent } from "./wordCloud.component"
@@ -342,6 +344,22 @@ describe("WordCloudComponent", () => {
 
         // Assert — the canvas still holds that exact cloud, so a fresh layout would only replay the animation
         expect(mockChart.setOption).not.toHaveBeenCalled()
+    })
+
+    it("should draw the cloud again when the theme changes", async () => {
+        // Arrange
+        const { fixture } = await setup()
+        await settle()
+        jest.clearAllMocks()
+
+        // Act
+        setActiveTheme(themeById("cc-dark"))
+        fixture.detectChanges()
+        await settle()
+
+        // Assert
+        expect(mockChart.setOption).toHaveBeenCalledTimes(1)
+        expect(mockChart.setOption.mock.calls[0][0].series[0].data[0].textStyle.color).not.toBe("#e6007e")
     })
 
     it("should lay the cloud out on the way back when the view was left before the layout ran", async () => {

@@ -1,12 +1,17 @@
 import { NgTemplateOutlet } from "@angular/common"
 import { ChangeDetectionStrategy, Component, computed, input } from "@angular/core"
+import { injectIsAnyPopoverOpen } from "../../util/injectIsAnyPopoverOpen"
+import { BAR_CELL_CLASSES, openBarCellClasses } from "../barShell/barCell"
 import { AxisCardHeaderComponent } from "./axisCardHeader.component"
 
 @Component({
     selector: "cc-axis-card",
     templateUrl: "./axisCard.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: "group flex flex-col items-stretch px-3 py-2 transition-colors relative" },
+    host: {
+        class: `group relative flex min-w-0 flex-col items-stretch ${BAR_CELL_CLASSES}`,
+        "[class]": "openClasses()"
+    },
     imports: [NgTemplateOutlet, AxisCardHeaderComponent]
 })
 export class AxisCardComponent {
@@ -21,9 +26,12 @@ export class AxisCardComponent {
     readonly dimmed = input(false)
     readonly testId = input<string | null>(null)
     readonly cogTestId = input<string | null>(null)
-    readonly minWidthClass = input("min-w-[120px]")
+    readonly minWidthClass = input("")
 
-    readonly cardClasses = "flex flex-col items-stretch gap-1.5 px-2 py-1 rounded-md transition-colors max-w-[180px] min-w-0"
+    readonly cardClasses = "flex flex-col items-stretch gap-1 max-w-[180px] min-w-0"
+
+    private readonly isPopoverOpen = injectIsAnyPopoverOpen(() => [this.cogPopoverId(), this.searchPopoverId()])
+    protected readonly openClasses = computed(() => openBarCellClasses(this.isPopoverOpen()))
 
     readonly bodyAnchorStyle = computed(() => {
         const anchor = this.searchAnchorName()
@@ -31,11 +39,11 @@ export class AxisCardComponent {
     })
 
     readonly contentButtonClasses = computed(() => {
-        const classes = ["flex", "flex-col", "items-stretch", "gap-1", "bg-transparent", "border-0", "p-0", "rounded-sm", "text-current"]
+        const classes = ["flex", "flex-col", "items-stretch", "gap-1", "bg-transparent", "border-0", "p-0", "text-current"]
         if (this.disabled()) {
             classes.push("cursor-default")
         } else {
-            classes.push("cursor-pointer", "hover:bg-base-200")
+            classes.push("cursor-pointer")
         }
         return classes.join(" ")
     })

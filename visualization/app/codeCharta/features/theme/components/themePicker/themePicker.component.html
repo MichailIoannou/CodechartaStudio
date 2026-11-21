@@ -1,0 +1,21 @@
+<div class="grid grid-cols-[auto_auto] items-center justify-start gap-x-4 gap-y-1">
+    <label class="label justify-start" for="theme-picker-select">
+        <span class="label-text">Theme</span>
+    </label>
+    <select id="theme-picker-select" class="select select-bordered select-sm w-56" data-testid="theme-picker" (change)="pick($event)">
+        <optgroup label="Dark">
+            @for (theme of darkThemes; track theme.id) {
+                <option [value]="theme.id" [selected]="theme.id === selected()">{{ theme.label }}</option>
+            }
+        </optgroup>
+        <optgroup label="Light">
+            @for (theme of lightThemes; track theme.id) {
+                <option [value]="theme.id" [selected]="theme.id === selected()">{{ theme.label }}</option>
+            }
+        </optgroup>
+        <option [value]="systemTheme" [selected]="isFollowingSystem()">Follow system</option>
+    </select>
+    @if (isFollowingSystem()) {
+        <p class="col-start-2 text-xs text-base-content/70" data-testid="theme-picker-current">Currently: {{ activeTheme().label }}</p>
+    }
+</div>

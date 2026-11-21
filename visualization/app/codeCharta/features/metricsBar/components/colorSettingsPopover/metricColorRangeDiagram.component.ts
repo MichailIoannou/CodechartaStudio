@@ -18,6 +18,8 @@ type LineElement = d3.Selection<SVGLineElement, unknown, HTMLElement, any>
 type RectElement = d3.Selection<SVGRectElement, unknown, HTMLElement, any>
 type Scale = d3.ScaleLinear<number, number>
 
+const BASE_CONTENT_COLOR = "var(--color-base-content)"
+
 @Component({
     selector: "cc-metric-color-range-diagram",
     templateUrl: "./metricColorRangeDiagram.component.html",
@@ -221,7 +223,11 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
     }
 
     private createSvg() {
-        return this.rangeDiagramContainer().append("svg").attr("width", this.svgWidth).attr("height", this.svgHeight)
+        return this.rangeDiagramContainer()
+            .append("svg")
+            .attr("class", "text-base-content/60")
+            .attr("width", this.svgWidth)
+            .attr("height", this.svgHeight)
     }
 
     private createGroup(svg: SVGElement) {
@@ -243,7 +249,7 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
                 v${-this.frameHeight}`
             )
             .attr("fill", "none")
-            .attr("stroke", "#888")
+            .attr("stroke", "currentColor")
             .attr("stroke-width", "1px")
     }
 
@@ -253,7 +259,7 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
             .attr("transform", `translate(${this.framePadding},${this.frameHeight})`)
             .call(d3.axisBottom(x).ticks(5))
             .attr("font-size", "13px")
-            .attr("color", "#888")
+            .attr("color", "currentColor")
 
         g.append("g")
             .attr("id", "axis-y")
@@ -270,7 +276,7 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
                     })
             )
             .attr("font-size", "13px")
-            .attr("color", "#888")
+            .attr("color", "currentColor")
     }
 
     private createXScale() {
@@ -298,7 +304,7 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
             .attr("transform", `rotate(-90)`)
             .attr("x", -this.frameHeight / 2 - this.frameMarginTop)
             .attr("y", this.frameMarginLeft - this.yLabelXOffset)
-            .attr("fill", "#888")
+            .attr("fill", "currentColor")
             .text(`${this.colorMetric}`)
 
         g.append("text")
@@ -307,7 +313,7 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
             .attr("text-anchor", "middle")
             .attr("x", this.frameWidth / 2)
             .attr("y", this.frameHeight + this.frameMarginTop + this.xLabelYOffset)
-            .attr("fill", "#888")
+            .attr("fill", "currentColor")
             .text(`Quantiles (% of ${this.colorMetric})`)
     }
 
@@ -353,7 +359,7 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
             .attr("id", "diagram-path")
             .datum(this.percentileRanks)
             .attr("fill", "none")
-            .attr("stroke", "#888")
+            .attr("stroke", "currentColor")
             .attr("stroke-width", 1)
             .attr(
                 "d",
@@ -442,31 +448,13 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
         const tooltip: TextElement = group
             .append("text")
             .attr("class", "cross-tooltip")
-            .attr("fill", "#000")
+            .style("fill", BASE_CONTENT_COLOR)
             .attr("font-size", "13px")
             .style("display", "none")
 
-        const dashedVerticalLine: LineElement = group
-            .append("line")
-            .attr("class", "dashed-vertical-line")
-            .attr("stroke", "#000")
-            .attr("stroke-width", "0.7px")
-            .attr("stroke-dasharray", "4")
-            .style("display", "none")
-
-        const straightVerticalLine: LineElement = group
-            .append("line")
-            .attr("class", "straight-vertical-line")
-            .attr("stroke", "#000")
-            .attr("stroke-width", "0.7px")
-            .style("display", "none")
-
-        const horizontalLine: LineElement = group
-            .append("line")
-            .attr("class", "horizontal-line")
-            .attr("stroke", "#000")
-            .attr("stroke-width", "0.7px")
-            .style("display", "none")
+        const dashedVerticalLine = this.appendHiddenCrossHairLine(group, "dashed-vertical-line").attr("stroke-dasharray", "4")
+        const straightVerticalLine = this.appendHiddenCrossHairLine(group, "straight-vertical-line")
+        const horizontalLine = this.appendHiddenCrossHairLine(group, "horizontal-line")
 
         const rectangle: RectElement = group
             .append("rect")
@@ -478,6 +466,15 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
 
         this.addOnMouseMoveEvent(rectangle, x, y, tooltip, dashedVerticalLine, straightVerticalLine, horizontalLine)
         this.addOnMouseOutEvent(rectangle, tooltip, dashedVerticalLine, straightVerticalLine, horizontalLine)
+    }
+
+    private appendHiddenCrossHairLine(group: GroupElement, className: string): LineElement {
+        return group
+            .append("line")
+            .attr("class", className)
+            .style("stroke", BASE_CONTENT_COLOR)
+            .attr("stroke-width", "0.7px")
+            .style("display", "none")
     }
 
     private addOnMouseMoveEvent(

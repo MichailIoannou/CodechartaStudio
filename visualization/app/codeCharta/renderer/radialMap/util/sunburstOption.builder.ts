@@ -1,9 +1,9 @@
-import { Border, WHITE } from "./radialChartStyle"
+import { Border, radialPieceBorderColor } from "./radialChartStyle"
 import { buildRadialPiecesOption } from "./radialPiecesOption"
 import { RadialOptionInputs, RadialShape } from "./radialShape"
 import { layOutSunburst } from "./sunburstLayout"
 
-const SEGMENT_BORDER: Border = { color: WHITE, widthPx: 1 }
+const SEGMENT_BORDER_WIDTH_PX = 1
 
 export function sunburstShape(maxRingCount: number): RadialShape {
     return { visibleDepth: maxRingCount, buildOption: inputs => buildSunburstOption(inputs, maxRingCount) }
@@ -11,5 +11,6 @@ export function sunburstShape(maxRingCount: number): RadialShape {
 
 export function buildSunburstOption(inputs: RadialOptionInputs, maxRingCount: number) {
     const placements = layOutSunburst(inputs.centre, maxRingCount)
-    return buildRadialPiecesOption(inputs, placements, { border: SEGMENT_BORDER, focus: "ancestors" })
+    const border: Border = { color: radialPieceBorderColor(), widthPx: SEGMENT_BORDER_WIDTH_PX }
+    return buildRadialPiecesOption(inputs, placements, { border, focus: "ancestors" })
 }

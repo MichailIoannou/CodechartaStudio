@@ -2,27 +2,27 @@ import { BadgeLook, drawBadges, drawDeclarationCount, drawKindIcon, KIND_ICON_WI
 import { CLICKABLE, drawnItem, UNTRANSFORMED } from "./dependencyGraphElements"
 import { ToPixels } from "./dependencyGraphScene"
 import {
-    CLOSED_FOLDER_FILL,
-    CLOSED_FOLDER_STROKE,
-    CLOSED_PACKAGE_FILL,
-    CLOSED_PACKAGE_STROKE,
     CORNER_RADIUS_PX,
-    DECLARATION_FILL,
-    FILE_FILL,
-    FILE_STROKE,
-    FOLDER_STROKE,
+    closedFolderFill,
+    closedFolderStroke,
+    closedPackageFill,
+    closedPackageStroke,
+    declarationFill,
     FOUND_OPACITY,
+    fileFill,
+    fileStroke,
     folderFill,
-    HOVERED_COLOR,
+    folderStroke,
     HOVERED_LINE_WIDTH_PX,
-    LEVEL_SEPARATOR_COLOR,
+    hoveredColor,
+    levelSeparatorColor,
     MISSED_BY_SEARCH_OPACITY,
-    OPEN_FILE_FILL,
-    PACKAGE_STROKE,
+    openFileFill,
     packageFill,
-    SELECTED_COLOR,
+    packageStroke,
     seeThrough,
-    TEXT_COLOR
+    selectedColor,
+    textColor
 } from "./dependencyGraphStyle"
 import { Rectangle } from "./geometry"
 import { canBeOpened, isContainerKind, LAYOUT_SPACING, LayoutBox, LevelBand } from "./layoutModel"
@@ -151,7 +151,7 @@ function drawLevelLabel(band: LevelBand, { left }: BandSeparator, toPixels: ToPi
             align: "left",
             verticalAlign: "bottom",
             fontSize: LEVEL_FONT_SIZE_PX,
-            fill: LEVEL_SEPARATOR_COLOR
+            fill: levelSeparatorColor()
         }
     }
 }
@@ -165,7 +165,7 @@ function drawSeparatorLines({ left, right, y }: BandSeparator, hiddenSpans: [num
             ...UNTRANSFORMED,
             silent: true,
             shape: { x1, y1, x2, y2: y1 },
-            style: { stroke: LEVEL_SEPARATOR_COLOR, lineWidth: LINE_WIDTH_PX, lineDash: SEPARATOR_DASH_PX }
+            style: { stroke: levelSeparatorColor(), lineWidth: LINE_WIDTH_PX, lineDash: SEPARATOR_DASH_PX }
         }
     })
 }
@@ -194,10 +194,10 @@ function pixelRectOf(box: LayoutBox, toPixels: ToPixels): Rectangle {
 function boxStyle(box: LayoutBox, emphasis: BoxEmphasis) {
     const base = baseStyle(box)
     if (emphasis === "selected") {
-        return { ...base, stroke: SELECTED_COLOR, lineWidth: SELECTED_LINE_WIDTH_PX }
+        return { ...base, stroke: selectedColor(), lineWidth: SELECTED_LINE_WIDTH_PX }
     }
     if (emphasis === "hovered") {
-        return { ...base, stroke: HOVERED_COLOR, lineWidth: HOVERED_LINE_WIDTH_PX }
+        return { ...base, stroke: hoveredColor(), lineWidth: HOVERED_LINE_WIDTH_PX }
     }
     return base
 }
@@ -205,17 +205,17 @@ function boxStyle(box: LayoutBox, emphasis: BoxEmphasis) {
 function baseStyle(box: LayoutBox) {
     switch (box.kind) {
         case "declaration":
-            return { fill: DECLARATION_FILL, stroke: FILE_STROKE, lineWidth: LINE_WIDTH_PX }
+            return { fill: declarationFill(), stroke: fileStroke(), lineWidth: LINE_WIDTH_PX }
         case "file":
-            return { fill: box.isExpanded ? OPEN_FILE_FILL : FILE_FILL, stroke: FILE_STROKE, lineWidth: LINE_WIDTH_PX }
+            return { fill: box.isExpanded ? openFileFill() : fileFill(), stroke: fileStroke(), lineWidth: LINE_WIDTH_PX }
         case "package":
             return box.isExpanded
-                ? { fill: packageFill(box.depth), stroke: PACKAGE_STROKE, lineWidth: LINE_WIDTH_PX }
-                : { fill: CLOSED_PACKAGE_FILL, stroke: CLOSED_PACKAGE_STROKE, lineWidth: LINE_WIDTH_PX }
+                ? { fill: packageFill(box.depth), stroke: packageStroke(), lineWidth: LINE_WIDTH_PX }
+                : { fill: closedPackageFill(), stroke: closedPackageStroke(), lineWidth: LINE_WIDTH_PX }
         default:
             return box.isExpanded
-                ? { fill: folderFill(box.depth), stroke: FOLDER_STROKE, lineWidth: LINE_WIDTH_PX }
-                : { fill: CLOSED_FOLDER_FILL, stroke: CLOSED_FOLDER_STROKE, lineWidth: LINE_WIDTH_PX }
+                ? { fill: folderFill(box.depth), stroke: folderStroke(), lineWidth: LINE_WIDTH_PX }
+                : { fill: closedFolderFill(), stroke: closedFolderStroke(), lineWidth: LINE_WIDTH_PX }
     }
 }
 
@@ -259,7 +259,7 @@ function drawLabel(box: LayoutBox, rect: Rectangle, look: LabelLook) {
             verticalAlign: "middle",
             fontSize: box.kind === "declaration" ? DECLARATION_FONT_SIZE_PX : LABEL_FONT_SIZE_PX,
             fontWeight: isContainerKind(box.kind) ? "bold" : "normal",
-            fill: TEXT_COLOR,
+            fill: textColor(),
             opacity: look.opacity
         }
     }

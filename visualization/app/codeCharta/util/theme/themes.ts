@@ -1,0 +1,253 @@
+import { ChromeTokens, ColorScheme, MapPaletteSeed, RenderPalette, ThemeDefinition, ThemeId } from "../../model/theme.model"
+import { buildDarkRenderPalette, darkRenderPalette } from "./palettes/darkRenderPalette"
+import { buildLightRenderPalette, lightRenderPalette } from "./palettes/lightRenderPalette"
+import { darculaDependencyGraph, vsDarkDependencyGraph } from "./palettes/neutralDependencyGraphs"
+
+function darkEditorTheme(
+    id: ThemeId,
+    label: string,
+    chrome: ChromeTokens,
+    seed: MapPaletteSeed,
+    dependencyGraph?: RenderPalette["dependencyGraph"]
+): ThemeDefinition {
+    return { id, label, colorScheme: "dark", chrome, render: buildDarkRenderPalette(chrome, seed, dependencyGraph) }
+}
+
+function lightEditorTheme(id: ThemeId, label: string, chrome: ChromeTokens, seed: MapPaletteSeed): ThemeDefinition {
+    return { id, label, colorScheme: "light", chrome, render: buildLightRenderPalette(chrome, seed) }
+}
+
+export const THEMES: readonly ThemeDefinition[] = [
+    {
+        id: "cc-dark",
+        label: "CodeCharta Dark",
+        colorScheme: "dark",
+        chrome: {
+            base100: "#1e2329",
+            base200: "#262c34",
+            base300: "#3a424d",
+            baseContent: "#e6e9ee",
+            primary: "#8b9cff",
+            primaryContent: "#0f1433",
+            secondary: "#f471b5",
+            secondaryContent: "#2b0a1c",
+            accent: "#2dd4bf",
+            accentContent: "#06302b",
+            neutral: "#2a323c",
+            neutralContent: "#d7dde4",
+            info: "#38bdf8",
+            infoContent: "#04263a",
+            success: "#34d399",
+            successContent: "#032b1e",
+            warning: "#fbbf24",
+            warningContent: "#3a2a00",
+            error: "#f87171",
+            errorContent: "#3f0a0a"
+        },
+        render: darkRenderPalette
+    },
+    {
+        id: "cc-light",
+        label: "CodeCharta Light",
+        colorScheme: "light",
+        chrome: {
+            base100: "#ffffff",
+            base200: "#f9fafb",
+            base300: "#d1d5db",
+            baseContent: "#1f2937",
+            primary: "#0374c9",
+            primaryContent: "#ffffff",
+            secondary: "#1b9cfc",
+            secondaryContent: "#04121f",
+            accent: "#fc801b",
+            accentContent: "#2b1200",
+            neutral: "#3d4451",
+            neutralContent: "#ffffff",
+            info: "#3abff8",
+            infoContent: "#002b3d",
+            success: "#36d399",
+            successContent: "#003320",
+            warning: "#fbbd23",
+            warningContent: "#382800",
+            error: "#f87272",
+            errorContent: "#470000"
+        },
+        render: lightRenderPalette
+    },
+    darkEditorTheme(
+        "nord",
+        "Nord",
+        {
+            base100: "#2e3440",
+            base200: "#3b4252",
+            base300: "#434c5e",
+            baseContent: "#eceff4",
+            primary: "#88c0d0",
+            primaryContent: "#2e3440",
+            secondary: "#81a1c1",
+            secondaryContent: "#2e3440",
+            accent: "#8fbcbb",
+            accentContent: "#2e3440",
+            neutral: "#4c566a",
+            neutralContent: "#eceff4",
+            info: "#81a1c1",
+            infoContent: "#2e3440",
+            success: "#a3be8c",
+            successContent: "#2e3440",
+            warning: "#ebcb8b",
+            warningContent: "#2e3440",
+            error: "#bf616a",
+            errorContent: "#000000"
+        },
+        { mapBackground: "#242933", floorRoot: "#4c566a", floorDeepest: "#d8dee9", wordCloud: ["#ebcb8b", "#88c0d0"] }
+    ),
+    darkEditorTheme(
+        "one-dark",
+        "One Dark",
+        {
+            base100: "#282c34",
+            base200: "#2c313a",
+            base300: "#3e4451",
+            baseContent: "#abb2bf",
+            primary: "#61afef",
+            primaryContent: "#282c34",
+            secondary: "#c678dd",
+            secondaryContent: "#282c34",
+            accent: "#56b6c2",
+            accentContent: "#282c34",
+            neutral: "#21252b",
+            neutralContent: "#abb2bf",
+            info: "#61afef",
+            infoContent: "#282c34",
+            success: "#98c379",
+            successContent: "#282c34",
+            warning: "#e5c07b",
+            warningContent: "#282c34",
+            error: "#e06c75",
+            errorContent: "#181a1f"
+        },
+        { mapBackground: "#21252b", floorRoot: "#5c6370", floorDeepest: "#abb2bf", wordCloud: ["#c678dd", "#61afef"] }
+    ),
+    darkEditorTheme(
+        "vs-dark",
+        "VS Dark",
+        {
+            base100: "#1e1e1e",
+            base200: "#252526",
+            base300: "#3c3c3c",
+            baseContent: "#d4d4d4",
+            primary: "#569cd6",
+            primaryContent: "#1e1e1e",
+            secondary: "#c586c0",
+            secondaryContent: "#1e1e1e",
+            accent: "#4ec9b0",
+            accentContent: "#1e1e1e",
+            neutral: "#333333",
+            neutralContent: "#d4d4d4",
+            info: "#3794ff",
+            infoContent: "#1e1e1e",
+            success: "#89d185",
+            successContent: "#1e1e1e",
+            warning: "#cca700",
+            warningContent: "#1e1e1e",
+            error: "#f44747",
+            errorContent: "#1e1e1e"
+        },
+        { mapBackground: "#181818", floorRoot: "#505050", floorDeepest: "#d4d4d4", wordCloud: ["#ce9178", "#9cdcfe"] },
+        vsDarkDependencyGraph
+    ),
+    lightEditorTheme(
+        "vs-light",
+        "VS Light",
+        {
+            base100: "#ffffff",
+            base200: "#f3f3f3",
+            base300: "#cccedb",
+            baseContent: "#1e1e1e",
+            primary: "#005fb8",
+            primaryContent: "#ffffff",
+            secondary: "#af00db",
+            secondaryContent: "#ffffff",
+            accent: "#267f99",
+            accentContent: "#ffffff",
+            neutral: "#3c3c3c",
+            neutralContent: "#ffffff",
+            info: "#1a85ff",
+            infoContent: "#000000",
+            success: "#388a34",
+            successContent: "#000000",
+            warning: "#bf8803",
+            warningContent: "#000000",
+            error: "#e51400",
+            errorContent: "#ffffff"
+        },
+        { mapBackground: "#f3f3f3", floorRoot: "#333333", floorDeepest: "#dddddd", wordCloud: ["#af00db", "#0000ff"] }
+    ),
+    darkEditorTheme(
+        "darcula",
+        "Darcula",
+        {
+            base100: "#2b2b2b",
+            base200: "#3c3f41",
+            base300: "#45494a",
+            baseContent: "#bbbbbb",
+            primary: "#6897bb",
+            primaryContent: "#2b2b2b",
+            secondary: "#9876aa",
+            secondaryContent: "#000000",
+            accent: "#cc7832",
+            accentContent: "#000000",
+            neutral: "#313335",
+            neutralContent: "#bbbbbb",
+            info: "#3592c4",
+            infoContent: "#000000",
+            success: "#6a8759",
+            successContent: "#000000",
+            warning: "#bbb529",
+            warningContent: "#2b2b2b",
+            error: "#bc3f3c",
+            errorContent: "#ffffff"
+        },
+        { mapBackground: "#1e1f22", floorRoot: "#5a5d63", floorDeepest: "#bbbbbb", wordCloud: ["#ffc66d", "#6897bb"] },
+        darculaDependencyGraph
+    ),
+    lightEditorTheme(
+        "rider-day",
+        "Rider Day",
+        {
+            base100: "#ffffff",
+            base200: "#f7f7f7",
+            base300: "#d5d5d5",
+            baseContent: "#262626",
+            primary: "#3369d6",
+            primaryContent: "#ffffff",
+            secondary: "#7444d4",
+            secondaryContent: "#ffffff",
+            accent: "#077a7f",
+            accentContent: "#ffffff",
+            neutral: "#3b3b3b",
+            neutralContent: "#ffffff",
+            info: "#3574f0",
+            infoContent: "#000000",
+            success: "#208a3c",
+            successContent: "#000000",
+            warning: "#ffaf0f",
+            warningContent: "#000000",
+            error: "#db3b4b",
+            errorContent: "#000000"
+        },
+        { mapBackground: "#f7f7f7", floorRoot: "#333333", floorDeepest: "#dddddd", wordCloud: ["#871094", "#0033b3"] }
+    )
+]
+
+export const DEFAULT_THEME_ID: ThemeId = "cc-dark"
+
+export const SYSTEM_THEME_BY_SCHEME: Readonly<Record<ColorScheme, ThemeId>> = { light: "cc-light", dark: "cc-dark" }
+
+export function themeById(id: string): ThemeDefinition | undefined {
+    return THEMES.find(theme => theme.id === id)
+}
+
+export function defaultThemeDefinition(): ThemeDefinition {
+    return themeById(DEFAULT_THEME_ID) ?? THEMES[0]
+}

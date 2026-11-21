@@ -20,3 +20,5 @@ export { radialLevelsSelector } from "./store/radialLevels/radialLevels.selector
 export { resetCameraIfNewFileIsLoadedSelector } from "./store/resetCameraIfNewFileIsLoaded/resetCameraIfNewFileIsLoaded.selector"
 export { defaultSorting } from "./store/sorting/sorting.reducer"
 export { sortingOrderAscendingSelector, sortingOrderSelector } from "./store/sorting/sorting.selector"
+export { defaultTheme } from "./store/theme/theme.reducer"
+export { themePreferenceSelector } from "./store/theme/theme.selector"

@@ -4,6 +4,8 @@ import { firstValueFrom } from "rxjs"
 import { Camera, Scene, Vector2, WebGLInfo, WebGLRenderer } from "three"
 import { setIsWhiteBackground } from "../../stores/mapState/mapState.write.facade"
 import { appReducers, setStateMiddleware } from "../../stores/rootStore/store"
+import { setActiveTheme } from "../../util/theme/activeTheme"
+import { resolveTheme } from "../../util/theme/resolveTheme"
 import { ThreeRendererService } from "./threeRenderer.service"
 
 jest.mock("three", () => {
@@ -21,6 +23,7 @@ jest.mock("three", () => {
             getPixelRatio: jest.fn(() => 2),
             setPixelRatio: jest.fn(),
             setSize: jest.fn(),
+            setClearColor: jest.fn(),
             render: jest.fn(),
             getDrawingBufferSize: jest.fn(() => new Vector2(1, 1)),
             info: {
@@ -44,7 +47,6 @@ describe("threeRendererService", () => {
 
         threeRendererService = TestBed.inject(ThreeRendererService)
         threeRendererService.renderer = new WebGLRenderer() as unknown as WebGLRenderer
-        threeRendererService["setBackgroundColorToState"] = jest.fn()
     })
 
     describe("init", () => {
@@ -58,27 +60,62 @@ describe("threeRendererService", () => {
             // Assert
             expect(threeRendererService["initGL"]).toHaveBeenCalledWith(10, 20)
         })
+    })
 
-        it("should ignore background updates before it was initialized", () => {
-            // Arrange & Act
-            store.dispatch(setIsWhiteBackground({ value: true }))
+    describe("background", () => {
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve))
+        const lastClearColor = () => jest.mocked(threeRendererService.renderer.setClearColor).mock.lastCall?.[0]
 
-            // Assert
-            expect(threeRendererService["setBackgroundColorToState"]).not.toHaveBeenCalled()
-        })
+        it("should clear to the theme background", () => {
+            // Arrange
+            setActiveTheme(resolveTheme("cc-light", "light"))
 
-        it("should set its background color within init and subscribe to updates", () => {
-            // Arrange & Act
+            // Act
             threeRendererService.init(10, 20, new Scene(), new Camera())
 
             // Assert
-            expect(threeRendererService["setBackgroundColorToState"]).toHaveBeenCalledTimes(1)
+            expect(lastClearColor()).toBe("#f4f4eb")
+        })
+
+        it("should clear to white while the white background is on", async () => {
+            // Arrange
+            setActiveTheme(resolveTheme("cc-dark", "light"))
+            threeRendererService.init(10, 20, new Scene(), new Camera())
 
             // Act
             store.dispatch(setIsWhiteBackground({ value: true }))
+            threeRendererService.render()
+            await nextFrame()
 
             // Assert
-            expect(threeRendererService["setBackgroundColorToState"]).toHaveBeenCalledTimes(2)
+            expect(lastClearColor()).toBe("#ffffff")
+        })
+
+        it("should pick up a new theme on the next frame", async () => {
+            // Arrange
+            threeRendererService.init(10, 20, new Scene(), new Camera())
+
+            // Act
+            setActiveTheme(resolveTheme("cc-dark", "light"))
+            threeRendererService.render()
+            await nextFrame()
+
+            // Assert
+            expect(lastClearColor()).toBe("#14171b")
+        })
+
+        it("should not set the same clear color again on every frame", async () => {
+            // Arrange
+            threeRendererService.init(10, 20, new Scene(), new Camera())
+            const setClearColor = jest.mocked(threeRendererService.renderer.setClearColor)
+            setClearColor.mockClear()
+
+            // Act
+            threeRendererService.render()
+            await nextFrame()
+
+            // Assert
+            expect(setClearColor).not.toHaveBeenCalled()
         })
     })
 

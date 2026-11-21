@@ -8,7 +8,7 @@ const { createShellActions, readShellSettings, runAction } = require("./shellAct
 let dataDir
 
 function createHarness({ pickedPaths = [], coreAnswers = {} } = {}) {
-    const calls = { dialogs: [], requests: [], opened: [], shown: [], backgrounds: [], restarts: 0 }
+    const calls = { dialogs: [], requests: [], opened: [], shown: [], backgrounds: [], schemes: [], restarts: 0 }
     const window = { setBackgroundColor: color => calls.backgrounds.push(color) }
     const actions = createShellActions({
         dialog: {
@@ -25,6 +25,11 @@ function createHarness({ pickedPaths = [], coreAnswers = {} } = {}) {
             showItemInFolder: filePath => calls.shown.push(filePath)
         },
         fs,
+        nativeTheme: {
+            set themeSource(scheme) {
+                calls.schemes.push(scheme)
+            }
+        },
         getWindow: () => window,
         requestCore: async (method, params) => {
             calls.requests.push({ method, params })
@@ -170,6 +175,33 @@ describe("shell actions", () => {
         assert.equal(refused.error.code, "BAD_REQUEST")
         assert.deepEqual(harness.calls.backgrounds, ["#1e1e1e"])
         assert.deepEqual(readShellSettings(fs, dataDir), { windowBackgroundColor: "#1e1e1e" })
+    })
+
+    test("should follow the colour scheme and remember it", async () => {
+        // Arrange
+        const harness = createHarness()
+
+        // Act
+        const answer = await runAction(harness.shellActions, { kind: "setColorScheme", scheme: "dark" })
+        const refused = await runAction(harness.shellActions, { kind: "setColorScheme", scheme: "sepia" })
+
+        // Assert
+        assert.deepEqual(answer, { ok: true, value: null })
+        assert.equal(refused.error.code, "BAD_REQUEST")
+        assert.deepEqual(harness.calls.schemes, ["dark"])
+        assert.deepEqual(readShellSettings(fs, dataDir), { colorScheme: "dark" })
+    })
+
+    test("should keep the remembered background when the colour scheme changes", async () => {
+        // Arrange
+        const harness = createHarness()
+        await runAction(harness.shellActions, { kind: "setWindowBackground", color: "#1e2329" })
+
+        // Act
+        await runAction(harness.shellActions, { kind: "setColorScheme", scheme: "system" })
+
+        // Assert
+        assert.deepEqual(readShellSettings(fs, dataDir), { windowBackgroundColor: "#1e2329", colorScheme: "system" })
     })
 
     test("should restart the core", async () => {

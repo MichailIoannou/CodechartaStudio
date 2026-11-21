@@ -1,4 +1,5 @@
 import { DependencyEdgeType } from "../../../model/dependencyGraph.model"
+import { chartTooltipStyle } from "../../../util/theme/chartTooltipStyle"
 import { AxisWindow, axesReaching, Viewport, zoomBothAxesInsideTo } from "./axisWindow"
 import { BadgeLook, upwardLineOf } from "./boxMarks"
 import { IsInside } from "./boxNesting"
@@ -47,7 +48,7 @@ export function buildDependencyGraphOption(scene: DependencyGraphScene, viewport
         animation: false,
         aria: { enabled: true, label: { description: describeGraph(scene.layout, shownEdges) } },
         hoverLayerThreshold: NEVER_DRAW_HOVER_ON_ITS_OWN_LAYER,
-        tooltip: { show: true, confine: true, formatter: buildTooltipFormatter(graph.items, byPath, scene) },
+        tooltip: { show: true, confine: true, ...chartTooltipStyle(), formatter: buildTooltipFormatter(graph.items, byPath, scene) },
         grid: { left: 0, right: 0, top: 0, bottom: 0 },
         ...axesReaching(scene.layout, viewport, shownWindow),
         dataZoom: zoomBothAxesInsideTo(shownWindow),
