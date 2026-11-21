@@ -232,11 +232,9 @@ fn should_copy_the_store_into_a_chosen_folder_and_keep_it_in_the_settings_file()
     assert_eq!(paths["result"]["storeRoot"], json!(path));
     assert_eq!(paths["result"]["isDefaultStoreRoot"], json!(false));
     let settings_file = core.data_dir.path().join("core-settings.json");
-    assert!(
-        std::fs::read_to_string(settings_file)
-            .unwrap()
-            .contains(path)
-    );
+    let settings: Value =
+        serde_json::from_str(&std::fs::read_to_string(settings_file).unwrap()).unwrap();
+    assert_eq!(settings["storeRoot"], json!(path));
     assert!(chosen.path().join("store.json").is_file());
     assert!(chosen.path().join(".lock").is_file());
     assert!(core.store_root().join("store.json").is_file());
