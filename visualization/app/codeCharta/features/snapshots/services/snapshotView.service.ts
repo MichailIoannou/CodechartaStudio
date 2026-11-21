@@ -11,9 +11,27 @@ import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.ser
 import { GitRepositoryService, isGitStatus } from "../../gitHistory/facade"
 import { ProjectsFacade } from "../../projects/facade"
 import { ToastService } from "../../shared/facade"
-import { analysisTargetOf, isSameAnalysisTarget, SelectedTarget, targetKeyOf } from "../model/snapshotTarget"
-import { isPendingJob, targetName } from "../util/analysisWording"
-import { Notice, noticeText } from "../util/noticeText"
+import { analysisTargetOf, SelectedTarget } from "../model/snapshotTarget"
+import { targetName } from "../util/analysisWording"
+import {
+    analysisTargetFor,
+    answersTarget,
+    firstTargetOf,
+    folderKeyOf,
+    folderTargetKeyOf,
+    isAnsweredBy,
+    isFailureInNotice,
+    isMapChangeFollowed,
+    isNewTarget,
+    isSameFolder,
+    newestJobOf,
+    noticeTextFor,
+    refOf,
+    resolutionKeyOf,
+    settledOf,
+    snapshotRefOf,
+    visibleNoticeOf
+} from "../util/snapshotViewRules"
 import { AnalysisJobsService } from "./analysisJobs.service"
 import { SnapshotCatalogService } from "./snapshotCatalog.service"
 
@@ -48,7 +66,10 @@ interface ResolutionState {
 }
 
 const IDLE_STATE: ResolutionState = { folderTargetKey: "", resolution: null, status: "idle" }
-const IN_FLIGHT: ReadonlySet<SnapshotViewStatus> = new Set(["resolving", "loading"])
+const FOLLOW_UP_TOASTS: Partial<Record<EnqueueResult["status"], string>> = {
+    alreadyQueued: "This analysis is already queued.",
+    alreadyAnalysed: "Already analysed"
+}
 
 /**
  * What the map shows in the working folder: the user's target (the current checkout, a commit, or one snapshot), its
@@ -83,9 +104,9 @@ export class SnapshotViewService {
     })
     readonly resolution = computed(() => (this.state().folderTargetKey === this.folderTargetKey() ? this.state().resolution : null))
     readonly status = computed(() => this.state().status)
-    readonly targetJob = computed(() => this.newestJobOfTarget())
+    readonly targetJob = computed(() => newestJobOf(this.jobs.jobs(), this.workingRef(), this.target()))
     readonly noticeText = computed(() => this.noticeTextOfTarget())
-    readonly notice = computed(() => this.visibleNotice())
+    readonly notice = computed(() => visibleNoticeOf(this.noticeText().notice, this.dismissedNoticeKey(), this.noticeKey()))
 
     constructor() {
         if (!inject(DesktopEnvironment).isDesktop()) {
@@ -126,8 +147,7 @@ export class SnapshotViewService {
 
     analyseTarget(surface: ProblemsSurface): Promise<void> {
         const folder = this.workingRef()
-        const target = this.target()
-        const analysisTarget = target ? analysisTargetOf(target) : null
+        const analysisTarget = analysisTargetFor(folder, this.target())
         return folder && analysisTarget ? this.analyse({ folder, target: analysisTarget, surface }) : Promise.resolve()
     }
 
@@ -148,7 +168,7 @@ export class SnapshotViewService {
     /** A comparison is about to take the map: a resolution in flight is dropped and the target becomes what is shown. */
     holdShownSnapshot(): void {
         this.latestTicket += 1
-        this.state.update(state => (IN_FLIGHT.has(state.status) ? { ...state, status: "shown" } : state))
+        this.state.update(settledOf)
         const folder = this.workingRef()
         const shown = this.projects.shownSnapshot()?.ref ?? null
         if (folder && shown && isSameFolder(shown, folder)) {
@@ -166,8 +186,7 @@ export class SnapshotViewService {
 
     private showTarget(target: SelectedTarget): void {
         const ref = this.workingRef()
-        const current = this.target()
-        if (ref && !(current && targetKeyOf(current) === targetKeyOf(target))) {
+        if (ref && isNewTarget(this.target(), target)) {
             this.showsMapAfterResolving = true
             this.setTarget(ref, target)
         }
@@ -183,7 +202,7 @@ export class SnapshotViewService {
             return
         }
         const rememberedId = this.projects.activeProject()?.view.shownSnapshotIdByFolder[ref.folderId]
-        this.setTarget(ref, rememberedId ? { kind: "snapshot", ref: { ...ref, snapshotId: rememberedId } } : { kind: "workingTree" })
+        this.setTarget(ref, firstTargetOf(ref, rememberedId))
     }
 
     private resolutionRequest(): ResolutionRequest | null {
@@ -192,8 +211,7 @@ export class SnapshotViewService {
         if (!(folder && target)) {
             return null
         }
-        const head = target.kind === "workingTree" ? (this.headCommit() ?? "") : ""
-        return { key: `${this.folderTargetKey()}|${head}`, folder, target }
+        return { key: resolutionKeyOf(this.folderTargetKey(), target, this.headCommit()), folder, target }
     }
 
     private async resolve(request: ResolutionRequest | null): Promise<void> {
@@ -218,18 +236,18 @@ export class SnapshotViewService {
     }
 
     private async show(state: ResolutionState, ticket: number, showsMap: boolean): Promise<void> {
-        const snapshot = state.resolution?.kind === "none" ? null : state.resolution?.snapshot
-        if (!snapshot) {
+        const snapshotRef = snapshotRefOf(state.resolution)
+        if (!snapshotRef) {
             this.state.set({ ...state, status: "empty" })
             return
         }
-        if (this.projects.shownSnapshot()?.ref.snapshotId === snapshot.ref.snapshotId) {
+        if (this.projects.shownSnapshot()?.ref.snapshotId === snapshotRef.snapshotId) {
             this.state.set({ ...state, status: "shown" })
             this.showMapWhen(showsMap)
             return
         }
         this.state.set(state)
-        const isLoaded = await this.projects.loadSnapshot(snapshot.ref)
+        const isLoaded = await this.projects.loadSnapshot(snapshotRef)
         if (ticket === this.latestTicket) {
             this.state.set({ ...state, status: isLoaded ? "shown" : "error" })
             this.showMapWhen(showsMap && isLoaded)
@@ -254,40 +272,25 @@ export class SnapshotViewService {
     private followMapChange(shown: SnapshotRef | null): void {
         const folder = this.workingRef()
         const target = this.target()
-        if (!(shown && folder && isSameFolder(shown, folder)) || this.isAnswered(shown, target)) {
+        if (!(shown && folder && isSameFolder(shown, folder)) || isAnsweredBy(shown, target, this.resolution())) {
             return
         }
-        if (target?.kind !== "snapshot" && IN_FLIGHT.has(this.state().status)) {
-            return
+        if (isMapChangeFollowed(target, this.state().status)) {
+            this.setTarget(folder, { kind: "snapshot", ref: shown })
         }
-        this.setTarget(folder, { kind: "snapshot", ref: shown })
-    }
-
-    private isAnswered(shown: SnapshotRef, target: SelectedTarget | null): boolean {
-        if (target?.kind === "snapshot") {
-            return target.ref.snapshotId === shown.snapshotId
-        }
-        return this.resolvedSnapshotId() === shown.snapshotId
-    }
-
-    private resolvedSnapshotId(): string | null {
-        const resolution = this.resolution()
-        return resolution && resolution.kind !== "none" ? resolution.snapshot.ref.snapshotId : null
     }
 
     private async followUp(request: AnalyseRequest, result: EnqueueResult): Promise<void> {
-        switch (result.status) {
-            case "queued":
-                return
-            case "alreadyQueued":
-                this.toastService.show("This analysis is already queued.", "info")
-                return
-            case "alreadyAnalysed":
-                this.toastService.show("Already analysed", "info")
-                await this.showIfTarget(request, result.snapshotId)
-                return
-            case "rejected":
-                this.rejected.set({ surface: request.surface, problems: result.problems })
+        if (result.status === "rejected") {
+            this.rejected.set({ surface: request.surface, problems: result.problems })
+            return
+        }
+        const toast = FOLLOW_UP_TOASTS[result.status]
+        if (toast) {
+            this.toastService.show(toast, "info")
+        }
+        if (result.status === "alreadyAnalysed") {
+            await this.showIfTarget(request, result.snapshotId)
         }
     }
 
@@ -316,57 +319,23 @@ export class SnapshotViewService {
     }
 
     private toastFailureOutsideTheNotice(job: AnalysisJob, name: string): void {
-        if (this.notice()?.kind !== "failed" || this.targetJob()?.id !== job.id) {
+        if (!isFailureInNotice(this.notice(), this.targetJob(), job)) {
             this.toastService.show(`Analysis of ${name} failed: ${job.error?.message ?? ""}`, "error")
         }
     }
 
-    /** An analysis answers the current checkout when it maps the working tree or the commit at HEAD. */
     private answersTarget(folder: FolderRef, analysed: AnalysisTarget): boolean {
-        const ref = this.workingRef()
-        const target = this.target()
-        const wanted = target ? analysisTargetOf(target) : null
-        if (!(ref && wanted && isSameFolder(ref, folder))) {
-            return false
-        }
-        const head = this.headCommit()
-        return (
-            isSameAnalysisTarget(wanted, analysed) ||
-            (wanted.kind === "workingTree" && head !== null && isSameAnalysisTarget({ kind: "commit", sha: head }, analysed))
-        )
-    }
-
-    private newestJobOfTarget(): AnalysisJob | null {
-        const ref = this.workingRef()
-        const target = this.target()
-        const wanted = target ? analysisTargetOf(target) : null
-        if (!(ref && wanted)) {
-            return null
-        }
-        const ofTarget = this.jobs.jobs().filter(job => isSameFolder(job, ref) && isSameAnalysisTarget(wanted, job.target))
-        const newest = ofTarget.reduce<AnalysisJob | null>((latest, job) => (latest && latest.queuedAt > job.queuedAt ? latest : job), null)
-        return newest && (isPendingJob(newest) || newest.state === "failed") ? newest : null
+        return answersTarget({ folder: this.workingRef(), target: this.target(), headCommit: this.headCommit() }, folder, analysed)
     }
 
     private noticeTextOfTarget() {
-        const target = this.target()
-        const folder = this.projects.workingFolder()
-        if (!(target && folder)) {
-            return { notice: null, badge: null }
-        }
-        const resolution = this.isShownTheResolution() ? this.resolution() : null
-        return noticeText({ folderLabel: folder.label, target, resolution, job: this.targetJob() })
-    }
-
-    /** The notice speaks about the resolved snapshot only while it is the one on the map. */
-    private isShownTheResolution(): boolean {
-        const resolvedId = this.resolvedSnapshotId()
-        return resolvedId === null || this.projects.shownSnapshot()?.ref.snapshotId === resolvedId
-    }
-
-    private visibleNotice(): Notice | null {
-        const { notice } = this.noticeText()
-        return notice && !(notice.isDismissible && this.dismissedNoticeKey() === this.noticeKey()) ? notice : null
+        return noticeTextFor({
+            folderLabel: this.projects.workingFolder()?.label ?? null,
+            target: this.target(),
+            resolution: this.resolution(),
+            job: this.targetJob(),
+            shownSnapshotId: this.projects.shownSnapshot()?.ref.snapshotId ?? null
+        })
     }
 
     private noticeKey(): string {
@@ -374,20 +343,6 @@ export class SnapshotViewService {
     }
 
     private folderTargetKey(): string {
-        const ref = this.workingRef()
-        const target = this.target()
-        return ref && target ? `${folderKeyOf(ref)}|${targetKeyOf(target)}` : ""
+        return folderTargetKeyOf(this.workingRef(), this.target())
     }
-}
-
-function refOf(projectId: string | undefined, folderId: string | undefined): FolderRef | null {
-    return projectId && folderId ? { projectId, folderId } : null
-}
-
-function folderKeyOf(folder: FolderRef): string {
-    return `${folder.projectId}/${folder.folderId}`
-}
-
-function isSameFolder(first: FolderRef | null, second: FolderRef | null): boolean {
-    return first?.projectId === second?.projectId && first?.folderId === second?.folderId
 }
