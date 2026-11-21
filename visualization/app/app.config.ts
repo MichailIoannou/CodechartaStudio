@@ -1,6 +1,6 @@
 import { LocationStrategy } from "@angular/common"
 import { provideHttpClient, withInterceptorsFromDi, withXhr } from "@angular/common/http"
-import { APP_INITIALIZER, ApplicationConfig } from "@angular/core"
+import { APP_INITIALIZER, ApplicationConfig, inject } from "@angular/core"
 import { provideRouter, RouteReuseStrategy, Routes } from "@angular/router"
 import { provideEffects } from "@ngrx/effects"
 import { provideStore } from "@ngrx/store"
@@ -17,10 +17,12 @@ import { themeEffects } from "app/codeCharta/features/theme/effects/theme.effect
 import { loadEffects } from "app/codeCharta/load/effects/load.effects"
 import { CloseDialogsOfLeftViewEffect } from "app/codeCharta/routing/closeDialogsOfLeftView.effect"
 import { KeepAliveRouteReuseStrategy } from "app/codeCharta/routing/keepAliveRouteReuse.strategy"
+import { projectRoutePath } from "app/codeCharta/routing/projectRoute"
 import { QueryPreservingHashLocationStrategy } from "app/codeCharta/routing/queryPreservingHashLocation.strategy"
 import { routePaths } from "app/codeCharta/routing/routePaths"
 import { showSpinnerBeforeBuildingView } from "app/codeCharta/routing/showSpinnerBeforeBuildingView.guard"
 import { appReducers, setStateMiddleware } from "app/codeCharta/stores/rootStore/store"
+import { DesktopEnvironment } from "app/codeCharta/util/desktop/desktopEnvironment.service"
 import { domainViewEffects } from "app/codeCharta/views/domainView/effects/domainView.effects"
 import { MetricsViewComponent } from "app/codeCharta/views/metricsView/metricsView.component"
 
@@ -36,6 +38,11 @@ export const routes: Routes = [
         path: routePaths.dependencies,
         canActivate: [showSpinnerBeforeBuildingView],
         loadComponent: () => import("app/codeCharta/views/dependencyView/dependencyView.component").then(m => m.DependencyViewComponent)
+    },
+    {
+        path: projectRoutePath,
+        canMatch: [() => inject(DesktopEnvironment).isDesktop()],
+        loadComponent: () => import("app/codeCharta/features/projects/facade").then(m => m.ProjectOverviewComponent)
     }
 ]
 

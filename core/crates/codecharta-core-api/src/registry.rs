@@ -5,8 +5,19 @@ use ts_rs::{Config, ExportError, TS};
 
 use crate::events::CoreProgress;
 use crate::methods::core::{CoreCancel, CoreHello, CorePing, CoreShutdown};
-use crate::methods::paths::{PathsGet, PathsResetStoreRoot, PathsSetStoreRoot};
+use crate::methods::paths::{PathsGet, PathsResetStoreRoot};
+use crate::methods::projects::{
+    ProjectsAddFolder, ProjectsCreate, ProjectsDelete, ProjectsFolderPath, ProjectsGet,
+    ProjectsGetActive, ProjectsInspectFolder, ProjectsList, ProjectsRefreshFolder,
+    ProjectsRelinkFolder, ProjectsRemoveFolder, ProjectsResolveCommit, ProjectsSetActive,
+    ProjectsSetView, ProjectsSourceFileLocation, ProjectsUpdate, ProjectsUpdateFolder,
+};
 use crate::methods::shell::ShellResolvePath;
+use crate::methods::snapshots::{
+    SnapshotsDelete, SnapshotsImport, SnapshotsInspectImportFile, SnapshotsList,
+    SnapshotsMapLocation, SnapshotsMove, SnapshotsOpenFile, SnapshotsRecordMapFacts,
+};
+use crate::methods::store::{StoreChangeRoot, StoreGetStatus};
 use crate::methods::tools::{ToolsClearPath, ToolsDoctor, ToolsSetPath};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +33,22 @@ pub trait Method {
     type Params: Serialize + DeserializeOwned + TS + 'static;
     type Result: Serialize + DeserializeOwned + TS + 'static;
 }
+
+/// Declares a method marker: `method!(Marker, "domain.verb", Renderer | Shell, Params, Result)`.
+macro_rules! method {
+    ($marker:ident, $name:literal, $audience:ident, $params:ty, $result:ty) => {
+        pub struct $marker;
+
+        impl $crate::registry::Method for $marker {
+            const NAME: &'static str = $name;
+            const AUDIENCE: $crate::registry::Audience = $crate::registry::Audience::$audience;
+            type Params = $params;
+            type Result = $result;
+        }
+    };
+}
+
+pub(crate) use method;
 
 pub trait Event {
     const NAME: &'static str;
@@ -91,12 +118,38 @@ pub const METHODS: &[MethodSpec] = &[
     MethodSpec::of::<CorePing>(),
     MethodSpec::of::<CoreShutdown>(),
     MethodSpec::of::<PathsGet>(),
-    MethodSpec::of::<PathsSetStoreRoot>(),
     MethodSpec::of::<PathsResetStoreRoot>(),
     MethodSpec::of::<ToolsDoctor>(),
     MethodSpec::of::<ToolsSetPath>(),
     MethodSpec::of::<ToolsClearPath>(),
     MethodSpec::of::<ShellResolvePath>(),
+    MethodSpec::of::<StoreGetStatus>(),
+    MethodSpec::of::<StoreChangeRoot>(),
+    MethodSpec::of::<ProjectsList>(),
+    MethodSpec::of::<ProjectsGet>(),
+    MethodSpec::of::<ProjectsInspectFolder>(),
+    MethodSpec::of::<ProjectsCreate>(),
+    MethodSpec::of::<ProjectsUpdate>(),
+    MethodSpec::of::<ProjectsDelete>(),
+    MethodSpec::of::<ProjectsAddFolder>(),
+    MethodSpec::of::<ProjectsUpdateFolder>(),
+    MethodSpec::of::<ProjectsRemoveFolder>(),
+    MethodSpec::of::<ProjectsRelinkFolder>(),
+    MethodSpec::of::<ProjectsRefreshFolder>(),
+    MethodSpec::of::<ProjectsGetActive>(),
+    MethodSpec::of::<ProjectsSetActive>(),
+    MethodSpec::of::<ProjectsSetView>(),
+    MethodSpec::of::<ProjectsResolveCommit>(),
+    MethodSpec::of::<ProjectsFolderPath>(),
+    MethodSpec::of::<ProjectsSourceFileLocation>(),
+    MethodSpec::of::<SnapshotsList>(),
+    MethodSpec::of::<SnapshotsMapLocation>(),
+    MethodSpec::of::<SnapshotsRecordMapFacts>(),
+    MethodSpec::of::<SnapshotsInspectImportFile>(),
+    MethodSpec::of::<SnapshotsOpenFile>(),
+    MethodSpec::of::<SnapshotsImport>(),
+    MethodSpec::of::<SnapshotsMove>(),
+    MethodSpec::of::<SnapshotsDelete>(),
 ];
 
 pub const EVENTS: &[EventSpec] = &[EventSpec::of::<CoreProgress>()];

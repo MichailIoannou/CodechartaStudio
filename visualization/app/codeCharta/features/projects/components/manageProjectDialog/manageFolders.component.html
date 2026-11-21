@@ -1,0 +1,35 @@
+@if (failure(); as failure) {
+    <div role="alert" class="alert alert-error mb-3 text-sm" data-testid="manage-folders-failure">{{ failure }}</div>
+}
+<div class="mb-1 flex items-center">
+    <span class="label-text">Folders</span>
+    <button type="button" class="btn btn-sm ml-auto" data-testid="manage-folders-add" (click)="addFolder()">
+        <i class="fa-solid fa-plus fa-fw"></i>
+        Add folder…
+    </button>
+</div>
+<cc-folder-list-editor
+    [rows]="rows()"
+    [managesSavedFolders]="true"
+    (labelChange)="changeLabel($event)"
+    (roleChange)="changeRole($event)"
+    (remove)="remove($event)"
+    (relink)="relink($event)"
+    (refresh)="refresh($event)"
+/>
+
+<dialog #removeDialog class="modal" aria-labelledby="remove-folder-title" data-testid="remove-folder-dialog">
+    <div class="modal-box max-w-sm">
+        <h3 id="remove-folder-title" class="mb-2 text-lg font-bold">Remove Folder</h3>
+        <p>{{ removeQuestion() }}</p>
+        <div class="modal-action">
+            <button type="button" class="btn" autofocus (click)="cancelRemove()">Cancel</button>
+            <button type="button" class="btn btn-error" data-testid="remove-folder-confirm" (click)="confirmRemove()">Remove</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<cc-relink-folder />

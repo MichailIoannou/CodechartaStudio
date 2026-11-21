@@ -228,7 +228,11 @@ mod tests {
         let module = core_api_module(&config);
 
         // Assert
+        let listed: Vec<String> = ErrorCode::ALL
+            .iter()
+            .map(|code| serde_json::json!(code).to_string())
+            .collect();
         assert!(module.contains("\"BAD_REQUEST\", \"NOT_FOUND\""));
-        assert!(module.contains("\"INTERNAL\"] as const"));
+        assert!(module.contains(&format!("[{}] as const", listed.join(", "))));
     }
 }

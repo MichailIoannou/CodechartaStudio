@@ -17,6 +17,7 @@ export class DesktopToolsPanelComponent {
 
     readonly placeholderRows = Array.from({ length: TOOL_COUNT }, (_, index) => index)
     readonly isChecking = this.desktopTools.isChecking
+    readonly isChangingStore = this.desktopTools.isChangingStore
     readonly failure = this.desktopTools.failure
     readonly paths = this.desktopTools.paths
     readonly coreNotice = computed(() => describeCoreState(this.environment.coreState()))
@@ -47,6 +48,18 @@ export class DesktopToolsPanelComponent {
 
     showDataFolder() {
         this.desktopTools.showDataFolder()
+    }
+
+    showStoreFolder() {
+        this.desktopTools.showStoreFolder()
+    }
+
+    changeStoreFolder() {
+        this.desktopTools.changeStoreFolder()
+    }
+
+    useDefaultStoreFolder() {
+        this.desktopTools.useDefaultStoreFolder()
     }
 
     restartCore() {

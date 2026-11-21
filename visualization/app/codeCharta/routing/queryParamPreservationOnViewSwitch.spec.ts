@@ -5,6 +5,7 @@ import { provideMockStore } from "@ngrx/store/testing"
 import { locationStrategyProvider, routes } from "app/app.config"
 import { ViewSwitcherComponent } from "app/codeCharta/features/navBar/components/viewSwitcher/viewSwitcher.component"
 import { hasDomainDataSelector } from "app/codeCharta/lenses/domain/domainLens.facade"
+import { projectRoutePath } from "app/codeCharta/routing/projectRoute"
 import { defaultState } from "app/codeCharta/stores/rootStore/state.manager"
 import { QueryParamsService } from "app/codeCharta/util/queryParameter/queryParams.service"
 import { firstValueFrom } from "rxjs"
@@ -35,10 +36,12 @@ const stubComponentByPath = {
 
 // The domain and dependency routes are lazy, so `loadComponent` has to go with it — Angular rejects a route that
 // carries both it and a `component`.
-const stubbedRoutes: Route[] = routes.map(({ loadComponent, ...route }) => ({
-    ...route,
-    component: stubComponentByPath[route.path]
-}))
+const stubbedRoutes: Route[] = routes
+    .filter(route => route.path !== projectRoutePath)
+    .map(({ loadComponent, ...route }) => ({
+        ...route,
+        component: stubComponentByPath[route.path]
+    }))
 
 const deepLinkPathname = "/index.html"
 const deepLinkQueryString = "?file=fileOne.json&area=functions"

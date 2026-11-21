@@ -1,0 +1,269 @@
+import { TestBed } from "@angular/core/testing"
+import { screen, within } from "@testing-library/angular"
+import userEvent from "@testing-library/user-event"
+import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
+import { aFolder, aPickedFolder, aPickedImportFile, aProject, aSnapshot } from "../../projects.mocks"
+import { ProjectsTestBed, settle, setUpProjects } from "../../projectsTestBed.mocks"
+import { OpenFileService } from "../../services/openFile.service"
+import { ProjectOverviewComponent } from "./projectOverview.component"
+
+const API = aFolder("f-api", {
+    label: "billing-api",
+    path: "C:\\work\\billing-api",
+    git: {
+        topLevel: "C:\\work\\billing-api",
+        isRepositoryRoot: true,
+        remotes: [{ name: "origin", url: "https://github.com/acme/billing-api.git" }],
+        defaultBranch: "main",
+        rootCommits: ["r".repeat(40)],
+        isShallow: false,
+        detectedAt: ""
+    }
+})
+const WEB = aFolder("f-web", { label: "billing-web", role: "fork" })
+const OUT = aFolder("f-out", { label: "out", role: "helper", kind: "plain" })
+const BILLING = aProject("p-billing", [API, WEB, OUT], {
+    name: "billing",
+    description: "Invoicing services.",
+    updatedAt: "2026-11-02T00:00:00Z"
+})
+const DOTFILES = aProject("p-dots", [aFolder("f-dots", { label: "dotfiles", status: "missing" })], {
+    name: "dotfiles",
+    updatedAt: "2026-11-10T00:00:00Z"
+})
+const RELEASE_SHA = "9f8e7d6".padEnd(40, "0")
+const SEED: FakeDesktopSeed = {
+    projects: [BILLING, DOTFILES],
+    activeProjectId: "p-billing",
+    snapshots: [
+        aSnapshot("p-billing", "f-api", "s-release", {
+            shortCommit: "9f8e7d6",
+            commit: RELEASE_SHA,
+            subject: "Release 2.4.0"
+        }),
+        aSnapshot("p-billing", "f-out", "s-out", { source: "imported", originalFileName: "out.cc.json" })
+    ]
+}
+
+function cellsOf(row: HTMLElement): string[] {
+    const cells = row.firstElementChild?.tagName === "BUTTON" ? row.firstElementChild.children : row.children
+    return Array.from(cells, cell => cell.textContent?.trim() ?? "")
+}
+
+describe("ProjectOverviewComponent", () => {
+    let testBed: ProjectsTestBed
+
+    async function renderOverview(seed: FakeDesktopSeed = SEED) {
+        testBed = await setUpProjects(seed)
+        const fixture = TestBed.createComponent(ProjectOverviewComponent)
+        fixture.autoDetectChanges()
+        await settle()
+        return fixture
+    }
+
+    it("should show the working folder, its remotes and its analyses", async () => {
+        // Arrange & Act
+        await renderOverview()
+
+        // Assert
+        expect(screen.getByRole("heading", { name: "billing" })).toBeTruthy()
+        expect(screen.getByText("Invoicing services.")).toBeTruthy()
+        const git = screen.getByTestId("working-folder-git")
+        expect(git.textContent).toContain("origin github.com/acme/billing-api")
+        expect(screen.getByTestId("analyses-rows").textContent).toContain("Release 2.4.0")
+    })
+
+    it("should list the folders with their kind, analyses and the plain-folder hint", async () => {
+        // Arrange & Act
+        await renderOverview()
+
+        // Assert
+        const api = screen.getByTestId("project-overview-folder-billing-api").textContent ?? ""
+        const web = screen.getByTestId("project-overview-folder-billing-web").textContent ?? ""
+        const out = screen.getByTestId("project-overview-folder-out").textContent ?? ""
+        expect(api).toContain("1 analysis")
+        expect(api).toContain("(working)")
+        expect(web).toContain("git folder")
+        expect(web).toContain("Work here")
+        expect(out).toContain("plain folder")
+        expect(out).toContain("1 imported")
+        expect(out).toContain("Imported maps only. Add the repository folder and move the snapshot to it.")
+    })
+
+    it("should switch the working folder with Work here", async () => {
+        // Arrange
+        await renderOverview()
+        const web = screen.getByTestId("project-overview-folder-billing-web")
+
+        // Act
+        await userEvent.click(within(web).getByRole("button", { name: "Work here" }))
+        await settle()
+
+        // Assert
+        expect(testBed.projects.workingFolder()?.label).toBe("billing-web")
+    })
+
+    it("should add a picked folder from the header", async () => {
+        // Arrange
+        await renderOverview({ ...SEED, pickedFolders: [aPickedFolder("billing-docs")] })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-add-folder"))
+        await settle()
+
+        // Assert
+        expect(testBed.projects.activeProject()?.folders.map(folder => folder.label)).toContain("billing-docs")
+    })
+
+    it("should reveal the working folder", async () => {
+        // Arrange
+        await renderOverview()
+
+        // Act
+        await userEvent.click(screen.getByTestId("working-folder-show-in-files"))
+
+        // Assert
+        expect(testBed.requestsOf("projects.revealFolder")).toEqual([{ projectId: "p-billing", folderId: "f-api" }])
+    })
+
+    it("should open the manage project dialog", async () => {
+        // Arrange
+        HTMLDialogElement.prototype.showModal = jest.fn()
+        await renderOverview()
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-manage"))
+
+        // Assert
+        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled()
+    })
+
+    it("should re-link a missing working folder and a missing folder row", async () => {
+        // Arrange
+        const gone = aFolder("f-gone", { label: "gone", status: "missing" })
+        const seed = {
+            projects: [aProject("p-1", [gone], { name: "gone project" })],
+            activeProjectId: "p-1",
+            pickedFolders: [aPickedFolder("found"), aPickedFolder("found-again")]
+        }
+        await renderOverview(seed)
+
+        // Act
+        await userEvent.click(screen.getByTestId("working-folder-relink"))
+        await settle()
+        const titles = testBed.requestsOf("projects.pickFolder")
+
+        // Assert
+        expect(titles).toEqual([{ title: "Re-link 'gone'" }])
+        expect(testBed.projects.activeProject()?.folders[0].path).toBe("/work/found")
+    })
+
+    it("should list the projects by last update when no project is open", async () => {
+        // Arrange & Act
+        await renderOverview({ ...SEED, activeProjectId: null })
+
+        // Assert
+        expect(screen.getByText("Open a project to see its code as a city.")).toBeTruthy()
+        const rows = screen.getAllByRole("button").filter(button => button.dataset.testid?.startsWith("project-overview-project-"))
+        expect(rows.map(cellsOf)).toEqual([
+            ["", "dotfiles", "1 folder · 0 analyses", "1 folder missing", ""],
+            ["", "billing", "3 folders · 2 analyses", ""]
+        ])
+    })
+
+    it("should open a project from the list", async () => {
+        // Arrange
+        await renderOverview({ ...SEED, activeProjectId: null })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-project-billing"))
+        await settle()
+
+        // Assert
+        expect(testBed.projects.activeProject()?.name).toBe("billing")
+    })
+
+    it("should open the new project dialog", async () => {
+        // Arrange
+        HTMLDialogElement.prototype.showModal = jest.fn()
+        await renderOverview({ projects: [] })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-new-project"))
+
+        // Assert
+        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled()
+    })
+
+    it("should say that there are no projects yet and offer the sample maps", async () => {
+        // Arrange
+        await renderOverview({ projects: [] })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-samples"))
+
+        // Assert
+        expect(screen.getByText(/No projects yet\./)).toBeTruthy()
+        expect(testBed.loadFilesUseCase.showSampleFiles).toHaveBeenCalled()
+    })
+
+    it("should show the store problem with a way to try again and to open the store folder", async () => {
+        // Arrange
+        await renderOverview({ ...SEED, responses: { "store.status": { problem: "STORE_LOCKED" } } })
+
+        // Act
+        await userEvent.click(screen.getByRole("button", { name: "Open store folder" }))
+        await userEvent.click(screen.getByRole("button", { name: "Try again" }))
+        await settle()
+
+        // Assert
+        expect(screen.getByTestId("project-overview-store-problem").textContent).toContain(
+            "Another CodeCharta window is using the store. Close it and try again."
+        )
+        expect(testBed.bridge.calls.filter(call => call.name === "reveal")).toHaveLength(1)
+        expect(testBed.requestsOf("store.status")).toHaveLength(2)
+    })
+
+    it("should pick a cc.json file to open when no project is open", async () => {
+        // Arrange
+        await renderOverview({ ...SEED, activeProjectId: null, pickedImportFile: aPickedImportFile("Downloads") })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-open-file"))
+        await settle()
+
+        // Assert
+        expect(TestBed.inject(OpenFileService).pending()).toEqual({
+            mode: "open",
+            picked: aPickedImportFile("Downloads"),
+            importTarget: null
+        })
+    })
+
+    it("should pick a cc.json file to import into a folder from its row", async () => {
+        // Arrange
+        await renderOverview({ ...SEED, pickedImportFile: aPickedImportFile("Downloads") })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-folder-more-out"))
+        await userEvent.click(screen.getByTestId("project-overview-import-out"))
+        await settle()
+
+        // Assert
+        expect(TestBed.inject(OpenFileService).pending()).toEqual(
+            expect.objectContaining({ mode: "import", importTarget: { projectId: "p-billing", folderId: "f-out" } })
+        )
+    })
+
+    it("should choose another store folder when the store cannot be used", async () => {
+        // Arrange
+        await renderOverview({ ...SEED, responses: { "store.status": { problem: "STORE_NEWER_SCHEMA" } } })
+
+        // Act
+        await userEvent.click(screen.getByTestId("project-overview-store-elsewhere"))
+        await settle()
+
+        // Assert
+        expect(testBed.bridge.calls.filter(call => call.name === "chooseStoreRoot")).toHaveLength(1)
+    })
+})

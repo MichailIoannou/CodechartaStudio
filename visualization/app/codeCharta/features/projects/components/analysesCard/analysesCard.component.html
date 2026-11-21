@@ -1,0 +1,51 @@
+<h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Analyses</h2>
+
+@if (snapshots().length === 0) {
+    <p class="text-sm text-base-content/70" data-testid="analyses-none">No analysis yet. Analyse the current checkout to see its map.</p>
+} @else {
+    <dl class="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm" data-testid="analyses-rows">
+        <dt class="text-base-content/60">In the map</dt>
+        <dd class="min-w-0 truncate" data-testid="analyses-in-the-map">
+            @if (inTheMap(); as shown) {
+                <ng-container *ngTemplateOutlet="snapshotLine; context: { $implicit: shown }" />
+            } @else {
+                <span class="text-base-content/60">nothing shown</span>
+            }
+        </dd>
+        @if (latest(); as latest) {
+            <dt class="text-base-content/60">Latest</dt>
+            <dd class="min-w-0 truncate">
+                <ng-container *ngTemplateOutlet="snapshotLine; context: { $implicit: latest }" />
+                <span class="text-base-content/70"> · {{ latest.when }}</span>
+            </dd>
+        }
+        <dt class="text-base-content/60">Analyses</dt>
+        <dd>{{ analysesCount() }}</dd>
+    </dl>
+}
+
+<div class="mt-1 flex flex-wrap gap-2">
+    <button
+        type="button"
+        class="btn btn-sm"
+        data-testid="analyses-show-map"
+        [disabled]="snapshots().length === 0"
+        [attr.title]="snapshots().length === 0 ? 'No analysis yet' : null"
+        (click)="showMap()"
+    >
+        <i class="fa-solid fa-map fa-fw"></i>
+        Show map
+    </button>
+</div>
+
+<ng-template #snapshotLine let-line>
+    @if (line.shortCommit) {
+        <span class="font-mono">{{ line.shortCommit }}</span>
+        {{ line.subject }}
+    } @else {
+        <span class="italic text-base-content/50">commit unknown</span>
+    }
+    @if (line.isImported) {
+        <span class="badge badge-ghost badge-sm ml-1">imported</span>
+    }
+</ng-template>

@@ -13,12 +13,6 @@ pub struct PathsInfo {
     pub logs_dir: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct SetStoreRootParams {
-    pub path: String,
-}
-
 pub struct PathsGet;
 
 impl Method for PathsGet {
@@ -28,15 +22,7 @@ impl Method for PathsGet {
     type Result = PathsInfo;
 }
 
-pub struct PathsSetStoreRoot;
-
-impl Method for PathsSetStoreRoot {
-    const NAME: &'static str = "paths.setStoreRoot";
-    const AUDIENCE: Audience = Audience::Shell;
-    type Params = SetStoreRootParams;
-    type Result = PathsInfo;
-}
-
+/// Serves the store from the default folder again, adopting the store there or copying into it.
 pub struct PathsResetStoreRoot;
 
 impl Method for PathsResetStoreRoot {

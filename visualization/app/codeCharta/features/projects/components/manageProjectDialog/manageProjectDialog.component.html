@@ -1,0 +1,47 @@
+<dialog #dialog class="modal" aria-labelledby="manage-project-title" data-testid="manage-project-dialog" (cancel)="cancelWithEscape($event)">
+    <div class="modal-box max-w-2xl">
+        <h2 id="manage-project-title" class="mb-4 text-xl font-bold">Manage Project</h2>
+
+        <div #tabList role="tablist" aria-label="Project settings" class="join mb-4 flex" (keydown)="moveBetweenSections($event)">
+            @for (entry of sections; track entry.id; let first = $first) {
+                <button
+                    type="button"
+                    role="tab"
+                    class="btn btn-sm join-item flex-1 font-normal"
+                    [class.btn-active]="entry.id === section()"
+                    [attr.aria-selected]="entry.id === section()"
+                    [attr.aria-pressed]="entry.id === section()"
+                    [attr.tabindex]="entry.id === section() ? 0 : -1"
+                    [attr.autofocus]="first ? '' : null"
+                    [attr.data-section]="entry.id"
+                    [attr.data-testid]="'manage-project-section-' + entry.id"
+                    (click)="section.set(entry.id)"
+                >
+                    {{ entry.label }}
+                </button>
+            }
+        </div>
+
+        @if (project(); as project) {
+            <div class="max-h-[60vh] overflow-y-auto">
+                <cc-manage-general [class.hidden]="section() !== 'general'" [project]="project" (deleted)="closeWithoutAsking()" />
+                <cc-manage-folders [class.hidden]="section() !== 'folders'" [project]="project" />
+                <cc-manage-profile [class.hidden]="section() !== 'profile'" [project]="project" />
+            </div>
+        }
+
+        <div class="modal-action">
+            <button type="button" class="btn" data-testid="manage-project-close" (click)="close()">Close</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop" (submit)="cancelWithEscape($event)">
+        <button>close</button>
+    </form>
+</dialog>
+
+<cc-confirm-dialog
+    title="Discard Changes"
+    message="Your changes to this project are not saved. Close anyway?"
+    testId="manage-project-discard"
+    (confirmed)="closeWithoutAsking()"
+/>
