@@ -60,11 +60,11 @@ export interface FakeRequestParams extends Partial<UpdateProjectParams> {
 
 export type FakeAnswer = { ok: true; value: unknown } | { ok: false; error: ErrorPayload }
 
-export type FakeHandler = (params: FakeRequestParams) => FakeAnswer
+type FakeHandler = (params: FakeRequestParams) => FakeAnswer
 
 export type FakeBackend = Partial<Record<FakeAnswerKey, FakeHandler>>
 
-export interface FakeStore {
+interface FakeStore {
     projects: Project[]
     activeProjectId: string | null
     foldersToPick: PickedFolder[]
@@ -77,17 +77,17 @@ export interface FakeStore {
     importedContent: Map<string, FolderRef & { snapshotId: string }>
 }
 
-export interface FakeProjectsApi {
+interface FakeProjectsApi {
     withProject(params: FakeRequestParams, change: (project: Project) => FakeAnswer | null): FakeAnswer
     withCounts(project: Project): Project
     createProject(params: FakeRequestParams): FakeAnswer
 }
 
-export interface FakeFoldersApi {
+interface FakeFoldersApi {
     attachFolder(project: Project, folder: NewFolder): FakeAnswer | null
 }
 
-export interface FakeSnapshotsApi {
+interface FakeSnapshotsApi {
     snapshotsOf(projectId: string, folderId?: string): SnapshotSummary[]
     findSnapshot(params: FakeRequestParams): SnapshotSummary | undefined
     commitOf(folderId: string, hash: string): ResolvedCommit | null
