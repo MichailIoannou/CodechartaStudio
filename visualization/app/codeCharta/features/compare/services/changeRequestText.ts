@@ -4,6 +4,7 @@ interface ProviderWording {
     segment: string
     prefix: string
     notInstalled: string
+    notListed: string
     cliSite: string
     cliUrl: string
 }
@@ -13,6 +14,7 @@ const WORDING: Readonly<Record<HostingProvider, ProviderWording>> = {
         segment: "Pull requests",
         prefix: "#",
         notInstalled: "Install the GitHub CLI (gh) to list pull requests, or enter a number below.",
+        notListed: "Pull requests cannot be listed here. Enter a number to open one.",
         cliSite: "cli.github.com",
         cliUrl: "https://cli.github.com"
     },
@@ -20,6 +22,7 @@ const WORDING: Readonly<Record<HostingProvider, ProviderWording>> = {
         segment: "Merge requests",
         prefix: "!",
         notInstalled: "Install the GitLab CLI (glab) to list merge requests, or enter a number below.",
+        notListed: "Merge requests cannot be listed here. Enter a number to open one.",
         cliSite: "gitlab.com/gitlab-org/cli",
         cliUrl: "https://gitlab.com/gitlab-org/cli"
     }
