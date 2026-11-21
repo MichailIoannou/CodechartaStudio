@@ -16,5 +16,6 @@ export {
     fileDate,
     longDate,
     relativeTime,
-    shortDate
+    shortDate,
+    shortDateTime
 } from "./util/folderWording"

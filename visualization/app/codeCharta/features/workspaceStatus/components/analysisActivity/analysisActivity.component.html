@@ -15,6 +15,11 @@
     @for (entry of entries(); track entry.key) {
         @if (entry.group; as group) {
             <div class="flex flex-col gap-0.5" data-testid="activity-batch">
+                @if (!group.isExpanded) {
+                    @for (row of group.runningRows; track row.job.id) {
+                        <ng-container *ngTemplateOutlet="jobRow; context: { $implicit: row }" />
+                    }
+                }
                 <div class="flex min-w-0 items-center gap-2 px-2 py-1 text-sm">
                     <button
                         type="button"

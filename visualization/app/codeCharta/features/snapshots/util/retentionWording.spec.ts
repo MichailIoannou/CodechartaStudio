@@ -1,3 +1,4 @@
+import { shortDateTime } from "../../projects/facade"
 import { aSnapshot } from "../../projects/projects.mocks"
 import { analysesWithSize, deleteQuestion, movedText, recycleFailedForCleanup } from "./retentionWording"
 
@@ -6,7 +7,7 @@ describe("retentionWording", () => {
         // Arrange
         const commit = aSnapshot("p", "f", "s-1", { target: "commit", shortCommit: "a1b2c3d", subject: "Fix invoice rounding" })
         const withoutSubject = aSnapshot("p", "f", "s-2", { target: "commit", shortCommit: "9f8e7d6" })
-        const workingTree = aSnapshot("p", "f", "s-3", { target: "workingTree", shortCommit: "a1b2c3d" })
+        const workingTree = aSnapshot("p", "f", "s-3", { target: "workingTree", shortCommit: "a1b2c3d", createdAt: "2026-11-04T09:12:00Z" })
         const imported = aSnapshot("p", "f", "s-4", { source: "imported", originalFileName: "export-2024.cc.json" })
         const importedWithoutName = aSnapshot("p", "f", "s-5", { source: "imported" })
 
@@ -17,7 +18,7 @@ describe("retentionWording", () => {
         expect(questions).toEqual([
             "Move the analysis of a1b2c3d (Fix invoice rounding) to the recycle bin?",
             "Move the analysis of 9f8e7d6 to the recycle bin?",
-            "Move the analysis of the working tree (on a1b2c3d) to the recycle bin?",
+            `Move the analysis of the working tree on a1b2c3d (${shortDateTime("2026-11-04T09:12:00Z")}) to the recycle bin?`,
             "Move the imported snapshot 'export-2024.cc.json' to the recycle bin? It can only be restored from the recycle bin.",
             "Move the imported snapshot 's-5' to the recycle bin? It can only be restored from the recycle bin."
         ])
@@ -38,7 +39,7 @@ describe("retentionWording", () => {
         // Assert
         expect(texts).toEqual([
             "Could not move the analyses to the recycle bin. Nothing was deleted.",
-            "Could not move every analysis to the recycle bin. Moved 4 of 30; the rest were kept."
+            "Moved 4 of 30 analyses to the recycle bin; the rest were kept."
         ])
     })
 })
