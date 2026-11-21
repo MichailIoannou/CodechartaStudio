@@ -28,7 +28,7 @@ export class DeltaGenerator {
 
     private static getDeltaNodesByPath(referenceMap: CodeMapNode, comparisonMap: CodeMapNode) {
         const deltaNodesByPath = new Map<string, CodeMapNode>()
-        const referenceNodesByPath = this.getReferenceNodesByPath(referenceMap)
+        const referenceNodesByPath = this.getNodesByPath(referenceMap)
 
         this.addExistingAndNewNodesToDeltaMap(referenceNodesByPath, comparisonMap, deltaNodesByPath)
 
@@ -37,12 +37,12 @@ export class DeltaGenerator {
         return deltaNodesByPath
     }
 
-    private static getReferenceNodesByPath(referenceMap: CodeMapNode) {
-        const referenceNodesByPath = new Map<string, CodeMapNode>()
-        for (const { data } of hierarchy(referenceMap)) {
-            referenceNodesByPath.set(data.path, data)
+    private static getNodesByPath(map: CodeMapNode) {
+        const nodesByPath = new Map<string, CodeMapNode>()
+        for (const { data } of hierarchy(map)) {
+            nodesByPath.set(data.path, data)
         }
-        return referenceNodesByPath
+        return nodesByPath
     }
 
     private static addExistingAndNewNodesToDeltaMap(
