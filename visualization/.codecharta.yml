@@ -139,6 +139,7 @@ dependencies:  ## counted like the dependency view in the visualization
 overrides:  ## tests and mocks may be long and explain themselves in comments; complex test logic still counts
   - paths:
       - "**/*.spec.ts"
+      - "**/*.test.js"
       - "**/*.e2e.ts"
       - "**/e2e/**"
       - "**/mocks/**"
