@@ -88,7 +88,9 @@ test.describe("Git workflow", () => {
         await expect(history.syncButton()).toHaveAttribute("title", /^Fetch from all remotes/)
     })
 
-    test("should stop a merge pull on conflicts, show the merge notice and abort it after its confirmation", async ({ page }) => {
+    test("should stop a merge pull on conflicts, show the merge notice without a toast and abort it after its confirmation", async ({
+        page
+    }) => {
         // Arrange
         const seed = workflowSeed(tracking(2, 1), { pullConflicts: ["src/billing/invoice.ts"] })
         const history = await openHistory(page, seed)
@@ -100,13 +102,9 @@ test.describe("Git workflow", () => {
         await history.confirm("yes")
 
         // Assert
-        await expect(
-            history
-                .toasts()
-                .filter({ hasText: "Git stopped on conflicts in 1 file. The notice above the list says how to finish or abort." })
-        ).toBeVisible()
         await expect(history.operationNotice()).toContainText(`Merging into '${BRANCH}'.`)
         await expect(history.operationNotice()).toContainText("1 file has conflicts.")
+        await expect(history.toasts().filter({ hasText: "Git stopped on conflicts" })).toHaveCount(0)
         await history.abortOperation().click()
         await expect(history.confirmDialog()).toContainText(
             "Abort the merge and return 'feature/invoice-rounding' to the state before the pull?"

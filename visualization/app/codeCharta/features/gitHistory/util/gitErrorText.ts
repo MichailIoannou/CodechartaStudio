@@ -77,14 +77,15 @@ export function gitErrorCommands(error: GitError): string[] {
 
 /** The one follow-up action design H6 offers in the toast of a failure. */
 export interface GitFollowUp {
-    kind: "pull" | "fetch" | "publish"
+    kind: "pull" | "fetch" | "publish" | "openHistory"
     label: string
 }
 
 const FOLLOW_UPS: Partial<Record<GitError["code"], GitFollowUp>> = {
     PUSH_REJECTED: { kind: "pull", label: "Pull" },
     STALE_PUSH_LEASE: { kind: "fetch", label: "Fetch" },
-    NO_UPSTREAM: { kind: "publish", label: "Publish branch" }
+    NO_UPSTREAM: { kind: "publish", label: "Publish branch" },
+    CONFLICTS: { kind: "openHistory", label: "Open History" }
 }
 
 export function gitErrorFollowUp(error: GitError): GitFollowUp | null {
@@ -144,14 +145,15 @@ function contextSentenceOf(error: GitError, context: GitErrorContext): string | 
     return CONTEXT_SENTENCES[error.code]?.(context) ?? null
 }
 
-function conflictsSentence({ operation, conflictedFiles }: GitErrorContext): string | null {
+function conflictsSentence({ operation, conflictedFiles, inProgress }: GitErrorContext): string | null {
     if (operation === "commit") {
         return "Git did not commit: some files still have conflicts. Resolve them in your editor, stage them, then commit."
     }
     if (!operation || conflictedFiles === undefined) {
         return null
     }
-    const sentence = `Git stopped on conflicts in ${counted(conflictedFiles, "file")}. The notice above the list says how to finish or abort.`
+    const stopped = OPERATION_NAMES[inProgress ?? "merge"]
+    const sentence = `Git stopped on conflicts in ${counted(conflictedFiles, "file")}. Finish or abort the ${stopped} in the History.`
     return operation === "stashPop" ? `${sentence} The stash was kept.` : sentence
 }
 

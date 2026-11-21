@@ -28,7 +28,11 @@ export class SyncButtonComponent {
     private readonly branchActions = inject(BranchActionsService)
     private readonly sync = inject(SyncActionsService)
     private readonly operations = inject(GitOperationService)
-    private readonly context = computed(() => ({ branch: this.sync.currentBranch(), remotes: this.sync.remotes() }))
+    private readonly context = computed(() => ({
+        branch: this.sync.currentBranch(),
+        remotes: this.sync.remotes(),
+        inProgress: this.sync.inProgress()
+    }))
 
     readonly menuAnchor = signal<FloatingMenuAnchor | null>(null)
     readonly isBusy = this.operations.isBusy
