@@ -58,12 +58,23 @@ fn write_json_atomic_with<T: Serialize>(path: &Path, value: &T, rename: Rename) 
         .ok_or_else(|| CoreError::Internal(format!("{} has no parent folder", path.display())))?;
     let temporary =
         write_temporary_file(folder, &content).map_err(|source| write_error(path, source))?;
-    rename_with_retries(temporary.as_ref(), path, rename)
-        .map_err(|source| write_error(path, source))?;
-    temporary.keep().map(|_| ()).map_err(|error| CoreError::Io {
+    // Kept before the rename: on Windows `keep` still touches the file at its temporary path,
+    // which no longer exists once the file has been renamed into place.
+    let temporary = temporary.keep().map_err(|error| CoreError::Io {
         context: format!("Could not finish writing {}", path.display()),
         source: error.error,
+    })?;
+    rename_with_retries(&temporary, path, rename).map_err(|source| {
+        discard_temporary_file(&temporary);
+        write_error(path, source)
     })
+}
+
+/// Best effort: a leftover temporary file is swept up the next time the store is opened.
+fn discard_temporary_file(temporary: &Path) {
+    if let Err(error) = fs::remove_file(temporary) {
+        tracing::warn!("could not remove {}: {error}", temporary.display());
+    }
 }
 
 fn to_json_bytes<T: Serialize>(path: &Path, value: &T) -> CoreResult<Vec<u8>> {
