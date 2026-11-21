@@ -21,6 +21,7 @@ import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.ser
 import { DesktopBridgeError, valueOrThrow } from "../../../util/desktop/desktopResult"
 import { StoreFolderService } from "../../desktopTools/facade"
 import { ToastService } from "../../shared/facade"
+import { candidatesOf, entriesOf, findSnapshot, folderLabelOf, ViewChange, viewWith, workingFolderOf } from "../util/projectSnapshots"
 import { snapshotDisplayName, uniqueDisplayNames } from "../util/snapshotDisplayName"
 import { readSnapshotBytes } from "./snapshotBytes"
 
@@ -147,13 +148,8 @@ export class ProjectsService {
         for (const ref of refs.filter(ref => !this.hasSnapshot(ref))) {
             await this.refreshFolderSnapshots(ref)
         }
-        const project = this.project()
-        const entries = refs.flatMap(ref => {
-            const folder = ref.projectId === project?.id ? project.folders.find(candidate => candidate.id === ref.folderId) : undefined
-            const snapshot = this.findSnapshot(ref)
-            return folder && snapshot ? [{ folder, snapshot }] : []
-        })
-        if (entries.length !== refs.length) {
+        const entries = entriesOf(this.project(), this.snapshots(), refs)
+        if (!entries) {
             return { loaded: [], identicalContent: [], unreadable: [] }
         }
         const result = await this.loadFilesUseCase.loadProjectSnapshots(this.toLoad(entries))
@@ -339,10 +335,8 @@ export class ProjectsService {
     }
 
     private candidatesFor(folder: ProjectFolder): SnapshotSummary[] {
-        const readable = (this.snapshots()[folder.id] ?? []).filter(snapshot => !this.unreadableSnapshotIds.has(snapshot.ref.snapshotId))
         const rememberedId = this.project()?.view.shownSnapshotIdByFolder[folder.id]
-        const remembered = readable.find(snapshot => snapshot.ref.snapshotId === rememberedId)
-        return remembered ? [remembered, ...readable.filter(snapshot => snapshot !== remembered)] : readable
+        return candidatesOf(this.snapshots(), folder, this.unreadableSnapshotIds, rememberedId)
     }
 
     private toLoad(entries: { folder: ProjectFolder; snapshot: SnapshotSummary }[]): ProjectSnapshotToLoad[] {
@@ -366,12 +360,11 @@ export class ProjectsService {
     }
 
     private hasSnapshot(ref: SnapshotRef): boolean {
-        return (this.snapshots()[ref.folderId] ?? []).some(snapshot => snapshot.ref.snapshotId === ref.snapshotId)
+        return findSnapshot(this.snapshots(), ref) !== undefined
     }
 
     private findSnapshot(origin: SnapshotRef): SnapshotSummary {
-        const snapshots = this.snapshots()[origin.folderId] ?? []
-        return snapshots.find(snapshot => snapshot.ref.snapshotId === origin.snapshotId) as SnapshotSummary
+        return findSnapshot(this.snapshots(), origin) as SnapshotSummary
     }
 
     private async recordMapFacts(snapshot: SnapshotSummary, facts: { checksum: string; rootName: string }): Promise<void> {
@@ -392,19 +385,15 @@ export class ProjectsService {
         await this.rememberView({ shownSnapshotIdByFolder: { [origin.folderId]: origin.snapshotId } })
     }
 
-    private async rememberView(change: { workingFolderId?: string; shownSnapshotIdByFolder?: Record<string, string> }): Promise<void> {
+    private async rememberView(change: ViewChange): Promise<void> {
         const project = this.requireProject()
-        const view = {
-            workingFolderId: change.workingFolderId ?? project.view.workingFolderId,
-            shownSnapshotIdByFolder: { ...project.view.shownSnapshotIdByFolder, ...change.shownSnapshotIdByFolder }
-        }
+        const view = viewWith(project.view, change)
         await this.request("projects.setView", { projectId: project.id, view })
         this.project.set({ ...project, view })
     }
 
     private labelOf(choice: FolderChoice): string {
-        const summary = this.projectList().find(project => project.id === choice.projectId)
-        return summary?.folders.find(folder => folder.id === choice.folderId)?.label ?? choice.folderId
+        return folderLabelOf(this.projectList(), choice.projectId, choice.folderId)
     }
 
     requireProject(): Project {
@@ -422,12 +411,4 @@ export class ProjectsService {
     async request<Method extends BridgeMethod>(method: Method, params: BridgeParams<Method>): Promise<BridgeResult<Method>> {
         return valueOrThrow(await this.bridge.request(method, params))
     }
-}
-
-function workingFolderOf(project: Project | null): ProjectFolder | null {
-    if (!project) {
-        return null
-    }
-    const working = project.folders.find(folder => folder.id === project.view.workingFolderId)
-    return working ?? project.folders.find(folder => folder.role === "primary") ?? project.folders[0] ?? null
 }
