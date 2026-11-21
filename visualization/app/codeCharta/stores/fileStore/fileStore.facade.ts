@@ -14,6 +14,8 @@ export {
     currentFilesAreSampleFiles,
     defaultCurrentFilesAreSampleFiles
 } from "./store/currentFilesAreSampleFiles/currentFilesAreSampleFiles.reducer"
+export { defaultFileRenames, fileRenames } from "./store/fileRenames/fileRenames.reducer"
+export { renamesOfTheDeltaSelector } from "./store/fileRenames/fileRenames.selector"
 export { FileStoreReadWindow } from "./store/fileStore.readWindow"
 export {
     fileActions,

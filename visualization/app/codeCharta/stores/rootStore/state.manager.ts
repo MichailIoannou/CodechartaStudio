@@ -2,7 +2,7 @@ import { CcState } from "../../model/codeCharta.model"
 import { defaultDependencyLensSource } from "../dependencyLensSource/dependencyLensSource.read.facade"
 import { defaultDomainLensSource } from "../domainLensSource/domainLensSource.read.facade"
 import { defaultDomainState } from "../domainState/domainState.read.facade"
-import { defaultCurrentFilesAreSampleFiles, defaultFiles, defaultIsLoadingFile } from "../fileStore/fileStore.facade"
+import { defaultCurrentFilesAreSampleFiles, defaultFileRenames, defaultFiles, defaultIsLoadingFile } from "../fileStore/fileStore.facade"
 import { defaultMapState } from "../mapState/mapState.read.facade"
 import { defaultMetricsLensSource } from "../metricsLensSource/metricsLensSource.read.facade"
 import { defaultPreferences } from "../preferences/preferences.read.facade"
@@ -17,6 +17,7 @@ export const defaultState: CcState = {
     mapState: defaultMapState,
     sharedView: defaultSharedView,
     files: defaultFiles,
+    fileRenames: defaultFileRenames,
     isLoadingFile: defaultIsLoadingFile,
     currentFilesAreSampleFiles: defaultCurrentFilesAreSampleFiles
 }

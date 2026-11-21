@@ -7,7 +7,7 @@ import {
     TEST_DELTA_MAP_E,
     TEST_DELTA_MAP_F
 } from "../mocks/dataMocks"
-import { CCFile, FileCount, NodeType } from "../model/codeCharta.model"
+import { CCFile, CodeMapNode, FileCount, NodeType } from "../model/codeCharta.model"
 import { clone } from "./clone"
 import { DeltaGenerator } from "./deltaGenerator"
 import { NodeDecorator } from "./nodeDecorator"
@@ -184,5 +184,104 @@ describe("deltaGenerator", () => {
         expect(ae.c).toBe(-a.c)
         expect(ae.d).toBe(e.d)
         expect(ae.e).toBe(e.e)
+    })
+})
+
+describe("deltaGenerator with renames", () => {
+    function fileOf(files: Record<string, Record<string, number>>): CCFile {
+        const ccFile = clone(TEST_DELTA_MAP_A)
+        ccFile.map = {
+            name: "root",
+            path: "/root",
+            type: NodeType.FOLDER,
+            attributes: {},
+            children: Object.entries(files).map(([name, attributes]) => ({ name, path: `/root/${name}`, type: NodeType.FILE, attributes }))
+        }
+        return ccFile
+    }
+
+    function nodesOf(ccFile: CCFile): Map<string, CodeMapNode> {
+        return new Map(
+            hierarchy(ccFile.map)
+                .descendants()
+                .map(({ data }) => [data.path, data])
+        )
+    }
+
+    it("should match a renamed file to its old path", () => {
+        // Arrange
+        const reference = fileOf({ "old.ts": { rloc: 10 } })
+        const comparison = fileOf({ "new.ts": { rloc: 15 } })
+
+        // Act
+        const result = DeltaGenerator.getDeltaFile(reference, comparison, [{ from: "/root/old.ts", to: "/root/new.ts" }])
+
+        // Assert
+        const nodes = nodesOf(result)
+        expect(nodes.has("/root/old.ts")).toBe(false)
+        expect(nodes.get("/root/new.ts")).toEqual(
+            expect.objectContaining({
+                name: "new.ts",
+                attributes: { rloc: 15 },
+                deltas: { rloc: 5 },
+                fileCount: { added: 0, removed: 0, changed: 1 }
+            })
+        )
+    })
+
+    it("should match a renamed file when the comparison holds the older map", () => {
+        // Arrange
+        const reference = fileOf({ "new.ts": { rloc: 15 } })
+        const comparison = fileOf({ "old.ts": { rloc: 10 } })
+
+        // Act
+        const result = DeltaGenerator.getDeltaFile(reference, comparison, [{ from: "/root/old.ts", to: "/root/new.ts" }])
+
+        // Assert
+        const nodes = nodesOf(result)
+        expect(nodes.has("/root/new.ts")).toBe(false)
+        expect(nodes.get("/root/old.ts")).toEqual(
+            expect.objectContaining({ deltas: { rloc: -5 }, fileCount: { added: 0, removed: 0, changed: 1 } })
+        )
+    })
+
+    it("should keep an unrelated removed file removed", () => {
+        // Arrange
+        const reference = fileOf({ "old.ts": { rloc: 10 }, "gone.ts": { rloc: 3 } })
+        const comparison = fileOf({ "new.ts": { rloc: 10 } })
+
+        // Act
+        const result = DeltaGenerator.getDeltaFile(reference, comparison, [{ from: "/root/old.ts", to: "/root/new.ts" }])
+
+        // Assert
+        const nodes = nodesOf(result)
+        expect(nodes.get("/root/gone.ts").fileCount).toEqual({ added: 0, removed: 1, changed: 0 })
+        expect(nodes.get("/root/new.ts").fileCount).toEqual({ added: 0, removed: 0, changed: 0 })
+    })
+
+    it("should ignore a rename whose old path is not in the reference map", () => {
+        // Arrange
+        const reference = fileOf({ "other.ts": { rloc: 10 } })
+        const comparison = fileOf({ "other.ts": { rloc: 10 }, "new.ts": { rloc: 4 } })
+
+        // Act
+        const result = DeltaGenerator.getDeltaFile(reference, comparison, [{ from: "/root/old.ts", to: "/root/new.ts" }])
+
+        // Assert
+        expect(nodesOf(result).get("/root/new.ts").fileCount).toEqual({ added: 1, removed: 0, changed: 0 })
+    })
+
+    it("should ignore a rename whose new path is already in the reference map", () => {
+        // Arrange
+        const reference = fileOf({ "old.ts": { rloc: 10 }, "new.ts": { rloc: 2 } })
+        const comparison = fileOf({ "new.ts": { rloc: 10 } })
+
+        // Act
+        const result = DeltaGenerator.getDeltaFile(reference, comparison, [{ from: "/root/old.ts", to: "/root/new.ts" }])
+
+        // Assert
+        const nodes = nodesOf(result)
+        expect(nodes.get("/root/old.ts").fileCount).toEqual({ added: 0, removed: 1, changed: 0 })
+        expect(nodes.get("/root/new.ts").deltas).toEqual({ rloc: 8 })
     })
 })

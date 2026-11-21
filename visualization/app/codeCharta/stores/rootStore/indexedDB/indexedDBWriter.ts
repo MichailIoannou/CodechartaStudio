@@ -31,7 +31,7 @@ export async function writeCcState(state: CcState) {
         }
         await tx.store.put({
             [CCSTATE_PRIMARY_KEY]: CCSTATE_STATE_ID,
-            state: toPersistedSettings(withoutFiles(state))
+            state: toPersistedSettings(withoutFileStore(state))
         })
         await tx.done
         // Only once committed: a cache claiming unwritten files would make every later save skip them.
@@ -134,8 +134,9 @@ function withSeededLensSettings(files: FileState[]): FileState[] {
     )
 }
 
-function withoutFiles(state: CcState): Omit<CcState, "files"> {
-    const { files, ...settings } = state
+/** The renames belong to the comparison on show, which is never restored. */
+function withoutFileStore(state: CcState): Omit<CcState, "files" | "fileRenames"> {
+    const { files, fileRenames, ...settings } = state
     return settings
 }
 

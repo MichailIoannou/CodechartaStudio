@@ -1,6 +1,7 @@
 import { hierarchy } from "d3-hierarchy"
 import packageJson from "../../../package.json"
 import { CCFile, CodeMapNode, FileMeta, KeyValuePair, NodeType } from "../model/codeCharta.model"
+import { FileRename } from "../model/files/files"
 import { FileNameHelper } from "./fileNameHelper"
 import { fileRoot } from "./fileRoot"
 import { getParent } from "./nodePathHelper"
@@ -19,16 +20,18 @@ export class DeltaGenerator {
         return rootNode
     }
 
-    static getDeltaFile(referenceFile: CCFile, comparisonFile: CCFile) {
-        const deltaNodesByPath = this.getDeltaNodesByPath(referenceFile.map, comparisonFile.map)
+    static getDeltaFile(referenceFile: CCFile, comparisonFile: CCFile, renames: readonly FileRename[] = []) {
+        const deltaNodesByPath = this.getDeltaNodesByPath(referenceFile.map, comparisonFile.map, renames)
         const map = this.createCodeMapFromHashMap(deltaNodesByPath)
         const fileMeta = this.getFileMetaData(referenceFile, comparisonFile)
         return this.getNewCCFileWithDeltas(map, fileMeta)
     }
 
-    private static getDeltaNodesByPath(referenceMap: CodeMapNode, comparisonMap: CodeMapNode) {
+    private static getDeltaNodesByPath(referenceMap: CodeMapNode, comparisonMap: CodeMapNode, renames: readonly FileRename[]) {
         const deltaNodesByPath = new Map<string, CodeMapNode>()
         const referenceNodesByPath = this.getNodesByPath(referenceMap)
+
+        this.keyRenamedReferenceNodesByComparisonPath(referenceNodesByPath, comparisonMap, renames)
 
         this.addExistingAndNewNodesToDeltaMap(referenceNodesByPath, comparisonMap, deltaNodesByPath)
 
@@ -43,6 +46,57 @@ export class DeltaGenerator {
             nodesByPath.set(data.path, data)
         }
         return nodesByPath
+    }
+
+    /** The renamed reference node takes the comparison node's path and name, so the two are compared as one file. */
+    private static keyRenamedReferenceNodesByComparisonPath(
+        referenceNodesByPath: Map<string, CodeMapNode>,
+        comparisonMap: CodeMapNode,
+        renames: readonly FileRename[]
+    ) {
+        if (renames.length === 0) {
+            return
+        }
+        const comparisonNodesByPath = this.getNodesByPath(comparisonMap)
+        for (const rename of renames) {
+            const pathPair = this.orientTowardsTheComparison(rename, referenceNodesByPath, comparisonNodesByPath)
+            if (pathPair) {
+                this.moveReferenceNode(referenceNodesByPath, pathPair, comparisonNodesByPath.get(pathPair.to))
+            }
+        }
+    }
+
+    private static moveReferenceNode(
+        referenceNodesByPath: Map<string, CodeMapNode>,
+        { from, to }: FileRename,
+        comparisonNode: CodeMapNode
+    ) {
+        const referenceNode = referenceNodesByPath.get(from)
+        referenceNode.path = comparisonNode.path
+        referenceNode.name = comparisonNode.name
+        referenceNodesByPath.delete(from)
+        referenceNodesByPath.set(to, referenceNode)
+    }
+
+    /** Git names the rename from base to head; after a swap the reference holds the head, so the pair applies reversed. */
+    private static orientTowardsTheComparison(
+        { from, to }: FileRename,
+        referenceNodesByPath: Map<string, CodeMapNode>,
+        comparisonNodesByPath: Map<string, CodeMapNode>
+    ): FileRename | undefined {
+        const isRenamedTowardsTheComparison = (referencePath: string, comparisonPath: string) =>
+            referenceNodesByPath.has(referencePath) &&
+            !referenceNodesByPath.has(comparisonPath) &&
+            comparisonNodesByPath.has(comparisonPath) &&
+            !comparisonNodesByPath.has(referencePath)
+
+        if (isRenamedTowardsTheComparison(from, to)) {
+            return { from, to }
+        }
+        if (isRenamedTowardsTheComparison(to, from)) {
+            return { from: to, to: from }
+        }
+        return undefined
     }
 
     private static addExistingAndNewNodesToDeltaMap(

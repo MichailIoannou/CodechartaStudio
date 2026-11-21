@@ -2060,6 +2060,7 @@ export const STATE: CcState = {
         layoutAlgorithm: LayoutAlgorithm.SquarifiedTreeMap
     },
     files: [],
+    fileRenames: [],
     isLoadingFile: true,
     currentFilesAreSampleFiles: false
 }
@@ -2171,6 +2172,7 @@ export const DEFAULT_STATE: CcState = {
     },
     domainState: defaultDomainState,
     files: [],
+    fileRenames: [],
     isLoadingFile: true,
     currentFilesAreSampleFiles: false
 }
