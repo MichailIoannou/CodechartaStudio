@@ -11,6 +11,7 @@ import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.ser
 import { valueOrThrow } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
 import { defaultRoleFor } from "../util/folderRole"
+import { ProjectFoldersService } from "./projectFolders.service"
 import { ProjectsService } from "./projects.service"
 
 const PICKER_FILTERS = [{ name: "cc.json files", extensions: ["json", "gz"] }]
@@ -36,6 +37,7 @@ export interface CommitSearch {
 export class OpenFileService {
     private readonly environment = inject(DesktopEnvironment)
     private readonly projects = inject(ProjectsService)
+    private readonly projectFolders = inject(ProjectFoldersService)
     private readonly toastService = inject(ToastService)
     private readonly pendingFile = signal<PendingFile | null>(null)
 
@@ -100,7 +102,7 @@ export class OpenFileService {
     }
 
     async lookInAnotherFolder(target: OpenFileTarget, title: string): Promise<CommitSearch | null> {
-        const folder = await this.projects.pickFolder(title)
+        const folder = await this.projectFolders.pickFolder(title)
         if (!folder) {
             return null
         }

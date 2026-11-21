@@ -7,7 +7,7 @@ import type { Project } from "../../model/coreApi/Project"
 import type { ProjectFolder } from "../../model/coreApi/ProjectFolder"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 import type { BridgeMethod, DesktopBridge } from "./desktopBridge"
-import { createFakeDesktopBridge, FakeDesktopBridge, FakeDesktopSeed } from "./desktopBridge.mocks"
+import { createFakeDesktopBridge, FakeDesktopBridge, FakeDesktopSeed, fakeDesktopBridgeSource } from "./desktopBridge.mocks"
 
 const TOOL_FAILURE = { code: "TOOL_FAILED" as const, message: "git failed", details: {} }
 const NOW = "2026-11-19T08:00:00Z"
@@ -548,7 +548,7 @@ describe("createFakeDesktopBridge", () => {
         const refs = { fingerprint: "f1", head, localBranches: [], remoteBranches: [], tags: [], remotes: [] }
         const failure = { code: "INDEX_LOCKED" as const, message: "locked", details: {} }
         const seed: FakeDesktopSeed = { git: { "f-1": { info, refs, failures: { "git.status": failure } } } }
-        const rebuild = new Function(`return (${createFakeDesktopBridge.toString()})(${JSON.stringify(seed)})`)
+        const rebuild = new Function(`return ${fakeDesktopBridgeSource(seed)}`)
         const repo = { projectId: "p-1", folderId: "f-1" }
 
         // Act
@@ -622,7 +622,7 @@ describe("createFakeDesktopBridge", () => {
                 }
             }
         }
-        const bridge = new Function(`return (${createFakeDesktopBridge.toString()})(${JSON.stringify(seed)})`)() as FakeDesktopBridge
+        const bridge = new Function(`return ${fakeDesktopBridgeSource(seed)}`)() as FakeDesktopBridge
         const repo = { projectId: "p-1", folderId: "f-1" }
         const all = { kind: "all" as const }
 
@@ -1052,7 +1052,7 @@ describe("createFakeDesktopBridge", () => {
             responses: { "core.ping": { coreVersion: "0.1.0" } },
             pickedFolders: [aPickedFolder("billing")]
         }
-        const rebuild = new Function(`return (${createFakeDesktopBridge.toString()})(${JSON.stringify(seed)})`)
+        const rebuild = new Function(`return ${fakeDesktopBridgeSource(seed)}`)
 
         // Act
         const rebuilt = rebuild() as ReturnType<typeof createFakeDesktopBridge>

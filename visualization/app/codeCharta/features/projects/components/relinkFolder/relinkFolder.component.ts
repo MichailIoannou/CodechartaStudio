@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal, viewChild } from "@
 import type { PickedFolder } from "../../../../model/coreApi/PickedFolder"
 import { DesktopBridgeError } from "../../../../util/desktop/desktopResult"
 import { ConfirmDialogComponent } from "../../../shared/facade"
+import { ProjectFoldersService } from "../../services/projectFolders.service"
 import { ProjectsService } from "../../services/projects.service"
 
 interface PendingRelink {
@@ -18,13 +19,14 @@ interface PendingRelink {
 })
 export class RelinkFolderComponent {
     private readonly projects = inject(ProjectsService)
+    private readonly projectFolders = inject(ProjectFoldersService)
     private readonly confirmDialog = viewChild.required(ConfirmDialogComponent)
     private pending: PendingRelink | null = null
 
     readonly question = signal("")
 
     async start(folder: { id: string; label: string }) {
-        const picked = await this.projects.pickFolder(`Re-link '${folder.label}'`).catch((error: unknown) => {
+        const picked = await this.projectFolders.pickFolder(`Re-link '${folder.label}'`).catch((error: unknown) => {
             this.projects.toastUnlessSilent(error, (error as Error).message)
             return null
         })
@@ -41,13 +43,13 @@ export class RelinkFolderComponent {
 
     private async relink(relink: PendingRelink, acceptDifferentHistory: boolean) {
         try {
-            await this.projects.relinkFolder(relink.folderId, relink.picked.pickToken, acceptDifferentHistory)
+            await this.projectFolders.relinkFolder(relink.folderId, relink.picked.pickToken, acceptDifferentHistory)
             this.pending = null
         } catch (error) {
             if (error instanceof DesktopBridgeError && error.code === "DIFFERENT_HISTORY") {
                 this.askAboutDifferentHistory(relink)
             } else {
-                this.projects.toastFolderRefusal(error, relink.picked.path)
+                this.projectFolders.toastFolderRefusal(error, relink.picked.path)
             }
         }
     }
