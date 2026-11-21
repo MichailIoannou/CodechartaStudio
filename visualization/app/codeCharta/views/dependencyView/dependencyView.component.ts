@@ -3,7 +3,7 @@ import { BottomBarComponent } from "../../features/bottomBar/facade"
 import {
     DependencyBarComponent,
     DependencyEdgeLegendComponent,
-    DependencyInspectorStore,
+    DependencyInspectorCollapseStore,
     DependencyMapArrival,
     DependencyMapComponent
 } from "../../features/dependencyMap/facade"
@@ -23,7 +23,12 @@ import {
     NodeContextMenuComponent,
     NodeContextMenuForExplorer
 } from "../../features/nodeContextMenu/facade"
-import { LoadingFileProgressSpinnerComponent, provideViewScopedCssVariables, SharedFocusStore } from "../../features/shared/facade"
+import {
+    LoadingFileProgressSpinnerComponent,
+    provideViewScopedCssVariables,
+    SharedFocusStore,
+    SidePanelRoom
+} from "../../features/shared/facade"
 import {
     EXPLORER_CAPABILITIES,
     EXPLORER_CONTEXT_MENU,
@@ -88,11 +93,12 @@ import { DependencyExplorerSelection } from "./explorer/dependencyExplorerSelect
             useValue: { focusableNodes: "folders", showMapActions: false, showExclude: true } satisfies NodeContextMenuCapabilities
         },
         provideViewScopedExplorerState("dependencies"),
-        provideViewScopedCssVariables()
+        provideViewScopedCssVariables(),
+        SidePanelRoom
     ],
     hostDirectives: [ShowsHandedOverMapNodeDirective],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DependencyViewComponent {
-    protected readonly isInspectorShown = inject(DependencyInspectorStore).isShown
+    protected readonly isInspectorExpanded = inject(DependencyInspectorCollapseStore).isExpanded
 }

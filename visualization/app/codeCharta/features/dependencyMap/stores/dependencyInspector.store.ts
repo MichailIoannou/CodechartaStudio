@@ -107,7 +107,7 @@ export class DependencyInspectorStore {
         const parent = tree.parentOf.get(node.path) ?? null
         return { kind: "box", node, parent, isOpen: this.viewStore.expandedPaths().has(node.path) }
     })
-    private readonly subjectId = computed(() => {
+    readonly subjectId = computed(() => {
         const subject = this.subject()
         return subject && (subject.kind === "edge" ? `edge ${subject.edge.id}` : `box ${subject.node.path}`)
     })

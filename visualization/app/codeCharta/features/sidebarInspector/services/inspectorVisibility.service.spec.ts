@@ -133,4 +133,58 @@ describe("InspectorVisibilityService", () => {
         // Assert
         expect(service.isCollapsed()).toBe(false)
     })
+
+    function selectOtherBuilding() {
+        mockStore.overrideSelector(selectedNodeSelector, { name: "other.ts", path: "/root/other.ts" } as CodeMapNode)
+        mockStore.refreshState()
+    }
+
+    it("should mark a selection made while collapsed as not yet seen", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+
+        // Act
+        selectOtherBuilding()
+
+        // Assert
+        expect(service.hasUnseenSelection()).toBe(true)
+    })
+
+    it("should count the building shown when it collapsed as seen", () => {
+        // Arrange
+        selectBuilding()
+
+        // Act
+        service.collapse()
+
+        // Assert
+        expect(service.hasUnseenSelection()).toBe(false)
+    })
+
+    it("should count a selection as seen once the inspector is expanded", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+        selectOtherBuilding()
+
+        // Act
+        service.expand()
+
+        // Assert
+        expect(service.hasUnseenSelection()).toBe(false)
+    })
+
+    it("should count the selection as seen again when the building shown before is selected again", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+        selectOtherBuilding()
+
+        // Act
+        selectBuilding()
+
+        // Assert
+        expect(service.hasUnseenSelection()).toBe(false)
+    })
 })

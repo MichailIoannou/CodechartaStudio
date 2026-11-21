@@ -1,11 +1,14 @@
-import { signal } from "@angular/core"
+import { computed, signal } from "@angular/core"
+import { TestBed } from "@angular/core/testing"
 import { fireEvent, render, screen, within } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import { DependencyLeafEdge } from "../../../../model/codeCharta.model"
 import { defaultDependencyGraphSettings } from "../../../../stores/preferences/preferences.read.facade"
+import { COLLAPSED_STRIP_WIDTH_PX, registerSidePanel, SidePanelRoom } from "../../../shared/facade"
 import { BadgeSectionId, InspectorDependency, InspectorModel, InspectorSectionId } from "../../inspector/inspectorModel"
 import { InspectorReference } from "../../inspector/inspectorReferences"
 import { DependencyInspectorStore } from "../../stores/dependencyInspector.store"
+import { DependencyInspectorCollapseStore } from "../../stores/dependencyInspectorCollapse.store"
 import { DependencyInspectorComponent } from "./dependencyInspector.component"
 
 const CREATURE: InspectorReference = { path: "/root/creature.ts/Creature", name: "Creature", kind: "declaration", declarationKind: "class" }
@@ -85,7 +88,12 @@ interface Shown {
 
 const EVERY_SECTION: InspectorSectionId[] = ["cycles", "upward", "uses", "usedBy", "declarations"]
 
-async function renderInspector(model: InspectorModel = FILE_MODEL, sectionRequest: SectionRequest = null, openSections = EVERY_SECTION) {
+async function renderInspector(
+    model: InspectorModel = FILE_MODEL,
+    sectionRequest: SectionRequest = null,
+    openSections = EVERY_SECTION,
+    providers: unknown[] = []
+) {
     const handlers = {
         referenceChosen: jest.fn(),
         dependenciesPointedAt: jest.fn(),
@@ -101,6 +109,8 @@ async function renderInspector(model: InspectorModel = FILE_MODEL, sectionReques
     const shown = { model: signal<InspectorModel | null>(model), sectionRequest: signal(sectionRequest) }
     const store: Partial<DependencyInspectorStore> = {
         ...shown,
+        isShown: computed(() => shown.model() !== null),
+        subjectId: computed(() => shown.model()?.path ?? null),
         edgeColors: signal(EDGE_COLORS),
         openSections: signal<ReadonlySet<InspectorSectionId>>(new Set(openSections)),
         toggleSection: handlers.sectionToggled,
@@ -114,7 +124,9 @@ async function renderInspector(model: InspectorModel = FILE_MODEL, sectionReques
         dismiss: handlers.closed,
         answerSectionRequest: handlers.sectionRequestAnswered.mockImplementation(() => shown.sectionRequest.set(null))
     }
-    const rendered = await render(DependencyInspectorComponent, { providers: [{ provide: DependencyInspectorStore, useValue: store }] })
+    const rendered = await render(DependencyInspectorComponent, {
+        providers: [{ provide: DependencyInspectorStore, useValue: store }, ...(providers as [])]
+    })
     const rerender = async ({ inputs }: { inputs: Shown }) => {
         shown.model.set(inputs.model)
         if (inputs.sectionRequest !== undefined) {
@@ -552,5 +564,93 @@ describe("DependencyInspectorComponent", () => {
 
         // Assert
         expect(scrollIntoView.mock.contexts).toEqual([screen.getByTestId("dependency-inspector-upward")])
+    })
+
+    describe("collapsed", () => {
+        const MODEL_PATH_TEXT = "creature.ts"
+
+        async function renderCollapsed() {
+            const rendered = await renderInspector()
+            TestBed.inject(DependencyInspectorCollapseStore).collapse()
+            rendered.fixture.detectChanges()
+            return rendered
+        }
+
+        it("should shrink to a strip as wide as the explorer's, with the subject's name and a button that shows it again", async () => {
+            // Act
+            const { fixture } = await renderCollapsed()
+
+            // Assert
+            const host = fixture.nativeElement as HTMLElement
+            expect(screen.getByTestId("inspector-collapsed-name").textContent.trim()).toBe(MODEL_PATH_TEXT)
+            expect(screen.queryByTestId("dependency-inspector-body")).toBe(null)
+            expect(host.style.width).toBe(`${COLLAPSED_STRIP_WIDTH_PX}px`)
+            expect(host.style.bottom).toBe("auto")
+            expect(document.documentElement.style.getPropertyValue("--cc-bar-inset-right")).toBe("0px")
+        })
+
+        it("should mark the strip when another subject is selected while it is collapsed", async () => {
+            // Arrange
+            const { rerender } = await renderCollapsed()
+
+            // Act
+            await rerender({ inputs: { model: { ...FILE_MODEL, title: "weapon.ts", path: "/root/weapon.ts" } } })
+
+            // Assert
+            expect(screen.getByTestId("inspector-collapsed-name").textContent.trim()).toBe("weapon.ts")
+            expect(screen.getByRole("button", { name: "Show inspector — selection changed" })).not.toBe(null)
+        })
+
+        it("should show the whole inspector again when the strip's button is clicked", async () => {
+            // Arrange
+            await renderCollapsed()
+
+            // Act
+            await userEvent.click(screen.getByRole("button", { name: "Show inspector" }))
+
+            // Assert
+            expect(screen.getByTestId("dependency-inspector-body")).not.toBe(null)
+            expect(document.documentElement.style.getPropertyValue("--cc-bar-inset-right")).toBe("calc(var(--cc-inspector-width) + 6px)")
+        })
+    })
+
+    describe("in a view that keeps room for the floating bars", () => {
+        const originalWidth = window.innerWidth
+        const explorer = { side: "left" as const, isOpen: signal(true), coveredWidthPx: signal(326), collapse: jest.fn() }
+
+        beforeEach(() => {
+            Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 })
+            explorer.isOpen.set(true)
+            explorer.collapse.mockClear()
+        })
+
+        afterEach(() => Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth }))
+
+        it("should collapse the explorer when it opens with too little map left", async () => {
+            // Arrange
+            const { rerender } = await renderInspector(FILE_MODEL, null, EVERY_SECTION, [SidePanelRoom])
+            await rerender({ inputs: { model: null } })
+            TestBed.runInInjectionContext(() => registerSidePanel(explorer))
+
+            // Act
+            await rerender({ inputs: { model: FILE_MODEL } })
+
+            // Assert
+            expect(explorer.collapse).toHaveBeenCalledTimes(1)
+        })
+
+        it("should collapse itself when the explorer opens beside it with too little map left", async () => {
+            // Arrange
+            explorer.isOpen.set(false)
+            const { fixture } = await renderInspector(FILE_MODEL, null, EVERY_SECTION, [SidePanelRoom])
+            TestBed.runInInjectionContext(() => registerSidePanel(explorer))
+
+            // Act
+            explorer.isOpen.set(true)
+            fixture.detectChanges()
+
+            // Assert
+            expect(TestBed.inject(DependencyInspectorCollapseStore).isCollapsed()).toBe(true)
+        })
     })
 })

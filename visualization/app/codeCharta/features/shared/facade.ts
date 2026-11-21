@@ -11,6 +11,7 @@ export {
 export { BarToolComponent } from "./components/barTool/barTool.component"
 export { BarToolsCellComponent } from "./components/barToolsCell/barToolsCell.component"
 export { BootLoadingIndicatorComponent } from "./components/bootLoadingIndicator/bootLoadingIndicator.component"
+export { CollapsedInspectorStripComponent } from "./components/collapsedInspectorStrip/collapsedInspectorStrip.component"
 export { ColumnResizeHandleDirective } from "./components/columnResizeHandle/columnResizeHandle.directive"
 export { ConfirmDialogComponent } from "./components/confirmDialog/confirmDialog.component"
 export { ContextMenuItemComponent } from "./components/contextMenuItem/contextMenuItem.component"
