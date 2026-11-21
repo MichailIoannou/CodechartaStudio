@@ -6,6 +6,7 @@ import { DESKTOP_BRIDGE } from "../../../util/desktop/desktopBridge.token"
 import { StoreFolderService } from "../../desktopTools/facade"
 import { ToastService } from "../../shared/facade"
 import { aFolder, aPickedFolder, aProject, aSnapshot } from "../projects.mocks"
+import { ProjectFoldersService } from "./projectFolders.service"
 import { ProjectsService } from "./projects.service"
 
 const BILLING = aProject(
@@ -44,6 +45,10 @@ describe("ProjectsService", () => {
             ]
         })
         return TestBed.inject(ProjectsService)
+    }
+
+    function projectFolders() {
+        return TestBed.inject(ProjectFoldersService)
     }
 
     function loadedAll(toLoad: ProjectSnapshotToLoad[]): ProjectSnapshotsLoadResult {
@@ -333,7 +338,7 @@ describe("ProjectsService", () => {
     it("should create a project from picked folders and open it", async () => {
         // Arrange
         const service = createService({ projects: [], snapshots: [], pickedFolders: [aPickedFolder("billing-api")] })
-        const picked = await service.pickFolder("Add folder")
+        const picked = await projectFolders().pickFolder("Add folder")
 
         // Act
         await service.createProject({
@@ -373,7 +378,7 @@ describe("ProjectsService", () => {
         await service.initialise()
 
         // Act
-        await service.removeFolder("f-web")
+        await projectFolders().removeFolder("f-web")
 
         // Assert
         expect(requestsOf("projects.removeFolder")).toEqual([{ projectId: "p-billing", folderId: "f-web", permanently: false }])
@@ -385,12 +390,12 @@ describe("ProjectsService", () => {
         // Arrange
         const service = createService({ activeProjectId: "p-billing", pickedFolders: [aPickedFolder("moved")] })
         await service.initialise()
-        const picked = await service.pickFolder("Re-link")
+        const picked = await projectFolders().pickFolder("Re-link")
 
         // Act
-        await service.updateFolder("f-web", { label: "web" })
-        await service.refreshFolder("f-web")
-        await service.relinkFolder("f-web", picked?.pickToken ?? "", true)
+        await projectFolders().updateFolder("f-web", { label: "web" })
+        await projectFolders().refreshFolder("f-web")
+        await projectFolders().relinkFolder("f-web", picked?.pickToken ?? "", true)
         await service.updateProject({ name: "invoices" })
 
         // Assert
@@ -405,7 +410,7 @@ describe("ProjectsService", () => {
         await service.initialise()
 
         // Act
-        await service.addPickedFolder("Add folder")
+        await projectFolders().addPickedFolder("Add folder")
 
         // Assert
         expect(requestsOf("projects.pickFolder")).toEqual([{ title: "Add folder" }])
@@ -421,7 +426,7 @@ describe("ProjectsService", () => {
         await service.initialise()
 
         // Act
-        await service.addPickedFolder("Add folder")
+        await projectFolders().addPickedFolder("Add folder")
 
         // Assert
         expect(requestsOf("projects.addFolder")).toEqual([])
@@ -434,7 +439,7 @@ describe("ProjectsService", () => {
         await service.initialise()
 
         // Act
-        await service.addPickedFolder("Add folder")
+        await projectFolders().addPickedFolder("Add folder")
 
         // Assert
         expect(toastService.show).toHaveBeenCalledWith("'/work/f-dots' is already part of this project.", "info")
@@ -447,7 +452,7 @@ describe("ProjectsService", () => {
         bridge.failWith("projects.addFolder", { code: "DUPLICATE_LABEL", message: "Another folder is called dotfiles.", details: {} })
 
         // Act
-        await service.addPickedFolder("Add folder")
+        await projectFolders().addPickedFolder("Add folder")
 
         // Assert
         expect(toastService.show).toHaveBeenCalledWith("Another folder is called dotfiles.", "error")
@@ -460,7 +465,7 @@ describe("ProjectsService", () => {
         bridge.failWith("projects.pickFolder", { code: "BAD_REQUEST", message: "bad title", details: {} })
 
         // Act
-        await service.addPickedFolder("Add folder")
+        await projectFolders().addPickedFolder("Add folder")
 
         // Assert
         expect(toastService.show).toHaveBeenCalledWith("bad title", "error")
@@ -468,12 +473,12 @@ describe("ProjectsService", () => {
 
     it("should reveal the store folder and toast when it cannot", async () => {
         // Arrange
-        const service = createService()
-        await service.revealStoreFolder()
+        createService()
+        await projectFolders().revealStoreFolder()
         bridge.failWith("reveal", { code: "IO", message: "no file manager", details: {} })
 
         // Act
-        await service.revealStoreFolder()
+        await projectFolders().revealStoreFolder()
 
         // Assert
         expect(bridge.calls.filter(call => call.name === "reveal").map(call => call.args[0])).toEqual([
@@ -490,7 +495,7 @@ describe("ProjectsService", () => {
         bridge.failWith("projects.revealFolder", { code: "IO", message: "no file manager", details: {} })
 
         // Act
-        await service.revealFolder("f-api")
+        await projectFolders().revealFolder("f-api")
 
         // Assert
         expect(toastService.show).toHaveBeenCalledWith("no file manager", "error")

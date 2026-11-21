@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from "@angular/core"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
+import { ProjectFoldersService } from "../../services/projectFolders.service"
 import { ProjectsService } from "../../services/projects.service"
 import { remoteDisplay } from "../../util/folderWording"
 
@@ -11,6 +12,7 @@ import { remoteDisplay } from "../../util/folderWording"
 })
 export class WorkingFolderCardComponent {
     private readonly projects = inject(ProjectsService)
+    private readonly projectFolders = inject(ProjectFoldersService)
 
     readonly folder = input.required<ProjectFolder>()
     readonly relink = output<void>()
@@ -20,6 +22,6 @@ export class WorkingFolderCardComponent {
     )
 
     showInFiles() {
-        void this.projects.revealFolder(this.folder().id)
+        void this.projectFolders.revealFolder(this.folder().id)
     }
 }

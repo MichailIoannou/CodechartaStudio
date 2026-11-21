@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, signal, viewChild } from "@angular/core"
 import type { Project } from "../../../../model/coreApi/Project"
+import { ProjectFoldersService } from "../../services/projectFolders.service"
 import { ProjectsService } from "../../services/projects.service"
 import { FolderListRow, rowOfProjectFolder } from "../../util/folderListRows"
 import { counted } from "../../util/folderWording"
@@ -14,6 +15,7 @@ import { RelinkFolderComponent } from "../relinkFolder/relinkFolder.component"
 })
 export class ManageFoldersComponent {
     private readonly projects = inject(ProjectsService)
+    private readonly projectFolders = inject(ProjectFoldersService)
     private readonly removeDialog = viewChild.required<ElementRef<HTMLDialogElement>>("removeDialog")
     private readonly relinkFolder = viewChild.required(RelinkFolderComponent)
 
@@ -31,19 +33,19 @@ export class ManageFoldersComponent {
 
     addFolder() {
         this.failure.set(null)
-        void this.projects.addPickedFolder("Add folder")
+        void this.projectFolders.addPickedFolder("Add folder")
     }
 
     changeLabel({ key, label }: FolderLabelChange) {
-        void this.run(() => this.projects.updateFolder(key, { label }))
+        void this.run(() => this.projectFolders.updateFolder(key, { label }))
     }
 
     changeRole({ key, role }: FolderRoleChange) {
-        void this.run(() => this.projects.updateFolder(key, { role }))
+        void this.run(() => this.projectFolders.updateFolder(key, { role }))
     }
 
     refresh(row: FolderListRow) {
-        void this.run(() => this.projects.refreshFolder(row.key))
+        void this.run(() => this.projectFolders.refreshFolder(row.key))
     }
 
     relink(row: FolderListRow) {
@@ -52,7 +54,7 @@ export class ManageFoldersComponent {
 
     remove(row: FolderListRow) {
         if (row.snapshotCount === 0) {
-            void this.run(() => this.projects.removeFolder(row.key))
+            void this.run(() => this.projectFolders.removeFolder(row.key))
             return
         }
         this.folderToRemove.set(row)
@@ -68,7 +70,7 @@ export class ManageFoldersComponent {
         const row = this.folderToRemove()
         this.cancelRemove()
         if (row) {
-            void this.run(() => this.projects.removeFolder(row.key))
+            void this.run(() => this.projectFolders.removeFolder(row.key))
         }
     }
 
