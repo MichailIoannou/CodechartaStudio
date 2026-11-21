@@ -83,7 +83,8 @@ menu, and **Compare with HEAD** for the uncommitted changes once the working tre
 - **Compare with another folder** gives the head its own folder of the project, for example a fork next to the
   repository. Paths are matched as they are, so a fork with a different layout shows files as removed and added.
   Without a clone that has both commits the comparison is tip vs tip and lists metric changes only.
-- The lists of both sides end with **Snapshots**: the analysed working trees and the imported maps of the folder. Such
+- The lists of both sides end with **Snapshots**: the three newest analysed working trees and the imported maps of
+  the folder (older working trees are in the snapshots dialog). Such
   a side has no commit, so the comparison is tip vs tip and the changed files come from the metrics. The snapshots
   dialog offers the same: **Compare with working tree** on a commit's row and **Compare with…** on the row of a working
   tree or an imported map.
@@ -97,7 +98,8 @@ For a folder whose remote is on GitHub or GitLab, the dialog shows a **Pull requ
 list next to **Recent**. Enter a request's number, pick the branch it targets and click **Open**: CodeCharta fetches the
 request's head into a private ref of your clone (`refs/codecharta/pr/<number>`, never a branch) and compares it from
 where it left the target branch. When the GitHub CLI (`gh`) or the GitLab CLI (`glab`) is missing, the list says so
-and links to the desktop tools. A host CodeCharta does not recognise can be named as
+and links to the desktop tools; when the CLI works but the requests cannot be listed yet, the list says "Pull requests
+cannot be listed here. Enter a number to open one." A host CodeCharta does not recognise can be named as
 GitHub Enterprise or GitLab once.
 
 ### Changed files
@@ -105,9 +107,13 @@ GitHub Enterprise or GitLab once.
 While comparing, the explorer offers a **Changes** mode: it sums up how many files were added, removed and changed and
 how the area and height metrics moved, and lists the files git changed between the two commits (or, when no clone has
 both commits, the files whose metrics changed). Click a row to select its building, or the crosshair to focus its
-folder. **Only changed files** greys out and flattens every other building. The inspector names the git change of the
-selected file, for example "renamed from src/old.ts".
+folder. **Only changed files** greys out and flattens every other building. A row's height delta takes the delta
+colors, inverted when **Invert colors** is on. The inspector shows the git change of the selected file as a badge, and
+for a renamed file its old path, for example "renamed from src/old.ts".
 
-While comparing, the top bar names both sides, for example `base 9f8e7d6 main ⇄ head a1b2c3d feature/x`. Click a side
-to change it; the menu next to it swaps the sides, copies the range as text or leaves the comparison, which keeps the
-head on the map.
+While comparing, the top bar shows one compact button that names both sides, for example `main → feature/x`; a yellow
+dot says a side is shown by its nearest analysis, and a pull request icon marks a pull request comparison. Its tooltip
+names each side with its commit (and its folder when two folders are compared). Click it for the details: each side
+with its commit, whether it is analysed or how stale it is, and **Change…**; **Swap base and head**; the pull request's
+link; **Copy as text**; and **Leave compare**, which keeps the head on the map. An imported side is named by the day it
+was imported. In a window narrower than 1280 px the project menu shows only its icon while comparing.
