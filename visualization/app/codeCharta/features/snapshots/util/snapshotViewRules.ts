@@ -110,7 +110,7 @@ export function analysisTargetFor(folder: FolderRef | null, target: SelectedTarg
 
 const IN_FLIGHT: ReadonlySet<string> = new Set(["resolving", "loading"])
 
-export function isInFlight(status: string): boolean {
+function isInFlight(status: string): boolean {
     return IN_FLIGHT.has(status)
 }
 
