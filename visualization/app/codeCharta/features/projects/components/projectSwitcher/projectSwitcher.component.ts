@@ -15,6 +15,7 @@ import type { FolderRef } from "../../../../model/coreApi/FolderRef"
 import type { ProjectSummary } from "../../../../model/coreApi/ProjectSummary"
 import type { ProjectSummaryFolder } from "../../../../model/coreApi/ProjectSummaryFolder"
 import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
+import { FolderMenuRequestsService } from "../../services/folderMenuRequests.service"
 import { OpenFileService } from "../../services/openFile.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted } from "../../util/folderWording"
@@ -49,6 +50,7 @@ interface MenuProject {
 })
 export class ProjectSwitcherComponent {
     private readonly projects = inject(ProjectsService)
+    private readonly folderMenuRequests = inject(FolderMenuRequestsService)
     private readonly gitRepository = inject(GitRepositoryService)
     private readonly openFileService = inject(OpenFileService)
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
@@ -86,9 +88,9 @@ export class ProjectSwitcherComponent {
     readonly hasNoProjects = computed(() => this.projects.projects().length === 0 && !this.activeProject())
 
     constructor() {
-        let answeredRequest = this.projects.folderMenuRequest()
+        let answeredRequest = this.folderMenuRequests.latest()
         effect(() => {
-            const request = this.projects.folderMenuRequest()
+            const request = this.folderMenuRequests.latest()
             if (request !== answeredRequest) {
                 answeredRequest = request
                 untracked(() => this.openFocusingWorkingFolder())

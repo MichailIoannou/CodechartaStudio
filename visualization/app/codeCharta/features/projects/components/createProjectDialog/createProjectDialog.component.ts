@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signa
 import type { FolderRole } from "../../../../model/coreApi/FolderRole"
 import type { PickedFolder } from "../../../../model/coreApi/PickedFolder"
 import { ToastService } from "../../../shared/facade"
+import { ProjectFoldersService } from "../../services/projectFolders.service"
 import { ProjectsService } from "../../services/projects.service"
 import { FolderListRow, firstRemote } from "../../util/folderListRows"
 import { defaultRoleFor, sharesHistory } from "../../util/folderRole"
@@ -24,6 +25,7 @@ interface DraftFolder {
 })
 export class CreateProjectDialogComponent {
     private readonly projects = inject(ProjectsService)
+    private readonly projectFolders = inject(ProjectFoldersService)
     private readonly toastService = inject(ToastService)
     private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
     private readonly editor = viewChild(FolderListEditorComponent)
@@ -62,7 +64,7 @@ export class CreateProjectDialogComponent {
     }
 
     async addFolder() {
-        const picked = await this.projects.pickFolder("Add folder").catch((error: unknown) => {
+        const picked = await this.projectFolders.pickFolder("Add folder").catch((error: unknown) => {
             this.projects.toastUnlessSilent(error, (error as Error).message)
             return null
         })
