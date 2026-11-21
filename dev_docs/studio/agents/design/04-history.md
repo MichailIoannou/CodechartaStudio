@@ -140,6 +140,14 @@ running:         [ ◌ Pulling 45 % | ■ ]     progress fill as W1; caret becom
   the reason in `title`): Fetch · Fetch and Remove Deleted Branches · Pull · Push · Publish Branch (no
   upstream only) · Force Push (with Lease)… · Set Upstream…. Pull on diverged branches opens the pull
   choice (H15).
+- **During a merge or rebase** (`operationInProgress`): Pull, Push, Publish and Force Push are disabled
+  with title "Finish or abort the merge first." (rebase: "…the rebase…"); the main part shows Fetch,
+  which stays allowed (O9.6).
+- **Other disabled reasons** (wording approved, O9.6): detached HEAD "HEAD is detached: switch to a
+  branch first."; no remote "This repository has no remote."; Pull with nothing to pull "Nothing to
+  pull: the remote has no new commits. Use Push."; Force Push when nothing on the remote would be
+  replaced "Nothing on the remote would be replaced." Pushing a non-current branch without upstream
+  is offered as **Publish 'x'** instead of a disabled Push.
 - **Running** (any mutating operation of this repository): **no spinner and no progress fill here**
   (owner decision, 2026-11-18): the workspace status element at the top already shows the activity
   and its progress, so repeating it would be noise. The main part keeps the action's static icon,
@@ -168,7 +176,7 @@ problems (centred block, `max-w-lg`, icon `fa-triangle-exclamation text-warning 
 |---|---|---|
 | `gitNotFound` | "Git was not found. CodeCharta uses the git installed on this computer." | "Open desktop tools" (Global Configuration, area 01) |
 | `gitTooOld` | "Git <version> is too old. CodeCharta needs git 2.31 or newer." | same |
-| `notARepository` | "'<folder>' is not a git repository." | one other git folder in the project: "Work in '<label>'" (switches the working folder, as P1 does); several: "Choose working folder…" (opens P1) |
+| `notARepository` | "'<folder>' is not a git repository." | one other git folder in the project: "Work in '<label>'" (switches the working folder, as P1 does, but the History stays the active view — no jump to the overview, O9.2); several: "Choose working folder…" (opens P1) |
 | `folderNotFound` | "'<folder>' was not found on disk." | "Re-link folder…" (area 03 P5) |
 | `dubiousOwnership` | "Git does not trust '<path>' because another user owns it. If you trust it, run this in a terminal:" + copy block `git config --global --add safe.directory <path>` | "Copy command" |
 | `bareRepository` | "Bare repositories are not supported." | — |
@@ -186,7 +194,7 @@ as P1, so History, W1 and the map follow it together.
 | Situation | Tone | Text | Action |
 |---|---|---|---|
 | shallow clone | info | "Shallow clone: history is cut off, counts are lower bounds." | dismiss (session) |
-| merge in progress | warning | "Merging into 'main'. Resolve the conflicts in your editor, stage the files, then commit. 2 files have conflicts." | "Abort merge…", "Refresh" |
+| merge in progress | warning | "Merging into 'main'. Resolve the conflicts in your editor, stage the files, then commit. 2 files have conflicts." | "Abort merge…", "Refresh" (actions on their own line under the text, left-aligned, so nothing at the right end can be covered) |
 | rebase in progress | warning | "Rebasing 'feature/x'. Resolve the conflicts in your editor, stage the files, then continue the rebase in a terminal." | "Abort rebase…", "Refresh" |
 | other operation (cherry-pick, revert, bisect) | warning | "A <cherry-pick> is in progress. Finish or abort it in a terminal." | "Refresh" |
 | first page timed out | warning | "The history took too long to load. Running `git commit-graph write --reachable` in the repository makes it faster." | "Retry", copy command |
@@ -218,7 +226,8 @@ must run (`identityUnknown`) are copy blocks in the toast body, always visible, 
 | `pushRejected` | "The remote has commits you do not have. Pull first, then push." + "Pull" button |
 | `noUpstream` | "'<branch>' has no upstream branch." + "Publish branch" button |
 | `conflicts` (commit) | "Git did not commit: some files still have conflicts. Resolve them in your editor, stage them, then commit." (Commit is normally disabled first; this covers a race) |
-| `conflicts` (pull, merge, stash pop) | "Git stopped on conflicts in <n> files. The notice above the list says how to finish or abort." The merge/rebase notice appears at the same time; stash pop adds " The stash was kept." |
+| `conflicts` (pull, merge, stash pop), started in the History | no toast: the merge/rebase notice appears in the History and says everything (O9.6). Stash pop: success-style info toast "The stash was kept because of conflicts." |
+| `conflicts`, started outside the History (W1, P3) | "Git stopped on conflicts in <n> files. Finish or abort the merge in the History." + "Open History" button (O9.7) |
 | `operationInProgress` | "A <merge / rebase / cherry-pick / revert / bisect> is in progress. Finish or abort it first." |
 | `outputTooLarge` | not a toast: the diff view's "too large" state (H13) |
 | `stalePushLease` | "The remote branch moved since you last fetched. Fetch, review, and try again." + "Fetch" button |
@@ -481,6 +490,8 @@ Left pane of the Changes tab, 360 px (260–640). Header "CHANGES" + `btn btn-gh
 H12 commit box
 ```
 
+- Selection looks as in H8 (`bg-primary/20` plus the 1 px inset outline), for every list in the
+  History, not only commit rows (O9.2).
 - Rows 28 px: worded change badge (as H9, plus "conflict" as a solid `badge badge-warning badge-xs`,
   not soft, so it stands out in light themes, and "untracked" `badge-ghost`), file name, folder
   `text-xs text-base-content/60 truncate`; renamed: "old.ts → money.ts". Row buttons appear on
@@ -523,7 +534,8 @@ headers `text-base-content/60`), a line-number gutter as `.cc-source`. States: n
 "Select a file to see its changes."; binary "Binary file — no text diff."; truncated: footer `alert
 alert-info text-xs` "Diff cut at 2 MB."; too large (`outputTooLarge`, over 4 MB): centred
 `text-sm text-base-content/60` "This diff is too large to show (over 4 MB). Run this in a terminal to
-see it:" + copy block `git diff -- <path>` (staged: `git diff --cached -- <path>`); loading skeleton; error alert with "Retry". Read-only: no
+see it:" + copy block `git diff -- <path>` (staged: `git diff --cached -- <path>`; untracked: `git diff
+--no-index -- /dev/null <path>`, on Windows `NUL` instead of `/dev/null`, O9.2); loading skeleton; error alert with "Retry". Read-only: no
 editing, no hunk staging.
 
 ---

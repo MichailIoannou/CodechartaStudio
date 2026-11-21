@@ -18,6 +18,7 @@ Principles: `00-design-principles.md`. Desktop only unless a section says otherw
 | P9 | Move / bind snapshot dialog | `cc-move-snapshot-dialog` | hosted by the snapshots dialog (area 05) | `saveScenarioDialog` |
 | P10 | Imported-snapshot label | text pattern | W1, P3, P8, area 05 lists | — |
 | P11 | Drop target (optional, M6.5) | host listeners on `views/codeCharta.component.ts` | full window overlay | loading overlay geometry |
+| P12 | Source files of a project map (03-M7) | existing source view | source view header | `alert` |
 
 Store location ("Change…", "Use default") is designed in area 01 (desktop tools panel), as plan 03 asks.
 
@@ -450,6 +451,19 @@ text-primary` and "Drop a cc.json file to open it". Drop → the shell's native 
 toast (warning) "Only .cc.json and .cc.json.gz files can be opened." Absent in the web build.
 
 ---
+
+## P12 Source files of a project map (03-M7)
+
+Opening a file's source from a project map (node context menu "Open source", existing source view)
+reads the file from the working folder on disk.
+
+- **Folder missing**: the source view shows `alert alert-warning text-sm` "The folder '<label>' is not
+  available, so its files cannot be opened." + `btn btn-sm` "Re-link folder…" (P5), instead of prose
+  that tells the user where to go (O9.4).
+- **Map shows another state than the disk**: when W1 is not "current" (the map shows a commit other
+  than the checkout, or an imported snapshot), the source view header gets a `text-xs text-warning`
+  line "This is the file as it is in the folder now, not at a1b2c3d." (imported: "…not as it was
+  analysed."). No line when the map follows the current checkout, even with uncommitted changes.
 
 ## Deviations from the plan
 

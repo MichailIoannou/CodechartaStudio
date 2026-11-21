@@ -100,7 +100,9 @@ never JavaScript measuring:
 **Toasts (owner decision OD8).** All toasts stack at the top right of the window, directly below the
 nav bar: `features/shared/components/toast/toast.component.html` keeps `toast toast-top toast-end
 z-[2000]` and adds `top-[var(--cc-bars-height,49px)]`, so daisyUI's own 1 rem margin puts the first
-toast 1 rem under the nav bar and 1 rem from the right edge. Today the same classes place it at the
+toast 1 rem under the nav bar and 1 rem from the right edge. While the History is the active view,
+the History publishes the height of its toolbar and notices into the same offset, so toasts start
+below them and never cover "Abort merge…" or the sync button (O9.6). Today the same classes place it at the
 very top, over the nav bar's right end (Settings).
 
 Order in the stack, top to bottom: **persistent toasts first** (the core-offline toast, 01 D4, then
@@ -113,7 +115,8 @@ inside the toast (`font-mono text-xs whitespace-pre-wrap max-h-40 overflow-auto`
 follow-up action button (`btn btn-sm`). All keep the dismiss button and `aria-live="polite"`.
 `ToastService.show(text, severity, options?: { details?: string; action?: { label; run }; commands?:
 string[] })`; errors ignore the timer. `commands` are shell commands the user must run, shown as copy
-blocks (`cc-copy-command`) in the body, always visible. Used for every failed git operation (area 04) and failed analysis started outside
+blocks (`cc-copy-command`) in the body, always visible. A command wraps (`whitespace-pre-wrap
+break-all`) instead of ending in "…", so the toast keeps its `w-96` and nothing is hidden (O9.2). Used for every failed git operation (area 04) and failed analysis started outside
 the stale notice. All toasts are `w-96
 max-w-[calc(100vw-2rem)]` with wrapping text. They sit above the inspector (`z-[60]`) and may cover
 its header.
