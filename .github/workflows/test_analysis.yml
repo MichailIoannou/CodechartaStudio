@@ -23,6 +23,8 @@ jobs:
     env:
       working-directory: ./analysis
       project-directory: .
+      # forks without the secret skip the scan instead of failing every pull request
+      HAS_SONAR_TOKEN: ${{ secrets.SONAR_TOKEN != '' }}
 
     steps:
       - uses: actions/checkout@v6
@@ -62,7 +64,12 @@ jobs:
           docker build ./analysis -t local-ccsh --no-cache
         working-directory: ${{env.project-directory}}
 
+      - name: Note the skipped SonarCloud scan
+        if: env.HAS_SONAR_TOKEN != 'true'
+        run: echo "::notice::SonarCloud scan skipped because this repository has no SONAR_TOKEN secret"
+
       - name: SonarCloud Scan Gradle
+        if: env.HAS_SONAR_TOKEN == 'true'
         run: |
           ./gradlew sonar
         working-directory: ${{env.working-directory}}
