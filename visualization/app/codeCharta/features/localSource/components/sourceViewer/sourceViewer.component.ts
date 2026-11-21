@@ -21,6 +21,8 @@ export interface ViewedFile {
     text: string
     bytes: number
     encoding: string
+    /** Says when the shown file differs from the state the map shows. */
+    stateNote?: string | null
 }
 
 interface ViewedSource extends ViewedFile {
