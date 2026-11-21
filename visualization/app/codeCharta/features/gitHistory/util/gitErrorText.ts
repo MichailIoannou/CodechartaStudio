@@ -129,30 +129,26 @@ function plainSentenceOf(error: GitError): string {
     }
 }
 
+type ContextSentence = (context: GitErrorContext) => string | null
+
+const CONTEXT_SENTENCES: Partial<Record<GitError["code"], ContextSentence>> = {
+    HOOK_FAILED: ({ operation }) => (operation === "commit" ? "A git hook stopped the commit." : null),
+    CONFLICTS: conflictsSentence,
+    OPERATION_IN_PROGRESS: ({ inProgress }) =>
+        inProgress ? `A ${IN_PROGRESS_NAMES[inProgress]} is in progress. Finish or abort it first.` : null,
+    BRANCH_CHECKED_OUT_ELSEWHERE: ({ branch, worktreePath }) =>
+        branch && worktreePath ? `'${branch}' is checked out in another worktree (${worktreePath}).` : null,
+    BRANCH_EXISTS: ({ branch }) => (branch ? `A branch named '${branch}' already exists.` : null),
+    NO_UPSTREAM: ({ branch }) => (branch ? `'${branch}' has no upstream branch.` : null),
+    AUTHENTICATION_REQUIRED: ({ remote }) =>
+        remote
+            ? `Git could not sign in to '${remote}'. Check your credential helper or ssh key; CodeCharta asks only when git asks.`
+            : null,
+    NETWORK_UNAVAILABLE: ({ remote }) => (remote ? `'${remote}' could not be reached. Check your connection.` : null)
+}
+
 function contextSentenceOf(error: GitError, context: GitErrorContext): string | null {
-    const { operation, branch, worktreePath, remote } = context
-    switch (error.code) {
-        case "HOOK_FAILED":
-            return operation === "commit" ? "A git hook stopped the commit." : null
-        case "CONFLICTS":
-            return conflictsSentence(context)
-        case "OPERATION_IN_PROGRESS":
-            return context.inProgress ? `A ${IN_PROGRESS_NAMES[context.inProgress]} is in progress. Finish or abort it first.` : null
-        case "BRANCH_CHECKED_OUT_ELSEWHERE":
-            return branch && worktreePath ? `'${branch}' is checked out in another worktree (${worktreePath}).` : null
-        case "BRANCH_EXISTS":
-            return branch ? `A branch named '${branch}' already exists.` : null
-        case "NO_UPSTREAM":
-            return branch ? `'${branch}' has no upstream branch.` : null
-        case "AUTHENTICATION_REQUIRED":
-            return remote
-                ? `Git could not sign in to '${remote}'. Check your credential helper or ssh key; CodeCharta asks only when git asks.`
-                : null
-        case "NETWORK_UNAVAILABLE":
-            return remote ? `'${remote}' could not be reached. Check your connection.` : null
-        default:
-            return null
-    }
+    return CONTEXT_SENTENCES[error.code]?.(context) ?? null
 }
 
 function conflictsSentence({ operation, conflictedFiles }: GitErrorContext): string | null {
