@@ -1,3 +1,4 @@
+import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { fireEvent, render, screen } from "@testing-library/angular"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
@@ -6,6 +7,7 @@ import { anErrorPayload, aRefs, aRepositoryInfo, aStatusOn } from "../../service
 import { provideGitHistory, settleGit } from "../../services/gitHistoryTestBed.mocks"
 import { GitLogService } from "../../services/gitLog.service"
 import { WIDE_WINDOW_PX } from "../../services/historyLayout.service"
+import { HistoryNavigation } from "../../services/historyNavigation.service"
 import { GitHistoryPanelComponent } from "./gitHistoryPanel.component"
 
 const API_FOLDER = aFolder("f-api", { label: "billing-api" })
@@ -221,6 +223,31 @@ describe("GitHistoryPanelComponent", () => {
 
         // Assert
         expect(screen.getByTestId("history-operation-notice").textContent).toContain("Merging into 'main'.")
+    })
+
+    it("should keep the toasts below its toolbar and notices only while it is shown", async () => {
+        // Arrange
+        const isShown = signal(true)
+        provideGitHistory(
+            { git: { "f-api": { info: aRepositoryInfo(), status: aStatusOn("main", { operationInProgress: "merge" }), refs: aRefs() } } },
+            BILLING
+        )
+        TestBed.overrideProvider(HistoryNavigation, { useValue: { isShown } })
+        const { detectChanges } = await render(GitHistoryPanelComponent)
+        await settleGit()
+        detectChanges()
+        const offsetWhileShown = document.documentElement.style.getPropertyValue("--cc-toast-offset")
+
+        // Act
+        isShown.set(false)
+        detectChanges()
+
+        // Assert
+        const header = screen.getByTestId("history-header")
+        expect(header.contains(screen.getByTestId("history-operation-notice"))).toBe(true)
+        expect(header.querySelector("cc-history-toolbar")).not.toBeNull()
+        expect(offsetWhileShown).toMatch(/^\d+px$/)
+        expect(document.documentElement.style.getPropertyValue("--cc-toast-offset")).toBe("")
     })
 
     it("should refresh on F5 inside the history without letting the key through", async () => {

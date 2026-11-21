@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from "@angular/core"
 import { CopyToClipboardService } from "../../../../util/copyToClipboard.service"
-import { ColumnResizeHandleDirective } from "../../../shared/facade"
+import { ColumnResizeHandleDirective, ToastOffsetDirective } from "../../../shared/facade"
 import { failureOf, readyValueOf } from "../../model/loadState"
 import { GitLogService } from "../../services/gitLog.service"
 import { GitRepositoryService } from "../../services/gitRepository.service"
 import { HistoryLayoutService } from "../../services/historyLayout.service"
+import { HistoryNavigation } from "../../services/historyNavigation.service"
 import { HistoryTabService } from "../../services/historyTab.service"
 import { GitFolderChoice, problemNoticeOf } from "../../util/gitErrorText"
 import { BranchesTreeComponent } from "../branchesTree/branchesTree.component"
@@ -41,7 +42,8 @@ export interface FolderToRelink {
         ColumnResizeHandleDirective,
         ChangesPanelComponent,
         DiffViewComponent,
-        OperationStateBannerComponent
+        OperationStateBannerComponent,
+        ToastOffsetDirective
     ],
     providers: [CopyToClipboardService],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -53,6 +55,7 @@ export class GitHistoryPanelComponent {
     readonly layout = inject(HistoryLayoutService)
     readonly tab = inject(HistoryTabService).tab
     readonly clipboard = inject(CopyToClipboardService)
+    readonly isShown = inject(HistoryNavigation).isShown
     readonly commitGraphCommand = COMMIT_GRAPH_COMMAND
     readonly relinkFolder = output<FolderToRelink>()
     readonly openDesktopTools = output<void>()
