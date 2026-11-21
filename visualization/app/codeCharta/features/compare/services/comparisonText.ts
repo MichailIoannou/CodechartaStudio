@@ -52,6 +52,11 @@ export function shownSideCaption(side: Pick<LoadedSide, "requested" | "snapshot"
     return fileDate ? `imported ${shortDate(fileDate)}` : "imported, date unknown"
 }
 
+/** Design C2's label of a side in the chip's button: its branch, tag or request, its snapshot label, else its short commit. */
+export function chipLabel(side: Pick<LoadedSide, "requested" | "snapshot">): string {
+    return side.requested.kind === "imported" ? (shownSideCaption(side) ?? "") : refName(side.requested)
+}
+
 /** The name shown beside the short commit, or null for a plain commit; a request reads "PR #123" or "MR !123". */
 export function sideCaption(commit: ComparedCommit): string | null {
     switch (commit.label.kind) {
@@ -153,18 +158,10 @@ export function staleBadge({ relation, behind, ahead }: Pick<LoadedSide, "relati
     }
 }
 
-/** The stale badge shortened to its number once the chip has little room (design C2, space priority step 3). */
-export function staleCount({ relation, behind, ahead }: Pick<LoadedSide, "relation" | "behind" | "ahead">): string | null {
-    switch (relation) {
-        case "ancestor":
-            return `${behind}`
-        case "descendant":
-            return `${ahead}`
-        case "diverged":
-            return `${behind}↓ ${ahead}↑`
-        default:
-            return null
-    }
+/** Which analysis a stale side shows instead: "showing 3c4d5e6, 2 commits older". */
+export function showingText(side: Pick<LoadedSide, "snapshot" | "relation" | "behind" | "ahead">): string {
+    const distance = side.relation ? distanceText({ ...side, relation: side.relation }) : ""
+    return `showing ${side.snapshot.shortCommit ?? ""}${distance}`
 }
 
 /** How far the nearest analysis is from the asked commit, in the words of the stale notice. */

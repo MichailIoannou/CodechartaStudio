@@ -1,7 +1,17 @@
 import { aSnapshot } from "../../projects/projects.mocks"
 import type { ComparedCommit } from "../model/compare.model"
 import { aComparedCommit, aResolvedComparison, BASE_SHA, HEAD_SHA } from "../ports/compareGateways.mocks"
-import { errorSentence, parseRange, rangeText, resolveOutcome, shownSideCaption, sideCaption, sideName } from "./comparisonText"
+import {
+    chipLabel,
+    errorSentence,
+    parseRange,
+    rangeText,
+    resolveOutcome,
+    showingText,
+    shownSideCaption,
+    sideCaption,
+    sideName
+} from "./comparisonText"
 
 const MAIN = aComparedCommit(BASE_SHA, { kind: "branch", name: "main" })
 const FEATURE = aComparedCommit(HEAD_SHA, { kind: "branch", name: "feature/x" })
@@ -34,6 +44,36 @@ describe("comparisonText", () => {
 
         // Assert
         expect(captions).toEqual(["imported 12 Nov", "imported, date unknown", "working tree"])
+    })
+
+    it("should label a side in the chip's button by its name, a request by its number, else by its short commit", () => {
+        // Arrange
+        const snapshot = aSnapshot("p", "f", "s-1", {})
+
+        // Act
+        const labels = [
+            MAIN,
+            aComparedCommit(HEAD_SHA),
+            aComparedCommit(HEAD_SHA, { kind: "pullRequest", name: "#123" }),
+            aSnapshotSide("workingTree", "working tree")
+        ].map(requested => chipLabel({ requested, snapshot }))
+
+        // Assert
+        expect(labels).toEqual(["main", "a1b2c3d", "#123", "working tree"])
+    })
+
+    it("should say which older or newer analysis a stale side shows", () => {
+        // Arrange
+        const snapshot = aSnapshot("p", "f", "s-1", { shortCommit: "3c4d5e6" })
+
+        // Act
+        const lines = [
+            showingText({ snapshot, relation: "ancestor", behind: 2, ahead: 0 }),
+            showingText({ snapshot, relation: "descendant", behind: 0, ahead: 1 })
+        ]
+
+        // Assert
+        expect(lines).toEqual(["showing 3c4d5e6, 2 commits older", "showing 3c4d5e6, which is ahead by 1 commit"])
     })
 
     it("should call the same snapshot on both sides the same analysis", () => {
