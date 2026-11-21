@@ -14,11 +14,17 @@ on:
       - 'visualization/public/codeCharta/assets/**'
       - 'visualization/package.json'
       - 'visualization/package-lock.json'
+      - 'core/**'
       - '.github/workflows/test_packaging.yml'
+      - '.github/workflows/build_core.yml'
 
 jobs:
+  build_core:
+    uses: ./.github/workflows/build_core.yml
+
   package_visualization:
     name: Package All Targets (Visualization)
+    needs: build_core
     runs-on: ubuntu-latest
     env:
       working-directory: ./visualization
@@ -33,6 +39,23 @@ jobs:
       - name: Install node
         run: npm ci
         working-directory: ${{env.working-directory}}
+
+      - name: Download the core binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: codecharta-core-*
+          path: core/dist
+
+      # Each artifact lands in a folder named after it and loses its file mode on the way; script/appBuild.js
+      # expects core/dist/<platform>-<arch>/, and script/appCheckCoreModes.js fails packaging without the bit.
+      - name: Put the core binaries where packaging expects them
+        shell: bash
+        run: |
+          for artifact in core/dist/codecharta-core-*; do
+            mv "$artifact" "core/dist/${artifact#core/dist/codecharta-core-}"
+          done
+          chmod +x core/dist/linux-*/codecharta-core core/dist/darwin-*/codecharta-core
+          ls -lR core/dist
 
       - name: Build
         env:

@@ -2,7 +2,7 @@ const Configuration = {
     extends: ["@commitlint/config-conventional"],
     formatter: "@commitlint/format",
     rules: {
-        "scope-enum": [2, "always", ["analysis", "visualization", "docker", "gh-pages", "docs", "readme", "stg", "config"]],
+        "scope-enum": [2, "always", ["analysis", "visualization", "core", "docker", "gh-pages", "docs", "readme", "stg", "config"]],
         "body-case": [0, "always", [""]],
         "body-max-line-length": [0, "always", 100]
     },

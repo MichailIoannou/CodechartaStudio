@@ -1,0 +1,115 @@
+<section class="rounded-box border border-base-300 p-3 flex flex-col gap-2" aria-labelledby="desktop-tools-heading" data-testid="desktop-tools">
+    <div class="flex items-center justify-between">
+        <h3 id="desktop-tools-heading" class="font-semibold">Desktop tools</h3>
+        <button class="btn btn-ghost btn-sm" [disabled]="isChecking() || coreNotice() !== null" (click)="recheck()">
+            <i class="fa-solid fa-rotate fa-fw" [class.fa-spin]="isChecking()" aria-hidden="true"></i>
+            Check again
+        </button>
+    </div>
+
+    @if (coreNotice(); as notice) {
+        <div
+            role="status"
+            class="alert text-sm"
+            [class.alert-info]="notice.tone === 'info'"
+            [class.alert-error]="notice.tone === 'error'"
+            data-testid="desktop-tools-core"
+        >
+            @if (!notice.canRestart) {
+                <span class="loading loading-spinner loading-xs"></span>
+            }
+            <span>{{ notice.text }}</span>
+            @if (notice.canRestart) {
+                <button class="btn btn-sm whitespace-nowrap" (click)="restartCore()">Restart core</button>
+            }
+        </div>
+    } @else {
+        @if (failure(); as failureMessage) {
+            <div role="alert" class="alert alert-error text-sm" data-testid="desktop-tools-failure">
+                <span>The tools could not be checked: {{ failureMessage }}</span>
+                <button class="btn btn-sm" [disabled]="isChecking()" (click)="recheck()">Try again</button>
+            </div>
+        }
+
+        @if (isChecking()) {
+            <p class="text-sm" data-testid="desktop-tools-summary">{{ checkingText() }}</p>
+        } @else if (summary(); as toolsSummary) {
+            <p
+                class="text-sm flex items-center gap-2"
+                [class.text-success]="toolsSummary.tone === 'success'"
+                [class.text-warning]="toolsSummary.tone === 'warning'"
+                [class.text-error]="toolsSummary.tone === 'error'"
+                data-testid="desktop-tools-summary"
+            >
+                @if (toolsSummary.tone === "success") {
+                    <i class="fa-solid fa-check fa-fw" aria-hidden="true"></i>
+                }
+                {{ toolsSummary.text }}
+            </p>
+        }
+
+        @if (rows(); as toolRows) {
+            <div class="flex flex-col gap-2">
+                @for (row of toolRows; track row.tool) {
+                    <div
+                        class="grid grid-cols-[7rem_minmax(0,1fr)_auto] sm:grid-cols-[7rem_6.5rem_5rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 text-sm"
+                        [attr.data-testid]="'desktop-tool-' + row.tool"
+                    >
+                        <span class="font-medium" data-testid="desktop-tool-name">{{ row.name }}</span>
+                        <span>
+                            <span
+                                class="badge badge-sm"
+                                [class.badge-success]="row.badge.tone === 'success'"
+                                [class.badge-error]="row.badge.tone === 'error'"
+                                [class.badge-warning]="row.badge.tone === 'warning'"
+                                [class.badge-ghost]="row.badge.tone === 'ghost'"
+                                data-testid="desktop-tool-state"
+                                >{{ row.badge.text }}</span
+                            >
+                        </span>
+                        <span class="order-1 sm:order-none font-mono text-xs tabular-nums" data-testid="desktop-tool-version">{{
+                            row.version
+                        }}</span>
+                        <span class="order-1 sm:order-none col-span-2 sm:col-span-1 flex items-center gap-1 min-w-0">
+                            @if (row.isCustom) {
+                                <span class="badge badge-ghost badge-xs" data-testid="desktop-tool-custom">custom</span>
+                            }
+                            <span class="font-mono text-xs truncate" [attr.title]="row.path" data-testid="desktop-tool-path">{{ row.path }}</span>
+                        </span>
+                        <span class="flex justify-end gap-1">
+                            <button class="btn btn-ghost btn-xs" (click)="choose(row.tool)">Choose…</button>
+                            @if (row.isCustom) {
+                                <button class="btn btn-ghost btn-xs" (click)="useDefault(row.tool)">Use default</button>
+                            }
+                        </span>
+                        <p
+                            class="order-2 sm:order-none col-span-full sm:col-start-2 sm:col-span-4 text-xs text-base-content/60"
+                            data-testid="desktop-tool-purpose"
+                        >
+                            {{ row.problem ? row.purpose + " — " + row.problem : row.purpose }}
+                        </p>
+                    </div>
+                }
+            </div>
+        } @else if (!failure()) {
+            <div class="flex flex-col gap-3 py-1" aria-hidden="true">
+                @for (placeholder of placeholderRows; track placeholder) {
+                    <div class="skeleton h-4 w-full"></div>
+                }
+            </div>
+        }
+    }
+
+    @if (paths(); as folders) {
+        <div class="grid grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-x-2 text-sm border-t border-base-300 pt-2">
+            <span class="font-medium">Data folder</span>
+            <span class="font-mono text-xs truncate" [attr.title]="folders.dataDir" data-testid="desktop-tools-data-folder">{{
+                folders.dataDir
+            }}</span>
+            <button class="btn btn-ghost btn-xs" title="Show in file manager" (click)="showDataFolder()">
+                <i class="fa-regular fa-folder-open fa-fw" aria-hidden="true"></i>
+                Show
+            </button>
+        </div>
+    }
+</section>

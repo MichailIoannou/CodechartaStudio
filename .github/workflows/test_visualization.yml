@@ -7,6 +7,8 @@ on:
     paths:
       - 'visualization/**'
       - 'logo/**'
+      # the desktop smoke tests start the core
+      - 'core/**'
       # the 2.0 schema source of truth is validated by the viz drift guard (ccJson2Schema.drift.spec.ts)
       - 'dev_docs/cc-json-2.0.schema.json'
   pull_request:
@@ -15,6 +17,8 @@ on:
     paths:
       - 'visualization/**'
       - 'logo/**'
+      # the desktop smoke tests start the core
+      - 'core/**'
       # the 2.0 schema source of truth is validated by the viz drift guard (ccJson2Schema.drift.spec.ts)
       - 'dev_docs/cc-json-2.0.schema.json'
 
@@ -65,6 +69,11 @@ jobs:
       run: |
         echo "Checking for unused exports/files (knip)..."
         npm run lint:deadcode || (echo "❌ Dead code detected! Remove the unused export/file or justify it in knip.jsonc." && exit 1)
+      working-directory: ${{env.working-directory}}
+
+    - name: Run desktop shell unit tests
+      run: |
+        npm run test:electron
       working-directory: ${{env.working-directory}}
 
     - name: Run unit tests
@@ -124,12 +133,89 @@ jobs:
         path: ./visualization/test-results/
         retention-days: 7
 
+ build_visualization_desktop_smoke:
+    name: Desktop Smoke Tests (Visualization)
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./visualization
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Setup Node.js environment
+      uses: actions/setup-node@v6
+      with:
+        node-version: '24'
+
+    - name: Cache node modules
+      uses: actions/cache@v5
+      env:
+        cache-name: cache-node-modules
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
+
+    # rustup is preinstalled on the hosted runners; without arguments it installs the toolchain that
+    # core/rust-toolchain.toml names
+    - name: Install the Rust toolchain
+      run: rustup toolchain install
+      working-directory: ./core
+
+    - name: Cache cargo registry and build output
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          ~/.cargo/git/db
+          core/target
+        key: ${{ runner.os }}-cargo-debug-${{ hashFiles('core/Cargo.lock', 'core/rust-toolchain.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-debug-
+
+    - name: Build the core
+      run: cargo build --locked
+      working-directory: ./core
+
+    - name: Install node
+      run: |
+        npm ci
+      working-directory: ${{env.working-directory}}
+
+    - name: Build
+      env:
+        NODE_OPTIONS: "--max_old_space_size=4096"
+      run: npm run build
+      working-directory: ${{env.working-directory}}
+
+    # Ubuntu 24.04 forbids unprivileged user namespaces, which the Chromium sandbox needs; the app keeps
+    # its sandbox on rather than running with --no-sandbox
+    - name: Allow the Electron sandbox
+      run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+    - name: Run desktop smoke tests
+      run: xvfb-run --auto-servernum npm run e2e:desktop
+      working-directory: ${{env.working-directory}}
+
+    - name: Upload Playwright traces on failure
+      uses: actions/upload-artifact@v7
+      if: failure()
+      with:
+        name: playwright-desktop-traces
+        path: ./visualization/test-results/
+        retention-days: 7
+
  publish_sonar_visualization:
     needs: [build_visualization_test, build_visualization_e2e]
     name: "Code Quality Results (visualization)"
     runs-on: ubuntu-latest
     env:
       working-directory: ./visualization
+      # forks without the secret skip the scan instead of failing every pull request
+      HAS_SONAR_TOKEN: ${{ secrets.SONAR_TOKEN != '' }}
 
     steps:
       - uses: actions/checkout@v6
@@ -141,7 +227,12 @@ jobs:
           name: coverage
           path: ./visualization/dist/
 
+      - name: Note the skipped SonarCloud scan
+        if: env.HAS_SONAR_TOKEN != 'true'
+        run: echo "::notice::SonarCloud scan skipped because this repository has no SONAR_TOKEN secret"
+
       - name: SonarCloud Scan
+        if: env.HAS_SONAR_TOKEN == 'true'
         uses: SonarSource/sonarcloud-github-action@v5.0.0
         with:
           projectBaseDir: ./visualization

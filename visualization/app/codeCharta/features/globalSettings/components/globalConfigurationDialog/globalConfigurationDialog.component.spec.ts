@@ -6,6 +6,8 @@ import { LoadFileService } from "../../../../stores/fileStore/fileStore.facade"
 import { defaultMapState } from "../../../../stores/mapState/mapState.read.facade"
 import { defaultPreferences } from "../../../../stores/preferences/preferences.read.facade"
 import { defaultSharedView } from "../../../../stores/sharedView/sharedView.read.facade"
+import { createFakeDesktopBridge } from "../../../../util/desktop/desktopBridge.mocks"
+import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
 import { GlobalSettingsWriteStore } from "../../stores/globalSettings.write.store"
 import { GlobalConfigurationDialogComponent } from "./globalConfigurationDialog.component"
 
@@ -14,6 +16,22 @@ describe("GlobalConfigurationDialogComponent", () => {
     let component: GlobalConfigurationDialogComponent
     let mockGlobalSettingsWriteStore: jest.Mocked<Partial<GlobalSettingsWriteStore>>
     let mockState: jest.Mocked<Partial<State<any>>>
+
+    function configureDialog(desktopBridge: ReturnType<typeof createFakeDesktopBridge> | null = null) {
+        TestBed.configureTestingModule({
+            imports: [GlobalConfigurationDialogComponent],
+            providers: [
+                provideMockStore({
+                    initialState: { preferences: defaultPreferences, mapState: defaultMapState, sharedView: defaultSharedView }
+                }),
+                { provide: State, useValue: mockState },
+                { provide: GlobalSettingsWriteStore, useValue: mockGlobalSettingsWriteStore },
+                { provide: LoadFileService, useValue: { loadFiles: jest.fn() } },
+                { provide: HttpClient, useValue: {} },
+                { provide: DESKTOP_BRIDGE, useValue: desktopBridge }
+            ]
+        })
+    }
 
     beforeEach(() => {
         mockGlobalSettingsWriteStore = {
@@ -28,18 +46,7 @@ describe("GlobalConfigurationDialogComponent", () => {
             getValue: jest.fn().mockReturnValue({ preferences: defaultPreferences, mapState: defaultMapState })
         }
 
-        TestBed.configureTestingModule({
-            imports: [GlobalConfigurationDialogComponent],
-            providers: [
-                provideMockStore({
-                    initialState: { preferences: defaultPreferences, mapState: defaultMapState, sharedView: defaultSharedView }
-                }),
-                { provide: State, useValue: mockState },
-                { provide: GlobalSettingsWriteStore, useValue: mockGlobalSettingsWriteStore },
-                { provide: LoadFileService, useValue: { loadFiles: jest.fn() } },
-                { provide: HttpClient, useValue: {} }
-            ]
-        })
+        configureDialog()
 
         fixture = TestBed.createComponent(GlobalConfigurationDialogComponent)
         component = fixture.componentInstance
@@ -124,6 +131,35 @@ describe("GlobalConfigurationDialogComponent", () => {
 
             // Assert
             expect(externalLinksComponent).toBeTruthy()
+        })
+    })
+
+    describe("desktop tools", () => {
+        function panelOfAFreshDialog(desktopBridge: ReturnType<typeof createFakeDesktopBridge> | null) {
+            TestBed.resetTestingModule()
+            configureDialog(desktopBridge)
+            const freshFixture = TestBed.createComponent(GlobalConfigurationDialogComponent)
+            freshFixture.detectChanges()
+            return freshFixture.nativeElement.querySelector("cc-desktop-tools-panel")
+        }
+
+        it("should not show desktop tools on the web", () => {
+            // Act
+            const panel = panelOfAFreshDialog(null)
+
+            // Assert
+            expect(panel).toBeNull()
+        })
+
+        it("should show desktop tools in the desktop app", () => {
+            // Arrange
+            const desktopBridge = createFakeDesktopBridge()
+
+            // Act
+            const panel = panelOfAFreshDialog(desktopBridge)
+
+            // Assert
+            expect(panel).not.toBeNull()
         })
     })
 

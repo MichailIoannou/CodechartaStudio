@@ -35,6 +35,10 @@
                 />
             }
 
+            @if (isDesktop()) {
+                <cc-desktop-tools-panel />
+            }
+
             <div class="flex flex-wrap gap-3">
                 <cc-reset-settings-button
                     [settingsKeys]="[

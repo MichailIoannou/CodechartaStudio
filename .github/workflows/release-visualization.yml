@@ -19,8 +19,18 @@ env:
   VERSION: "0.0.0"
 
 jobs:
+  build_core:
+    if: |
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'release') &&
+       startsWith(github.event.pull_request.head.ref, 'release/vis-'))
+    uses: ./.github/workflows/build_core.yml
+
   # Build artifacts
   build:
+    needs: build_core
     if: |
       (github.event_name == 'workflow_dispatch') ||
       (github.event_name == 'pull_request' &&
@@ -66,6 +76,23 @@ jobs:
         working-directory: ./analysis
         run: |
           chmod +x ./gradlew
+
+      - name: Download the core binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: codecharta-core-*
+          path: core/dist
+
+      # Each artifact lands in a folder named after it and loses its file mode on the way; script/appBuild.js
+      # expects core/dist/<platform>-<arch>/, and script/appCheckCoreModes.js fails packaging without the bit.
+      - name: Put the core binaries where packaging expects them
+        shell: bash
+        run: |
+          for artifact in core/dist/codecharta-core-*; do
+            mv "$artifact" "core/dist/${artifact#core/dist/codecharta-core-}"
+          done
+          chmod +x core/dist/linux-*/codecharta-core core/dist/darwin-*/codecharta-core
+          ls -lR core/dist
 
       - name: Build visualization
         env:

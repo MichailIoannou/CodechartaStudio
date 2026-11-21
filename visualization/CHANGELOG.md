@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 ## [unreleased] (Added 🚀 | Changed | Removed  | Fixed 🐞 | Chore 👨‍💻 👩‍💻)
 
+### Added 🚀
+
+- **Desktop tools check**: the settings of the desktop app show whether git, ccsh, Java and the GitHub and GitLab command lines were found and in which version, and let you pick another executable.
+
+### Changed
+
+- **One desktop window**: starting the desktop app a second time brings the running window to the front instead of opening another one.
+
 ## [2.11.0] - 2026-11-10
 
 ### Added 🚀
