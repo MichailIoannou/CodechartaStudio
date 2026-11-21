@@ -452,27 +452,9 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
             .attr("font-size", "13px")
             .style("display", "none")
 
-        const dashedVerticalLine: LineElement = group
-            .append("line")
-            .attr("class", "dashed-vertical-line")
-            .style("stroke", BASE_CONTENT_COLOR)
-            .attr("stroke-width", "0.7px")
-            .attr("stroke-dasharray", "4")
-            .style("display", "none")
-
-        const straightVerticalLine: LineElement = group
-            .append("line")
-            .attr("class", "straight-vertical-line")
-            .style("stroke", BASE_CONTENT_COLOR)
-            .attr("stroke-width", "0.7px")
-            .style("display", "none")
-
-        const horizontalLine: LineElement = group
-            .append("line")
-            .attr("class", "horizontal-line")
-            .style("stroke", BASE_CONTENT_COLOR)
-            .attr("stroke-width", "0.7px")
-            .style("display", "none")
+        const dashedVerticalLine = this.appendHiddenCrossHairLine(group, "dashed-vertical-line").attr("stroke-dasharray", "4")
+        const straightVerticalLine = this.appendHiddenCrossHairLine(group, "straight-vertical-line")
+        const horizontalLine = this.appendHiddenCrossHairLine(group, "horizontal-line")
 
         const rectangle: RectElement = group
             .append("rect")
@@ -484,6 +466,15 @@ export class MetricColorRangeDiagramComponent implements OnChanges, AfterViewIni
 
         this.addOnMouseMoveEvent(rectangle, x, y, tooltip, dashedVerticalLine, straightVerticalLine, horizontalLine)
         this.addOnMouseOutEvent(rectangle, tooltip, dashedVerticalLine, straightVerticalLine, horizontalLine)
+    }
+
+    private appendHiddenCrossHairLine(group: GroupElement, className: string): LineElement {
+        return group
+            .append("line")
+            .attr("class", className)
+            .style("stroke", BASE_CONTENT_COLOR)
+            .attr("stroke-width", "0.7px")
+            .style("display", "none")
     }
 
     private addOnMouseMoveEvent(
