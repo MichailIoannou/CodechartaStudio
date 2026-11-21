@@ -9,6 +9,7 @@ import { StoreFolderService } from "../../../desktopTools/facade"
 import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
 import { FOLDER_ACTIONS, FolderAction } from "../../ports/folderActions.port"
 import { OpenFileService } from "../../services/openFile.service"
+import { ProjectFoldersService } from "../../services/projectFolders.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted, relativeTime, shortSha } from "../../util/folderWording"
 import { AnalysesCardComponent } from "../analysesCard/analysesCard.component"
@@ -59,6 +60,7 @@ interface FolderRow {
 export class ProjectOverviewComponent {
     private readonly projects = inject(ProjectsService)
     private readonly gitRepository = inject(GitRepositoryService)
+    private readonly projectFolders = inject(ProjectFoldersService)
     private readonly openFileService = inject(OpenFileService)
     private readonly storeFolder = inject(StoreFolderService)
     private readonly contributedFolderActions = inject(FOLDER_ACTIONS, { optional: true }) ?? []
@@ -107,7 +109,7 @@ export class ProjectOverviewComponent {
     }
 
     addFolder() {
-        void this.projects.addPickedFolder("Add folder")
+        void this.projectFolders.addPickedFolder("Add folder")
     }
 
     openFile() {
@@ -136,7 +138,7 @@ export class ProjectOverviewComponent {
     }
 
     revealStoreFolder() {
-        void this.projects.revealStoreFolder()
+        void this.projectFolders.revealStoreFolder()
     }
 
     chooseStoreFolder() {

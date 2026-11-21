@@ -129,7 +129,7 @@ fn write_split_multibyte_text() -> FakeResult {
 fn hold_store_lock(root: &str) -> FakeResult {
     let _lock = codecharta_core::store::lock::StoreLock::acquire(std::path::Path::new(root))
         .map_err(|error| error.to_string())?;
-    print_stdout(LOCK_HELD)?;
+    println!("{LOCK_HELD}");
     std::io::stdin()
         .read_to_end(&mut Vec::new())
         .map_err(|error| error.to_string())?;

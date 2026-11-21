@@ -1,22 +1,25 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, inject, signal, untracked, viewChild } from "@angular/core"
 import type { PickedImportFile } from "../../../../model/coreApi/PickedImportFile"
-import type { ProjectSummary } from "../../../../model/coreApi/ProjectSummary"
 import type { ResolvedCommit } from "../../../../model/coreApi/ResolvedCommit"
 import type { SnapshotRef } from "../../../../model/coreApi/SnapshotRef"
 import { DesktopBridgeError } from "../../../../util/desktop/desktopResult"
 import { OpenFileService, OpenFileTarget, PendingFile } from "../../services/openFile.service"
 import { ProjectsService } from "../../services/projects.service"
 import { byteSize, fileDate, shortSha } from "../../util/folderWording"
+import {
+    duplicateProjectNameOf,
+    folderIdToTarget,
+    folderLabelOf,
+    initialTargetOf,
+    isContainingFolder,
+    isGitFolder,
+    sentenceOf,
+    summaryOf,
+    TargetContext
+} from "./openFileTarget"
 
 const NEW_PROJECT_VALUE = ""
 const FILE_GONE_CODES: ReadonlySet<string> = new Set(["TOKEN_EXPIRED", "NOT_FOUND"])
-
-interface TargetSentence {
-    kind: "newProject" | "existing" | "import"
-    project: string
-    folder: string
-    path: string
-}
 
 @Component({
     selector: "cc-open-file-dialog",
@@ -50,15 +53,16 @@ export class OpenFileDialogComponent {
     readonly projectOptions = computed(() =>
         [...this.projects.projects()].sort((first, second) => first.name.localeCompare(second.name, undefined, { sensitivity: "base" }))
     )
-    readonly targetProject = computed(() => this.summaryOf(this.target()))
+    readonly targetContext = computed<TargetContext>(() => ({ picked: this.picked(), projects: this.projects.projects() }))
+    readonly targetProject = computed(() => summaryOf(this.projects.projects(), this.target()))
     readonly folderOptions = computed(() => this.targetProject()?.folders ?? [])
-    readonly targetSentence = computed(() => this.sentenceOf(this.target()))
+    readonly targetSentence = computed(() => sentenceOf(this.targetContext(), this.target(), this.isImport()))
     readonly bindingCommit = computed(() =>
-        this.isContainingFolder(this.target()) ? (this.picked()?.hintCommit ?? null) : this.resolvedCommit()
+        isContainingFolder(this.picked(), this.target()) ? (this.picked()?.hintCommit ?? null) : this.resolvedCommit()
     )
-    readonly bindingFolderLabel = computed(() => this.folderLabelOf(this.target()))
+    readonly bindingFolderLabel = computed(() => folderLabelOf(this.targetContext(), this.target()))
     readonly unresolvedHash = computed(() => (this.bindingCommit() ? null : (this.picked()?.commitHint?.hash ?? null)))
-    readonly duplicateProjectName = computed(() => this.duplicateProjectNameOf(this.picked(), this.target()))
+    readonly duplicateProjectName = computed(() => duplicateProjectNameOf(this.targetContext(), this.target()))
     readonly primaryLabel = computed(() => {
         if (this.duplicateProjectName() !== null) {
             return "Show existing snapshot"
@@ -93,12 +97,7 @@ export class OpenFileDialogComponent {
             this.changeTarget({ kind: "newProject" })
             return
         }
-        const project = this.projects.projects().find(candidate => candidate.id === projectId)
-        const existing = this.picked()?.existingTarget
-        const folderId =
-            existing?.projectId === projectId
-                ? existing.folderId
-                : (project?.folders.find(folder => folder.role === "primary") ?? project?.folders[0])?.id
+        const folderId = folderIdToTarget(this.targetContext(), projectId)
         if (folderId) {
             this.changeTarget({ kind: "folder", projectId, folderId })
         }
@@ -195,12 +194,7 @@ export class OpenFileDialogComponent {
 
     private start(pending: PendingFile) {
         this.shownFile.set(pending)
-        const existing = pending.picked.existingTarget
-        const initial: OpenFileTarget = pending.importTarget
-            ? { kind: "folder", ...pending.importTarget }
-            : existing
-              ? { kind: "folder", projectId: existing.projectId, folderId: existing.folderId }
-              : { kind: "newProject" }
+        const initial = initialTargetOf(pending)
         this.isChanging.set(false)
         this.isOpening.set(false)
         this.failure.set(null)
@@ -217,54 +211,11 @@ export class OpenFileDialogComponent {
         this.resolvedCommit.set(null)
         this.isBound.set(true)
         this.searchFailure.set(null)
-        if (!this.isContainingFolder(target) && target.kind === "folder" && this.isGitFolder(target)) {
+        if (!isContainingFolder(this.picked(), target) && isGitFolder(this.projects.projects(), target)) {
             void this.openFile
                 .resolveHint(target)
                 .then(commit => this.target() === target && this.resolvedCommit.set(commit))
                 .catch(() => undefined)
         }
-    }
-
-    private isContainingFolder(target: OpenFileTarget): boolean {
-        const existing = this.picked()?.existingTarget
-        if (target.kind === "newProject") {
-            return true
-        }
-        return existing?.projectId === target.projectId && existing.folderId === target.folderId
-    }
-
-    private isGitFolder(target: OpenFileTarget): boolean {
-        const folder = this.summaryOf(target)?.folders.find(candidate => target.kind === "folder" && candidate.id === target.folderId)
-        return folder?.kind === "git" && folder.status === "ok"
-    }
-
-    private summaryOf(target: OpenFileTarget): ProjectSummary | null {
-        return target.kind === "folder" ? (this.projects.projects().find(project => project.id === target.projectId) ?? null) : null
-    }
-
-    private folderLabelOf(target: OpenFileTarget): string {
-        if (target.kind === "newProject") {
-            return this.picked()?.containingFolder.suggestedName ?? ""
-        }
-        return this.summaryOf(target)?.folders.find(folder => folder.id === target.folderId)?.label ?? ""
-    }
-
-    private sentenceOf(target: OpenFileTarget): TargetSentence {
-        const picked = this.picked()
-        if (target.kind === "newProject") {
-            const containing = picked?.containingFolder
-            return { kind: "newProject", project: containing?.suggestedName ?? "", folder: "", path: containing?.path ?? "" }
-        }
-        const project = this.summaryOf(target)?.name ?? picked?.existingTarget?.projectName ?? ""
-        return { kind: this.isImport() ? "import" : "existing", project, folder: this.folderLabelOf(target), path: "" }
-    }
-
-    private duplicateProjectNameOf(picked: PickedImportFile | null, target: OpenFileTarget): string | null {
-        const duplicate = picked?.duplicateOf
-        if (!duplicate || target.kind !== "folder" || target.projectId !== duplicate.projectId) {
-            return null
-        }
-        const summary = this.projects.projects().find(project => project.id === duplicate.projectId)
-        return summary?.name ?? picked.existingTarget?.projectName ?? ""
     }
 }
