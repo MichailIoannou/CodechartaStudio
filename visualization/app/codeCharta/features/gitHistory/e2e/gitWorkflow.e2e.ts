@@ -190,6 +190,25 @@ test.describe("Sync button outside the History", () => {
         expect((await requestsOf(page, "git.pull")).map(params => (params as { mode: string }).mode)).toEqual(["merge"])
     })
 
+    test("should lead a pull that stops on conflicts from the workspace status to the History", async ({ page }) => {
+        // Arrange
+        const history = await openTheMap(page, workflowSeed(tracking(2, 1), { pullConflicts: ["src/billing/invoice.ts"] }))
+        const menu = await openWorkspaceStatus(history)
+
+        // Act
+        await menu.getByTestId("sync-button-main").click()
+        await history.choose("merge")
+        await history.confirm("yes")
+        const toast = history.toasts().filter({ hasText: "Git stopped on conflicts in 1 file. Finish or abort the merge in the History." })
+        await expect(menu).toBeVisible()
+        await expect(menu.getByTestId("workspace-status-operation")).toContainText("Merging — 1 file has conflicts.")
+        await toast.getByRole("button", { name: "Open History" }).click()
+
+        // Assert
+        await expect(history.operationNotice()).toContainText(`Merging into '${BRANCH}'.`)
+        await expect(page).toHaveURL(/#\/history/)
+    })
+
     test("should open the sync menu of the workspace status below its caret", async ({ page }) => {
         // Arrange
         const history = await openTheMap(page, workflowSeed(tracking(0, 0)))
