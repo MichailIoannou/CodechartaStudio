@@ -3,9 +3,7 @@ import { Router } from "@angular/router"
 import { LoadedSnapshotFacts, LoadFilesUseCase, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad } from "../../../load/load.facade"
 import type { ErrorCode } from "../../../model/coreApi/ErrorCode"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
-import type { FolderRole } from "../../../model/coreApi/FolderRole"
 import type { NewFolder } from "../../../model/coreApi/NewFolder"
-import type { PickedFolder } from "../../../model/coreApi/PickedFolder"
 import type { Project } from "../../../model/coreApi/Project"
 import type { ProjectFolder } from "../../../model/coreApi/ProjectFolder"
 import type { ProjectSummary } from "../../../model/coreApi/ProjectSummary"
@@ -23,7 +21,6 @@ import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.ser
 import { DesktopBridgeError, valueOrThrow } from "../../../util/desktop/desktopResult"
 import { StoreFolderService } from "../../desktopTools/facade"
 import { ToastService } from "../../shared/facade"
-import { defaultRoleFor } from "../util/folderRole"
 import { snapshotDisplayName, uniqueDisplayNames } from "../util/snapshotDisplayName"
 import { readSnapshotBytes } from "./snapshotBytes"
 
@@ -268,74 +265,6 @@ export class ProjectsService {
         await this.refreshProjects()
     }
 
-    async addFolder(folder: NewFolder): Promise<void> {
-        await this.applyProject(await this.request("projects.addFolder", { projectId: this.requireProject().id, folder }))
-    }
-
-    async addPickedFolder(title: string): Promise<void> {
-        const picked = await this.pickFolder(title).catch((error: unknown) => {
-            this.toastUnlessSilent(error, (error as Error).message)
-            return null
-        })
-        if (!picked) {
-            return
-        }
-        try {
-            const role = defaultRoleFor(picked.git, this.requireProject().folders)
-            await this.addFolder({ pickToken: picked.pickToken, label: picked.suggestedLabel, role })
-        } catch (error) {
-            this.toastFolderRefusal(error, picked.path)
-        }
-    }
-
-    toastFolderRefusal(error: unknown, path: string): void {
-        if (error instanceof DesktopBridgeError && error.code === "DUPLICATE_FOLDER") {
-            this.toastService.show(`'${path}' is already part of this project.`, "info")
-            return
-        }
-        this.toastUnlessSilent(error, (error as Error).message)
-    }
-
-    async revealStoreFolder(): Promise<void> {
-        const answer = await this.bridge.reveal({ kind: "storeRoot" })
-        if ("error" in answer) {
-            this.toastUnlessSilent(new DesktopBridgeError(answer.error), answer.error.message)
-        }
-    }
-
-    async updateFolder(folderId: string, changes: { label?: string; role?: FolderRole }): Promise<void> {
-        await this.applyProject(await this.request("projects.updateFolder", { ...this.folderRef(folderId), ...changes }))
-    }
-
-    async removeFolder(folderId: string): Promise<void> {
-        const workingFolderId = this.workingFolder()?.id
-        await this.applyProject(await this.request("projects.removeFolder", { ...this.folderRef(folderId), permanently: false }))
-        if (workingFolderId !== this.workingFolder()?.id) {
-            await this.showWorkingFolder()
-        }
-    }
-
-    async relinkFolder(folderId: string, pickToken: string, acceptDifferentHistory = false): Promise<void> {
-        const params = { ...this.folderRef(folderId), pickToken, ...(acceptDifferentHistory ? { acceptDifferentHistory } : {}) }
-        await this.applyProject(await this.request("projects.relinkFolder", params))
-    }
-
-    async refreshFolder(folderId: string): Promise<void> {
-        await this.applyProject(await this.request("projects.refreshFolder", this.folderRef(folderId)))
-    }
-
-    async pickFolder(title: string): Promise<PickedFolder | null> {
-        return this.request("projects.pickFolder", { title })
-    }
-
-    async revealFolder(folderId: string): Promise<void> {
-        try {
-            await this.request("projects.revealFolder", this.folderRef(folderId))
-        } catch (error) {
-            this.toastUnlessSilent(error, (error as Error).message)
-        }
-    }
-
     resolveCommit(folder: FolderRef, hash: string): Promise<ResolveCommitResult> {
         return this.request("projects.resolveCommit", { ...folder, hash })
     }
@@ -384,7 +313,7 @@ export class ProjectsService {
         this.snapshots.set(await this.listSnapshots(project))
     }
 
-    private async applyProject(project: Project): Promise<void> {
+    async applyProject(project: Project): Promise<void> {
         this.project.set(project)
         this.snapshots.set(await this.listSnapshots(project))
         await this.refreshProjects()
@@ -478,11 +407,7 @@ export class ProjectsService {
         return summary?.folders.find(folder => folder.id === choice.folderId)?.label ?? choice.folderId
     }
 
-    private folderRef(folderId: string) {
-        return { projectId: this.requireProject().id, folderId }
-    }
-
-    private requireProject(): Project {
+    requireProject(): Project {
         const project = this.project()
         if (!project) {
             throw new DesktopBridgeError({ code: "NOT_FOUND", message: "No project is open." })
@@ -494,7 +419,7 @@ export class ProjectsService {
         return this.environment.requireBridge()
     }
 
-    private async request<Method extends BridgeMethod>(method: Method, params: BridgeParams<Method>): Promise<BridgeResult<Method>> {
+    async request<Method extends BridgeMethod>(method: Method, params: BridgeParams<Method>): Promise<BridgeResult<Method>> {
         return valueOrThrow(await this.bridge.request(method, params))
     }
 }

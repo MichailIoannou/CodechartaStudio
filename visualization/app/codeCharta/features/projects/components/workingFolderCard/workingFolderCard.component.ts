@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output } f
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
+import { ProjectFoldersService } from "../../services/projectFolders.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, changesSentence, relativeTime, remoteDisplay, shortSha, upstreamState } from "../../util/folderWording"
 
@@ -14,6 +15,7 @@ import { branchLabel, changesSentence, relativeTime, remoteDisplay, shortSha, up
 export class WorkingFolderCardComponent {
     private readonly projects = inject(ProjectsService)
     private readonly gitRepository = inject(GitRepositoryService)
+    private readonly projectFolders = inject(ProjectFoldersService)
 
     readonly folder = input.required<ProjectFolder>()
     readonly lastCommit = input<GitCommitSummary | null>(null)
@@ -58,6 +60,6 @@ export class WorkingFolderCardComponent {
     })
 
     showInFiles() {
-        void this.projects.revealFolder(this.folder().id)
+        void this.projectFolders.revealFolder(this.folder().id)
     }
 }
