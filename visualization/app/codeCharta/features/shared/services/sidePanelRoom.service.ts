@@ -8,6 +8,9 @@ import { PANEL_ISLAND_MARGIN_PX } from "../util/publishBarInset"
 const MIN_FREE_MAP_WIDTH_REM = 30
 const DEFAULT_ROOT_FONT_SIZE_PX = 16
 
+/** How wide a collapsed side panel's strip is, on either side. */
+export const COLLAPSED_STRIP_WIDTH_PX = 300
+
 export type SidePanelSide = "left" | "right"
 
 /** The side whose panel gives way first when the window gets too narrow for both: the inspector's. */
