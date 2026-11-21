@@ -5,7 +5,7 @@ import type { Project } from "../../model/coreApi/Project"
 import type { ProjectFolder } from "../../model/coreApi/ProjectFolder"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 import type { BridgeMethod, DesktopBridge } from "./desktopBridge"
-import { createFakeDesktopBridge, FakeDesktopSeed } from "./desktopBridge.mocks"
+import { createFakeDesktopBridge, FakeDesktopSeed, fakeDesktopBridgeSource } from "./desktopBridge.mocks"
 
 const TOOL_FAILURE = { code: "TOOL_FAILED" as const, message: "git failed", details: {} }
 const NOW = "2026-11-19T08:00:00Z"
@@ -603,7 +603,7 @@ describe("createFakeDesktopBridge", () => {
             responses: { "core.ping": { coreVersion: "0.1.0" } },
             pickedFolders: [aPickedFolder("billing")]
         }
-        const rebuild = new Function(`return (${createFakeDesktopBridge.toString()})(${JSON.stringify(seed)})`)
+        const rebuild = new Function(`return ${fakeDesktopBridgeSource(seed)}`)
 
         // Act
         const rebuilt = rebuild() as ReturnType<typeof createFakeDesktopBridge>
