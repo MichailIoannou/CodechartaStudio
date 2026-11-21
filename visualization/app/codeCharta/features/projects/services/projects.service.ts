@@ -52,7 +52,6 @@ export class ProjectsService {
     private readonly shown = signal<SnapshotSummary | null>(null)
     private readonly problem = signal<StoreProblemCode | null>(null)
     private readonly busyFolder = signal<string | null>(null)
-    private readonly folderMenuRequests = signal(0)
 
     readonly isDesktop = this.environment.isDesktop
     readonly projects = this.projectList.asReadonly()
@@ -63,8 +62,6 @@ export class ProjectsService {
     readonly busyFolderId = this.busyFolder.asReadonly()
     readonly isBusy = computed(() => this.busyFolder() !== null)
     readonly workingFolder = computed(() => workingFolderOf(this.project()))
-    /** Counts the requests of other views to open the project menu for choosing the working folder. */
-    readonly folderMenuRequest = this.folderMenuRequests.asReadonly()
 
     constructor() {
         const storeChanges = inject(StoreFolderService).changes
@@ -111,10 +108,6 @@ export class ProjectsService {
         } finally {
             this.busyFolder.set(null)
         }
-    }
-
-    requestFolderMenu(): void {
-        this.folderMenuRequests.update(count => count + 1)
     }
 
     async showSnapshot(ref: SnapshotRef): Promise<void> {
