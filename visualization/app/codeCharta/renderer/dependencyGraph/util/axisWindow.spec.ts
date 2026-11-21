@@ -1,8 +1,12 @@
-import { AxisWindow, fitWindowOf, panBothAxesTo, windowDraggedBy, windowHolding, windowKeepingInPlace } from "./axisWindow"
+import { AxisWindow, fitWindowOf, panBothAxesTo, windowDraggedBy, windowHolding, windowKeepingInPlace, windowResizedTo } from "./axisWindow"
 import { aBox } from "./dependencyGraphTestData"
 import { Rectangle } from "./geometry"
 
 const VIEWPORT = { width: 800, height: 600 }
+const root = aBox("/root", { kind: "folder", isExpanded: true, depth: 0, isInLevelBand: false, width: 400, height: 200 })
+const view = aBox("/root/view.ts", { x: 16, y: 44 })
+const model = aBox("/root/model.ts", { x: 16, y: 120 })
+const util = aBox("/root/util.ts", { x: 200, y: 120 })
 const SHOWN: AxisWindow = { x: [100, 500], y: [100, 400] }
 
 function rounded({ x, y }: AxisWindow): AxisWindow {
@@ -148,5 +152,113 @@ describe("panBothAxesTo", () => {
                 { dataZoomIndex: 1, startValue: 30, endValue: 40 }
             ]
         })
+    })
+})
+
+describe("windowHolding", () => {
+    const layout = { boxes: [root, view, model, util], bands: [], width: 400, height: 200 }
+    const viewport = { width: 800, height: 400 }
+
+    it("should keep the window shown when it holds the boxes asked for already", () => {
+        // Arrange
+        const shownWindow: AxisWindow = { x: [0, 400], y: [0, 200] }
+
+        // Act
+        const window = windowHolding([view.path, model.path], layout, viewport, shownWindow)
+
+        // Assert
+        expect(window).toBe(shownWindow)
+    })
+
+    it("should centre on the boxes asked for when one of them lies outside the window shown, no larger than one and a half times their size", () => {
+        // Arrange
+        const lookingElsewhere: AxisWindow = { x: [1000, 1400], y: [1000, 1200] }
+
+        // Act
+        const window = windowHolding([view.path], layout, viewport, lookingElsewhere)
+
+        // Assert
+        const centre = [(window.x[0] + window.x[1]) / 2, (window.y[0] + window.y[1]) / 2]
+        expect(centre).toEqual([view.x + view.width / 2, view.y + view.height / 2])
+        expect(800 / (window.x[1] - window.x[0])).toBeCloseTo(1.5)
+    })
+
+    it("should zoom out as far as it takes to hold boxes lying far apart, with room around them", () => {
+        // Arrange
+        const far = aBox("/root/far.ts", { x: 3000, y: 44 })
+        const wide = { ...layout, boxes: [...layout.boxes, far] }
+
+        // Act
+        const window = windowHolding([view.path, far.path], wide, viewport, null)
+
+        // Assert
+        expect(window.x[0]).toBeLessThan(view.x)
+        expect(window.x[1]).toBeGreaterThan(far.x + far.width)
+        expect((far.x + far.width - view.x) / (window.x[1] - window.x[0])).toBeCloseTo(0.8)
+    })
+
+    it("should have no window for boxes that are not on screen", () => {
+        // Arrange
+        const pathsWithoutABox = ["/root/hidden.ts"]
+
+        // Act
+        const window = windowHolding(pathsWithoutABox, layout, viewport, null)
+
+        // Assert
+        expect(window).toBeNull()
+    })
+})
+
+describe("fitWindowOf", () => {
+    it("should fit the root as drawn, grown by dragged boxes, with equal scale on both axes", () => {
+        // Arrange
+        const grownRoot = aBox("/root", { kind: "folder", isExpanded: true, depth: 0, x: -100, y: -50, width: 500, height: 250 })
+        const layout = { boxes: [grownRoot], bands: [], width: 400, height: 200 }
+
+        // Act
+        const window = fitWindowOf(layout, { width: 1000, height: 500 })
+
+        // Assert
+        expect((window.x[0] + window.x[1]) / 2).toBe(150)
+        expect((window.y[0] + window.y[1]) / 2).toBe(75)
+        expect((window.x[1] - window.x[0]) / 1000).toBeCloseTo((window.y[1] - window.y[0]) / 500)
+        expect(window.x[1] - window.x[0]).toBeGreaterThan(500)
+    })
+
+    it("should fit the root without a scale while the chart has no size yet", () => {
+        // Arrange
+        const layout = { boxes: [root], bands: [], width: 400, height: 200 }
+
+        // Act
+        const window = fitWindowOf(layout, { width: 0, height: 0 })
+
+        // Assert
+        expect(window).toEqual({ x: [0, 400], y: [0, 200] })
+    })
+
+    it("should fit an empty graph without a size to finite numbers", () => {
+        // Arrange
+        const emptyLayout = { boxes: [], bands: [], width: 0, height: 0 }
+
+        // Act
+        const window = fitWindowOf(emptyLayout, { width: 0, height: 0 })
+
+        // Assert
+        expect([...window.x, ...window.y].every(Number.isFinite)).toBe(true)
+    })
+})
+
+describe("windowResizedTo", () => {
+    it("should keep the window's centre and its pixels per unit on both axes when the chart is resized", () => {
+        // Arrange
+        const windowFittedAtWideSize: AxisWindow = { x: [0, 1276], y: [0, 638] }
+
+        // Act
+        const window = windowResizedTo(windowFittedAtWideSize, { width: 1600, height: 800 }, { width: 800, height: 800 })
+
+        // Assert
+        expect(window).toEqual({ x: [319, 957], y: [0, 638] })
+        expect(800 / (window.x[1] - window.x[0])).toBeCloseTo(1600 / 1276)
+        expect(800 / (window.y[1] - window.y[0])).toBeCloseTo(1600 / 1276)
     })
 })

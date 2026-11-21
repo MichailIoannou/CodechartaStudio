@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aGitStatus, aPickedImportFile, aProject, aSnapshot } from "../../projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../projectsTestBed.mocks"
+import { FolderMenuRequestsService } from "../../services/folderMenuRequests.service"
 import { ProjectSwitcherComponent } from "./projectSwitcher.component"
 
 const BILLING = aProject(
@@ -218,7 +219,7 @@ describe("ProjectSwitcherComponent", () => {
         await renderSwitcher()
 
         // Act
-        testBed.projects.requestFolderMenu()
+        TestBed.inject(FolderMenuRequestsService).request()
         await settle()
 
         // Assert

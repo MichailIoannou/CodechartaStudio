@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 ### Fixed 🐞
 
 - **Delta screenshot names**: a screenshot taken while comparing two maps names the reference map before the comparison map.
+- **Grey triangles over buildings**: on some graphics cards, folder floors no longer cut through buildings and buildings keep their lit colours when the map is zoomed out.
 
 ## [2.11.0] - 2026-11-10
 

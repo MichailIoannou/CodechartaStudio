@@ -1,9 +1,6 @@
-import { HttpClient } from "@angular/common/http"
-import { TestBed } from "@angular/core/testing"
-import { StoreModule } from "@ngrx/store"
-import { MockStore, provideMockStore } from "@ngrx/store/testing"
+import { MockStore } from "@ngrx/store/testing"
 import stringify from "safe-stable-stringify"
-import { EDGE_METRIC_DATA, FILE_STATES, METRIC_DATA, TEST_DELTA_MAP_A, TEST_DELTA_MAP_B, TEST_FILE_CONTENT } from "../mocks/dataMocks"
+import { EDGE_METRIC_DATA, FILE_STATES, METRIC_DATA, TEST_DELTA_MAP_A, TEST_DELTA_MAP_B } from "../mocks/dataMocks"
 import {
     CcState,
     DependencyLensSource,
@@ -15,41 +12,30 @@ import {
 } from "../model/codeCharta.model"
 import { FileSelectionState } from "../model/files/files"
 import { getCCFiles } from "../model/files/files.helper"
-import { ProjectSnapshotOrigin } from "../model/projectSnapshot.model"
 import { metricDataSelector } from "../renderer/renderModel/accumulatedData/metricData/metricData.selector"
-import {
-    DependencyLensSourceReadWindow,
-    defaultDependencyLensSource
-} from "../stores/dependencyLensSource/dependencyLensSource.read.facade"
+import { defaultDependencyLensSource } from "../stores/dependencyLensSource/dependencyLensSource.read.facade"
 import { setEdgeAttributeTypes } from "../stores/dependencyLensSource/dependencyLensSource.write.facade"
-import { DomainLensSourceReadWindow } from "../stores/domainLensSource/domainLensSource.read.facade"
-import { DomainStateReadWindow } from "../stores/domainState/domainState.read.facade"
-import { FileStoreReadWindow, NO_FILES_LOADED_ERROR_MESSAGE } from "../stores/fileStore/fileStore.facade"
+import { NO_FILES_LOADED_ERROR_MESSAGE } from "../stores/fileStore/fileStore.facade"
 import { sampleFile1, sampleFile2 } from "../stores/fileStore/loaders/ccJson/sampleFiles"
 import { LoadFileService } from "../stores/fileStore/loaders/ccJson/services/loadFile.service"
 import { getNameDataPair } from "../stores/fileStore/loaders/ccJson/util/fileParser"
-import { UrlExtractor } from "../stores/fileStore/loaders/ccJson/util/urlExtractor"
 import { setCurrentFilesAreSampleFiles } from "../stores/fileStore/store/currentFilesAreSampleFiles/currentFilesAreSampleFiles.actions"
 import { setDelta, setFiles } from "../stores/fileStore/store/files.actions"
 import { filesLoaded } from "../stores/fileStore/store/filesLoaded/filesLoaded.actions"
 import { setIsLoadingFile } from "../stores/fileStore/store/isLoadingFile/isLoadingFile.actions"
-import { defaultMapState, MapStateReadWindow } from "../stores/mapState/mapState.read.facade"
+import { defaultMapState } from "../stores/mapState/mapState.read.facade"
 import { setAreaMetric, setColorRange, setLayoutAlgorithm } from "../stores/mapState/mapState.write.facade"
-import { defaultMetricsLensSource, MetricsLensSourceReadWindow } from "../stores/metricsLensSource/metricsLensSource.read.facade"
+import { defaultMetricsLensSource } from "../stores/metricsLensSource/metricsLensSource.read.facade"
 import { setAttributeDescriptors, setAttributeTypes } from "../stores/metricsLensSource/metricsLensSource.write.facade"
-import { defaultPreferences, PreferencesReadWindow } from "../stores/preferences/preferences.read.facade"
+import { defaultPreferences } from "../stores/preferences/preferences.read.facade"
 import { setSortingOption } from "../stores/preferences/preferences.write.facade"
-import { CcStateSnapshot } from "../stores/rootStore/ccState.snapshot"
 import { defaultState } from "../stores/rootStore/state.manager"
-import { appReducers, setStateMiddleware } from "../stores/rootStore/store"
-import { defaultSharedView, SharedViewReadWindow } from "../stores/sharedView/sharedView.read.facade"
+import { defaultSharedView } from "../stores/sharedView/sharedView.read.facade"
 import { ErrorDialogService } from "../util/errorDialog/errorDialog.service"
 import { fileRoot } from "../util/fileRoot"
-import { NO_URL_METRICS, UrlMetricSelection } from "../util/queryParameter/queryParameter"
-import { QueryParamsService } from "../util/queryParameter/queryParams.service"
-import { LoadedSnapshotFacts, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad } from "./load.facade"
 import { LoadFilesUseCase } from "./loadFiles.useCase"
-import { CcStatePersistence, PersistedCcStateRead } from "./services/ccStatePersistence"
+import { dispatchedTypes, loadFilesInputs, setUpLoadFilesUseCase } from "./loadFiles.useCase.testBed.mocks"
+import { CcStatePersistence } from "./services/ccStatePersistence"
 
 jest.mock("../stores/fileStore/loaders/ccJson/util/urlExtractor")
 jest.mock("../model/files/files.helper")
@@ -61,7 +47,7 @@ const TRANSIENT_SHARED_VIEW: Partial<SharedView> = {
     hoveredFileExtensions: defaultSharedView.hoveredFileExtensions,
     keptHighlightPaths: defaultSharedView.keptHighlightPaths
 }
-const SAVED_SETTINGS_ERROR_TITLE = "Saved settings could not be restored."
+
 const MISSING_PROPERTIES_ERROR_TITLE =
     "The previous state could not be fully restored after loading the page. The following properties were not restored."
 
@@ -74,107 +60,15 @@ describe("LoadFilesUseCase", () => {
     let loadFileService: LoadFileService
     let loadFilesUseCase: LoadFilesUseCase
     let mockedErrorDialogService: ErrorDialogService
-    let mockedQueryParamsService: jest.Mocked<QueryParamsService>
     let mockedCcStatePersistence: jest.Mocked<CcStatePersistence>
-    let mockedUrlExtractor: UrlExtractor
-
-    const mockUrlWithFile = (options: { renderMode?: string; areSampleFiles?: boolean; metrics?: UrlMetricSelection } = {}) => {
-        mockedQueryParamsService.hasFile.mockReturnValue(true)
-        mockedQueryParamsService.getFileNames.mockReturnValue(["filename"])
-        mockedQueryParamsService.getRenderMode.mockReturnValue(options.renderMode ?? null)
-        mockedQueryParamsService.areSampleFilesFlagged.mockReturnValue(options.areSampleFiles ?? false)
-        mockedQueryParamsService.getMetrics.mockReturnValue(options.metrics ?? NO_URL_METRICS)
-    }
-
-    const mockUrlWithoutFile = () => {
-        mockedQueryParamsService.hasFile.mockReturnValue(false)
-        mockedQueryParamsService.getFileNames.mockReturnValue([])
-        mockedQueryParamsService.getRenderMode.mockReturnValue(null)
-        mockedQueryParamsService.areSampleFilesFlagged.mockReturnValue(false)
-        mockedQueryParamsService.getMetrics.mockReturnValue(NO_URL_METRICS)
-    }
-
-    const mockUrlFiles = (nameDataPairs: ReturnType<typeof getNameDataPair>[]) => {
-        jest.mocked(mockedUrlExtractor.getFileDataFromFileNames).mockResolvedValue(nameDataPairs)
-    }
-
-    const mockUrlLoadError = (error: Error) => {
-        jest.mocked(mockedUrlExtractor.getFileDataFromFileNames).mockImplementation(() => {
-            throw error
-        })
-    }
-
-    const mockPersistedState = (state: CcState | null) => {
-        mockedCcStatePersistence.read.mockResolvedValue({ state, error: null })
-    }
-
-    const mockPersistedReadError = (error: Error) => {
-        mockedCcStatePersistence.read.mockResolvedValue({ state: null, error })
-    }
-
-    const dispatchedTypes = (dispatchSpy: jest.SpyInstance) => dispatchSpy.mock.calls.map(call => call[0].type)
+    let inputs: ReturnType<typeof loadFilesInputs>
 
     beforeEach(() => {
-        mockedErrorDialogService = { open: jest.fn() } as unknown as ErrorDialogService
-        mockedQueryParamsService = {
-            hasFile: jest.fn(() => false),
-            getFileNames: jest.fn(() => []),
-            getRenderMode: jest.fn(() => null),
-            getMetrics: jest.fn(() => NO_URL_METRICS),
-            areSampleFilesFlagged: jest.fn(() => false),
-            write: jest.fn()
-        } as unknown as jest.Mocked<QueryParamsService>
-        mockedCcStatePersistence = {
-            read: jest.fn(async (): Promise<PersistedCcStateRead> => ({ state: null, error: null })),
-            delete: jest.fn()
-        } as unknown as jest.Mocked<CcStatePersistence>
-        mockedUrlExtractor = new UrlExtractor({} as HttpClient)
-
-        TestBed.configureTestingModule({
-            imports: [[StoreModule.forRoot(appReducers, { metaReducers: [setStateMiddleware] })]],
-            providers: [
-                { provide: ErrorDialogService, useValue: mockedErrorDialogService },
-                { provide: QueryParamsService, useValue: mockedQueryParamsService },
-                { provide: CcStatePersistence, useValue: mockedCcStatePersistence },
-                { provide: UrlExtractor, useValue: mockedUrlExtractor },
-                { provide: HttpClient, useValue: {} },
-                { provide: LoadFileService, useValue: { loadFiles: jest.fn() } },
-                { provide: CcStateSnapshot, useValue: { get: () => defaultState } },
-                { provide: PreferencesReadWindow, useValue: { getPreferences: () => defaultState.preferences } },
-                {
-                    provide: MetricsLensSourceReadWindow,
-                    useValue: { getMetricsLensSource: () => defaultState.metricsLensSource }
-                },
-                {
-                    provide: DependencyLensSourceReadWindow,
-                    useValue: { getDependencyLensSource: () => defaultState.dependencyLensSource }
-                },
-                {
-                    provide: DomainLensSourceReadWindow,
-                    useValue: { getDomainLensSource: () => defaultState.domainLensSource }
-                },
-                { provide: DomainStateReadWindow, useValue: { getDomainState: () => defaultState.domainState } },
-                { provide: SharedViewReadWindow, useValue: { getSharedView: () => defaultState.sharedView } },
-                { provide: MapStateReadWindow, useValue: { getMapState: () => defaultState.mapState } },
-                { provide: FileStoreReadWindow, useValue: { getFiles: () => defaultState.files } },
-                provideMockStore({
-                    selectors: [
-                        {
-                            selector: metricDataSelector,
-                            value: {
-                                nodeMetricData: null,
-                                edgeMetricData: null
-                            }
-                        }
-                    ]
-                })
-            ]
-        })
-
-        store = TestBed.inject(MockStore)
-        loadFileService = TestBed.inject(LoadFileService)
-        loadFilesUseCase = TestBed.inject(LoadFilesUseCase)
-        jest.mocked(getCCFiles).mockImplementation(() => defaultState.files.map(state => state.file))
+        const testBed = setUpLoadFilesUseCase()
+        ;({ store, loadFileService, loadFilesUseCase } = testBed)
+        mockedErrorDialogService = testBed.errorDialogService
+        mockedCcStatePersistence = testBed.ccStatePersistence
+        inputs = loadFilesInputs(testBed)
     })
 
     afterEach(() => {
@@ -185,9 +79,9 @@ describe("LoadFilesUseCase", () => {
         it("should load files from query params when files query params contain valid file parameter and files are not saved in indexeddb", async () => {
             // Arrange
             const mockedNameDataPairs = [getNameDataPair(TEST_DELTA_MAP_A)]
-            mockUrlWithFile()
-            mockUrlFiles(mockedNameDataPairs)
-            mockPersistedState(null)
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles(mockedNameDataPairs)
+            inputs.mockPersistedState(null)
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -200,9 +94,9 @@ describe("LoadFilesUseCase", () => {
         it("should dispatch filesLoaded last when files are loaded from query params", async () => {
             // Arrange
             const dispatchSpy = jest.spyOn(store, "dispatch")
-            mockUrlWithFile()
-            mockUrlFiles([getNameDataPair(TEST_DELTA_MAP_A)])
-            mockPersistedState(null)
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles([getNameDataPair(TEST_DELTA_MAP_A)])
+            inputs.mockPersistedState(null)
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -216,8 +110,8 @@ describe("LoadFilesUseCase", () => {
 
         it("should load sample files when load files from query params throws error", async () => {
             // Arrange
-            mockUrlWithFile()
-            mockUrlLoadError(new Error("files could not be loaded from query param"))
+            inputs.mockUrlWithFile()
+            inputs.mockUrlLoadError(new Error("files could not be loaded from query param"))
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -232,8 +126,8 @@ describe("LoadFilesUseCase", () => {
 
         it("should not open an error dialog when no files were loaded at all", async () => {
             // Arrange
-            mockUrlWithFile()
-            mockUrlLoadError(new Error(NO_FILES_LOADED_ERROR_MESSAGE))
+            inputs.mockUrlWithFile()
+            inputs.mockUrlLoadError(new Error(NO_FILES_LOADED_ERROR_MESSAGE))
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -245,9 +139,9 @@ describe("LoadFilesUseCase", () => {
 
         it("should read the persisted state exactly once when a url load falls back to sample files", async () => {
             // Arrange
-            mockUrlWithFile()
-            mockPersistedState(JSON.parse(stringify(defaultState)) as CcState)
-            mockUrlLoadError(new Error("files could not be loaded from query param"))
+            inputs.mockUrlWithFile()
+            inputs.mockPersistedState(JSON.parse(stringify(defaultState)) as CcState)
+            inputs.mockUrlLoadError(new Error("files could not be loaded from query param"))
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -261,9 +155,9 @@ describe("LoadFilesUseCase", () => {
             // Arrange
             const brokenState = JSON.parse(stringify(defaultState)) as CcState
             brokenState.preferences = 42 as unknown as Preferences
-            mockUrlWithFile()
-            mockPersistedState(brokenState)
-            mockUrlLoadError(new Error("files could not be loaded from query param"))
+            inputs.mockUrlWithFile()
+            inputs.mockPersistedState(brokenState)
+            inputs.mockUrlLoadError(new Error("files could not be loaded from query param"))
 
             // Act
             const loading = loadFilesUseCase.loadOnBoot()
@@ -276,8 +170,8 @@ describe("LoadFilesUseCase", () => {
         it("should dispatch currentFilesAreSampleFiles when query param currentFilesAreSampleFiles is true", async () => {
             // Arrange
             const dispatchSpy = jest.spyOn(store, "dispatch")
-            mockUrlWithFile({ areSampleFiles: true })
-            mockUrlFiles([getNameDataPair(TEST_DELTA_MAP_A)])
+            inputs.mockUrlWithFile({ areSampleFiles: true })
+            inputs.mockUrlFiles([getNameDataPair(TEST_DELTA_MAP_A)])
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -289,8 +183,8 @@ describe("LoadFilesUseCase", () => {
         it("should not dispatch currentFilesAreSampleFiles when query param currentFilesAreSampleFiles is not existent", async () => {
             // Arrange
             const dispatchSpy = jest.spyOn(store, "dispatch")
-            mockUrlWithFile()
-            mockUrlFiles([getNameDataPair(TEST_DELTA_MAP_A)])
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles([getNameDataPair(TEST_DELTA_MAP_A)])
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -303,8 +197,8 @@ describe("LoadFilesUseCase", () => {
         it("should set currentFilesAreSampleFiles to true if sample files are loaded", async () => {
             // Arrange
             const dispatchSpy = jest.spyOn(store, "dispatch")
-            mockUrlWithFile()
-            mockUrlLoadError(new Error("files could not be loaded from query param"))
+            inputs.mockUrlWithFile()
+            inputs.mockUrlLoadError(new Error("files could not be loaded from query param"))
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -318,12 +212,12 @@ describe("LoadFilesUseCase", () => {
             const AMOUNT_OF_TOP_LABELS = 600
             const mockedNameDataPairs = [getNameDataPair(TEST_DELTA_MAP_A)]
             const savedFileStates = [{ file: TEST_DELTA_MAP_A, selectedAs: FileSelectionState.Partial }]
-            mockUrlWithFile()
-            mockUrlFiles(mockedNameDataPairs)
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles(mockedNameDataPairs)
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             mockedState.files = savedFileStates
             mockedState.mapState.amountOfTopLabels = AMOUNT_OF_TOP_LABELS
-            mockPersistedState(mockedState)
+            inputs.mockPersistedState(mockedState)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -349,12 +243,12 @@ describe("LoadFilesUseCase", () => {
             // Arrange
             const AMOUNT_OF_TOP_LABELS = 600
             const mockedNameDataPairs = [getNameDataPair(TEST_DELTA_MAP_A)]
-            mockUrlWithFile()
-            mockUrlFiles(mockedNameDataPairs)
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles(mockedNameDataPairs)
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             mockedState.files = [{ file: TEST_DELTA_MAP_B, selectedAs: FileSelectionState.Partial }]
             mockedState.mapState.amountOfTopLabels = AMOUNT_OF_TOP_LABELS
-            mockPersistedState(mockedState)
+            inputs.mockPersistedState(mockedState)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -370,11 +264,11 @@ describe("LoadFilesUseCase", () => {
         it("should only dispatch the framing actions when the persisted settings equal the current ones and the files differ", async () => {
             // Arrange
             const mockedNameDataPairs = [getNameDataPair(TEST_DELTA_MAP_A)]
-            mockUrlWithFile()
-            mockUrlFiles(mockedNameDataPairs)
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles(mockedNameDataPairs)
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             mockedState.files = [{ file: TEST_DELTA_MAP_B, selectedAs: FileSelectionState.Partial }]
-            mockPersistedState(mockedState)
+            inputs.mockPersistedState(mockedState)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -400,9 +294,9 @@ describe("LoadFilesUseCase", () => {
                     selectedAs: FileSelectionState.Comparison
                 }
             ]
-            mockUrlWithFile({ renderMode: "Delta" })
-            mockUrlFiles(mockedNameDataPairs)
-            mockPersistedState(defaultState)
+            inputs.mockUrlWithFile({ renderMode: "Delta" })
+            inputs.mockUrlFiles(mockedNameDataPairs)
+            inputs.mockPersistedState(defaultState)
             jest.mocked(getCCFiles).mockImplementation(() => mockedState.files.map(state => state.file))
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
@@ -429,10 +323,10 @@ describe("LoadFilesUseCase", () => {
                     selectedAs: FileSelectionState.Comparison
                 }
             ]
-            mockUrlFiles(mockedNameDataPairs)
-            mockPersistedState(defaultState)
+            inputs.mockUrlFiles(mockedNameDataPairs)
+            inputs.mockPersistedState(defaultState)
             jest.mocked(getCCFiles).mockImplementation(() => mockedState.files.map(state => state.file))
-            mockUrlWithFile({
+            inputs.mockUrlWithFile({
                 metrics: { areaMetric: "mcc", heightMetric: "rloc", colorMetric: "functions", edgeMetric: "pairing_rate" }
             })
             const dispatchSpy = jest.spyOn(store, "dispatch")
@@ -464,8 +358,8 @@ describe("LoadFilesUseCase", () => {
             // Arrange
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             mockedState.files = FILE_STATES
-            mockUrlWithoutFile()
-            mockPersistedState(mockedState)
+            inputs.mockUrlWithoutFile()
+            inputs.mockPersistedState(mockedState)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -489,8 +383,8 @@ describe("LoadFilesUseCase", () => {
 
         it("should load sample-files when indexeddb is empty", async () => {
             // Arrange
-            mockUrlWithoutFile()
-            mockPersistedState(null)
+            inputs.mockUrlWithoutFile()
+            inputs.mockPersistedState(null)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -506,8 +400,8 @@ describe("LoadFilesUseCase", () => {
 
         it("should load sample files when load files from indexeddb throws error", async () => {
             // Arrange
-            mockUrlWithoutFile()
-            mockPersistedReadError(new Error("Could not read cc-state"))
+            inputs.mockUrlWithoutFile()
+            inputs.mockPersistedReadError(new Error("Could not read cc-state"))
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -523,8 +417,8 @@ describe("LoadFilesUseCase", () => {
         it("should set currentFilesAreSampleFiles to true if sample files are loaded", async () => {
             // Arrange
             const dispatchSpy = jest.spyOn(store, "dispatch")
-            mockUrlWithoutFile()
-            mockPersistedReadError(new Error("Could not read cc-state"))
+            inputs.mockUrlWithoutFile()
+            inputs.mockPersistedReadError(new Error("Could not read cc-state"))
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -537,8 +431,8 @@ describe("LoadFilesUseCase", () => {
             // Arrange
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             mockedState.files = FILE_STATES
-            mockUrlWithoutFile()
-            mockPersistedState(mockedState)
+            inputs.mockUrlWithoutFile()
+            inputs.mockPersistedState(mockedState)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -553,8 +447,8 @@ describe("LoadFilesUseCase", () => {
             // Arrange — LoadFileService does this from the file it parses, and a restore no longer parses
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             mockedState.files = FILE_STATES
-            mockUrlWithoutFile()
-            mockPersistedState(mockedState)
+            inputs.mockUrlWithoutFile()
+            inputs.mockPersistedState(mockedState)
             const updateRootSpy = jest.spyOn(fileRoot, "updateRoot")
 
             // Act
@@ -569,8 +463,8 @@ describe("LoadFilesUseCase", () => {
             // Arrange
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             delete (mockedState.preferences as Partial<Preferences>).screenshotToClipboardEnabled
-            mockUrlWithoutFile()
-            mockPersistedState(mockedState)
+            inputs.mockUrlWithoutFile()
+            inputs.mockPersistedState(mockedState)
 
             // Act
             await loadFilesUseCase.loadOnBoot()
@@ -588,11 +482,11 @@ describe("LoadFilesUseCase", () => {
         it("should set all differing sharedView", async () => {
             // Arrange
             const mockedNameDataPairs = [getNameDataPair(TEST_DELTA_MAP_A)]
-            mockUrlWithFile()
-            mockUrlFiles(mockedNameDataPairs)
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles(mockedNameDataPairs)
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             mockedState.sharedView = { ...nullifyObjectValues(defaultSharedView), ...TRANSIENT_SHARED_VIEW } as SharedView
-            mockPersistedState(mockedState)
+            inputs.mockPersistedState(mockedState)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -607,14 +501,14 @@ describe("LoadFilesUseCase", () => {
         it("should set all differing preferences, restoring the sort option but never the sort order", async () => {
             // Arrange
             const mockedNameDataPairs = [getNameDataPair(TEST_DELTA_MAP_A)]
-            mockUrlWithFile()
-            mockUrlFiles(mockedNameDataPairs)
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles(mockedNameDataPairs)
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             mockedState.preferences = nullifyObjectValues(defaultPreferences) as Preferences
             // sorting is applied as one object; give it a real value differing from the default so the
             // applier restores the option (setSortingOption) but never the order (a file-explorer UI pref)
             mockedState.preferences.sorting = { option: SortingOption.NUMBER_OF_FILES, orderAscending: false }
-            mockPersistedState(mockedState)
+            inputs.mockPersistedState(mockedState)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -634,13 +528,13 @@ describe("LoadFilesUseCase", () => {
         it("should set all differing mapState values", async () => {
             // Arrange
             const mockedNameDataPairs = [getNameDataPair(TEST_DELTA_MAP_A)]
-            mockUrlWithFile()
-            mockUrlFiles(mockedNameDataPairs)
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles(mockedNameDataPairs)
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             // Make EVERY mapState value differ from its default, so every key of the applier is exercised
             // (an unmapped key would hit the "Unhandled key" default and fail this test).
             mockedState.mapState = makeAllValuesDiffer(defaultMapState) as MapState
-            mockPersistedState(mockedState)
+            inputs.mockPersistedState(mockedState)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -658,14 +552,14 @@ describe("LoadFilesUseCase", () => {
         it("should set all differing metricsLensSource values", async () => {
             // Arrange
             const mockedNameDataPairs = [getNameDataPair(TEST_DELTA_MAP_A)]
-            mockUrlWithFile()
-            mockUrlFiles(mockedNameDataPairs)
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles(mockedNameDataPairs)
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             mockedState.metricsLensSource = {
                 attributeTypes: { rloc: "absolute" },
                 attributeDescriptors: { rloc: { title: "Real Lines of Code" } }
             } as unknown as MetricsLensSource
-            mockPersistedState(mockedState)
+            inputs.mockPersistedState(mockedState)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -684,13 +578,13 @@ describe("LoadFilesUseCase", () => {
         it("should set all differing dependencyLensSource values", async () => {
             // Arrange
             const mockedNameDataPairs = [getNameDataPair(TEST_DELTA_MAP_A)]
-            mockUrlWithFile()
-            mockUrlFiles(mockedNameDataPairs)
+            inputs.mockUrlWithFile()
+            inputs.mockUrlFiles(mockedNameDataPairs)
             const mockedState = JSON.parse(stringify(defaultState)) as CcState
             mockedState.dependencyLensSource = {
                 attributeTypes: { pairingRate: "absolute" }
             } as unknown as DependencyLensSource
-            mockPersistedState(mockedState)
+            inputs.mockPersistedState(mockedState)
             const dispatchSpy = jest.spyOn(store, "dispatch")
 
             // Act
@@ -703,287 +597,6 @@ describe("LoadFilesUseCase", () => {
             expect(dispatchSpy).toHaveBeenCalledTimes(
                 countDifferences(mockedState.dependencyLensSource, defaultDependencyLensSource) + FRAMING_DISPATCH_COUNT
             )
-        })
-    })
-
-    describe("load project snapshots", () => {
-        const originOf = (snapshotId: string): ProjectSnapshotOrigin => ({
-            projectId: "p-1",
-            folderId: "f-1",
-            snapshotId,
-            folderLabel: "billing"
-        })
-
-        const snapshotOf = (snapshotId: string, checksum: string): ProjectSnapshotToLoad => ({
-            origin: originOf(snapshotId),
-            displayName: `billing@${snapshotId}`,
-            readBytes: async () => new TextEncoder().encode(JSON.stringify({ ...TEST_FILE_CONTENT, fileChecksum: checksum }))
-        })
-
-        const unreadableSnapshotOf = (snapshotId: string): ProjectSnapshotToLoad => ({
-            origin: originOf(snapshotId),
-            displayName: `billing@${snapshotId}`,
-            readBytes: async () => new TextEncoder().encode("not a map")
-        })
-
-        it("should load a snapshot under its display name with source project", async () => {
-            // Arrange
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-            const expectedFacts: LoadedSnapshotFacts = { origin: originOf("abc1234"), checksum: "checksum-a", rootName: "root" }
-
-            // Act
-            const result: ProjectSnapshotsLoadResult = await loadFilesUseCase.loadProjectSnapshots([snapshotOf("abc1234", "checksum-a")])
-
-            // Assert
-            expect(loadFileService.loadFiles).toHaveBeenCalledWith(
-                [expect.objectContaining({ fileName: "billing@abc1234", projectSnapshot: originOf("abc1234") })],
-                { replaceLoadedFiles: true }
-            )
-            expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: filesLoaded.type, source: "project" }))
-            expect(result.loaded).toEqual([expectedFacts])
-        })
-
-        it("should drop a snapshot with identical content and report it", async () => {
-            // Act
-            const result = await loadFilesUseCase.loadProjectSnapshots([
-                snapshotOf("abc1234", "same-checksum"),
-                snapshotOf("def5678", "same-checksum")
-            ])
-
-            // Assert
-            expect(loadFileService.loadFiles).toHaveBeenCalledWith([expect.objectContaining({ fileName: "billing@abc1234" })], {
-                replaceLoadedFiles: true
-            })
-            expect(result.identicalContent).toEqual([{ kept: originOf("abc1234"), dropped: originOf("def5678") }])
-        })
-
-        it("should report an unreadable snapshot and load the rest", async () => {
-            // Act
-            const result = await loadFilesUseCase.loadProjectSnapshots([
-                unreadableSnapshotOf("broken"),
-                snapshotOf("abc1234", "checksum-a")
-            ])
-
-            // Assert
-            expect(loadFileService.loadFiles).toHaveBeenCalledWith([expect.objectContaining({ fileName: "billing@abc1234" })], {
-                replaceLoadedFiles: true
-            })
-            expect(result.unreadable).toEqual([originOf("broken")])
-        })
-
-        it("should report a snapshot whose bytes cannot be read as unreadable", async () => {
-            // Arrange
-            const failingSnapshot = { ...snapshotOf("gone", "checksum-a"), readBytes: () => Promise.reject(new Error("missing")) }
-
-            // Act
-            const result = await loadFilesUseCase.loadProjectSnapshots([failingSnapshot])
-
-            // Assert
-            expect(result.unreadable).toEqual([originOf("gone")])
-        })
-
-        it("should clear the loading indicator when nothing could be loaded", async () => {
-            // Arrange
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            await loadFilesUseCase.loadProjectSnapshots([unreadableSnapshotOf("broken")])
-
-            // Assert
-            expect(loadFileService.loadFiles).not.toHaveBeenCalled()
-            expect(dispatchSpy).toHaveBeenLastCalledWith(setIsLoadingFile({ value: false }))
-        })
-
-        it("should clear the loading indicator and report the maps as unreadable when the map rejects them all", async () => {
-            // Arrange
-            jest.mocked(loadFileService.loadFiles).mockImplementation(() => {
-                throw new Error(NO_FILES_LOADED_ERROR_MESSAGE)
-            })
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            const result = await loadFilesUseCase.loadProjectSnapshots([snapshotOf("abc1234", "checksum-a")])
-
-            // Assert
-            expect(dispatchSpy).toHaveBeenLastCalledWith(setIsLoadingFile({ value: false }))
-            expect(result).toEqual({ loaded: [], identicalContent: [], unreadable: [originOf("abc1234")] })
-        })
-
-        it("should force default metrics when asked", async () => {
-            // Arrange
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            await loadFilesUseCase.loadProjectSnapshots([snapshotOf("abc1234", "checksum-a")], { discardMetricSelection: true })
-
-            // Assert
-            expect(dispatchSpy).toHaveBeenCalledWith(
-                expect.objectContaining({ type: filesLoaded.type, source: "project", forceDefaultMetrics: true })
-            )
-        })
-    })
-
-    describe("boot from a project", () => {
-        const origin: ProjectSnapshotOrigin = { projectId: "p-1", folderId: "f-1", snapshotId: "abc1234", folderLabel: "billing" }
-        const snapshot: ProjectSnapshotToLoad = {
-            origin,
-            displayName: "billing@abc1234",
-            readBytes: async () => new TextEncoder().encode(JSON.stringify(TEST_FILE_CONTENT))
-        }
-
-        it("should restore saved settings and load the resolved snapshots", async () => {
-            // Arrange
-            const AMOUNT_OF_TOP_LABELS = 600
-            const mockedState = JSON.parse(stringify(defaultState)) as CcState
-            mockedState.mapState.amountOfTopLabels = AMOUNT_OF_TOP_LABELS
-            mockPersistedState(mockedState)
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            const result = await loadFilesUseCase.bootFromProject(async () => [snapshot])
-
-            // Assert
-            expect(dispatchSpy).toHaveBeenCalledWith({ type: "SET_AMOUNT_OF_TOP_LABELS", value: AMOUNT_OF_TOP_LABELS })
-            expect(loadFileService.loadFiles).toHaveBeenCalledWith([expect.objectContaining({ projectSnapshot: origin })], {
-                replaceLoadedFiles: true
-            })
-            expect(dispatchSpy).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: filesLoaded.type,
-                    source: "project",
-                    restoredSettings: expect.objectContaining({ sharedView: mockedState.sharedView })
-                })
-            )
-            expect(result.loaded.map(facts => facts.origin)).toEqual([origin])
-        })
-
-        it("should ignore files of an older saved session", async () => {
-            // Arrange
-            const mockedState = JSON.parse(stringify(defaultState)) as CcState
-            mockedState.files = FILE_STATES
-            mockPersistedState(mockedState)
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            await loadFilesUseCase.bootFromProject(async () => [snapshot])
-
-            // Assert
-            expect(dispatchedTypes(dispatchSpy)).not.toContain(setFiles.type)
-            expect(loadFileService.loadFiles).toHaveBeenCalledWith([expect.objectContaining({ fileName: "billing@abc1234" })], {
-                replaceLoadedFiles: true
-            })
-        })
-
-        it("should finish without files when nothing resolves", async () => {
-            // Arrange
-            const mockedState = JSON.parse(stringify(defaultState)) as CcState
-            mockedState.files = FILE_STATES
-            mockPersistedState(mockedState)
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            const result = await loadFilesUseCase.bootFromProject(async () => [])
-
-            // Assert
-            expect(loadFileService.loadFiles).not.toHaveBeenCalled()
-            expect(dispatchSpy).toHaveBeenLastCalledWith(setIsLoadingFile({ value: false }))
-            expect(result).toEqual({ loaded: [], identicalContent: [], unreadable: [] })
-        })
-
-        it("should continue with defaults when the saved settings are unreadable", async () => {
-            // Arrange
-            mockPersistedReadError(new Error("Could not read cc-state"))
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            await loadFilesUseCase.bootFromProject(async () => [snapshot])
-
-            // Assert
-            expect(mockedErrorDialogService.open).toHaveBeenCalledWith({
-                title: SAVED_SETTINGS_ERROR_TITLE,
-                message: "Could not read cc-state"
-            })
-            expect(dispatchSpy).toHaveBeenCalledWith(
-                expect.objectContaining({ type: filesLoaded.type, source: "project", restoredSettings: null })
-            )
-        })
-
-        it("should show the sample files", () => {
-            // Arrange
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            loadFilesUseCase.showSampleFiles()
-
-            // Assert
-            expect(loadFileService.loadFiles).toHaveBeenCalledWith([sampleFile1, sampleFile2])
-            expect(dispatchSpy).toHaveBeenCalledWith(
-                expect.objectContaining({ type: filesLoaded.type, source: "sample", areSampleFiles: true })
-            )
-        })
-
-        it("should unload all files and clear the loading indicator", () => {
-            // Arrange
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            loadFilesUseCase.unloadAllFiles()
-
-            // Assert
-            expect(dispatchSpy).toHaveBeenCalledWith(setFiles({ value: [] }))
-            expect(dispatchSpy).toHaveBeenLastCalledWith(setIsLoadingFile({ value: false }))
-        })
-    })
-
-    describe("reload after reset", () => {
-        it("should load the sample files and discard the previous metric selection when no file parameter is present", async () => {
-            // Arrange
-            mockUrlWithoutFile()
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            await loadFilesUseCase.reloadAfterReset()
-
-            // Assert — a reset deliberately throws the previous selection away, so the reconciliation must
-            // fall back to the computed default even when the old selection is still available.
-            expect(loadFileService.loadFiles).toHaveBeenCalledWith([sampleFile1, sampleFile2])
-            expect(dispatchSpy).toHaveBeenCalledWith(
-                expect.objectContaining({ type: filesLoaded.type, source: "reset", forceDefaultMetrics: true })
-            )
-        })
-
-        it("should load the files from the url and honour its metrics when a file parameter is present", async () => {
-            // Arrange
-            const mockedNameDataPairs = [getNameDataPair(TEST_DELTA_MAP_A)]
-            mockUrlWithFile({ metrics: { ...NO_URL_METRICS, areaMetric: "mcc" } })
-            mockUrlFiles(mockedNameDataPairs)
-            const dispatchSpy = jest.spyOn(store, "dispatch")
-
-            // Act
-            await loadFilesUseCase.reloadAfterReset()
-
-            // Assert
-            expect(loadFileService.loadFiles).toHaveBeenCalledWith(mockedNameDataPairs)
-            expect(dispatchSpy).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: filesLoaded.type,
-                    source: "reset",
-                    urlMetrics: expect.objectContaining({ areaMetric: "mcc" })
-                })
-            )
-        })
-
-        it("should raise the error dialog and fall back to the sample files when the url load fails", async () => {
-            // Arrange
-            mockUrlWithFile()
-            mockUrlLoadError(new Error("could not be loaded"))
-
-            // Act
-            await loadFilesUseCase.reloadAfterReset()
-
-            // Assert — the old reset dialog swallowed this error silently
-            expect(mockedErrorDialogService.open).toHaveBeenCalledWith(expect.objectContaining({ title: URL_LOAD_ERROR_TITLE }))
-            expect(loadFileService.loadFiles).toHaveBeenCalledWith([sampleFile1, sampleFile2])
         })
     })
 })
