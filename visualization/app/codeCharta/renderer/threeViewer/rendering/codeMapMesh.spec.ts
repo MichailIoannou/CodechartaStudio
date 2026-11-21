@@ -1,4 +1,4 @@
-import { InstancedBufferAttribute, InstancedMesh } from "three"
+import { InstancedBufferAttribute, InstancedMesh, ShaderMaterial } from "three"
 import { STATE, TEST_NODE_ROOT, TEST_NODES } from "../../../mocks/dataMocks"
 import { CcState, Node } from "../../../model/codeCharta.model"
 import { CodeMapBuilding } from "./codeMapBuilding"
@@ -198,6 +198,17 @@ describe("codeMapMesh", () => {
 
             // Assert
             expect(mesh.getThreeMesh()).toBeInstanceOf(InstancedMesh)
+        })
+
+        it("should compute vertex positions in full float precision so floors cannot cut through buildings", () => {
+            // Arrange
+            const mesh = new CodeMapMesh([TEST_NODE_ROOT], STATE, false)
+
+            // Act
+            const { precision } = mesh.getThreeMesh().material as ShaderMaterial
+
+            // Assert
+            expect(precision).toBe("highp")
         })
 
         it("should write 1 instance color entry per building instead of 24 vertices", () => {

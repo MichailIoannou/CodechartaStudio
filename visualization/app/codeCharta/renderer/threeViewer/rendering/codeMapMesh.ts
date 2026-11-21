@@ -79,7 +79,6 @@ export class CodeMapMesh {
         this.initMaterial()
 
         this.geomGen = new GeometryGenerator()
-        this.material.precision = "lowp" // no need for high precision in our shaders
         const buildResult = this.geomGen.build(nodes, this.material, state, isDeltaState)
 
         this.threeMesh = buildResult.mesh
@@ -432,7 +431,10 @@ export class CodeMapMesh {
             vertexShader: shaderCode.vertexShaderCode,
             fragmentShader: shaderCode.fragmentShaderCode,
             lights: true,
-            uniforms
+            uniforms,
+            // GPUs that honour lowp/mediump (radeonsi, RADV) compute positions in 16-bit floats, where the
+            // depth error grows with the camera distance until floors cut through buildings.
+            precision: "highp"
         })
     }
 
