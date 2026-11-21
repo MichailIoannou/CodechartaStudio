@@ -148,6 +148,19 @@ describe("ChangesPanelComponent", () => {
         expect(groupHeaders()).toEqual(["Staged (6)"])
     })
 
+    it("should outline a selected row like a selected commit", async () => {
+        // Arrange
+        const rendered = await renderPanel()
+
+        // Act
+        fireEvent.click(row("unstaged:src/app.ts"))
+        rendered.detectChanges()
+
+        // Assert
+        expect(row("unstaged:src/app.ts").className).toContain("outline-primary/60")
+        expect(row("untracked:notes.md").className).not.toContain("outline-primary/60")
+    })
+
     it("should let the group buttons act on several selected rows", async () => {
         // Arrange
         const rendered = await renderPanel()

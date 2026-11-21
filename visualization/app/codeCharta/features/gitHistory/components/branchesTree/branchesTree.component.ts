@@ -7,12 +7,12 @@ import { GitRepositoryService } from "../../services/gitRepository.service"
 import { HistoryLayoutService } from "../../services/historyLayout.service"
 import { ALL_BRANCHES_ROW_ID, BranchRef, BranchRow, branchRows, buildBranchTree, hasAnyRef } from "../../util/branchTree"
 import { gitErrorSentence } from "../../util/gitErrorText"
+import { SELECTED_ROW_CLASS } from "../../util/rowSelection"
 import { BranchContextMenuComponent, BranchMenuTarget } from "../branchContextMenu/branchContextMenu.component"
 
 const ROW_ID_PREFIX = "cc-branch-row-"
 const ROW_INDENT_REM = 0.75
 const ROW_PADDING_REM = 0.5
-const SCOPED_ROW_CLASS = "bg-primary/20 font-semibold"
 const ACTIVE_ROW_CLASS = "group-focus-visible:outline"
 /** Where a menu opened from the keyboard appears: inset from the row's left edge, under the row. */
 const KEYBOARD_MENU_INSET_PX = 24
@@ -73,7 +73,7 @@ export class BranchesTreeComponent {
     }
 
     rowStateClass(row: BranchRow): string {
-        const scoped = this.isScoped(row) ? SCOPED_ROW_CLASS : ""
+        const scoped = this.isScoped(row) ? SELECTED_ROW_CLASS : ""
         const active = row.id === this.activeRowId() ? ACTIVE_ROW_CLASS : ""
         return `${scoped} ${active}`.trim()
     }
