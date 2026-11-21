@@ -4,7 +4,9 @@ import type { ProjectFolder } from "../../../model/coreApi/ProjectFolder"
 import type { ProjectSnapshotOrigin } from "../../../model/projectSnapshot.model"
 import { GitRepositoryService, isGitStatus } from "../../gitHistory/facade"
 import { LINKED_SOURCE_FOLDERS, LinkedSourceFolder, LinkedSourceFolders } from "../../localSource/facade"
+import { findSnapshot } from "../util/projectSnapshots"
 import { FolderRelinkRequests } from "./folderRelinkRequests.service"
+import { ProjectFoldersService } from "./projectFolders.service"
 import { ProjectsService } from "./projects.service"
 
 const CURRENT_FILE = "This is the file as it is in the folder now"
@@ -13,6 +15,7 @@ const CURRENT_FILE = "This is the file as it is in the folder now"
 @Injectable({ providedIn: "root" })
 export class LinkedProjectFolders implements LinkedSourceFolders {
     private readonly projects = inject(ProjectsService)
+    private readonly projectFolders = inject(ProjectFoldersService)
     private readonly gitRepository = inject(GitRepositoryService)
     private readonly relinkRequests = inject(FolderRelinkRequests)
 
@@ -39,8 +42,7 @@ export class LinkedProjectFolders implements LinkedSourceFolders {
 
     /** No note while the map follows the current checkout, uncommitted changes included. */
     private stateNoteOf(origin: ProjectSnapshotOrigin): string | null {
-        const snapshotsOfFolder = this.projects.snapshotsByFolder()[origin.folderId] ?? []
-        const snapshot = snapshotsOfFolder.find(candidate => candidate.ref.snapshotId === origin.snapshotId)
+        const snapshot = findSnapshot(this.projects.snapshotsByFolder(), origin)
         if (snapshot?.source === "imported") {
             return `${CURRENT_FILE}, not as it was analysed.`
         }
@@ -52,7 +54,7 @@ export class LinkedProjectFolders implements LinkedSourceFolders {
     }
 
     private async readFile({ projectId, folderId }: ProjectSnapshotOrigin, relativePath: string): Promise<File | null> {
-        const bytes = await this.projects.readSourceFile({ projectId, folderId }, relativePath)
+        const bytes = await this.projectFolders.readSourceFile({ projectId, folderId }, relativePath)
         return bytes && new File([new Uint8Array(bytes)], relativePath.split("/").at(-1) ?? relativePath)
     }
 }

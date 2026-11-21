@@ -15,7 +15,7 @@ import {
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
 import type { FloatingMenuAnchor } from "../../../shared/facade"
 import { SelectionItem, selectionKeyOf, WORKING_TREE_KEY } from "../../model/commitSelection"
-import { failureOf, readyValueOf } from "../../model/loadState"
+import { readyValueOf } from "../../model/loadState"
 import { ANALYSED_COMMITS, AnalysedCommitMarker } from "../../ports/analysedCommits.port"
 import { CommitActionsService } from "../../services/commitActions.service"
 import { CommitClipboardService } from "../../services/commitClipboard.service"
@@ -23,13 +23,22 @@ import { CommitSelectionService } from "../../services/commitSelection.service"
 import { GitLogService } from "../../services/gitLog.service"
 import { GitRepositoryService } from "../../services/gitRepository.service"
 import { CommitListCommand, commitListCommandOf, MoveTarget, rowIndexAfter } from "../../util/commitListKeys"
-import { gitErrorSentence } from "../../util/gitErrorText"
-import { GraphRow } from "../../util/graphLayout"
-import { GRAPH_ROW_HEIGHT, graphWidthFor, MAX_DRAWN_LANES } from "../../util/graphRowGeometry"
+import { GRAPH_ROW_HEIGHT } from "../../util/graphRowGeometry"
 import { scrollTopShowing, windowOf } from "../../util/virtualWindow"
 import { CommitContextMenuComponent, CommitMenuClosing, CommitMenuTarget } from "../commitContextMenu/commitContextMenu.component"
 import { CommitGraphCellComponent } from "../commitGraphCell/commitGraphCell.component"
 import { CommitRowComponent, CommitRowView, rowIdOf, selectionClassOf } from "../commitRow/commitRow.component"
+import {
+    commitRowViewOf,
+    emptyStateOf,
+    firstPageFailureOf,
+    focusedRowIndexOf,
+    graphColumnWidthOf,
+    gridTemplateOf,
+    ListItem,
+    trailingItemOf,
+    workingTreeItemOf
+} from "./commitListItems"
 
 const NEXT_PAGE_THRESHOLD_ROWS = 100
 const OVERSCAN_ROWS = 10
@@ -37,21 +46,8 @@ const SKELETON_ROW_COUNT = 8
 const NARROW_PANE_PX = 640
 const WIDE_LABEL_LIMIT = 3
 const NARROW_LABEL_LIMIT = 1
-/** Room for the `+n` beside the drawn lanes. */
-const HIDDEN_LANES_ROOM_PX = 24
-/** The column header "Graph" needs this much, even when one lane is narrower. */
-const GRAPH_HEADER_MIN_PX = 52
 /** Where a menu opened from the keyboard appears: inset from the row's left edge, under the row. */
 const KEYBOARD_MENU_INSET_PX = 24
-const COMMIT_COLUMN = "minmax(0,1fr)"
-const ANALYSIS_COLUMN = "6.5rem"
-const AUTHOR_COLUMN = "8rem"
-const DATE_COLUMN = "7rem"
-type ListItem =
-    | { kind: "workingTree"; key: string; count: number; isSelected: boolean; isSecond: boolean }
-    | { kind: "commit"; key: string; view: CommitRowView }
-    | { kind: "loadingMore"; key: string }
-    | { kind: "loadMoreFailed"; key: string; sentence: string }
 
 const NO_MARKERS: ReadonlyMap<string, AnalysedCommitMarker> = new Map()
 
@@ -93,16 +89,7 @@ export class CommitListComponent {
         return repo && this.analysedCommits ? this.analysedCommits.markersFor(repo)() : NO_MARKERS
     })
     private readonly uncommittedChangeCount = this.log.uncommittedChangeCount
-    private readonly trailingItem = computed<ListItem | null>(() => {
-        const page = this.log.page()
-        if (this.log.commits().length === 0) {
-            return null
-        }
-        if (page.kind === "loading") {
-            return { kind: "loadingMore", key: "loading-more" }
-        }
-        return page.kind === "failed" ? { kind: "loadMoreFailed", key: "load-more-failed", sentence: gitErrorSentence(page.error) } : null
-    })
+    private readonly trailingItem = computed(() => trailingItemOf(this.log.page(), this.log.commits().length))
     private readonly leadingRowCount = computed(() => (this.uncommittedChangeCount() === null ? 0 : 1))
     private readonly selectableRowCount = computed(() => this.leadingRowCount() + this.log.commits().length)
     readonly activeDescendant = computed(() => {
@@ -110,17 +97,9 @@ export class CommitListComponent {
         const item = index === null ? null : this.selectableItemAt(index)
         return item ? rowIdOf(selectionKeyOf(item)) : null
     })
-    private readonly focusedRowIndex = computed(() => {
-        const key = this.selection.focusedKey()
-        if (key === null) {
-            return null
-        }
-        if (key === WORKING_TREE_KEY) {
-            return this.leadingRowCount() === 1 ? 0 : null
-        }
-        const commitIndex = this.log.commits().findIndex(commit => commit.sha === key)
-        return commitIndex < 0 ? null : this.leadingRowCount() + commitIndex
-    })
+    private readonly focusedRowIndex = computed(() =>
+        focusedRowIndexOf(this.selection.focusedKey(), this.leadingRowCount(), this.log.commits())
+    )
     readonly rowCount = computed(() => this.leadingRowCount() + this.log.commits().length + (this.trailingItem() ? 1 : 0))
     readonly window = computed(() =>
         windowOf({
@@ -150,28 +129,13 @@ export class CommitListComponent {
         }
         return items
     })
-    readonly gridTemplate = computed(() => {
-        const columns = [COMMIT_COLUMN, AUTHOR_COLUMN, DATE_COLUMN]
-        if (this.isAnalysisShown) {
-            columns.splice(1, 0, ANALYSIS_COLUMN)
-        }
-        return this.isGraphShown() ? [`${this.graphColumnWidth()}px`, ...columns].join(" ") : columns.join(" ")
-    })
-    private readonly graphColumnWidth = computed(() => {
-        const laneCount = maxLaneCount(this.log.graphRows())
-        const lanesWidth = graphWidthFor(Math.max(1, laneCount)) + (laneCount > MAX_DRAWN_LANES ? HIDDEN_LANES_ROOM_PX : 0)
-        return Math.max(GRAPH_HEADER_MIN_PX, lanesWidth)
-    })
-    readonly firstPageFailure = computed(() => {
-        const failure = failureOf(this.log.page())
-        return failure && this.log.commits().length === 0 && failure.code !== "TIMEOUT" ? gitErrorSentence(failure) : null
-    })
-    readonly emptyState = computed<"noCommits" | "noMatch" | null>(() => {
+    readonly gridTemplate = computed(() =>
+        gridTemplateOf(this.isAnalysisShown, this.isGraphShown() ? graphColumnWidthOf(this.log.graphRows()) : null)
+    )
+    readonly firstPageFailure = computed(() => firstPageFailureOf(this.log.page(), this.log.commits().length))
+    readonly emptyState = computed(() => {
         const isEmpty = this.log.page().kind === "ready" && this.log.commits().length === 0 && this.uncommittedChangeCount() === null
-        if (!isEmpty) {
-            return null
-        }
-        return this.isFiltered() ? "noMatch" : "noCommits"
+        return emptyStateOf(isEmpty, this.isFiltered())
     })
 
     constructor() {
@@ -369,9 +333,7 @@ export class CommitListComponent {
     private itemAt(index: number): ListItem {
         const count = this.uncommittedChangeCount()
         if (count !== null && index === 0) {
-            const key = WORKING_TREE_KEY
-            const isSelected = this.selection.selectedKeys().has(key)
-            return { kind: "workingTree", key, count, isSelected, isSecond: this.selection.secondKey() === key }
+            return workingTreeItemOf(count, this.selection.selectedKeys(), this.selection.secondKey())
         }
         const commitIndex = index - this.leadingRowCount()
         const commit = this.log.commits()[commitIndex]
@@ -384,15 +346,14 @@ export class CommitListComponent {
         if (known) {
             return known
         }
-        const view = {
-            commit,
-            graphRow: this.isGraphShown() ? (this.log.graphRows()[commitIndex] ?? null) : null,
-            isHead: commit.sha === this.log.headSha(),
-            labels: this.log.refLabels().get(commit.sha) ?? [],
-            marker: this.markers().get(commit.sha) ?? null,
-            isSelected: this.selection.selectedKeys().has(commit.sha),
-            isSecond: this.selection.secondKey() === commit.sha
-        }
+        const view = commitRowViewOf(commit, commitIndex, {
+            graphRows: this.isGraphShown() ? this.log.graphRows() : null,
+            headSha: this.log.headSha(),
+            refLabels: this.log.refLabels(),
+            markers: this.markers(),
+            selectedKeys: this.selection.selectedKeys(),
+            secondKey: this.selection.secondKey()
+        })
         views.set(commit.sha, view)
         return view
     }
@@ -408,12 +369,4 @@ export class CommitListComponent {
         observer.observe(element)
         this.destroyRef.onDestroy(() => observer.disconnect())
     }
-}
-
-function maxLaneCount(rows: readonly GraphRow[]): number {
-    let max = 0
-    for (const row of rows) {
-        max = Math.max(max, row.laneCount)
-    }
-    return max
 }
