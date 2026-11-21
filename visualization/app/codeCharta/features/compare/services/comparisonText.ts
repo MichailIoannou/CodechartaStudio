@@ -43,13 +43,13 @@ export function sideName(commit: ComparedCommit): string {
     return commit.shortCommit ?? commit.label.name
 }
 
-/** Design C2's label of a shown side: an imported map by the date of its file, which is all that is known of it. */
+/** Design C2's label of a shown side: an imported map by the day it entered the store. */
 export function shownSideCaption(side: Pick<LoadedSide, "requested" | "snapshot">): string | null {
     if (side.requested.kind !== "imported") {
         return sideCaption(side.requested)
     }
-    const fileDate = side.snapshot.fileModifiedAt
-    return fileDate ? `imported ${shortDate(fileDate)}` : "imported, date unknown"
+    const importedAt = side.snapshot.createdAt
+    return importedAt ? `imported ${shortDate(importedAt)}` : "imported, date unknown"
 }
 
 /** Design C2's label of a side in the chip's button: its branch, tag or request, its snapshot label, else its short commit. */

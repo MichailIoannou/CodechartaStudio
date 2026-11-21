@@ -29,11 +29,15 @@ describe("comparisonText", () => {
         expect(names).toEqual(["9f8e7d6", "working tree"])
     })
 
-    it("should label an imported side by the date of its file, or say the date is unknown", () => {
+    it("should label an imported side by the day it was imported, not by the date of its file", () => {
         // Arrange
         const imported = aSnapshotSide("imported", "export.cc.json")
-        const withDate = aSnapshot("p", "f", "s-imported", { source: "imported", fileModifiedAt: "2026-11-12T10:00:00Z" })
-        const withoutDate = aSnapshot("p", "f", "s-imported", { source: "imported" })
+        const withDate = aSnapshot("p", "f", "s-imported", {
+            source: "imported",
+            createdAt: "2026-11-12T10:00:00Z",
+            fileModifiedAt: "2024-01-03T10:00:00Z"
+        })
+        const withoutDate = aSnapshot("p", "f", "s-imported", { source: "imported", createdAt: "" })
 
         // Act
         const captions = [
