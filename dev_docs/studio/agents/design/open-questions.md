@@ -289,3 +289,36 @@ answer that differs means the named file is changed, nothing else.
      - folder-menu "Remove fetched pull requests" (not designed): `fa-broom`, no confirmation (refs can be
        fetched again), result toast.
      - comparisons with a working-tree or imported side are not saved to Recent.
+
+  *Answered (designer, 2026-11-21):*
+  1. Panels: yes to all as built, now in `02-themes.md` T4 "Too little room" refinements — the panel the
+     user works in never collapses; a new selection does not reopen the inspector but its strip shows a
+     dot; the strip mirrors the explorer's with `fa-circle-info`; Dependencies follows the same rule.
+     Core down: focus goes to the D1 heading (`01-desktop-tools.md` D2).
+  2. History (`04-history.md`): "Work in '<label>'" stays in the History; untracked files use `git diff
+     --no-index -- /dev/null <path>` (`NUL` on Windows); commands in toasts wrap instead of "…"
+     (toast keeps `w-96`, principles §3); the selection outline applies to every History list.
+  3. Snapshots: all wording approved and written into `05-snapshots.md` S4/S7/S8; the batch line in
+     ACTIVITY starts collapsed.
+  4. Projects: new `03-projects.md` P12 — the missing folder gets a "Re-link folder…" button; a line
+     "This is the file as it is in the folder now, not at a1b2c3d." when the map is not current.
+  5. Compare (`06-compare.md`): **C2 revision 2** — the chip is one compact button (base → head, stale
+     dot, PR icon, caret) of a fixed width per breakpoint (`w-72` / `w-56` / `w-32`), the details move
+     into its dropdown, and the project menu shows only its icon during a comparison below 1280 px.
+     Before/after: `mockups/compare-chip-before-after.html`. Listing not available: "Pull requests
+     cannot be listed here. Enter a number to open one." (C7); number labels approved; Changes rows
+     follow the inverted delta colours setting (C8).
+  6. Pull and push (`04-history.md` H5, H6; principles §3): in the History toasts start below the
+     toolbar and notices, notice actions sit on their own line on the left, and a conflicts stop started
+     in the History raises no toast (the notice says it); Pull/Push/Publish/Force Push are disabled
+     during a merge or rebase (Fetch stays); a non-current branch without upstream offers Publish; the
+     wording is approved, "Nothing to pull" reworded.
+  7. Sync outside the History: the conflicts toast gets "Open History" and W1's GIT section shows the
+     merge state (Abort stays in the History); the W1 dropdown stays open behind a confirmation
+     (`05-snapshots.md` W1). The "Open History" buttons stay in the design (implementation task).
+  8. Compare polish (`06-compare.md`): imported dates are the store import time; the ref picker lists
+     the 3 newest working-tree analyses; differing folders are named in the chip's title and dropdown
+     rows; the folder checkbox goes right after the select; "Both sides are the same analysis —
+     nothing to compare." approved; inspector git line as new C10 (badge, "renamed from <old path>", no
+     "in git" text); "Remove fetched pull requests" as new C11; working-tree and imported comparisons
+     stay out of Recent.

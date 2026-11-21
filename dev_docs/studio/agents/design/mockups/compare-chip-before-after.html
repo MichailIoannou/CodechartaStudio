@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparison Chip Fit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/js/all.min.js"></script>
+<style>
+:root {
+  --page: #f6f7f9; --ink: #1d2330; --mute-ink: #5b6472;
+  --app-100: #1e2329; --app-200: #262c34; --app-300: #3a424d; --app-fg: #e6e9ee; --app-mute: #9aa3b0;
+  --app-primary: #8b9cff; --app-warn: #e8b44a; --cut: #ff5c7a;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page: #121418; --ink: #e8ebf0; --mute-ink: #9aa3b0; } }
+:root[data-theme="dark"] { --page: #121418; --ink: #e8ebf0; --mute-ink: #9aa3b0; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--font-body); }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 28px 0 8px; }
+p { margin: 0 0 10px; color: var(--mute-ink); max-width: 75ch; }
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; margin-right: 8px; }
+.tag.before { background: color-mix(in oklab, var(--cut) 22%, transparent); color: var(--cut); }
+.tag.after { background: color-mix(in oklab, #4cc38a 22%, transparent); color: #2f9e6a; }
+.frame-wrap { overflow: hidden; margin: 6px 0 4px; border-radius: 8px; }
+.frame { background: var(--app-100); color: var(--app-fg); font: 13px/1.4 var(--font-body); border-radius: 8px; transform-origin: top left; }
+.nav { display: grid; grid-template-columns: minmax(0,1fr) 310px minmax(0,1fr); align-items: center; height: 48px; padding: 0 8px; gap: 0; }
+.start { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; height: 48px; position: relative; outline: 1px dashed color-mix(in oklab, var(--app-mute) 45%, transparent); outline-offset: -4px; border-radius: 6px; padding-left: 4px; }
+.start.overflow::after { content: "cut off here"; position: absolute; right: 0; top: 0; bottom: 0; width: 92px; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 10px; font-weight: 700; color: var(--cut); background: linear-gradient(to right, transparent, var(--app-100) 55%); border-right: 2px solid var(--cut); }
+.center { display: flex; justify-content: center; gap: 2px; }
+.end { display: flex; justify-content: flex-end; }
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 6px; white-space: nowrap; min-width: 0; flex-shrink: 0; }
+.btn.outline { border: 1px solid var(--app-300); }
+.btn.sel { font-weight: 700; box-shadow: inset 0 -2px 0 var(--app-primary); }
+.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.m { color: var(--app-mute); }
+.sha { font-family: var(--font-mono); font-size: 12px; }
+.vr { width: 1px; height: 24px; background: var(--app-300); flex-shrink: 0; }
+.badge { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 9px; font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+.b-warn { background: var(--app-warn); color: #2a1d00; }
+.b-ghost { background: var(--app-200); color: var(--app-mute); border: 1px solid var(--app-300); }
+.ws { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 52px; height: 30px; border: 1px solid var(--app-300); border-radius: 6px; flex-shrink: 0; box-sizing: border-box; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--app-warn); flex-shrink: 0; }
+.caret { color: var(--app-mute); font-size: 11px; }
+.note { font-size: 12.5px; color: var(--mute-ink); margin: 2px 0 14px; }
+.dd { margin-top: 10px; width: 28rem; max-width: 100%; background: var(--app-100); color: var(--app-fg); border: 1px solid var(--app-300); border-radius: 12px; padding: 10px; font: 13px/1.4 var(--font-body); box-sizing: border-box; }
+.dd .h { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; font-weight: 700; color: var(--app-mute); margin-bottom: 6px; }
+.dd .h span:last-child { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 11px; }
+.dd .row { display: grid; grid-template-columns: 3rem auto minmax(0,1fr) auto auto; gap: 8px; align-items: center; padding: 4px 2px; }
+.dd hr { border: 0; border-top: 1px solid var(--app-300); margin: 6px 0; }
+.dd .foot { display: flex; justify-content: space-between; }
+.small { height: 24px; font-size: 12px; padding: 0 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Comparison chip: before and after</h1>
+  <p>Each bar is the real nav-bar layout at that window width. The dashed box is the left half of the nav bar, the only space the chip may use; the view tabs in the middle never move. "Before" is the chip as designed until now (with the narrow-window steps already applied at 1024 px). "After" is the compact chip from C2 revision 2.</p>
+
+  <h2>1920 px window <span class="m" style="font-weight:400;color:var(--mute-ink)">(scaled to fit)</span></h2>
+  <div><span class="tag before">Before</span></div>
+  <div class="frame-wrap"><div class="frame" style="width:1920px" data-w="1920">
+    <div class="nav">
+      <div class="start overflow">
+        <b style="padding:0 6px">CodeCharta</b><span class="vr"></span>
+        <span class="btn outline" style="max-width:13rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="m">billing /</span> billing-api</span><i class="fa-solid fa-caret-down caret"></i></span>
+        <span class="ws"><i class="fa-solid fa-code-branch"></i></span>
+        <span class="btn" style="max-width:12rem"><span class="m" style="font-size:12px">base</span><span class="sha">9f8e7d6</span><span class="t">main</span></span>
+        <span class="btn" style="padding:0 8px"><i class="fa-solid fa-arrows-left-right"></i></span>
+        <span class="btn" style="max-width:12rem"><span class="m" style="font-size:12px">head</span><span class="sha">a1b2c3d</span><span class="t">feature/invoice-rounding</span></span>
+        <span class="badge b-warn">stale by 2</span>
+        <span class="badge b-ghost">since merge base</span>
+        <span class="badge b-ghost"><i class="fa-solid fa-code-pull-request"></i>#123<i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+        <span class="btn" style="padding:0 8px"><i class="fa-solid fa-caret-down"></i></span>
+      </div>
+      <div class="center"><span class="btn">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
+      <div class="end"><span class="btn">Settings</span></div>
+    </div>
+  </div></div>
+  <p class="note">About 700 px of chip in about 440 px of room: the base-mode badge, the pull-request badge and the caret menu (with Leave compare) are hidden under the edge.</p>
+
+  <div><span class="tag after">After</span></div>
+  <div class="frame-wrap"><div class="frame" style="width:1920px" data-w="1920">
+    <div class="nav">
+      <div class="start">
+        <b style="padding:0 6px">CodeCharta</b><span class="vr"></span>
+        <span class="btn outline" style="max-width:13rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t"><span class="m">billing /</span> billing-api</span><i class="fa-solid fa-caret-down caret"></i></span>
+        <span class="ws"><i class="fa-solid fa-code-branch"></i></span>
+        <span class="btn outline" style="width:18rem;flex-shrink:0;box-sizing:border-box"><i class="fa-solid fa-code-compare fa-fw"></i><span class="t" style="flex:1;min-width:2.5rem">main</span><i class="fa-solid fa-arrow-right m" style="font-size:10px"></i><span class="t" style="flex:1;min-width:2.5rem">feature/invoice-rounding</span><span class="dot" title="A side is stale"></span><i class="fa-solid fa-code-pull-request m"></i><i class="fa-solid fa-caret-down caret"></i></span>
+      </div>
+      <div class="center"><span class="btn">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
+      <div class="end"><span class="btn">Settings</span></div>
+    </div>
+  </div></div>
+  <p class="note">One 18rem button: both labels, a yellow dot because a side is stale, the pull-request icon, the caret. Everything else is in the dropdown (below).</p>
+
+  <h2>1024 px window <span class="m" style="font-weight:400;color:var(--mute-ink)">(scaled to fit)</span></h2>
+  <div><span class="tag before">Before</span></div>
+  <div class="frame-wrap"><div class="frame" style="width:1024px" data-w="1024">
+    <div class="nav">
+      <div class="start overflow">
+        <b style="padding:0 6px">CodeCharta</b><span class="vr"></span>
+        <span class="btn outline" style="max-width:6rem"><i class="fa-solid fa-layer-group fa-fw"></i><span class="t">billing-api</span><i class="fa-solid fa-caret-down caret"></i></span>
+        <span class="ws"><i class="fa-solid fa-code-branch"></i></span>
+        <span class="btn" style="max-width:12rem"><span class="sha">9f8e7d6</span><span class="t">main</span></span>
+        <span class="btn" style="padding:0 8px"><i class="fa-solid fa-arrows-left-right"></i></span>
+        <span class="btn" style="max-width:12rem"><span class="sha">a1b2c3d</span><span class="t">feature/invoice-rounding</span></span>
+        <span class="badge b-warn"><i class="fa-solid fa-clock-rotate-left"></i>2</span>
+        <span class="badge b-ghost"><i class="fa-solid fa-code-pull-request"></i></span>
+        <span class="btn" style="padding:0 8px"><i class="fa-solid fa-caret-down"></i></span>
+      </div>
+      <div class="center"><span class="btn">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
+      <div class="end"><span class="btn">Settings</span></div>
+    </div>
+  </div></div>
+  <p class="note">About 100 px of room after the project menu and the status icon: only the start of the base side shows, so you cannot see what is compared, nor reach Swap or Leave compare.</p>
+
+  <div><span class="tag after">After</span></div>
+  <div class="frame-wrap"><div class="frame" style="width:1024px" data-w="1024">
+    <div class="nav">
+      <div class="start">
+        <b style="padding:0 6px">CodeCharta</b><span class="vr"></span>
+        <span class="btn outline" style="padding:0 8px" title="billing / billing-api"><i class="fa-solid fa-layer-group fa-fw"></i><i class="fa-solid fa-caret-down caret"></i></span>
+        <span class="ws"><i class="fa-solid fa-code-branch"></i></span>
+        <span class="btn outline" style="width:8rem;flex-shrink:0;box-sizing:border-box;padding:0 8px;gap:5px"><span class="t" style="flex:1;min-width:2rem">main</span><i class="fa-solid fa-arrow-right m" style="font-size:10px"></i><span class="t" style="flex:1;min-width:2rem">feature/invoice-rounding</span><span class="dot"></span><i class="fa-solid fa-caret-down caret"></i></span>
+      </div>
+      <div class="center"><span class="btn">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
+      <div class="end"><span class="btn">Settings</span></div>
+    </div>
+  </div></div>
+  <p class="note">The project menu shrinks to its icon while comparing (folder name in its tooltip). The 8rem chip keeps a few characters of each side plus the stale dot and the caret. The compare icon and the pull-request icon drop out at this width; they are in the dropdown.</p>
+
+  <h2>The dropdown (all widths)</h2>
+  <div class="dd">
+    <div class="h"><span>Comparing</span><span>since the merge base</span></div>
+    <div class="row"><span class="m">Base</span><span class="sha">9f8e7d6</span><span class="t">main</span><span class="badge b-ghost">analysed</span><span class="btn small">Change…</span></div>
+    <div class="row"><span class="m">Head</span><span class="sha">a1b2c3d</span><span class="t">feature/invoice-rounding</span><span class="badge b-warn">stale by 2</span><span class="btn small">Change…</span></div>
+    <div style="padding:2px 0 4px 3.6rem;font-size:12px" class="m">showing 3c4d5e6, 2 commits older</div>
+    <div style="padding-left:3.2rem"><span class="btn small"><i class="fa-solid fa-arrows-left-right"></i>Swap base and head</span></div>
+    <div style="display:flex;gap:8px;align-items:center;padding:6px 2px"><i class="fa-solid fa-code-pull-request"></i><span>#123</span><span class="t">Fix invoice rounding</span><i class="fa-solid fa-arrow-up-right-from-square m"></i></div>
+    <hr>
+    <div class="foot"><span class="btn small">Copy as text</span><span class="btn small"><i class="fa-solid fa-xmark"></i>Leave compare</span></div>
+  </div>
+</main>
+<script>
+function fitFrames() {
+  for (const frame of document.querySelectorAll(".frame[data-w]")) {
+    const available = frame.parentElement.clientWidth;
+    frame.style.zoom = String(Math.min(1, available / Number(frame.dataset.w)));
+  }
+}
+fitFrames();
+addEventListener("resize", fitFrames);
+</script>
+</body>
+</html>

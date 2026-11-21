@@ -94,7 +94,8 @@ Second line = purpose + problem:
   link opens the dialog but cannot reach the section yet). Until that entry exists the link opens the
   dialog at its top; it is never removed or relabelled. Target behaviour, once built: the dialog opens,
   D1 scrolls into view (`scrollIntoView({ block: "start" })` on the section, no animation), and the
-  failing tool's "Choose…" button gets focus; with no `tool`, focus goes to "Check again".
+  failing tool's "Choose…" button gets focus; with no `tool`, focus goes to "Check again". When that
+  button is disabled (core offline), focus goes to the section heading (`tabindex="-1"`) instead (O9.1).
 
 ## D3 Folder rows
 
