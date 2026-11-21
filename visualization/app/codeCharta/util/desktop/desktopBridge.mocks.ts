@@ -69,6 +69,10 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         return Promise.resolve(answerFor(key, fallback))
     }
 
+    function answeredWithNull(name: keyof DesktopBridge & FakeAnswerKey) {
+        return (...args: unknown[]) => recordAndAnswer(name, name, succeed(null), ...args)
+    }
+
     function pick(name: "pickFolder" | "pickFile", options: unknown) {
         record(name, options)
         return Promise.resolve(name in responses ? responses[name] : null)
@@ -119,13 +123,12 @@ export function createFakeDesktopBridge(seed: FakeDesktopSeed = {}): FakeDesktop
         subscribe: subscribe as DesktopBridge["subscribe"],
         pickFolder: options => pick("pickFolder", options),
         pickFile: options => pick("pickFile", options),
-        chooseToolExecutable: (tool, options) =>
-            recordAndAnswer("chooseToolExecutable", "chooseToolExecutable", succeed(null), tool, options),
-        chooseStoreRoot: options => recordAndAnswer("chooseStoreRoot", "chooseStoreRoot", succeed(null), options),
-        reveal: target => recordAndAnswer("reveal", "reveal", succeed(null), target),
+        chooseToolExecutable: answeredWithNull("chooseToolExecutable"),
+        chooseStoreRoot: answeredWithNull("chooseStoreRoot"),
+        reveal: answeredWithNull("reveal"),
         readSnapshotMap: target => recordAndAnswer("readSnapshotMap", "readSnapshotMap", missing("readSnapshotMap"), target),
-        setWindowBackground: color => recordAndAnswer("setWindowBackground", "setWindowBackground", succeed(null), color),
-        setColorScheme: scheme => recordAndAnswer("setColorScheme", "setColorScheme", succeed(null), scheme),
-        restartCore: () => recordAndAnswer("restartCore", "restartCore", succeed(null))
+        setWindowBackground: answeredWithNull("setWindowBackground"),
+        setColorScheme: answeredWithNull("setColorScheme"),
+        restartCore: answeredWithNull("restartCore")
     } as FakeDesktopBridge
 }
