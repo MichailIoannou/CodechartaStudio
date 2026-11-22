@@ -74,6 +74,16 @@ answer that differs means the named file is changed, nothing else.
     1150 px. *Alternatives:* (a) leave it as a known limit, or (b) let the bar sit above the inspector
     and cover it. Applied in `02-themes.md` T4 "Too little room".
 
+13. **Linux window buttons: Breeze look only?** (O10) *Default:* the buttons CodeCharta draws on Linux
+    always have KDE Breeze's shape (thin chevrons, diamond, cross, round highlight, red close) in the
+    app theme's colours; only the button order follows the system (KDE `kwinrc`, GNOME
+    `button-layout`). Other KDE decoration themes (Oxygen, Aurorae themes) and GNOME's Adwaita buttons
+    are not imitated. *Alternatives:* (a) read the colours of the system's window decoration from KDE's
+    `kdeglobals`; (b) a GNOME look on GNOME. Applied in `01-desktop-tools.md` D7.
+14. **"Use CodeCharta's title bar" off by default?** (O10) *Default:* off, so every Linux window manager
+    keeps its native frame; *alternative:* on for Windows and macOS, where the system still draws the
+    buttons, off on Linux. Applied in `01-desktop-tools.md` D6.
+
 ## Area 01 — desktop tools
 
 11. ~~**Confirm before changing the store folder?** *Default:* yes, one yes/no before the folder picker,
@@ -289,3 +299,110 @@ answer that differs means the named file is changed, nothing else.
      - folder-menu "Remove fetched pull requests" (not designed): `fa-broom`, no confirmation (refs can be
        fetched again), result toast.
      - comparisons with a working-tree or imported side are not saved to Recent.
+
+  *Answered (designer, 2026-11-21):*
+  1. Panels: yes to all as built, now in `02-themes.md` T4 "Too little room" refinements — the panel the
+     user works in never collapses; a new selection does not reopen the inspector but its strip shows a
+     dot; the strip mirrors the explorer's with `fa-circle-info`; Dependencies follows the same rule.
+     Core down: focus goes to the D1 heading (`01-desktop-tools.md` D2).
+  2. History (`04-history.md`): "Work in '<label>'" stays in the History; untracked files use `git diff
+     --no-index -- /dev/null <path>` (`NUL` on Windows); commands in toasts wrap instead of "…"
+     (toast keeps `w-96`, principles §3); the selection outline applies to every History list.
+  3. Snapshots: all wording approved and written into `05-snapshots.md` S4/S7/S8; the batch line in
+     ACTIVITY starts collapsed.
+  4. Projects: new `03-projects.md` P12 — the missing folder gets a "Re-link folder…" button; a line
+     "This is the file as it is in the folder now, not at a1b2c3d." when the map is not current.
+  5. Compare (`06-compare.md`): **C2 revision 2** — the chip is one compact button (base → head, stale
+     dot, PR icon, caret) of a fixed width per breakpoint (`w-72` / `w-56` / `w-32`), the details move
+     into its dropdown, and the project menu shows only its icon during a comparison below 1280 px.
+     Before/after: `mockups/compare-chip-before-after.html`. Listing not available: "Pull requests
+     cannot be listed here. Enter a number to open one." (C7); number labels approved; Changes rows
+     follow the inverted delta colours setting (C8).
+  6. Pull and push (`04-history.md` H5, H6; principles §3): in the History toasts start below the
+     toolbar and notices, notice actions sit on their own line on the left, and a conflicts stop started
+     in the History raises no toast (the notice says it); Pull/Push/Publish/Force Push are disabled
+     during a merge or rebase (Fetch stays); a non-current branch without upstream offers Publish; the
+     wording is approved, "Nothing to pull" reworded.
+  7. Sync outside the History: the conflicts toast gets "Open History" and W1's GIT section shows the
+     merge state (Abort stays in the History); the W1 dropdown stays open behind a confirmation
+     (`05-snapshots.md` W1). The "Open History" buttons stay in the design (implementation task).
+  8. Compare polish (`06-compare.md`): imported dates are the store import time; the ref picker lists
+     the 3 newest working-tree analyses; differing folders are named in the chip's title and dropdown
+     rows; the folder checkbox goes right after the select; "Both sides are the same analysis —
+     nothing to compare." approved; inspector git line as new C10 (badge, "renamed from <old path>", no
+     "in git" text); "Remove fetched pull requests" as new C11; working-tree and imported comparisons
+     stay out of Recent.
+
+- **O10 (2026-11-22). Owner request: hide the native window decorations (desktop app).** The default
+  File / Edit / View / Window menu bar is removed (macOS keeps a minimal app and Edit menu so its shortcuts
+  work). The owner wants a setting that hides the native title bar, so the app has a single top bar: our
+  nav bar then carries minimize, maximize/restore and close buttons that look almost identical to the
+  platform's own — KDE Breeze on Linux (the owner's reference: thin chevron-down, chevron-up, ✕ glyphs,
+  no frames), Windows 11 caption buttons on Windows, and the traffic lights on macOS (left side). Needs
+  design before implementation (owner decision 2026-11-22, "designer first"):
+  - the setting's wording, section and default (off?), and whether switching needs a window restart (the
+    shell can recreate the window, or apply `titleBarStyle`/frameless on the next start);
+  - placement in the nav bar per platform (right end on Linux/Windows; left of the logo on macOS), spacing,
+    sizes, hover/pressed colours (Windows close turns red), focus ring, and the dark/light theme variants;
+  - the drag region (which parts of the nav bar move the window, which stay clickable), double-click to
+    maximize, and right-click (system menu on Windows?);
+  - maximized vs restored icon, a disabled maximize when the window cannot grow, full-screen (macOS);
+  - how the nav bar's existing content (project menu, workspace status, view tabs, compare chip, Settings)
+    gives way to the extra buttons at narrow widths;
+  - which other KDE window decorations themes users have (Breeze is the default) — follow Breeze only, or
+    the system's colours?
+- **O11 (2026-11-22). Follow-ups from the third implementation round** (built with the reading given):
+  1. History (`progress/history-followups.md`): Pull is disabled at "nothing behind", which relies on the
+     counts of the last fetch; if the remote moved since, Pull stays disabled until a fetch. Keep, or leave
+     Pull enabled and let git answer "Already up to date"? Should the branch context menu also hold Push,
+     Force Push and Publish during a merge or rebase (H5 names only the sync button)?
+  2. Compare (`progress/compare-followups.md`): C11 "only when such refs exist" is not built (no core
+     count of `refs/codecharta/`; the item is offered for every git folder and answers "'<folder>' has no
+     fetched pull requests."). Is a core count wanted? C10 read literally shows "renamed" twice (badge and
+     "renamed from <path>") — intended? The PR line reads "Pull request #7 ↗" (no title without a listing).
+     Swap keeps the chip's dropdown open. At 1024 px the collapsed inspector header's button draws over the
+     top of the chip's dropdown — z-order rule?
+
+  *Answered (designer, 2026-11-22), O10:* `01-desktop-tools.md` D6 (setting) and D7 (window controls);
+  mock-up `mockups/window-controls.html`.
+  - Setting "Use CodeCharta's title bar" in a "Window" section of Global Configuration after the desktop
+    tools, off by default (owner question 14); stored in the shell's settings file; applies at the next
+    start, with "Restart now", which reopens the window while the core keeps running.
+  - The system draws the buttons where it can: macOS real traffic lights (`hiddenInset`, 80 px inset
+    before the logo); Windows real caption buttons through `titleBarOverlay` with the theme's colours
+    (snap layouts and the red close come for free); Linux `frame: false` with CodeCharta's own
+    Breeze-look buttons at the right end (28 px hit areas, 22 px round highlight, red `#da4453` close,
+    diamond when maximized, dimmed when the window is not focused, disabled maximize, hidden in full
+    screen). Breeze shape only, button order from the system (owner question 13).
+  - Drag region: the nav bar background drags, every control is `no-drag`; a 12 px gap before the
+    buttons and the macOS inset always stay free. Double-click maximizes/restores; right-click shows
+    the system menu on Windows and Minimize/Maximize/Close on Linux.
+  - Space: the right half holds only Settings, so Windows and Linux need no give-way down to 1024 px; on
+    macOS the logo and divider hide below 1280 px.
+  - To verify in implementation: edge resizing and shadow of frameless windows on KDE (X11, Wayland) and
+    GNOME Wayland; double-click on a drag region under Linux.
+
+  *Answered (designer, 2026-11-22), O11:*
+  1. History (`04-history.md` H5): Pull stays enabled at "nothing behind" and git answers "Already up to
+     date" (the counts may be stale); the merge/rebase disabling applies to the branch context menu too.
+  2. Compare (`06-compare.md`): no core count for C11 — the item stays for every git folder and the info
+     toast says "'<folder>' has no fetched pull requests."; C10 says "renamed" once (badge + "from <old
+     path>"); "Pull request #7" without a title is right; Swap keeping the dropdown open is intended.
+     z-order: nav-bar dropdowns (`z-[70]`) are always above the side panels, and nothing inside a panel
+     (its collapsed strip included) may create a higher layer (principles §4) — the overlap is a bug.
+
+- **O12 (2026-11-22). Follow-ups from the fourth implementation round** (built with the reading given):
+  1. Panels (`progress/panels-followups.md`): T4 says the inspector strip mirrors the explorer's "with the
+     expand button on the side facing the map", but the explorer strip has its button at the screen edge.
+     Built as written (inspector button faces the map), so the strips are not exact mirrors. Move the
+     inspector's button to its right end, or the explorer's to face the map? The O11 z-order overlap could
+     not be reproduced with the collapsed strip (it sits in the panels' `z-[60]` layer); the screenshot
+     may show the view switcher's mode-bar handle (`z-[70]`) drawn over the top of the compare chip's
+     dropdown — which of the two `z-[70]` layers wins?
+  2. Window controls (`progress/window-controls.md`): when the system leaves a button out (KDE without
+     minimize), should ours hide it too? (Now all three show, the missing ones after the named ones.) When
+     the system puts the buttons on the left (GNOME `close:`, KDE `ButtonsOnLeft`), should ours move to the
+     left end? (Now always right; only the order follows the system.) Should "Reset global settings" also
+     switch "Use CodeCharta's title bar" off (it lives in the shell's file, not the store)? The Linux
+     right-click menu is opened by the page, because the shell's `system-context-menu` point is offset by
+     the window shadow on Linux.

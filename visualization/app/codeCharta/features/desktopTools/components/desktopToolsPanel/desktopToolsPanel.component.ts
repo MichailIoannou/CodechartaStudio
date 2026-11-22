@@ -55,6 +55,7 @@ export class DesktopToolsPanelComponent {
         afterRenderEffect(() => {
             const request = this.focusRequest()
             this.rows()
+            this.coreNotice()
             if (request) {
                 untracked(() => this.focusWhenShown(request))
             }
@@ -68,15 +69,21 @@ export class DesktopToolsPanelComponent {
     }
 
     private focusWhenShown(request: FocusRequest) {
-        const target = this.host.querySelector<HTMLButtonElement>(
-            request.tool
-                ? `[data-testid="desktop-tool-${request.tool}"] [data-testid="desktop-tool-choose"]`
-                : `[data-testid="desktop-tools-check-again"]`
-        )
+        const target = this.host.querySelector<HTMLElement>(this.focusTargetSelector(request))
         if (target) {
             target.focus()
             this.focusRequest.set(null)
         }
+    }
+
+    /** Offline, the rows are hidden and Check again is disabled, so only the heading can take focus. */
+    private focusTargetSelector(request: FocusRequest): string {
+        if (this.coreNotice() !== null) {
+            return "#desktop-tools-heading"
+        }
+        return request.tool
+            ? `[data-testid="desktop-tool-${request.tool}"] [data-testid="desktop-tool-choose"]`
+            : `[data-testid="desktop-tools-check-again"]`
     }
 
     recheck() {

@@ -71,9 +71,15 @@ export function longDate(timestamp: string): string {
 }
 
 export function fileDate(timestamp: string): string {
-    const date = new Date(timestamp)
-    const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
-    return `${longDate(timestamp)}, ${time}`
+    return `${longDate(timestamp)}, ${timeOf(timestamp)}`
+}
+
+export function shortDateTime(timestamp: string): string {
+    return `${shortDate(timestamp)} ${timeOf(timestamp)}`
+}
+
+function timeOf(timestamp: string): string {
+    return new Date(timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
 }
 
 export function durationText(milliseconds: number): string {

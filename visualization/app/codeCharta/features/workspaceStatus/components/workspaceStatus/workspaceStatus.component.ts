@@ -19,7 +19,14 @@ import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import { DesktopEnvironment } from "../../../../util/desktop/desktopEnvironment.service"
 import { shortSha } from "../../../../util/wording"
 import { DesktopToolsService } from "../../../desktopTools/facade"
-import { GitOperationService, GitRepositoryService, isGitStatus, SyncButtonComponent } from "../../../gitHistory/facade"
+import {
+    GitOperationService,
+    GitRepositoryService,
+    HistoryNavigation,
+    isGitStatus,
+    operationSummaryOf,
+    SyncButtonComponent
+} from "../../../gitHistory/facade"
 import { changesSentence, ProjectsFacade, shortDate } from "../../../projects/facade"
 import {
     AnalysisJobsService,
@@ -55,6 +62,7 @@ export class WorkspaceStatusComponent {
     private readonly snapshotsDialog = inject(SnapshotsDialogService)
     private readonly environment = inject(DesktopEnvironment)
     private readonly desktopTools = inject(DesktopToolsService)
+    private readonly history = inject(HistoryNavigation)
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
     private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>("trigger")
     private readonly menu = viewChild<ElementRef<HTMLElement>>("menu")
@@ -91,7 +99,7 @@ export class WorkspaceStatusComponent {
     })
     readonly gitDetails = computed(() => {
         const status = this.gitStatus()
-        return isGitStatus(status) ? { status, changes: changesSentence(status) } : null
+        return isGitStatus(status) ? { status, changes: changesSentence(status), operation: operationSummaryOf(status) } : null
     })
     readonly gitProblem = computed(() => {
         const status = this.gitStatus()
@@ -153,6 +161,11 @@ export class WorkspaceStatusComponent {
         this.projects.showOverview()
     }
 
+    openHistory() {
+        this.close()
+        void this.history.open()
+    }
+
     restartCore() {
         void this.desktopTools.restartCore()
     }
@@ -175,9 +188,12 @@ export class WorkspaceStatusComponent {
         }
     }
 
+    /** A confirmation the dropdown opened is no outside click: the dropdown stays open behind it, showing the progress. */
     @HostListener("document:click", ["$event"])
     closeWhenClickedOutside(event: MouseEvent) {
-        if (this.isOpen() && !this.hostElement.nativeElement.contains(event.target as Node)) {
+        const target = event.target as Element
+        const isInsideDialog = target.closest?.("dialog") != null
+        if (this.isOpen() && !isInsideDialog && !this.hostElement.nativeElement.contains(target)) {
             this.close()
         }
     }

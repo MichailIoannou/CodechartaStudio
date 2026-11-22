@@ -443,6 +443,36 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-22: merged the panels follow-ups (dependency view gives way, inspector strip with a dot, D2 offline
+  focus) and the window controls (D6/D7: "Use CodeCharta's title bar", Breeze buttons on Linux,
+  `titleBarOverlay` on Windows, `hiddenInset` on macOS; verified on KDE Wayland: shadow, edge resize,
+  double-click, right-click menu; Windows/macOS not checked). Agent-reported gates: quality gate 0 errors,
+  npm test 810 suites (6608), test:electron 116, e2e:desktop 20, web e2e 226. Designer questions as O12.
+  Projects/snapshots agent running; renames and O11 tweaks queued.
+
+- 2026-11-22: gates at 49a602cdc all green — quality gate 0 errors (first time), npm test 807/807 (6578),
+  cargo 870/866, contract, test:electron, build, e2e:desktop 19/19, web e2e 224/224. Designer delivered O10
+  (D6 setting, D7 window controls, `mockups/window-controls.html`) and answered O11; merged (18b8f88cd).
+  Window-controls agent started; panels agent resumed (merge next + the O11 z-order bug). Queued, one at a
+  time for CPU: projects/snapshots agent, renames agent, and the O11 history/compare tweaks (Pull stays
+  enabled, branch menu holds Push/Force/Publish during a merge, "renamed" once).
+
+- 2026-11-22: the machine rebooted (wiped `/tmp`: Playwright browsers, sample repo, scripts); Chromium 1243 now in
+  `~/.cache/ms-playwright`; sample repo rebuilt durably at `/home/mike/Programming/sample-shop` as project "Sample
+  Shop". Merged the stack's gate and CI fixes (fake bridge split, service splits, Windows store fix), the 3D map
+  depth fix (upstream bug: `lowp` shader precision on GPUs that honour it), the history and compare follow-ups,
+  and removed the default Electron menu bar. Owner asked to lighten CPU: panels, projects/snapshots and renames
+  agents paused; gates now run one at a time. Owner request O10 (hide native window decorations, own window
+  controls) waits for design ("designer first"); O11 holds the latest follow-up questions.
+
+- 2026-11-21: merged the CI fixes of the stack (smoke tests with software WebGL, Windows path in a core test,
+  gate config for `*.test.js`; gates at f391e393a all green incl. cargo 870/866, web e2e 220/220), the
+  SonarCloud skip without token, and the designer's answers to O9 (ad536f668 on `docs/studio-plans`). The owner
+  added the quality gate (`ccsh gate visualization`, as CI runs it) to the checks in `CLAUDE.md`; it fails on
+  `feature/studio-next` with 14 errors in 13 files. Started six agents: rename-aware delta (06-M6 task 6, owner
+  approved option 1, renamed files keep the "changed" colour); fake bridge split; compare gate + C2 revision 2
+  and O9.5/O9.8; history gate + O9.2/O9.6/O9.7; projects/snapshots gate + O9.3/O9.4; panels/charts gate + O9.1.
+
 - 2026-11-21: merged 06-M6. Gates at f10ec41fc: cargo fmt, clippy and tests with and without features
   (870 / 866), contract drift, format, lint, tsc, npm test 802/802 (6544 tests), build, test:electron,
   e2e:desktop 18/18, web e2e 220/220. Designer questions added to O9 (item 8). Owner decision needed:

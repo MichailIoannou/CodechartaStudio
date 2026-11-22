@@ -5,15 +5,11 @@ import { DesktopBridgeError } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
 import type {
     AnalysisJob,
-    BaseMode,
     ComparedChangeRequest,
     CompareError,
     CompareIntent,
-    FolderRef,
     LoadedSide,
-    ResolvedComparison,
-    ResolvedSide,
-    SideInput
+    ResolvedComparison
 } from "../model/compare.model"
 import { IDLE_COMPARISON } from "../model/compare.model"
 import { ANALYSIS_GATEWAY, CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
@@ -22,34 +18,15 @@ import { CompareReadStore } from "../stores/compare.read.store"
 import { CompareStore } from "../stores/compare.store"
 import { CompareWriteStore } from "../stores/compare.write.store"
 import { ChangedFilesService } from "./changedFiles.service"
-import { refName, sideName } from "./comparisonText"
+import { compareErrorOf, loadErrorOf, unreadable } from "./compareErrors"
+import { refName } from "./comparisonText"
 import { batchOutcome, folderOfSide, missingSidesOf, pendingJobIds, queuedAnalysis, withFailures } from "./missingSides"
-import type { SnapshotSideInput } from "./snapshotSides"
+import { needsDecision, ShownSide, shownSideOf } from "./shownSides"
+import { ComparedFolder, explicitIntent, TypedSides, typedSidesErrorOf } from "./typedSides"
 
 const METRIC_VIEW_TOAST = "Compare runs in the metric view — the domain and dependency views show a single map."
 const TREEMAP_TOAST = "Switched to the treemap layout — the radial layouts show a single map."
 const SINGLE_MAP_VIEWS: ReadonlySet<string> = new Set(["domain", "dependencies"])
-
-export interface ComparedFolder {
-    ref: FolderRef
-    label: string
-}
-
-export interface TypedSides {
-    base: string
-    head: string
-    baseMode: BaseMode
-    /** The sides no picker could name, base first: an unknown revision is blamed on the first of them. */
-    unresolved: string[]
-    /** The head's folder when it is another folder of the project than the base's. */
-    headFolder?: ComparedFolder
-    /** Set for a side picked from the "Snapshots" group: that snapshot instead of the typed text. */
-    baseSnapshot?: SnapshotSideInput | null
-    headSnapshot?: SnapshotSideInput | null
-}
-
-/** The snapshot a side would show (its own, else its nearest) and how many commits that is away from it. */
-type ShownSide = Omit<LoadedSide, "checksum">
 
 /** Takes two points of a folder's history to the delta view: resolve, load both maps, select base and head. */
 @Injectable({ providedIn: "root" })
@@ -328,56 +305,4 @@ export class CompareService {
             this.store.update({ phase: "failed", error })
         }
     }
-}
-
-function needsDecision({ base, head, preflight }: ResolvedComparison): boolean {
-    return (
-        base.status.status === "missing" || head.status.status === "missing" || preflight.sizeVerdict !== "ok" || preflight.profilesDiffer
-    )
-}
-
-function shownSideOf({ requested, status }: ResolvedSide): ShownSide | null {
-    if (status.status === "exact") {
-        return { requested, snapshot: status.snapshot, relation: null, staleBy: 0, behind: 0, ahead: 0 }
-    }
-    const { nearest } = status
-    return nearest ? { requested, ...nearest } : null
-}
-
-function unreadable(side: ShownSide): CompareError {
-    return { kind: "loadFailed", message: `the analysis of ${side.snapshot.shortCommit ?? sideName(side.requested)} could not be read.` }
-}
-
-function loadErrorOf(error: unknown): CompareError {
-    const compareError = compareErrorOf(error)
-    return compareError.kind === "coreError" ? { kind: "loadFailed", message: compareError.message } : compareError
-}
-
-function explicitIntent(folder: FolderRef, sides: TypedSides): CompareIntent {
-    const headFolder = sides.headFolder?.ref ?? folder
-    return {
-        kind: "explicit",
-        base: sideInputOf(folder, sides.base, sides.baseSnapshot),
-        head: sideInputOf(headFolder, sides.head, sides.headSnapshot),
-        baseMode: sides.baseMode
-    }
-}
-
-function sideInputOf(folder: FolderRef, typed: string, snapshot: SnapshotSideInput | null | undefined): SideInput {
-    return { folder, rev: snapshot ?? { kind: "rev", name: typed.trim() } }
-}
-
-function typedSidesErrorOf(error: unknown, folder: ComparedFolder, sides: TypedSides): CompareError {
-    const isUnknown = error instanceof DesktopBridgeError && (error.code === "UNKNOWN_REVISION" || error.code === "BAD_REQUEST")
-    const input = (sides.unresolved[0] ?? sides.base).trim()
-    const isTheHead = sides.headFolder !== undefined && input === sides.head.trim() && input !== sides.base.trim()
-    const folderLabel = isTheHead ? sides.headFolder.label : folder.label
-    return isUnknown ? { kind: "refNotFound", message: "", input, folderLabel } : compareErrorOf(error)
-}
-
-function compareErrorOf(error: unknown): CompareError {
-    if (error instanceof DesktopBridgeError && error.code === "CORE_UNAVAILABLE") {
-        return { kind: "coreUnavailable", message: error.message }
-    }
-    return { kind: "coreError", message: (error as Error).message }
 }

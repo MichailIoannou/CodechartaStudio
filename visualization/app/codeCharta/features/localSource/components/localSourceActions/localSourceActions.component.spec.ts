@@ -14,7 +14,8 @@ describe("LocalSourceActionsComponent", () => {
         status: "found",
         file: new File([content], relativePath.slice(relativePath.lastIndexOf("/") + 1)),
         folder,
-        relativePath
+        relativePath,
+        stateNote: null
     })
 
     const localSourceMock = {
@@ -417,20 +418,38 @@ describe("LocalSourceActionsComponent", () => {
             )
         })
 
-        it("should say that the linked folder is not available without asking for a folder", async () => {
+        it("should say that the linked folder is not available and offer to re-link it instead of asking for a folder", async () => {
             // Arrange
-            localSourceMock.findSource.mockResolvedValue({ status: "folderUnavailable", folderLabel: "codecharta" })
-            const component = (await renderActions()).componentInstance
+            const relink = jest.fn()
+            localSourceMock.findSource.mockResolvedValue({ status: "folderUnavailable", folderLabel: "codecharta", relink })
+            const fixture = await renderActions()
 
             // Act
-            await component.showSource("/root/src/Foo.kt")
+            await fixture.componentInstance.showSource("/root/src/Foo.kt")
+            fixture.detectChanges()
+            await userEvent.click(screen.getByRole("button", { name: "Re-link folder…", hidden: true }))
 
             // Assert
-            expect(toastMock.show).toHaveBeenCalledWith(
-                'The folder "codecharta" is not available, so its files cannot be opened. Re-link it in the project.',
-                "warning"
+            expect(HTMLDialogElement.prototype.close).toHaveBeenCalled()
+            expect(relink).toHaveBeenCalledTimes(1)
+            expect(toastMock.show).not.toHaveBeenCalled()
+            expect(localSourceMock.chooseFolderAndFindSource).not.toHaveBeenCalled()
+        })
+
+        it("should name the unavailable folder in a warning without a re-link button when it cannot be re-linked", async () => {
+            // Arrange
+            localSourceMock.findSource.mockResolvedValue({ status: "folderUnavailable", folderLabel: "codecharta", relink: null })
+            const fixture = await renderActions()
+
+            // Act
+            await fixture.componentInstance.showSource("/root/src/Foo.kt")
+            fixture.detectChanges()
+
+            // Assert
+            expect(screen.getByTestId("local-source-folder-unavailable").textContent?.trim()).toBe(
+                "The folder 'codecharta' is not available, so its files cannot be opened."
             )
-            expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled()
+            expect(screen.queryByRole("button", { name: "Re-link folder…", hidden: true })).toBeNull()
         })
 
         it("should report a folder that cannot be read", async () => {
@@ -497,19 +516,16 @@ describe("LocalSourceActionsComponent", () => {
         it("should say that the linked folder is not available instead of asking for a path", async () => {
             // Arrange
             givenFreshClick(true)
-            localSourceMock.editorTargetOf.mockResolvedValue({ status: "folderUnavailable", folderLabel: "codecharta" })
-            const component = (await renderActions()).componentInstance
+            localSourceMock.editorTargetOf.mockResolvedValue({ status: "folderUnavailable", folderLabel: "codecharta", relink: jest.fn() })
+            const fixture = await renderActions()
 
             // Act
-            await component.openInEditor("/root/src/Foo.kt")
+            await fixture.componentInstance.openInEditor("/root/src/Foo.kt")
+            fixture.detectChanges()
 
             // Assert
             expect(openedLinks).toEqual([])
-            expect(toastMock.show).toHaveBeenCalledWith(
-                'The folder "codecharta" is not available, so its files cannot be opened. Re-link it in the project.',
-                "warning"
-            )
-            expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled()
+            expect(screen.getByTestId("local-source-folder-unavailable").textContent).toContain("The folder 'codecharta' is not available")
         })
 
         it("should do nothing for a node outside the visible maps", async () => {

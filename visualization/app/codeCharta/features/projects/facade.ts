@@ -1,4 +1,5 @@
 export { FileDropOverlayComponent } from "./components/fileDropOverlay/fileDropOverlay.component"
+export { FolderRelinkHostComponent } from "./components/folderRelinkHost/folderRelinkHost.component"
 export { MoveSnapshotDialogComponent } from "./components/moveSnapshotDialog/moveSnapshotDialog.component"
 export { ProjectOverviewComponent } from "./components/projectOverview/projectOverview.component"
 export { ProjectSwitcherComponent } from "./components/projectSwitcher/projectSwitcher.component"
@@ -16,5 +17,6 @@ export {
     fileDate,
     longDate,
     relativeTime,
-    shortDate
+    shortDate,
+    shortDateTime
 } from "./util/folderWording"

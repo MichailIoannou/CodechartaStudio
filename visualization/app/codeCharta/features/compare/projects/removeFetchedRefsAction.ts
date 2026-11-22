@@ -4,7 +4,9 @@ import type { FolderAction } from "../../projects/facade"
 import { ToastService } from "../../shared/facade"
 import { HOSTING_GATEWAY } from "../ports/compareGateways"
 
-/** Plan 06 M6: deletes the pull and merge request heads fetched for comparisons from a git folder's clone. */
+const REMOVE_FAILED = "The fetched pull requests could not be removed."
+
+/** Design C11: deletes the pull and merge request heads fetched for comparisons from a git folder's clone. */
 export function removeFetchedRefsAction(): FolderAction {
     const hosting = inject(HOSTING_GATEWAY)
     const toastService = inject(ToastService)
@@ -17,14 +19,12 @@ export function removeFetchedRefsAction(): FolderAction {
         run: (folder, folderLabel) => {
             void hosting
                 .removeFetchedRefs(folder)
-                .then(removed => toastService.show(removedSentence(removed, folderLabel)))
-                .catch((error: Error) => toastService.show(`The fetched pull requests could not be removed: ${error.message}`, "error"))
+                .then(removed => toastService.show(removedSentence(removed, folderLabel), removed === 0 ? "info" : "success"))
+                .catch((error: Error) => toastService.show(REMOVE_FAILED, "error", { details: error.message }))
         }
     }
 }
 
 function removedSentence(removed: number, folderLabel: string): string {
-    return removed === 0
-        ? `'${folderLabel}' has no fetched pull requests.`
-        : `Removed ${counted(removed, "fetched pull request")} from '${folderLabel}'.`
+    return removed === 0 ? `'${folderLabel}' has no fetched pull requests.` : `Removed ${counted(removed, "fetched pull request")}.`
 }

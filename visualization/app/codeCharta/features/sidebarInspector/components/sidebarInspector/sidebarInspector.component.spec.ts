@@ -10,7 +10,7 @@ import { ThreeRendererService, ThreeSceneService } from "../../../../renderer/th
 import { isDeltaStateSelector } from "../../../../stores/fileStore/store/isDeltaState.selector"
 import { defaultMapColors, mapColorsSelector } from "../../../../stores/mapState/mapState.read.facade"
 import { selectedNodePathSelector } from "../../../../stores/sharedView/sharedView.read.facade"
-import { registerSidePanel, SidePanelRoom } from "../../../shared/facade"
+import { COLLAPSED_STRIP_WIDTH_PX, registerSidePanel, SidePanelRoom } from "../../../shared/facade"
 import { inspectorClusterSectionsSelector } from "../../selectors/inspectorClusterSections.selector"
 import { inspectorMappingBlocksSelector, MappingBlock } from "../../selectors/inspectorMappingBlocks.selector"
 import { inspectorMetricRowsSelector, MetricRow } from "../../selectors/inspectorMetricRows.selector"
@@ -132,7 +132,31 @@ describe("SidebarInspectorComponent", () => {
 
             // Assert
             expect(screen.getByTestId("inspector-collapsed-name").textContent).toContain("invoice.ts")
-            expect(screen.getByRole("button", { name: "Expand inspector" })).not.toBe(null)
+            expect(screen.getByRole("button", { name: "Show inspector" })).not.toBe(null)
+            expect(screen.queryByText("Metrics")).toBe(null)
+        })
+
+        it("should be as wide as the explorer's collapsed strip", async () => {
+            // Act
+            const { fixture } = await renderCollapsed()
+
+            // Assert
+            expect((fixture.nativeElement as HTMLElement).style.width).toBe(`${COLLAPSED_STRIP_WIDTH_PX}px`)
+        })
+
+        it("should mark the strip when another building is selected while it is collapsed", async () => {
+            // Arrange
+            const { detectChanges } = await renderCollapsed()
+            const mockStore = TestBed.inject(MockStore)
+
+            // Act
+            mockStore.overrideSelector(selectedNodeSelector, { ...node, name: "order.ts", path: "/root/order.ts" })
+            mockStore.refreshState()
+            detectChanges()
+
+            // Assert
+            expect(screen.getByTestId("inspector-collapsed-name").textContent).toContain("order.ts")
+            expect(screen.getByRole("button", { name: "Show inspector — selection changed" })).not.toBe(null)
             expect(screen.queryByText("Metrics")).toBe(null)
         })
 
@@ -149,7 +173,7 @@ describe("SidebarInspectorComponent", () => {
             await renderCollapsed()
 
             // Act
-            await userEvent.click(screen.getByRole("button", { name: "Expand inspector" }))
+            await userEvent.click(screen.getByRole("button", { name: "Show inspector" }))
 
             // Assert
             expect(screen.getByText("Metrics")).not.toBe(null)

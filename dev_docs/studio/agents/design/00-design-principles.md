@@ -58,7 +58,9 @@ desktop, project open, map shown
 └────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
   start: logo, divider, project menu (03 P1), map slot = workspace status (05 W1) or comparison chip (06)
   centre: view switcher (+ History tab, 04)
-  end: Settings (unchanged; no theme control, OD10)
+  end: Settings (unchanged; no theme control, OD10); with the "Use CodeCharta's title bar" setting
+  also the window buttons (Linux) or the space the system's buttons need (Windows right, macOS left
+  before the logo) — `01-desktop-tools.md` D6, D7
 ```
 
 Owner decisions OD1/OD2 (`owner-decisions.md`): the project menu chooses project and working folder;
@@ -100,7 +102,9 @@ never JavaScript measuring:
 **Toasts (owner decision OD8).** All toasts stack at the top right of the window, directly below the
 nav bar: `features/shared/components/toast/toast.component.html` keeps `toast toast-top toast-end
 z-[2000]` and adds `top-[var(--cc-bars-height,49px)]`, so daisyUI's own 1 rem margin puts the first
-toast 1 rem under the nav bar and 1 rem from the right edge. Today the same classes place it at the
+toast 1 rem under the nav bar and 1 rem from the right edge. While the History is the active view,
+the History publishes the height of its toolbar and notices into the same offset, so toasts start
+below them and never cover "Abort merge…" or the sync button (O9.6). Today the same classes place it at the
 very top, over the nav bar's right end (Settings).
 
 Order in the stack, top to bottom: **persistent toasts first** (the core-offline toast, 01 D4, then
@@ -113,7 +117,8 @@ inside the toast (`font-mono text-xs whitespace-pre-wrap max-h-40 overflow-auto`
 follow-up action button (`btn btn-sm`). All keep the dismiss button and `aria-live="polite"`.
 `ToastService.show(text, severity, options?: { details?: string; action?: { label; run }; commands?:
 string[] })`; errors ignore the timer. `commands` are shell commands the user must run, shown as copy
-blocks (`cc-copy-command`) in the body, always visible. Used for every failed git operation (area 04) and failed analysis started outside
+blocks (`cc-copy-command`) in the body, always visible. A command wraps (`whitespace-pre-wrap
+break-all`) instead of ending in "…", so the toast keeps its `w-96` and nothing is hidden (O9.2). Used for every failed git operation (area 04) and failed analysis started outside
 the stale notice. All toasts are `w-96
 max-w-[calc(100vw-2rem)]` with wrapping text. They sit above the inspector (`z-[60]`) and may cover
 its header.
@@ -125,8 +130,8 @@ its header.
 | `z-0` | 3D map, radial map, dependency graph | — |
 | `z-10` | bottom bar, resize handles, sticky list headers | sticky group headers in History lists |
 | `z-50` | inline colour picker panel | — |
-| `z-[60]` | explorer, inspector, legend drawer and its button | — (History panes are in-flow, not fixed) |
-| `z-[70]` | nav-bar dropdowns, view mode bar and its handle, file extension bar | project menu, workspace status, branch-chip menu, comparison-chip menu, jobs list |
+| `z-[60]` | explorer, inspector, legend drawer and its button, and everything inside them (a collapsed panel's strip and its buttons create no higher layer) | — (History panes are in-flow, not fixed) |
+| `z-[70]` | nav-bar dropdowns, view mode bar and its handle, file extension bar; always above the side panels (O11.2) | project menu, workspace status, branch-chip menu, comparison-chip menu, jobs list |
 | `z-[100]` | floating context menus, file-extension menu | commit, branch, snapshot context menus |
 | `z-[1000]` | loading overlays, code map error | — |
 | `z-[2000]` | toast | the stale notice (05 S2), as a persistent toast |

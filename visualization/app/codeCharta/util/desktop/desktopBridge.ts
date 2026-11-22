@@ -19,8 +19,30 @@ export interface CoreState {
     message: string | null
 }
 
+export type WindowButton = "minimize" | "maximize" | "close"
+
+export type WindowCommand = "minimize" | "toggleMaximize" | "close"
+
+export interface WindowState {
+    platform: string
+    /** The title bar the window was opened with; a changed setting applies when the window opens again. */
+    usesAppTitleBar: boolean
+    savedUseAppTitleBar: boolean
+    isMaximized: boolean
+    isMaximizable: boolean
+    isFullScreen: boolean
+    isFocused: boolean
+    buttonOrder: WindowButton[]
+}
+
+interface TitleBarColors {
+    color: string
+    symbolColor: string
+}
+
 interface DesktopEvents {
     "shell.coreState": CoreState
+    "shell.windowState": WindowState
 }
 
 export type DesktopEventName = RendererEvent | keyof DesktopEvents
@@ -91,4 +113,9 @@ export interface DesktopBridge {
     setWindowBackground(color: string): Promise<CoreResult<null>>
     setColorScheme(scheme: "light" | "dark" | "system"): Promise<CoreResult<null>>
     restartCore(): Promise<CoreResult<null>>
+    windowState(): Promise<CoreResult<WindowState>>
+    controlWindow(command: WindowCommand): Promise<CoreResult<null>>
+    setUseAppTitleBar(enabled: boolean): Promise<CoreResult<null>>
+    reopenWindow(): Promise<CoreResult<null>>
+    setTitleBarColors(colors: TitleBarColors): Promise<CoreResult<null>>
 }

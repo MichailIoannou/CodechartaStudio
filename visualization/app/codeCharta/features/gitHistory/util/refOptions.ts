@@ -85,16 +85,24 @@ export function resolveRefText(
         const { id: _id, ...resolution } = snapshotOption(snapshot)
         return resolution
     }
+    const found = namedRefOption(refs, name) ?? commitOptionStartingWith(commits, name)
+    return found ? { kind: found.kind, name: found.name, sha: found.sha, subject: found.subject } : null
+}
+
+function namedRefOption(refs: GitRefs, name: string): RefOption | undefined {
     const tag = refs.tags.find(candidate => candidate.name === name)
     const local = refs.localBranches.find(candidate => candidate.name === name)
     const remote = refs.remoteBranches.find(candidate => candidate.name === name)
-    const named =
+    return (
         (tag && option("tag", tag.name, tag.commit, null)) ??
         (local && localOption(local)) ??
         (remote && option("remoteBranch", remote.name, remote.commit, remote.lastCommit.subject))
+    )
+}
+
+function commitOptionStartingWith(commits: readonly GitCommitSummary[], name: string): RefOption | undefined {
     const commit = isHashPrefix(name) ? commits.find(candidate => candidate.sha.startsWith(name.toLowerCase())) : undefined
-    const found = named ?? (commit && commitOption(commit))
-    return found ? { kind: found.kind, name: found.name, sha: found.sha, subject: found.subject } : null
+    return commit && commitOption(commit)
 }
 
 /** Commits whose hash starts with the query come first, then those whose subject matches. */

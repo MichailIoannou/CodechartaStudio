@@ -27,7 +27,12 @@ describe("BranchContextMenuComponent", () => {
         deleteRemote: jest.fn(),
         openDialog: jest.fn()
     }
-    const sync = { push: jest.fn(), forcePush: jest.fn() }
+    const sync = {
+        push: jest.fn(),
+        forcePush: jest.fn(),
+        publish: jest.fn(),
+        remotes: signal([{ name: "origin", url: "https://example.com/billing-api.git" }])
+    }
     const isBusy = signal(false)
 
     const repo = { projectId: "p-billing", folderId: "f-api" }
@@ -81,6 +86,20 @@ describe("BranchContextMenuComponent", () => {
             [{ kind: "setUpstream", branch: FEATURE }]
         ])
         expect(closed).toHaveBeenCalledWith(false)
+    })
+
+    it("should publish a local branch without upstream", async () => {
+        // Arrange
+        isBusy.set(false)
+        const unpublished = aLocalBranch("feature/z")
+        await renderMenu({ ...LOCAL_REF, refName: unpublished.refName, fullName: "feature/z", local: unpublished })
+
+        // Act
+        click("Publish 'feature/z'")
+
+        // Assert
+        expect(sync.publish).toHaveBeenCalledWith(unpublished)
+        expect(screen.queryByText("Push")).toBe(null)
     })
 
     it("should list the items other features contribute after its own and run them on the branch", async () => {

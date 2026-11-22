@@ -392,6 +392,52 @@ describe("WorkspaceStatusComponent", () => {
         expect(within(screen.getByTestId("workspace-status-menu")).getByTestId("activity-batch")).toBeTruthy()
     })
 
+    it("should keep its dropdown open behind a confirmation it opened", async () => {
+        // Arrange
+        await renderStatus()
+        await openMenu()
+        const dialog = document.createElement("dialog")
+        const answer = document.createElement("button")
+        dialog.appendChild(answer)
+        document.body.appendChild(dialog)
+
+        // Act
+        await userEvent.click(answer)
+        await userEvent.click(dialog)
+
+        // Assert
+        expect(screen.getByTestId("workspace-status-menu")).toBeTruthy()
+        dialog.remove()
+    })
+
+    it("should open the History next to its sync button", async () => {
+        // Arrange
+        await renderStatus({ git: { "f-api": { info: aRepositoryInfo(), refs: REFS } } }, GIT_OF_THE_WORKING_FOLDER)
+        const menu = await openMenu()
+
+        // Act
+        await userEvent.click(within(within(menu).getByTestId("workspace-status-sync")).getByTestId("workspace-status-open-history"))
+
+        // Assert
+        expect(testBed.router.navigateByUrl).toHaveBeenLastCalledWith("/history")
+        expect(screen.queryByTestId("workspace-status-menu")).toBeNull()
+    })
+
+    it("should say that a merge is unfinished and where to finish it", async () => {
+        // Arrange
+        const merging: GitStatus = { ...STATUS, operationInProgress: "merge", counts: { ...STATUS.counts, conflicted: 2 } }
+        await renderStatus({ gitStatuses: { "f-api": merging } })
+
+        // Act
+        const menu = await openMenu()
+
+        // Assert
+        expect(within(menu).getByTestId("workspace-status-operation").textContent?.trim()).toBe(
+            "Merging — 2 files have conflicts. Finish or abort it in the History."
+        )
+        expect(within(menu).queryByTestId("history-operation-abort")).toBeNull()
+    })
+
     it("should go to the project overview", async () => {
         // Arrange
         await renderStatus()

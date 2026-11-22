@@ -5,7 +5,7 @@ import { SelectedFileReadStore } from "../../stores/selectedFile.read.store"
 
 const RENAMES: ReadonlySet<string> = new Set(["renamed", "copied"])
 
-/** The git change of the selected file during a comparison whose changed files came from git: "renamed from src/old.ts". */
+/** Design C10: the git change of the selected file during a comparison whose changed files came from git, a rename with its old path. */
 @Component({
     selector: "cc-file-git-change",
     template: `
@@ -13,9 +13,7 @@ const RENAMES: ReadonlySet<string> = new Set(["renamed", "copied"])
             <div class="mt-1 flex min-w-0 items-center gap-1 text-xs" data-testid="inspector-git-change">
                 <span class="badge badge-xs shrink-0 {{ change.badge.toneClass }}" [attr.title]="change.badge.title">{{ change.badge.label }}</span>
                 @if (change.previousPath; as previousPath) {
-                    <span class="min-w-0 truncate text-base-content/70" [title]="previousPath">from {{ previousPath }}</span>
-                } @else {
-                    <span class="text-base-content/70">in git</span>
+                    <span class="min-w-0 truncate text-base-content/60" [title]="previousPath">{{ change.origin }} from {{ previousPath }}</span>
                 }
             </div>
         }
@@ -38,6 +36,6 @@ export class FileGitChangeComponent {
         if (!file) {
             return null
         }
-        return { badge: changeBadgeOf(file.change), previousPath: RENAMES.has(file.change) ? file.previousPath : null }
+        return { badge: changeBadgeOf(file.change), origin: file.change, previousPath: RENAMES.has(file.change) ? file.previousPath : null }
     })
 }

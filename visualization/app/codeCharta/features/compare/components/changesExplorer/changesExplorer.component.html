@@ -58,7 +58,8 @@
                 <span class="min-w-0 shrink truncate">{{ row.name }}</span>
                 <span class="min-w-0 flex-1 truncate text-xs text-base-content/60">{{ row.folder }}</span>
                 @if (row.heightDelta !== null && row.heightDelta !== 0) {
-                    <span class="shrink-0 text-xs tabular-nums" [class.text-success]="row.heightDelta > 0" [class.text-error]="row.heightDelta < 0">{{
+                    <span class="shrink-0 text-xs tabular-nums" [class.text-success]="row.heightDelta > 0 !== areDeltaColorsInverted()"
+                        [class.text-error]="row.heightDelta < 0 !== areDeltaColorsInverted()">{{
                         signedNumber(row.heightDelta)
                     }}</span>
                 }

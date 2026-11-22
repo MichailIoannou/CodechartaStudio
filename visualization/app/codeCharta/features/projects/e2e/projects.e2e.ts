@@ -103,6 +103,24 @@ test.describe("Projects", () => {
         await expect(localSource.folderDialog()).toHaveCount(0)
     })
 
+    test("should offer to re-link a missing project folder when its source is asked for", async ({ page }) => {
+        // Arrange
+        const missingApi = aProject("p-billing", [aFolder("f-api", { label: "billing-api", status: "missing" })], { name: "billing" })
+        await standInForTheDesktopBridge(page, { ...SEED, projects: [missingApi, DOTFILES], pickedFolders: [aPickedFolder("billing-api")] })
+        await goto(page)
+        await new ExplorerTreeLevelPageObject(page).openContextMenu("/root/bigLeaf.ts")
+        await page.locator("#codemap-context-menu").getByText("Show Source").click()
+        const unavailable = page.getByTestId("local-source-unavailable-folder-dialog")
+        await expect(unavailable).toContainText("The folder 'billing-api' is not available, so its files cannot be opened.")
+
+        // Act
+        await unavailable.getByRole("button", { name: "Re-link folder…" }).click()
+
+        // Assert
+        await expect(unavailable).not.toBeVisible()
+        await expect(new LocalSourcePageObject(page).folderDialog()).toHaveCount(0)
+    })
+
     test("should keep the upload button and no project menu without a bridge", async ({ page }) => {
         // Arrange & Act
         const projects = new ProjectsPageObject(page)

@@ -83,7 +83,8 @@ export class SnapshotRetentionService {
         await this.catalog.refresh(folder)
         const remaining = new Set(this.catalog.snapshots(folder.folderId).map(snapshot => snapshot.ref.snapshotId))
         const moved = snapshotIds.filter(snapshotId => !remaining.has(snapshotId)).length
-        this.toastService.show(recycleFailedForCleanup(moved, snapshotIds.length), "error", { details: error.message })
+        const severity = moved === 0 ? "error" : "warning"
+        this.toastService.show(recycleFailedForCleanup(moved, snapshotIds.length), severity, { details: error.message })
     }
 
     private get bridge(): DesktopBridge {

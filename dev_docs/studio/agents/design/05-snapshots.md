@@ -157,7 +157,11 @@ ACTIVITY                                              [Clear finished]
 - **GIT** (git folders only; plain folder: "Plain folder — no git history."): branch → upstream with
   ahead/behind, uncommitted summary, the contextual sync button (`04-history.md` H5, same component),
   "Open History" `btn btn-ghost btn-xs`. Problems (git missing, not a repository) show the area 04
-  sentence instead.
+  sentence instead. During a merge or rebase the GIT section adds a `text-warning text-xs` line
+  "Merging — 2 files have conflicts. Finish or abort it in the History." next to "Open History";
+  Abort stays in the History only (O9.7).
+- A confirmation opened from the dropdown (pull choice, force push) does not count as an outside
+  click: the dropdown stays open behind the modal, so "Pulling…" stays visible (O9.7).
 - **ACTIVITY** (only when jobs or a git operation exist; was plan 05's jobs popover; this is the one
   place besides the trigger that shows per-job progress bars, because the trigger shows only one
   thing at a time): one row per git
@@ -165,7 +169,8 @@ ACTIVITY                                              [Clear finished]
   duration, or error `text-error text-xs` with the hint below in `text-base-content/60`), a
   `progress progress-primary` bar under running rows, buttons Cancel (`fa-stop`, "Cancel this
   analysis" / "Cancel the pull"), Open, Show log (S9), Retry. Batches group under a collapsible line
-  with "7 of 20 done" and "Cancel batch". "Clear finished" in the header. Many rows: section
+  with "7 of 20 done" and "Cancel batch", collapsed by default (the running job's own row stays
+  visible above it; O9.3). "Clear finished" in the header. Many rows: section
   `max-h-60 overflow-y-auto`.
 - A failed git operation or analysis also raises an error toast (principles §3); the ACTIVITY row stays
   until "Clear finished".
@@ -310,7 +315,8 @@ next to the export dialog host. Opened from W1 "Snapshots…", P3 "Snapshots…"
 - Footer: "This project's analyses use 61.2 MB." (`snapshots.usage`), "Clean up…" (S8, cleans up the
   working folder; its `title` says "Clean up the analyses of billing-api"), "Close".
 - **Delete confirmation** (deleteConfirmDialog pattern): title "Delete Analysis"; "Move the analysis
-  of a1b2c3d (Fix invoice rounding) to the recycle bin?" (imported: "Move the imported snapshot
+  of a1b2c3d (Fix invoice rounding) to the recycle bin?" (working tree: "Move the analysis of the
+  working tree on a1b2c3d (4 Nov 09:12) to the recycle bin?"; imported: "Move the imported snapshot
   'export-2024.cc.json' to the recycle bin? It can only be restored from the recycle bin.") Cancel /
   **Delete**. Deleting the shown snapshot keeps the map on screen (plan) and toasts "The analysis
   shown in the map was deleted; it stays visible until you open another."
@@ -377,13 +383,15 @@ About 14 minutes (based on earlier analyses of this folder).
 ```
 
 - Count `input input-bordered input-sm w-20` (1–200; above 200 `text-error` "At most 200 commits per
-  batch."); branch `select select-sm` of local branches (default: current; prefilled tip when opened
+  batch."; empty, 0 or not a whole number "Enter a number from 1 to 200."); branch `select select-sm` of local branches (default: current; prefilled tip when opened
   from a commit: "the last [20] commits up to a1b2c3d").
 - The summary line comes from a dry run (`analysis.enqueueBatch` with dry run), refreshed 300 ms
   after the inputs settle; while it runs `loading loading-dots loading-xs`. No estimate: "No
   estimate yet — this folder has no earlier analyses."
 - Primary button names the count; disabled at 0 ("Nothing to analyse — all commits are analysed.").
 - Preflight problems: S6 inside the dialog.
+- Every tag: summary "N tagged commits: X to analyse, Y already analysed."; over 200 tags add
+  "N older tagged commits left out — at most 200 commits per batch." (approved, O9.3).
 - After confirm: dialog closes, W1 opens its dropdown showing the batch in ACTIVITY.
 
 ## S8 Clean-up dialog
@@ -402,7 +410,10 @@ Moves 30 analyses (701 MB) of billing-api to the recycle bin:
                                  [Cancel] [Move 30 to recycle bin]
 ```
 
-- One `snapshots.planPrune` / `prune` call for the working folder. Inputs refresh the plan after 300 ms. Nothing to remove: "Nothing to clean
+- One `snapshots.planPrune` / `prune` call for the working folder. Inputs refresh the plan after 300 ms.
+- Keep counts accept whole numbers from 0; otherwise `text-error` "Enter a whole number of 0 or more."
+  and the primary button is disabled. Partial result: toast (warning) "Moved X of Y analyses to the
+  recycle bin; the rest were kept." with Details (approved, O9.3). Nothing to remove: "Nothing to clean
   up with these settings." and the primary button disabled.
 - Primary `btn btn-error`; no second confirmation (the list *is* the confirmation, plan).
 - Progress: button `loading`; result toast (success) "Moved 30 analyses (701 MB) to the recycle bin."

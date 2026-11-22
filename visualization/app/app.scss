@@ -190,3 +190,17 @@ body {
     }
 }
 
+// With CodeCharta's title bar the nav bar moves the window. Only its background drags: the controls in it, any
+// panel that opens over it, and the whole bar while a modal dialog covers it stay clickable.
+.cc-window-drag,
+.cc-window-drag :is(.navbar-start, .navbar-center, .navbar-end, .cc-window-drag-area) {
+    -webkit-app-region: drag;
+}
+
+.cc-window-drag :is(.navbar-start, .navbar-center, .navbar-end) > :not(.cc-window-drag-area),
+.cc-window-drag :is(.dropdown-content, [popover], dialog, cc-floating-menu),
+:root:has(dialog:modal) .cc-window-drag,
+:root:has(dialog:modal) .cc-window-drag :is(.navbar-start, .navbar-center, .navbar-end, .cc-window-drag-area) {
+    -webkit-app-region: no-drag;
+}
+

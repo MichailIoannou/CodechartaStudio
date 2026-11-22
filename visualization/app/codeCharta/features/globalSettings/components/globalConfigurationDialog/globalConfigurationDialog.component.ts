@@ -13,6 +13,7 @@ import { ResetFiltersButtonComponent } from "./resetFiltersButton/resetFiltersBu
 import { ResetMapButtonComponent } from "./resetMapButton/resetMapButton.component"
 import { ResetSettingsButtonComponent } from "./resetSettingsButton/resetSettingsButton.component"
 import { SettingToggleComponent } from "./settingToggle/settingToggle.component"
+import { WindowTitleBarSettingComponent } from "./windowTitleBarSetting/windowTitleBarSetting.component"
 
 @Component({
     selector: "cc-global-configuration-dialog",
@@ -24,7 +25,8 @@ import { SettingToggleComponent } from "./settingToggle/settingToggle.component"
         SettingToggleComponent,
         ExternalLinksComponent,
         ThemePickerComponent,
-        DesktopToolsPanelComponent
+        DesktopToolsPanelComponent,
+        WindowTitleBarSettingComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })

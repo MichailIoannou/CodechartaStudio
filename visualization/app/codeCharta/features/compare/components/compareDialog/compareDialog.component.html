@@ -2,49 +2,11 @@
     <div class="modal-box flex max-w-3xl flex-col gap-4 overflow-visible">
         <h2 id="compare-dialog-title" class="text-xl font-bold">Compare</h2>
 
-        @if (gitFolders().length > 1) {
-            <div class="flex flex-col gap-1">
-                <div class="flex flex-wrap items-center gap-2">
-                    <label class="text-sm text-base-content/60" for="compare-folder">{{ isAcrossFolders() ? "Base folder" : "Folder" }}</label>
-                    <select id="compare-folder" class="select select-sm w-48" data-testid="compare-folder" (change)="chooseFolder($any($event.target).value)">
-                        @for (folder of gitFolders(); track folder.id) {
-                            <option [value]="folder.id" [selected]="folder.id === folderId()">{{ folder.label }}</option>
-                        }
-                    </select>
-                    @if (headFolder(); as headFolder) {
-                        <label class="text-sm text-base-content/60" for="compare-head-folder">Head folder</label>
-                        <select
-                            id="compare-head-folder"
-                            class="select select-sm w-48"
-                            data-testid="compare-head-folder"
-                            (change)="chooseHeadFolder($any($event.target).value)"
-                        >
-                            @for (folder of otherGitFolders(); track folder.id) {
-                                <option [value]="folder.id" [selected]="folder.id === headFolder.id">{{ folder.label }}</option>
-                            }
-                        </select>
-                    }
-                    <label class="ml-auto flex cursor-pointer items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-sm"
-                            data-testid="compare-across-folders"
-                            [checked]="isAcrossFolders()"
-                            (change)="setAcrossFolders($any($event.target).checked)"
-                        />
-                        Compare with another folder
-                    </label>
-                </div>
-                @if (isAcrossFolders()) {
-                    <p class="m-0 text-xs text-base-content/60" data-testid="compare-across-folders-limits">
-                        Paths are matched as they are. A fork with a different layout shows files as removed and added. Without a clone that has both
-                        commits the comparison is tip vs tip and lists metric changes only.
-                    </p>
-                }
-            </div>
+        @if (folders.gitFolders().length > 1) {
+            <cc-compare-folder-row />
         }
 
-        @if (repo(); as repo) {
+        @if (folders.repo(); as repo) {
             <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2">
                 <div class="flex min-w-0 flex-col gap-1">
                     <span class="text-sm text-base-content/60">Base</span>
@@ -54,8 +16,8 @@
                         testId="compare-base"
                         [repo]="repo"
                         [text]="base()"
-                        [defaultBranch]="defaultBranch()"
-                        [snapshots]="baseSnapshots()"
+                        [defaultBranch]="folders.defaultBranch()"
+                        [snapshots]="folders.baseSnapshots()"
                         (textChange)="base.set($event)"
                         (rangePasted)="fillBoth($event)"
                         (resolvedChange)="baseResolution.set($event)"
@@ -77,10 +39,10 @@
                         #headPicker
                         label="Head"
                         testId="compare-head"
-                        [repo]="headRepo() ?? repo"
+                        [repo]="folders.headRepo() ?? repo"
                         [text]="head()"
-                        [defaultBranch]="headDefaultBranch()"
-                        [snapshots]="headSnapshots()"
+                        [defaultBranch]="folders.headDefaultBranch()"
+                        [snapshots]="folders.headSnapshots()"
                         (textChange)="head.set($event)"
                         (rangePasted)="fillBoth($event)"
                         (resolvedChange)="headResolution.set($event)"
@@ -117,62 +79,11 @@
         }
 
         @if (!outcome() && !isPreparing() && !fetchPrompt()) {
-            <div class="flex flex-col gap-2" data-testid="compare-lists">
-                <fieldset class="join flex" aria-label="Lists">
-                    @if (hasChangeRequestSegment()) {
-                        <button
-                            type="button"
-                            class="btn btn-sm join-item flex-1 font-normal normal-case"
-                            data-testid="compare-list-change-requests"
-                            [class.btn-active]="shownList() === 'changeRequests'"
-                            [attr.aria-pressed]="shownList() === 'changeRequests'"
-                            (click)="chooseList('changeRequests')"
-                        >
-                            <span class="text-xs">{{ changeRequestSegmentLabel() }}</span>
-                        </button>
-                    }
-                    <button
-                        type="button"
-                        class="btn btn-sm join-item flex-1 font-normal normal-case"
-                        data-testid="compare-list-recent"
-                        [class.btn-active]="shownList() === 'recent'"
-                        [attr.aria-pressed]="shownList() === 'recent'"
-                        (click)="chooseList('recent')"
-                    >
-                        <span class="text-xs">Recent</span>
-                    </button>
-                </fieldset>
-                @if (shownList() === "changeRequests" && repo(); as repo) {
-                    <cc-change-request-list
-                        [folder]="repo"
-                        [panel]="pullRequestPanel()"
-                        [defaultBranch]="defaultBranch()"
-                        (openDesktopTools)="openDesktopTools.emit()"
-                        (started)="hasStartedHere.set(true)"
-                    />
-                } @else {
-                <ul class="m-0 flex max-h-48 list-none flex-col gap-0.5 overflow-y-auto p-0" data-testid="compare-recent">
-                    @for (row of recentComparisons(); track row.range + row.recent.folderId) {
-                        <li>
-                            <button
-                                type="button"
-                                class="flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-left text-sm hover:bg-base-200"
-                                data-testid="compare-recent-row"
-                                (click)="useRecent(row.recent)"
-                            >
-                                <span class="min-w-0 truncate font-mono">{{ row.range }}</span>
-                                @if (row.folderLabel) {
-                                    <span class="min-w-0 truncate text-xs text-base-content/60">{{ row.folderLabel }}</span>
-                                }
-                                <span class="ml-auto shrink-0 text-xs text-base-content/60" [title]="row.comparedAtTitle">{{ row.age }}</span>
-                            </button>
-                        </li>
-                    } @empty {
-                        <li class="px-3 py-1.5 text-sm text-base-content/60">No comparisons yet.</li>
-                    }
-                </ul>
-                }
-            </div>
+            <cc-compare-lists
+                (recentPicked)="useRecent($event)"
+                (openDesktopTools)="openDesktopTools.emit()"
+                (started)="hasStartedHere.set(true)"
+            />
         }
 
         @if (fetchPrompt(); as fetchPrompt) {

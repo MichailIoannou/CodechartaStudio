@@ -127,6 +127,15 @@ Studio (dark, one rounded rectangle, nothing protrudes):
   content and reopens with one click, which in turn collapses the first). A window resize that makes
   the free width too small collapses the inspector first. Above about 1150 px with default panel
   widths nothing changes. Owner question 12 in `open-questions.md` (default applied).
+  Refinements (O9.1):
+  - The panel the user is working in never collapses under the pointer: a panel opened by a click
+    or focus inside the other panel opens collapsed itself.
+  - A new selection does not reopen a collapsed inspector; its strip shows a `badge badge-primary
+    badge-xs` dot until it is opened, title "Show inspector — selection changed".
+  - Collapsed inspector strip: the mirror of the explorer's strip (same island, width and
+    expand button on the side facing the map), icon `fa-solid fa-circle-info`, title "Show
+    inspector".
+  - The Dependencies view follows the same rule with the same strip for its inspector.
 - **Cells** (axis cards, labels/scenarios, layout): `rounded-xl px-3 py-2 hover:bg-base-200
   transition-colors`; open popover → `bg-base-200 ring-1 ring-primary/40`. Inside unchanged: the
   `text-[10px] uppercase tracking-wide text-base-content/60` label with the cog (`btn btn-ghost btn-xs

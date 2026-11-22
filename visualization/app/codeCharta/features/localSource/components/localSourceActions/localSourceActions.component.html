@@ -54,4 +54,34 @@
     </form>
 </dialog>
 
+<dialog
+    #unavailableFolderDialog
+    class="modal"
+    aria-label="Folder not available"
+    data-testid="local-source-unavailable-folder-dialog"
+    (close)="unavailableFolder.set(null)"
+>
+    @if (unavailableFolder(); as unavailable) {
+        <div class="modal-box">
+            <div role="alert" class="alert alert-warning text-sm">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span data-testid="local-source-folder-unavailable">
+                    The folder '{{ unavailable.folderLabel }}' is not available, so its files cannot be opened.
+                </span>
+                @if (unavailable.relink) {
+                    <button type="button" class="btn btn-sm" (click)="relinkUnavailableFolder(unavailable)">Re-link folder…</button>
+                }
+            </div>
+            <div class="modal-action">
+                <form method="dialog">
+                    <button class="btn btn-sm">Close</button>
+                </form>
+            </div>
+        </div>
+    }
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
 <cc-editor-folder-dialog></cc-editor-folder-dialog>

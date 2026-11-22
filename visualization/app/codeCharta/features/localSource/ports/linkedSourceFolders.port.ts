@@ -1,9 +1,11 @@
 import { InjectionToken } from "@angular/core"
 import type { FileMeta } from "../../../model/codeCharta.model"
 
+/** `stateNote` says when the folder's files differ from the state the map shows; `relink` is null when the folder
+ * cannot be re-linked from here. */
 export type LinkedSourceFolder =
-    | { status: "available"; rootPath: string; readFile(relativePath: string): Promise<File | null> }
-    | { status: "unavailable"; label: string }
+    | { status: "available"; rootPath: string; stateNote: string | null; readFile(relativePath: string): Promise<File | null> }
+    | { status: "unavailable"; label: string; relink: (() => void) | null }
 
 export interface LinkedSourceFolders {
     folderOf(fileMeta: FileMeta): LinkedSourceFolder | null

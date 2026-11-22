@@ -142,9 +142,11 @@ test.describe("Compare pull requests", () => {
 
         // Assert
         await expect(compare.dialog()).toHaveCount(0)
-        await expect(compare.chip()).toContainText("PR #7")
-        await expect(compare.pullRequestBadge()).toHaveAttribute("href", "https://github.com/mia/billing/pull/7")
-        await expect(compare.baseModeBadge()).toHaveText("since merge base")
+        await expect(compare.chipButton()).toContainText("#7")
+        await compare.openTheChipDetails()
+        await expect(compare.chipSide("head")).toContainText("PR #7")
+        await expect(compare.pullRequestBadge().getByRole("link")).toHaveAttribute("href", "https://github.com/mia/billing/pull/7")
+        await expect(compare.baseModeBadge()).toHaveText("since the merge base")
     })
 })
 
@@ -168,10 +170,7 @@ test.describe("Compare", () => {
 
         // Assert
         await expect(compare.dialog()).toHaveCount(0)
-        await expect(compare.chip()).toContainText("9f8e7d6")
-        await expect(compare.chip()).toContainText("main")
-        await expect(compare.chip()).toContainText("a1b2c3d")
-        await expect(compare.chip()).toContainText("feature/x")
+        await expect(compare.chipButton()).toHaveAttribute("title", "Base: main (9f8e7d6) · Head: feature/x (a1b2c3d)")
         await compare.openTheLegend()
         await expect(compare.legendCaption()).toHaveText("Δ = head a1b2c3d − base 9f8e7d6")
         expect(await metricsBar.getSelectedAreaMetricName()).toContain("functions")
@@ -224,9 +223,9 @@ test.describe("Compare", () => {
         await compare.submit()
 
         // Assert
-        await expect(compare.chip()).toContainText("9f8e7d6")
-        await expect(compare.chip()).toContainText("feature/x")
-        await expect(compare.baseModeBadge()).toHaveText("since merge base")
+        await expect(compare.chipButton()).toHaveAttribute("title", "Base: main (9f8e7d6) · Head: feature/x (a1b2c3d)")
+        await compare.openTheChipDetails()
+        await expect(compare.baseModeBadge()).toHaveText("since the merge base")
     })
 
     test("should compare again from a recent comparison", async ({ page }) => {
@@ -242,8 +241,8 @@ test.describe("Compare", () => {
         await compare.submit()
 
         // Assert
-        await expect(compare.chip()).toContainText("main")
-        await expect(compare.chip()).toContainText("feature/x")
+        await expect(compare.chipButton()).toContainText("main")
+        await expect(compare.chipButton()).toContainText("feature/x")
     })
 
     test("should compare a commit with its parent from the History", async ({ page }) => {
@@ -256,8 +255,7 @@ test.describe("Compare", () => {
         await compare.chooseFromTheCommitMenu(history.commitRows().filter({ hasText: "a1b2c3d" }), "Compare with Parent")
 
         // Assert
-        await expect(compare.chip()).toContainText("9f8e7d6")
-        await expect(compare.chip()).toContainText("a1b2c3d")
+        await expect(compare.chipButton()).toHaveAttribute("title", "Base: 9f8e7d6 · Head: a1b2c3d")
     })
 
     test("should open the dialog with a branch as the head from the branch menu", async ({ page }) => {
@@ -298,7 +296,9 @@ test.describe("Compare", () => {
 
         // Assert
         await expect(compare.dialog()).toHaveCount(0)
-        await expect(compare.staleBadge()).toHaveText("stale by 2", { useInnerText: true })
+        await expect(compare.staleDot()).toBeVisible()
+        await compare.openTheChipDetails()
+        await expect(compare.staleBadge()).toHaveText("stale by 2")
         await expect(compare.staleBadge()).toHaveAttribute("title", "No analysis for c3d4e5f. Showing a1b2c3d, 2 commits older.")
     })
 })
@@ -330,6 +330,48 @@ test.describe("Compare a renamed file", () => {
         await new ExplorerTreeLevelPageObject(page).openFolder("/root/ParentLeaf")
         await expect(explorer).toContainText("sample2LeafMergedIn.kt")
     })
+})
+
+const NAV_BAR_WIDTHS = [
+    { windowWidth: 1920, chipWidth: 288, showsFolderName: true },
+    { windowWidth: 1280, chipWidth: 224, showsFolderName: true },
+    { windowWidth: 1024, chipWidth: 128, showsFolderName: false }
+]
+
+test.describe("Comparison chip in the nav bar", () => {
+    test.beforeEach(async ({ page }) => {
+        await standInForTheDesktopBridge(page, seedOf(BILLING, {}))
+        await goto(page)
+    })
+
+    for (const { windowWidth, chipWidth, showsFolderName } of NAV_BAR_WIDTHS) {
+        test(`should fit beside the project menu at ${windowWidth} px and reach Leave compare with the mouse`, async ({ page }) => {
+            // Arrange
+            await page.setViewportSize({ width: windowWidth, height: 900 })
+            const compare = new ComparePageObject(page)
+            await compare.openTheDialogFromTheCompareTab()
+            await compare.pick("base", "mai", "main")
+            await compare.pick("head", "feature/later", "feature/later")
+            await compare.submit()
+            await compare.useNearest()
+
+            // Act
+            await compare.openTheChipDetails()
+
+            // Assert
+            const chip = await compare.chipButton().boundingBox()
+            const viewSwitcher = await compare.viewSwitcher().boundingBox()
+            expect(Math.round(chip?.width ?? 0)).toBe(chipWidth)
+            expect(await compare.chipButton().evaluate(button => button.scrollWidth <= button.clientWidth)).toBe(true)
+            expect((chip?.x ?? 0) + (chip?.width ?? 0)).toBeLessThanOrEqual(viewSwitcher?.x ?? 0)
+            expect(chip?.y ?? 0).toBeLessThan((viewSwitcher?.y ?? 0) + (viewSwitcher?.height ?? 0))
+            await expect(compare.staleDot()).toBeVisible()
+            await expect(compare.projectMenuLabel()).toBeVisible({ visible: showsFolderName })
+            await expect(compare.staleBadge()).toHaveText("stale by 2")
+            await compare.leaveButton().click()
+            await expect(compare.chip()).toHaveCount(0)
+        })
+    }
 })
 
 const FORK = aFolder("f-fork", { label: "billing-fork", role: "fork" })
@@ -369,8 +411,8 @@ test.describe("Compare against a snapshot or another folder", () => {
         await compare.submit()
 
         // Assert
-        await expect(compare.chip()).toContainText("working tree")
-        await expect(compare.staleBadge()).toHaveCount(0)
+        await expect(compare.chipButton()).toContainText("working tree")
+        await expect(compare.staleDot()).toHaveCount(0)
         await compare.openTheLegend()
         await expect(compare.legendCaption()).toHaveText("Δ = head working tree − base 9f8e7d6")
         await compare.openTheChangesMode()
@@ -388,7 +430,11 @@ test.describe("Compare against a snapshot or another folder", () => {
 
         // Assert
         await expect(compare.dialog()).toHaveCount(0)
-        await expect(compare.chipSide("head")).toHaveAttribute("title", "Head: c3d4e5f feature/later in billing-fork")
-        await expect(compare.chipSide("base")).toHaveAttribute("title", "Base: 9f8e7d6 main in billing-api")
+        await expect(compare.chipButton()).toHaveAttribute(
+            "title",
+            "Base: main (9f8e7d6) in billing-api · Head: feature/later (c3d4e5f) in billing-fork"
+        )
+        await compare.openTheChipDetails()
+        await expect(compare.chipSide("head")).toContainText("feature/later · billing-fork")
     })
 })

@@ -71,6 +71,11 @@ if (greeting) {
         reveal: target => ipcRenderer.invoke(CHANNELS.shell, { kind: "reveal", target }),
         setWindowBackground: color => ipcRenderer.invoke(CHANNELS.shell, { kind: "setWindowBackground", color }),
         setColorScheme: scheme => ipcRenderer.invoke(CHANNELS.shell, { kind: "setColorScheme", scheme }),
-        restartCore: () => ipcRenderer.invoke(CHANNELS.shell, { kind: "restartCore" })
+        restartCore: () => ipcRenderer.invoke(CHANNELS.shell, { kind: "restartCore" }),
+        windowState: () => ipcRenderer.invoke(CHANNELS.shell, { kind: "windowState" }),
+        controlWindow: command => ipcRenderer.invoke(CHANNELS.shell, { kind: "controlWindow", command }),
+        setUseAppTitleBar: enabled => ipcRenderer.invoke(CHANNELS.shell, { kind: "setUseAppTitleBar", enabled }),
+        reopenWindow: () => ipcRenderer.invoke(CHANNELS.shell, { kind: "reopenWindow" }),
+        setTitleBarColors: colors => ipcRenderer.invoke(CHANNELS.shell, { kind: "setTitleBarColors", colors })
     })
 }

@@ -39,7 +39,7 @@ describe("AnalysisActivityComponent", () => {
         expect(screen.getByTestId("activity-queued").textContent?.replaceAll(/\s+/g, " ")).toContain("Queued: a1b2c3d · billing-web")
     })
 
-    it("should group the jobs of a batch under one line that counts them, expands and cancels the rest", async () => {
+    it("should group the jobs of a batch under one collapsed line that keeps the running job visible, counts, expands and cancels", async () => {
         // Arrange
         const batch = [
             aJob("job-3", { batchId: "batch-1", state: "done", target: { kind: "commit", sha: "c".repeat(40) } }),
@@ -48,17 +48,21 @@ describe("AnalysisActivityComponent", () => {
         ]
         await renderActivity([DONE, ...batch])
         const collapsedRows = screen.queryAllByTestId("activity-queued").length
+        const collapsedRunningRows = screen.queryAllByTestId("activity-running").length
 
         // Act
         await userEvent.click(screen.getByTestId("activity-batch-toggle"))
         const expandedRows = screen.getAllByTestId("activity-queued").length
+        const expandedRunningRows = screen.queryAllByTestId("activity-running").length
         await userEvent.click(screen.getByTestId("activity-cancel-batch"))
         await settle()
 
         // Assert
         expect(screen.getByTestId("activity-batch-toggle").textContent?.trim()).toBe("Batch: 3 commits (1 of 3 done)")
         expect(collapsedRows).toBe(0)
+        expect(collapsedRunningRows).toBe(1)
         expect(expandedRows).toBe(1)
+        expect(expandedRunningRows).toBe(1)
         expect(testBed.requestsOf("analysis.cancelBatch")).toEqual([{ batchId: "batch-1" }])
     })
 

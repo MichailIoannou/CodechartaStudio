@@ -139,6 +139,16 @@ describe("CompareDialogComponent", () => {
         )
     })
 
+    it("should place the other-folder checkbox right after the folder select", async () => {
+        // Act
+        await renderDialog()
+
+        // Assert
+        const checkboxLabel = screen.getByTestId("compare-across-folders").closest("label")
+        expect(screen.getByTestId("compare-folder").nextElementSibling).toBe(checkboxLabel)
+        expect(checkboxLabel?.className).not.toContain("ml-auto")
+    })
+
     it("should keep the head folder of a recent comparison across two folders", async () => {
         // Arrange
         localStorage.setItem(

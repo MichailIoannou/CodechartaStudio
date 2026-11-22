@@ -1,7 +1,7 @@
 import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { Store, StoreModule } from "@ngrx/store"
-import { render, screen } from "@testing-library/angular"
+import { render, screen, within } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import { TEST_FILE_DATA, TEST_FILE_DATA_JAVA } from "../../../../mocks/dataMocks"
 import { addFile, setDelta } from "../../../../stores/fileStore/store/files.actions"
@@ -9,7 +9,7 @@ import { appReducers, setStateMiddleware } from "../../../../stores/rootStore/st
 import { ProjectsFacade } from "../../../projects/facade"
 import { aFolder, aProject } from "../../../projects/projects.mocks"
 import { ToastService } from "../../../shared/facade"
-import { LoadedSide, ResolvedComparison } from "../../model/compare.model"
+import type { LoadedSide, ResolvedComparison } from "../../model/compare.model"
 import { aCommitSnapshot, aComparedCommit, aResolvedComparison, BASE_SHA, FOLDER, FORK, HEAD_SHA } from "../../ports/compareGateways.mocks"
 import { CompareService } from "../../services/compare.service"
 import { CompareStore } from "../../stores/compare.store"
@@ -69,95 +69,113 @@ describe("ComparisonChipComponent", () => {
         await screen.findByTestId("comparison-chip")
     }
 
-    const fullTextOf = (badge: HTMLElement) => badge.firstElementChild?.textContent?.trim()
+    const trigger = () => screen.getByTestId("comparison-trigger")
+    const rowText = (side: "base" | "head") =>
+        Array.from(screen.getByTestId(`comparison-${side}`).children, cell => cell.textContent?.trim())
+            .filter(Boolean)
+            .join(" ")
 
-    async function chooseAction(name: string) {
-        await userEvent.click(screen.getByRole("button", { name: "Comparison actions" }))
-        await userEvent.click(screen.getByRole("menuitem", { name }))
+    async function openDetails() {
+        await userEvent.click(trigger())
     }
 
-    it("should show both short commits and their ref names", async () => {
+    async function chooseAction(name: string) {
+        await openDetails()
+        await userEvent.click(within(screen.getByRole("dialog", { name: "Comparison" })).getByRole("button", { name }))
+    }
+
+    it("should show both sides' labels in one button and name them with their commits in its title", async () => {
         // Act
         await renderChip()
 
         // Assert
-        expect(screen.getByTestId("comparison-base").textContent).toMatch(/base\s*9f8e7d6\s*main/)
-        expect(screen.getByTestId("comparison-head").textContent).toMatch(/head\s*a1b2c3d\s*$/)
+        expect(screen.getByTestId("comparison-base-label").textContent?.trim()).toBe("main")
+        expect(screen.getByTestId("comparison-head-label").textContent?.trim()).toBe("a1b2c3d")
+        expect(trigger().getAttribute("title")).toBe("Base: main (9f8e7d6) · Head: a1b2c3d")
+        expect(trigger().getAttribute("aria-haspopup")).toBe("dialog")
     })
 
-    it("should show how stale each side is", async () => {
+    it("should keep a fixed width per breakpoint and leave out the compare and pull request icons below 1280 px", async () => {
         // Arrange
         await renderChip()
-        const older = screen.getByTestId("comparison-stale")
-        const olderText = [fullTextOf(older), older.getAttribute("title")]
 
         // Act
         TestBed.inject(CompareStore).update({
-            base: { ...BASE, relation: "descendant", staleBy: 3, behind: 0, ahead: 3 },
-            head: { ...HEAD, relation: "diverged", staleBy: 5, behind: 3, ahead: 2 }
+            changeRequest: { folder: FOLDER, provider: "github", number: 7, remote: "origin", baseRefName: "main", url: null }
         })
         TestBed.tick()
 
         // Assert
-        expect(olderText).toEqual(["stale by 2", "No analysis for 9f8e7d6. Showing 3c4d5e6, 2 commits older."])
-        expect(screen.getAllByTestId("comparison-stale").map(badge => [fullTextOf(badge), badge.getAttribute("title")])).toEqual([
-            ["ahead by 3", "No analysis for 9f8e7d6. Showing 3c4d5e6, which is ahead by 3 commits."],
-            ["diverged 3↓ 2↑", "No analysis for a1b2c3d. Showing a1b2c3d from a diverged line: 3 behind / 2 ahead."]
-        ])
+        expect(trigger().className).toEqual(expect.stringMatching(/(?=.*\bw-32\b)(?=.*\bxl:w-56\b)(?=.*\b2xl:w-72\b)/))
+        for (const icon of [screen.getByTestId("comparison-icon"), screen.getByTestId("comparison-pull-request-icon")]) {
+            expect(icon.className).toEqual(expect.stringMatching(/(?=.*\bhidden\b)(?=.*\bxl:inline-flex\b)/))
+        }
+        expect(screen.getByTestId("comparison-base-label").className).toEqual(
+            expect.stringMatching(/(?=.*\bmin-w-8\b)(?=.*\bxl:min-w-10\b)/)
+        )
     })
 
-    it("should shorten each stale badge to a clock and its number for a narrow window", async () => {
+    it("should mark a stale side with a dot in the button and say in the details how stale each side is", async () => {
         // Arrange
         await renderChip()
-
-        // Act
         TestBed.inject(CompareStore).update({ head: { ...HEAD, relation: "diverged", staleBy: 5, behind: 3, ahead: 2 } })
         TestBed.tick()
 
-        // Assert
-        const shortForms = screen.getAllByTestId("comparison-stale-short")
-        expect(shortForms.map(short => short.textContent?.trim())).toEqual(["2", "3↓ 2↑"])
-        expect(shortForms[0].className).toContain("xl:hidden")
-        expect(shortForms[0].querySelector(".fa-clock-rotate-left")).not.toBeNull()
-    })
-
-    it("should hide the captions below 2xl and name the side in its title", async () => {
         // Act
-        await renderChip()
+        await openDetails()
 
         // Assert
-        expect(screen.getAllByTestId("comparison-caption").map(caption => caption.className)).toEqual([
-            expect.stringContaining("hidden"),
-            expect.stringContaining("hidden")
+        expect(screen.getByTestId("comparison-stale-dot")).toBeTruthy()
+        expect(screen.getAllByTestId("comparison-stale").map(badge => [badge.textContent?.trim(), badge.getAttribute("title")])).toEqual([
+            ["stale by 2", "No analysis for 9f8e7d6. Showing 3c4d5e6, 2 commits older."],
+            ["diverged 3↓ 2↑", "No analysis for a1b2c3d. Showing a1b2c3d from a diverged line: 3 behind / 2 ahead."]
         ])
-        expect(screen.getByTestId("comparison-base").getAttribute("title")).toBe("Base: 9f8e7d6 main")
-        expect(screen.getByTestId("comparison-head").getAttribute("title")).toBe("Head: a1b2c3d")
+        expect(screen.getAllByTestId("comparison-showing").map(line => line.textContent?.trim())).toEqual([
+            "showing 3c4d5e6, 2 commits older",
+            "showing a1b2c3d from a diverged line: 3 behind / 2 ahead"
+        ])
     })
 
-    it("should keep at least six characters of the branch label", async () => {
-        // Act
+    it("should show no dot and call both sides analysed when each shows its own analysis", async () => {
+        // Arrange
         await renderChip()
+        TestBed.inject(CompareStore).update({ base: { ...BASE, relation: null, staleBy: 0, behind: 0 } })
+        TestBed.tick()
+
+        // Act
+        await openDetails()
 
         // Assert
-        expect(screen.getByTestId("comparison-base").querySelector(".truncate")?.className).toContain("min-w-16")
+        expect(screen.queryByTestId("comparison-stale-dot")).toBeNull()
+        expect(rowText("base")).toBe("Base 9f8e7d6 main analysed Change…")
+        expect(rowText("head")).toBe("Head a1b2c3d analysed Change…")
     })
 
-    it("should move the base mode into the caret menu below 2xl", async () => {
+    it("should name the base mode at the top of the details with its explanation", async () => {
         // Arrange
         await renderChip("active", aResolvedComparison({ origin: "branches", baseMode: "tip" }))
 
         // Act
-        await userEvent.click(screen.getByRole("button", { name: "Comparison actions" }))
+        await openDetails()
 
         // Assert
-        expect(screen.getByTestId("comparison-base-mode").className).toContain("2xl:inline-flex")
-        const menuLine = screen.getByTestId("comparison-menu-base-mode")
-        expect(menuLine.textContent?.trim()).toBe("Tip vs tip")
-        expect(menuLine.getAttribute("title")).toBe("Everything that differs between the two tips")
-        expect(menuLine.className).toContain("2xl:hidden")
+        const line = screen.getByTestId("comparison-base-mode")
+        expect(line.textContent?.trim()).toBe("tip vs tip")
+        expect(line.getAttribute("title")).toBe("Everything that differs between the two tips")
     })
 
-    it("should link the pull request and copy the range with its link", async () => {
+    it("should name nothing as the base mode for two commits", async () => {
+        // Arrange
+        await renderChip("active", aResolvedComparison())
+
+        // Act
+        await openDetails()
+
+        // Assert
+        expect(screen.queryByTestId("comparison-base-mode")).toBeNull()
+    })
+
+    it("should link the pull request in the details and copy the range with its link", async () => {
         // Arrange
         const writeText = jest.fn().mockResolvedValue(undefined)
         Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true })
@@ -172,72 +190,64 @@ describe("ComparisonChipComponent", () => {
         }
         TestBed.inject(CompareStore).update({ changeRequest })
         TestBed.tick()
+        await openDetails()
+        const link = within(screen.getByTestId("comparison-pull-request")).getByRole("link")
+        const linkText = [link.getAttribute("href"), link.textContent?.trim()]
 
         // Act
-        await chooseAction("Copy as text")
+        await userEvent.click(screen.getByRole("button", { name: "Copy as text" }))
 
         // Assert
-        const badge = screen.getByTestId("comparison-pull-request")
-        expect(badge.getAttribute("href")).toBe("https://github.com/mia/billing/pull/7")
-        expect(badge.getAttribute("title")).toBe("Pull request #7")
-        expect(badge.textContent?.trim()).toBe("#7")
+        expect(linkText).toEqual(["https://github.com/mia/billing/pull/7", "Pull request #7"])
         expect(writeText).toHaveBeenCalledWith("main..a1b2c3d https://github.com/mia/billing/pull/7")
     })
 
     it("should show a merge request without a link when its page is unknown", async () => {
         // Arrange
         await renderChip()
-
-        // Act
         TestBed.inject(CompareStore).update({
             changeRequest: { folder: FOLDER, provider: "gitlab", number: 7, remote: "origin", baseRefName: "main", url: null }
         })
         TestBed.tick()
 
+        // Act
+        await openDetails()
+
         // Assert
-        const badge = screen.getByTestId("comparison-pull-request")
-        expect(badge.tagName).toBe("SPAN")
-        expect(badge.getAttribute("title")).toBe("Merge request !7")
+        const line = screen.getByTestId("comparison-pull-request")
+        expect(within(line).queryByRole("link")).toBeNull()
+        expect(line.textContent?.trim()).toBe("Merge request !7")
     })
 
-    it("should count the files git changed when there are no metric differences", async () => {
+    it("should say that there are no metric differences and count the files git changed in the details", async () => {
         // Arrange
         await renderChip("noDifferences")
-
-        // Act
         TestBed.inject(CompareStore).update({
             changedFiles: { source: "git", files: [{ change: "modified", path: "README.md", previousPath: null }] }
         })
         TestBed.tick()
 
-        // Assert
-        expect(screen.getByTestId("comparison-git-line").textContent).toBe("1 file changed in git")
-    })
-
-    it("should say that there are no metric differences", async () => {
         // Act
-        await renderChip("noDifferences")
+        await openDetails()
 
         // Assert
-        expect(screen.getByTestId("comparison-no-differences").textContent?.replace(/\s+/g, " ").trim()).toBe(
-            "No metric differences between 9f8e7d6 and a1b2c3d"
-        )
+        expect(screen.getByTestId("comparison-no-differences").textContent?.trim()).toBe("No metric differences")
+        expect(screen.getByTestId("comparison-git-line").textContent?.trim()).toBe("1 file changed in git")
         expect(screen.queryByTestId("comparison-swap")).toBeNull()
     })
 
-    it("should swap from the chip and from its menu", async () => {
+    it("should swap base and head from the details", async () => {
         // Arrange
         await renderChip()
 
         // Act
-        await userEvent.click(screen.getByTestId("comparison-swap"))
         await chooseAction("Swap base and head")
 
         // Assert
-        expect(service.swap).toHaveBeenCalledTimes(2)
+        expect(service.swap).toHaveBeenCalledTimes(1)
     })
 
-    it("should leave the comparison from its menu", async () => {
+    it("should leave the comparison from the details", async () => {
         // Arrange
         await renderChip()
 
@@ -246,26 +256,23 @@ describe("ComparisonChipComponent", () => {
 
         // Assert
         expect(service.exit).toHaveBeenCalled()
-        expect(screen.queryByRole("menu")).toBeNull()
+        expect(screen.queryByRole("dialog")).toBeNull()
     })
 
-    it("should open the dialog with both sides when a side or Change… is clicked", async () => {
+    it("should open the dialog with both sides from either side's Change…", async () => {
         // Arrange
         await renderChip()
         const store = TestBed.inject(CompareStore)
 
         // Act
-        await userEvent.click(screen.getByTestId("comparison-head"))
-        const prefillFromSide = store.dialogPrefill()
-        store.closeDialog()
-        await chooseAction("Change…")
+        await chooseAction("Change head")
 
         // Assert
-        expect(prefillFromSide).toEqual({ folder: FOLDER, base: "main", head: "a1b2c3d" })
-        expect(store.dialogPrefill()).toEqual(prefillFromSide)
+        expect(store.dialogPrefill()).toEqual({ folder: FOLDER, base: "main", head: "a1b2c3d" })
+        expect(screen.queryByRole("dialog")).toBeNull()
     })
 
-    it("should name each side's folder and keep the head folder when two folders are compared", async () => {
+    it("should name each side's folder in the title and the details and keep the head folder when two folders are compared", async () => {
         // Arrange
         const forkHead = { ...HEAD, requested: aComparedCommit(HEAD_SHA, { kind: "branch", name: "main" }, FORK) }
         const resolved = aResolvedComparison({
@@ -274,17 +281,22 @@ describe("ComparisonChipComponent", () => {
         })
         await renderChip("active", resolved, forkHead)
         const store = TestBed.inject(CompareStore)
+        await openDetails()
+        const rows = [rowText("base"), rowText("head")]
 
         // Act
-        await chooseAction("Change…")
+        await userEvent.click(screen.getByRole("button", { name: "Change base" }))
 
         // Assert
-        expect(screen.getByTestId("comparison-head").getAttribute("title")).toBe("Head: a1b2c3d main in billing-fork")
-        expect(screen.getByTestId("comparison-base").getAttribute("title")).toBe("Base: 9f8e7d6 main in billing-api")
+        expect(trigger().getAttribute("title")).toBe("Base: main (9f8e7d6) in billing-api · Head: main (a1b2c3d) in billing-fork")
+        expect(rows).toEqual([
+            "Base 9f8e7d6 main · billing-api stale by 2 Change… showing 3c4d5e6, 2 commits older",
+            "Head a1b2c3d main · billing-fork analysed Change…"
+        ])
         expect(store.dialogPrefill()).toEqual({ folder: FOLDER, base: "main", head: "main", headFolder: FORK })
     })
 
-    it("should show a working-tree head by its label, without a commit or a stale badge", async () => {
+    it("should show a working-tree head by its label, without a commit", async () => {
         // Arrange
         const workingTree = {
             ...HEAD,
@@ -297,14 +309,15 @@ describe("ComparisonChipComponent", () => {
                 label: { kind: "workingTree" as const, name: "working tree" }
             }
         }
-
-        // Act
         await renderChip("active", null, workingTree)
 
+        // Act
+        await openDetails()
+
         // Assert
-        expect(screen.getByTestId("comparison-head").textContent).toMatch(/head\s*working tree\s*$/)
-        expect(screen.getByTestId("comparison-head").getAttribute("title")).toBe("Head: working tree")
-        expect(screen.getByTestId("comparison-head").querySelector(".font-mono")).toBeNull()
+        expect(screen.getByTestId("comparison-head-label").textContent?.trim()).toBe("working tree")
+        expect(trigger().getAttribute("title")).toBe("Base: main (9f8e7d6) · Head: working tree")
+        expect(rowText("head")).toBe("Head working tree analysed Change…")
     })
 
     it("should copy the range as text", async () => {
@@ -336,40 +349,67 @@ describe("ComparisonChipComponent", () => {
             baseTip: aComparedCommit("7777777".padEnd(40, "0"), { kind: "branch", name: "main" })
         })
         await renderChip("active", resolved)
+        await openDetails()
+        const baseMode = screen.getByTestId("comparison-base-mode")
+        const baseModeText = [baseMode.textContent?.trim(), baseMode.getAttribute("title")]
 
         // Act
-        await chooseAction("Copy as text")
+        await userEvent.click(screen.getByRole("button", { name: "Copy as text" }))
 
         // Assert
         expect(writeText).toHaveBeenCalledWith("main...a1b2c3d")
-        const badge = screen.getByTestId("comparison-base-mode")
-        expect(badge.textContent?.trim()).toBe("since merge base")
-        expect(badge.getAttribute("title")).toBe("Changes on 'feature/x' since it left 'main'")
+        expect(baseModeText).toEqual(["since the merge base", "Changes on 'feature/x' since it left 'main'"])
     })
 
-    it("should name tip vs tip for branches and nothing for two commits", async () => {
+    it("should name a merge-base side by the branch it came from, and only while it is the base", async () => {
         // Arrange
-        await renderChip("active", aResolvedComparison({ origin: "branches", baseMode: "tip" }))
-        const forBranches = screen.getByTestId("comparison-base-mode").getAttribute("title")
-        TestBed.inject(CompareStore).update({ resolved: aResolvedComparison() })
+        const mergeBase = { ...BASE, requested: aComparedCommit(BASE_SHA) }
+        const resolved = aResolvedComparison({
+            origin: "branches",
+            baseMode: "mergeBase",
+            base: { requested: mergeBase.requested, status: { status: "exact", snapshot: BASE.snapshot } },
+            baseTip: aComparedCommit("7777777".padEnd(40, "0"), { kind: "branch", name: "main" })
+        })
+        await renderChip("active", resolved)
+        const store = TestBed.inject(CompareStore)
+        store.update({ base: mergeBase })
+        TestBed.tick()
+        const labelsBefore = [screen.getByTestId("comparison-base-label").textContent?.trim(), trigger().getAttribute("title")]
 
         // Act
+        store.update({ base: HEAD, head: mergeBase })
         TestBed.tick()
 
         // Assert
-        expect(forBranches).toBe("Everything that differs between the two tips")
-        expect(screen.queryByTestId("comparison-base-mode")).toBeNull()
+        expect(labelsBefore).toEqual(["main", "Base: main (9f8e7d6) · Head: a1b2c3d"])
+        expect(trigger().getAttribute("title")).toBe("Base: a1b2c3d · Head: 9f8e7d6")
     })
 
-    it("should close its menu on a click elsewhere", async () => {
+    it("should open the details with the arrow key and close them with Escape, back on the button", async () => {
         // Arrange
         await renderChip()
-        await userEvent.click(screen.getByRole("button", { name: "Comparison actions" }))
+        trigger().focus()
+
+        // Act
+        await userEvent.keyboard("{ArrowDown}")
+        const isOpenAfterArrow = screen.queryByRole("dialog") !== null
+        await userEvent.keyboard("{Escape}")
+
+        // Assert
+        expect(isOpenAfterArrow).toBe(true)
+        expect(screen.queryByRole("dialog")).toBeNull()
+        expect(document.activeElement).toBe(trigger())
+    })
+
+    it("should close its details on a click elsewhere", async () => {
+        // Arrange
+        await renderChip()
+        await openDetails()
 
         // Act
         await userEvent.click(document.body)
 
         // Assert
-        expect(screen.queryByRole("menu")).toBeNull()
+        expect(screen.queryByRole("dialog")).toBeNull()
     })
 })

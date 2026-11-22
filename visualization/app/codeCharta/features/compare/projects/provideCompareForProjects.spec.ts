@@ -48,10 +48,10 @@ describe("remove fetched pull requests", () => {
 
         // Assert
         expect(hosting.cleanedFolders).toEqual([FOLDER.folderId])
-        expect(toast).toHaveBeenCalledWith("Removed 2 fetched pull requests from 'billing-api'.")
+        expect(toast).toHaveBeenCalledWith("Removed 2 fetched pull requests.", "success")
     })
 
-    it("should say when there was nothing to remove and when removing failed", async () => {
+    it("should say when there was nothing to remove and give the details when removing failed", async () => {
         // Arrange
         const removeFetched = action()
 
@@ -64,8 +64,8 @@ describe("remove fetched pull requests", () => {
 
         // Assert
         expect(toast.mock.calls).toEqual([
-            ["'billing-api' has no fetched pull requests."],
-            ["The fetched pull requests could not be removed: locked", "error"]
+            ["'billing-api' has no fetched pull requests.", "info"],
+            ["The fetched pull requests could not be removed.", "error", { details: "locked" }]
         ])
     })
 })
