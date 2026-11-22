@@ -22,6 +22,11 @@ function readShellSettings(fs, dataDir) {
     }
 }
 
+async function writeShellSetting(fs, dataDir, key, value) {
+    const settings = { ...readShellSettings(fs, dataDir), [key]: value }
+    await fs.promises.writeFile(shellSettingsFile(dataDir), JSON.stringify(settings, null, 2))
+}
+
 async function statOrNull(fs, filePath) {
     try {
         return await fs.promises.stat(filePath)
@@ -87,8 +92,7 @@ function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, request
             return failure("BAD_REQUEST", "The colour must be written as #rrggbb.")
         }
         getWindow()?.setBackgroundColor(color)
-        const settings = { ...readShellSettings(fs, dataDir), windowBackgroundColor: color }
-        await fs.promises.writeFile(shellSettingsFile(dataDir), JSON.stringify(settings, null, 2))
+        await writeShellSetting(fs, dataDir, "windowBackgroundColor", color)
         return NOTHING_CHOSEN
     }
 
@@ -97,8 +101,7 @@ function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, request
             return failure("BAD_REQUEST", "The colour scheme must be light, dark or system.")
         }
         nativeTheme.themeSource = scheme
-        const settings = { ...readShellSettings(fs, dataDir), colorScheme: scheme }
-        await fs.promises.writeFile(shellSettingsFile(dataDir), JSON.stringify(settings, null, 2))
+        await writeShellSetting(fs, dataDir, "colorScheme", scheme)
         return NOTHING_CHOSEN
     }
 
