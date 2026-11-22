@@ -59,3 +59,11 @@ Bring the compare files under the quality gate, then build C2 revision 2 and the
 `features/navBar/components/navBar/navBar.component.html` (one input binding) and its spec stub,
 `features/projects/components/projectSwitcher` (one input, two class bindings), `CHANGELOG.md`, the gh-pages compare doc.
 No fake-bridge change.
+
+## O11 tweaks
+
+Designer answer of 2026-11-22 (O11.2), branch `feature/studio-o11-tweaks`.
+
+- C10 says "renamed" once: the inspector git line is the worded badge plus "from <old path>" (a copy: "copied" badge,
+  "from <old path>"). Reading 6 above is superseded. `fileGitChange.component.spec.ts` covers rename and copy.
+- C11 (no core count), the PR line, Swap and the z-order bug are not part of this change.
