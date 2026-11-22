@@ -443,6 +443,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-22: development resumed for the owner follow-ups on nav bar fit and metrics bar fit (principles §3, P1, W1, C2, T4; mock-up `nav-and-bar-fit.html`); designer commits merged (7dbc02134); agent on `feature/studio-nav-and-bar-fit`.
 - 2026-11-22: compact metrics bar verified and fast-forwarded into `feature/studio-next` (ed5d9c48b): cell icons on the settings buttons, Scenarios bookmark menu, `cc-metric-glyph` (in shared, to avoid a feature cycle), compact two-row bar below 30rem / back at 32rem; the 02-panels-give-way behaviour reverted (strip, selection dot, dependency inspector strip). Gates at ed5d9c48b: format, quality gate 0 errors (46 warnings), npm test 823/823 (6691), lint, tsc, electron, build, e2e desktop 20/20, web 230/230. Designer follow-ups appended as O13. Development paused again.
 - 2026-11-22: development resumed for the designer's compact metrics bar (02-themes T4 "Cell icon instead of the cog" and "T4 compact bar", owner answer to question 12, question 15 default); designer commits merged (0d8a370ca); agent on `feature/studio-compact-metrics-bar`, which also removes the 02-panels-give-way behaviour.
 - 2026-11-22, **paused by the owner** after this round. Merged the O11 tweaks. Final gates at fe460f811, all
