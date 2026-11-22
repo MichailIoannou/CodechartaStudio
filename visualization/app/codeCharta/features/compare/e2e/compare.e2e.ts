@@ -160,6 +160,7 @@ test.describe("Compare", () => {
         // Arrange
         const compare = new ComparePageObject(page)
         const metricsBar = new MetricsBarPageObject(page)
+        await metricsBar.widenWindowForTheFullBar()
         await metricsBar.openAreaMetricSelect()
         await metricsBar.selectAreaMetricOption("functions")
         await page.keyboard.press("Escape")

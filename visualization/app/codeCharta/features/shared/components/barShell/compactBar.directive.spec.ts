@@ -34,7 +34,7 @@ describe("isCompactInRoom", () => {
         expect(isCompact).toBe(false)
     })
 
-    it("should stay compact until 32 px more than the minimum are free", () => {
+    it("should stay compact until the room is 32 px more than the minimum", () => {
         // Act
         const isCompact = isCompactInRoom(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX - 1, FULL_BAR_MINIMUM_PX, true)
 
@@ -91,20 +91,21 @@ describe("CompactBarDirective", () => {
         fixture.detectChanges()
     }
 
-    it("should measure the map left free between the side panels", async () => {
+    it("should measure the room around the window centre that the wider side panel leaves", async () => {
         // Act
         const { bar } = await renderBar()
 
         // Assert
         const probe = bar.querySelector<HTMLElement>("[data-testid='bar-room-probe']")
+        const widerPanelInset = "max(var(--cc-bar-inset-left, 0px), var(--cc-bar-inset-right, 0px))"
         expect(probe.style.position).toBe("fixed")
-        expect(probe.style.left).toBe("var(--cc-bar-inset-left, 0px)")
-        expect(probe.style.right).toBe("var(--cc-bar-inset-right, 0px)")
+        expect(probe.style.left).toBe(widerPanelInset)
+        expect(probe.style.right).toBe(widerPanelInset)
         expect(probe.style.margin).toBe("0px 6px")
         expect(probe.getAttribute("aria-hidden")).toBe("true")
     })
 
-    it("should turn compact once the free map narrows below the full bar's minimum and say so on the bar", async () => {
+    it("should turn compact once the room narrows below the full bar's minimum and say so on the bar", async () => {
         // Arrange
         const { fixture, bar, compactBar } = await renderBar()
 
@@ -116,7 +117,7 @@ describe("CompactBarDirective", () => {
         expect(bar.dataset.compact).toBe("true")
     })
 
-    it("should keep the compact bar until 32 px more than the full bar's minimum are free again", async () => {
+    it("should keep the compact bar until the room is 32 px more than the full bar's minimum again", async () => {
         // Arrange
         const { fixture, bar, compactBar } = await renderBar()
         await resizeRoomTo(400, fixture)

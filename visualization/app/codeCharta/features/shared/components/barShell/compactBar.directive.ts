@@ -1,6 +1,6 @@
 import { afterNextRender, DestroyRef, Directive, ElementRef, Injector, inject, signal } from "@angular/core"
 import { PANEL_ISLAND_MARGIN_PX } from "../../util/publishBarInset"
-import { INSET_LEFT, INSET_RIGHT } from "./barShell.directive"
+import { WIDER_PANEL_INSET } from "./barShell.directive"
 import { prepareBarSwitch } from "./barSwitchAnimation"
 import { measureFullBarMinimum } from "./fullBarMinimum"
 
@@ -18,7 +18,7 @@ export function isCompactInRoom(roomPx: number, fullMinimumPx: number, wasCompac
     return roomPx < fullMinimumPx + (wasCompact ? FULL_AGAIN_ABOVE_MINIMUM_PX : 0)
 }
 
-/** Tells a bar whether the map left free between the side panels is narrower than its full form can get. */
+/** Tells a bar whether the room around the window centre that no side panel covers is narrower than its full form can get. */
 @Directive({
     selector: "[ccCompactBar]",
     host: { "[attr.data-compact]": "isCompact() ? 'true' : null" }
@@ -89,15 +89,15 @@ export class CompactBarDirective {
     }
 }
 
-/** Spans exactly the free map between the panels, without a transition, so its width follows every panel change at once. */
+/** Spans exactly the bar's room around the window centre, so its width follows every panel and window change at once. */
 function createRoomProbe(): HTMLElement {
     const probe = document.createElement("div")
     probe.setAttribute("aria-hidden", "true")
     probe.dataset.testid = "bar-room-probe"
     Object.assign(probe.style, {
         position: "fixed",
-        left: INSET_LEFT,
-        right: INSET_RIGHT,
+        left: WIDER_PANEL_INSET,
+        right: WIDER_PANEL_INSET,
         bottom: "0",
         height: "0",
         margin: `0 ${PANEL_ISLAND_MARGIN_PX}px`,

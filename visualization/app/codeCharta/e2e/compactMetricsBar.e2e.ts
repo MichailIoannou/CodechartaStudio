@@ -1,5 +1,5 @@
-import { expect, type Page, test } from "@playwright/test"
-import { clearIndexedDB, goto } from "../../playwright.helper"
+import { expect, type Locator, type Page, test } from "@playwright/test"
+import { clearIndexedDB, collapseExplorer, goto } from "../../playwright.helper"
 import { MetricsBarPageObject } from "../features/metricsBar/components/metricsBar/metricsBar.po"
 import { ExplorerTreeLevelPageObject } from "../features/sidebarExplorer/components/explorerTreeLevel/explorerTreeLevel.po"
 import { SidebarInspectorPageObject } from "../features/sidebarInspector/components/sidebarInspector/sidebarInspector.po"
@@ -8,6 +8,7 @@ import { CompactMetricsBarPageObject } from "./compactMetricsBar.po"
 const NARROW_WINDOW = { width: 900, height: 900 }
 const WIDE_WINDOW = { width: 1600, height: 900 }
 const WINDOW_STEP_PX = 8
+const COARSE_WINDOW_STEP_PX = 50
 const SAME_HEIGHT_PX = 74
 const SAMPLE_FOLDER = "/root/sample1.cc.json"
 const SAMPLE_FILE = "/root/sample1.cc.json/bigLeaf.ts"
@@ -19,12 +20,33 @@ async function openInspectorBesideExplorer(page: Page) {
     await expect(new SidebarInspectorPageObject(page).nodeName()).toHaveText("bigLeaf.ts")
 }
 
+type Box = { x: number; y: number; width: number; height: number }
+
+async function boundingBoxOf(locator: Locator): Promise<Box> {
+    const box = await locator.boundingBox()
+    if (!box) {
+        throw new Error("The element has not been laid out")
+    }
+    return box
+}
+
+function overlapsHorizontally(first: Box, second: Box) {
+    return first.x < second.x + second.width && second.x < first.x + first.width
+}
+
+async function isCoveredByASidePanel(page: Page) {
+    const bar = await boundingBoxOf(new MetricsBarPageObject(page).bar())
+    const explorer = await boundingBoxOf(page.locator("cc-sidebar-explorer"))
+    const inspector = await boundingBoxOf(page.locator("cc-sidebar-inspector"))
+    return overlapsHorizontally(bar, explorer) || overlapsHorizontally(bar, inspector)
+}
+
 test.describe("Compact metrics bar", () => {
     test.afterEach(async ({ page }) => {
         await clearIndexedDB(page)
     })
 
-    test("should turn compact between both open side panels and stay compact until 32 px more than needed are free", async ({ page }) => {
+    test("should turn compact with both side panels open and stay compact until its room is 32 px more than needed", async ({ page }) => {
         // Arrange
         await page.setViewportSize(NARROW_WINDOW)
         await goto(page)
@@ -53,6 +75,44 @@ test.describe("Compact metrics bar", () => {
         expect(isCompactJustAbove).toBe(true)
         await expect(metricsBar.bar()).not.toHaveAttribute("data-compact")
         await expect(page.getByTestId("metric-segment-area")).toBeVisible()
+    })
+
+    test("should turn compact rather than reach under a side panel while the window narrows", async ({ page }) => {
+        // Arrange
+        await page.setViewportSize(WIDE_WINDOW)
+        await goto(page)
+        await openInspectorBesideExplorer(page)
+        const compactBar = new CompactMetricsBarPageObject(page)
+        const coveredAt: number[] = []
+
+        // Act
+        for (let width = WIDE_WINDOW.width; width >= NARROW_WINDOW.width; width -= COARSE_WINDOW_STEP_PX) {
+            await compactBar.resizeTo(width)
+            if (await isCoveredByASidePanel(page)) {
+                coveredAt.push(width)
+            }
+        }
+
+        // Assert
+        expect(coveredAt).toEqual([])
+        await expect(new MetricsBarPageObject(page).bar()).toHaveAttribute("data-compact", "true")
+    })
+
+    test("should get no more room when the explorer collapses, so it turns compact at the same window width", async ({ page }) => {
+        // Arrange
+        await page.setViewportSize(WIDE_WINDOW)
+        await goto(page)
+        await openInspectorBesideExplorer(page)
+        const compactBar = new CompactMetricsBarPageObject(page)
+        const compactBelowWithBothPanels = await compactBar.narrowestFullWindow(WIDE_WINDOW.width, WINDOW_STEP_PX)
+        await compactBar.resizeTo(WIDE_WINDOW.width)
+
+        // Act
+        await collapseExplorer(page)
+        const compactBelowWithTheInspectorOnly = await compactBar.narrowestFullWindow(WIDE_WINDOW.width, WINDOW_STEP_PX)
+
+        // Assert
+        expect(compactBelowWithTheInspectorOnly).toBe(compactBelowWithBothPanels)
     })
 
     test("should keep the bar 74 px tall in both forms", async ({ page }) => {
