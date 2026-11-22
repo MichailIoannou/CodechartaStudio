@@ -18,7 +18,7 @@ export interface ChipSide {
     status: SideStatus
 }
 
-export interface SideStatus {
+interface SideStatus {
     badge: string
     isStale: boolean
     title: string
