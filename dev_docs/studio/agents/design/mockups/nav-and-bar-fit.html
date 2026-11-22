@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nav Bar and Metrics Bar Fit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+:root { --page: #f6f7f9; --ink: #1d2330; --mute-ink: #5b6472; --font-body: "Inter", "Segoe UI", system-ui, sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page: #121418; --ink: #e8ebf0; --mute-ink: #9aa3b0; } }
+:root[data-theme="dark"] { --page: #121418; --ink: #e8ebf0; --mute-ink: #9aa3b0; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--font-body); }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 30px 0 6px; }
+p { margin: 0 0 10px; color: var(--mute-ink); max-width: 84ch; }
+.note { font-size: 12.5px; color: var(--mute-ink); margin: 8px 0 0; max-width: 100ch; }
+.controls { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin: 8px 0; font-size: 13px; }
+.controls input[type=range] { width: 360px; }
+.controls button { font: inherit; padding: 4px 10px; border-radius: 6px; border: 1px solid color-mix(in oklab, var(--ink) 25%, transparent); background: transparent; color: var(--ink); cursor: pointer; }
+.stage-label { font-family: "JetBrains Mono", monospace; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: color-mix(in oklab, var(--ink) 10%, transparent); }
+
+.app { --b100: #1e2329; --b200: #262c34; --b300: #3a424d; --backdrop: #15191e; --fg: #e6e9ee; --mute: #9aa3b0; --primary: #8b9cff; --warn: #fbbd23; --warnfg: #382800; }
+.app.light { --b100: #ffffff; --b200: #f1f3f5; --b300: #d1d5db; --backdrop: #e8ebef; --fg: #1f2937; --mute: #6b7280; --primary: #0374c9; --warn: #f59e0b; --warnfg: #3b2300; }
+.app { color: var(--fg); font: 13px/1.4 var(--font-body); }
+
+/* ---------- nav bar ---------- */
+.viewport { width: 100%; overflow: hidden; border-radius: 8px; box-shadow: 0 1px 0 #0001, 0 6px 20px #0003; }
+.navwin { background: var(--b100); }
+.viewport { overflow-x: auto; }
+.nav { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; height: 48px; border-bottom: 1px solid var(--b300); padding: 0 8px; }
+.nstart { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; height: 48px; }
+.nend { display: flex; justify-content: flex-end; }
+.logo { flex-shrink: 0; display: flex; align-items: center; padding: 0 8px; }
+.logo svg { width: 44px; height: 32px; display: block; }
+#mapp { overflow-x: auto; border-radius: 10px; }
+.lrow { cursor: pointer; }
+.lrow:hover:not(.sel) { background: var(--b200); }
+.ndiv { flex-shrink: 0; width: 1px; height: 24px; background: var(--b300); margin: 0 4px; }
+.chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; white-space: nowrap; min-width: 0; transition: max-width .2s ease-out; }
+.chip:hover { background: var(--b200); }
+.chip .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.chip .caret { font-size: 10px; color: var(--mute); }
+#branch { width: 288px; box-sizing: border-box; transition: width .2s ease-out; }
+#branch .t { flex: 0 1 auto; min-width: 0; }
+#branch .caret { margin-left: auto; }
+#branch.icon { width: 52px; }
+.measuring .chip { transition: none !important; }
+.chip .cnt { font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; display: inline-flex; gap: 4px; align-items: center; }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex-shrink: 0; }
+.badge { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--warn); color: var(--warnfg); flex-shrink: 0; }
+.chip.icon .t, .chip.icon .cnt, .chip.icon .dot, .chip.nocnt .cnt { display: none; }
+.chip.icon .badge { width: 8px; height: 8px; padding: 0; font-size: 0; margin-left: -10px; margin-top: -14px; box-shadow: 0 0 0 2px var(--b100); }
+.tabs { display: flex; gap: 2px; }
+.tab { padding: 6px 12px; border-radius: 6px; white-space: nowrap; color: var(--mute); }
+.tab.sel { color: var(--fg); font-weight: 600; box-shadow: inset 0 -2px 0 var(--primary); border-radius: 0; }
+.gear { width: 32px; height: 32px; display: grid; place-items: center; color: var(--mute); }
+.navmap { height: 70px; background: var(--backdrop); }
+
+/* ---------- metrics bar ---------- */
+.mstage { position: relative; background: var(--backdrop); border-radius: 10px; height: 230px; overflow: hidden; }
+.side { position: absolute; top: 8px; bottom: 8px; background: var(--b100); border-radius: 10px; transition: width .0s; }
+.side.l { left: 8px; } .side.r { right: 8px; }
+.free { position: absolute; top: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 22px; }
+.freeguide { position: absolute; left: 0; right: 0; bottom: 8px; height: 0; border-top: 1px dashed color-mix(in oklab, var(--mute) 60%, transparent); }
+.freeguide span { position: absolute; left: 50%; transform: translate(-50%, -50%); background: var(--backdrop); color: var(--mute); font-size: 11px; padding: 0 6px; }
+.shell { position: relative; display: flex; align-items: stretch; height: 74px; box-sizing: border-box; padding: 0 6px; background: var(--b100); border: 1px solid var(--b300); border-radius: 16px; box-shadow: 0 10px 15px -3px #0005; max-width: 100%; overflow: hidden; flex-shrink: 1; }
+.form { display: flex; align-items: stretch; min-width: 0; }
+.shell.compact .form.full, .shell:not(.compact) .form.compact { display: none; }
+.div { width: 1px; background: var(--b300); margin: 12px 4px; flex-shrink: 0; }
+/* full cards */
+.card { flex: 0 1 auto; display: flex; flex-direction: column; justify-content: center; padding: 0 10px; border-radius: 12px; min-width: 0; box-sizing: border-box; }
+.card:hover { background: var(--b200); }
+.card .lr { display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 24px; white-space: nowrap; }
+.card .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--mute); }
+.card .sb { width: 24px; height: 24px; margin-right: -6px; border-radius: 8px; display: grid; place-items: center; color: color-mix(in oklab, var(--fg) 70%, transparent); font-size: 13px; }
+.card .sb svg { width: 14px; height: 14px; }
+.card .nm { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; height: 18px; }
+.card .mt { font-size: 11.5px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; height: 16px; }
+.card.layout .nm { display: flex; gap: 6px; align-items: center; justify-content: flex-start; contain: none; min-width: 0; }
+.card.layout .nm .lt { overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+.card.layout .nm svg { width: 16px; height: 16px; flex-shrink: 0; }
+.card.layout .nm .fa-caret-down { font-size: 9px; color: var(--mute); }
+.card.layout .nm { justify-content: center; }
+.lbtn { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 8px; }
+.lbtn svg { width: 20px; height: 20px; }
+.card.layout:hover .lbtn { background: var(--b300); }
+.card.ls .lr + .lr { margin-top: 2px; }
+.card.ls .nm { font-size: 12px; }
+.linkf { align-self: center; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex-shrink: 0; margin: 0 2px; }
+.on { background: color-mix(in oklab, var(--primary) 18%, transparent); color: var(--primary); }
+.tools { display: grid; grid-template-rows: 28px 28px; grid-auto-flow: column; grid-auto-columns: 28px; gap: 6px 2px; align-self: center; flex-shrink: 0; padding: 0 2px; }
+.ib { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: color-mix(in oklab, var(--fg) 80%, transparent); font-size: 15px; }
+.ib:hover { background: var(--b200); }
+.ib svg { width: 16px; height: 16px; }
+/* compact */
+.grp { display: grid; grid-template-rows: 28px 28px; grid-auto-columns: auto; gap: 6px 2px; align-self: center; flex-shrink: 0; }
+.ib.tall { grid-row: 1 / span 2; height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+.ib.tall .fa-caret-down { font-size: 8px; color: var(--mute); }
+.linkc { grid-row: 1 / span 2; width: 16px; height: 62px; border-radius: 6px; display: grid; place-items: center; font-size: 10px; }
+.empty { width: 28px; height: 28px; }
+.ghost { position: absolute; inset: 0; pointer-events: none; display: flex; align-items: stretch; padding: 0 6px; }
+.ghost [data-k] { visibility: hidden; }
+.frames { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.fr .cap { font-size: 12px; color: var(--mute-ink); margin-top: 4px; }
+.picker { background: var(--b100); border: 1px solid var(--b300); border-radius: 12px; padding: 6px; width: 220px; }
+.lrow { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; }
+.lrow.sel { background: color-mix(in oklab, var(--primary) 18%, transparent); color: var(--primary); font-weight: 600; }
+.lg { display: inline-grid; width: 20px; height: 20px; } .lg svg { width: 100%; height: 100%; }
+.glyphs { display: flex; gap: 22px; flex-wrap: wrap; }
+.gl { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--mute); }
+.lg.big { width: 40px; height: 40px; color: var(--fg); }
+@media (max-width: 760px) { .frames { grid-template-columns: 1fr; } .controls input[type=range] { width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Nav bar and metrics bar fit</h1>
+<p>Owner requests from 2026-11-22. The nav bar uses all the room left of the view tabs and collapses one thing at a time: the project chip first, then the branch chip, which keeps a fixed, smaller width until then. The CodeCharta logo keeps its size. The metrics bar shrinks only as far as its labels stay readable. Below that it folds into the compact bar, which has the same height; the cell icons fly to their new places while the bar narrows.</p>
+<div class="controls"><button id="theme">Toggle light / dark</button></div>
+
+<h2>1 · Nav bar: drag the window width</h2>
+<div class="controls">
+  <label>Window width <input type="range" id="navw" min="880" max="1920" value="1440"></label>
+  <span id="navwv"></span> <span class="stage-label" id="navstage"></span>
+</div>
+<div class="app" id="navapp"><div class="viewport" id="navvp"><div class="navwin" id="navwin">
+  <div class="nav">
+    <div class="nstart" id="nstart">
+      <a class="logo" title="CodeCharta website"><svg aria-label="CodeCharta" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 740"><defs><style>.cls-1{isolation:isolate;}.cls-2{opacity:0.14;mix-blend-mode:multiply;}.cls-3{fill:#55a8e4;}.cls-4{fill:#4588b9;}.cls-5{fill:#76c4fd;}.cls-6{fill:#2f99e8;}.cls-7{fill:#2478b6;}.cls-8{fill:#1b9cfc;}.cls-9{fill:#2782c6;}.cls-10{fill:#32a6fc;}.cls-11{fill:#43a2e9;}.cls-12{fill:#398ac7;}.cls-13{fill:#49b0fd;}.cls-14{fill:#4a93c7;}.cls-15{fill:#5fbafd;}</style></defs><g class="cls-1"><g id="cc_logo"><g id="logo"><g class="cls-1"><polygon class="cls-3" points="978.73 379.09 978.6 425.33 878.64 483.42 878.77 437.18 978.73 379.09"/><polygon class="cls-4" points="878.77 437.18 878.64 483.42 778.03 425.33 778.16 379.09 878.77 437.18"/><polygon class="cls-5" points="978.73 379.09 878.77 437.18 778.16 379.09 878.11 321 978.73 379.09"/></g><g class="cls-1"><polygon class="cls-6" points="747.13 173.04 746.8 288.65 646.84 346.74 647.16 231.13 747.13 173.04"/><polygon class="cls-7" points="647.16 231.13 646.84 346.74 546.22 288.65 546.55 173.04 647.16 231.13"/><polygon class="cls-8" points="747.13 173.04 647.16 231.13 546.55 173.04 646.51 114.95 747.13 173.04"/></g><g class="cls-1"><polygon class="cls-6" points="624.12 259.93 623.83 360.13 523.87 418.22 524.16 318.02 624.12 259.93"/><polygon class="cls-9" points="524.16 318.02 523.87 418.22 423.26 360.13 423.54 259.93 524.16 318.02"/><polygon class="cls-10" points="624.12 259.93 524.16 318.02 423.54 259.93 523.5 201.84 624.12 259.93"/></g><g class="cls-1"><polygon class="cls-11" points="739.91 349.58 739.69 426.65 639.73 484.74 639.94 407.67 739.91 349.58"/><polygon class="cls-12" points="639.94 407.67 639.73 484.74 539.11 426.65 539.33 349.58 639.94 407.67"/><polygon class="cls-13" points="739.91 349.58 639.94 407.67 539.33 349.58 639.29 291.49 739.91 349.58"/></g><g class="cls-1"><polygon class="cls-3" points="858.27 433.76 858.1 495.42 758.14 553.51 758.32 491.85 858.27 433.76"/><polygon class="cls-14" points="758.32 491.85 758.14 553.51 657.52 495.42 657.7 433.76 758.32 491.85"/><polygon class="cls-15" points="858.27 433.76 758.32 491.85 657.7 433.76 757.65 375.67 858.27 433.76"/></g><g class="cls-1"><polygon class="cls-3" points="592.66 475.37 592.53 521.62 492.57 579.71 492.7 533.46 592.66 475.37"/><polygon class="cls-4" points="492.7 533.46 492.57 579.71 391.95 521.62 392.09 475.37 492.7 533.46"/><polygon class="cls-5" points="592.66 475.37 492.7 533.46 392.09 475.37 492.04 417.28 592.66 475.37"/></g><g class="cls-1"><polygon class="cls-6" points="361.06 269.32 360.73 384.93 260.76 443.02 261.09 327.41 361.06 269.32"/><polygon class="cls-7" points="261.09 327.41 260.76 443.02 160.15 384.94 160.48 269.32 261.09 327.41"/><polygon class="cls-8" points="361.06 269.32 261.09 327.41 160.48 269.32 260.44 211.23 361.06 269.32"/></g><g class="cls-1"><polygon class="cls-6" points="238.04 356.21 237.76 456.41 137.8 514.5 138.08 414.3 238.04 356.21"/><polygon class="cls-9" points="138.08 414.3 137.8 514.5 37.18 456.41 37.47 356.21 138.08 414.3"/><polygon class="cls-10" points="238.04 356.21 138.08 414.3 37.47 356.21 137.43 298.12 238.04 356.21"/></g><g class="cls-1"><polygon class="cls-11" points="353.83 445.86 353.62 522.93 253.65 581.02 253.87 503.95 353.83 445.86"/><polygon class="cls-12" points="253.87 503.95 253.65 581.02 153.04 522.93 153.26 445.86 253.87 503.95"/><polygon class="cls-13" points="353.83 445.86 253.87 503.95 153.26 445.86 253.22 387.77 353.83 445.86"/></g><g class="cls-1"><polygon class="cls-3" points="472.2 530.05 472.02 591.71 372.07 649.79 372.24 588.13 472.2 530.05"/><polygon class="cls-14" points="372.24 588.13 372.07 649.79 271.45 591.7 271.63 530.04 372.24 588.13"/><polygon class="cls-15" points="472.2 530.05 372.24 588.13 271.63 530.04 371.58 471.96 472.2 530.05"/></g></g></g></g></svg></a>
+      <span class="ndiv"></span>
+      <span class="chip" id="proj" title="Project 'CodeChartaStudio', working folder 'codechartastudio'"><i class="fa-solid fa-layer-group"></i><span class="t">codechartastudio</span><i class="fa-solid fa-caret-down caret"></i></span>
+      <span class="chip" id="branch" title="Branch docs/studio-plans, map shows ad536f668"><i class="fa-solid fa-code-branch"></i><span class="t">docs/studio-plans</span><span class="cnt"><i class="fa-solid fa-arrow-up"></i>5</span><span class="dot" title="1 uncommitted change"></span><span class="badge">dirty</span><i class="fa-solid fa-caret-down caret"></i></span>
+    </div>
+    <div class="tabs"><span class="tab sel">Metric</span><span class="tab">Domain</span><span class="tab">Dependencies</span><span class="tab">History</span></div>
+    <div class="nend"><span class="gear"><i class="fa-solid fa-gear"></i></span></div>
+  </div>
+  <div class="navmap"></div>
+</div></div></div>
+<p class="note">Order as the window narrows: (1) the project name shortens with "…", down to 6 characters; (2) the project chip shows only its icon; (3) the branch chip, otherwise a fixed 18rem (288 px, was 22rem) whatever its text, narrows down to 9rem: the ↑↓ counts go first, then the branch name shortens; (4) the branch chip shows only its icon, with the badge as a dot on it. The map's commit (<code>@ ad536f668</code>) is no longer in the chip; it's in the dropdown ("Showing ad536f668 …") and in the <code>title</code>.</p>
+
+<h2>2 · Metrics bar: drag the free map width (or press Play)</h2>
+<div class="controls">
+  <label>Free map width <input type="range" id="mw" min="180" max="1000" value="1000"></label>
+  <span id="mwv"></span> <span class="stage-label" id="mstage"></span>
+  <button id="play">Play 1000 → 300 → 1000</button>
+  <label>Layout <select id="layoutsel"><option value="0">Squarified TreeMap</option><option value="1">StreetMap</option><option value="2">TreeMapStreet</option><option value="3">Sunburst</option><option value="4">Radial TreeMap</option></select></label>
+</div>
+<div class="app" id="mapp">
+  <div class="mstage" id="mstagebox">
+    <div class="side l" id="sl"></div><div class="side r" id="sr"></div>
+    <div class="free" id="free"><div class="freeguide"><span id="freelabel"></span></div>
+      <div class="shell" id="shell">
+        <div class="form full" id="full"></div>
+        <div class="form compact" id="compact"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note">The full bar has two stages and no steps: names shorten with "…" continuously, but never below 12 characters ("complexity" always fits), and labels and icons always stay whole. Layout is always its glyph. When the full bar can't get narrower without cutting a name below 12 characters or a label, the compact bar takes over (it switches back once there is 32 px more room than that). Both forms are 74 px tall, so nothing above the bar moves. The switch takes 240 ms: the bar's width animates, each icon flies from its card to its slot, and the text fades. With reduced motion it switches instantly.</p>
+
+<h2>3 · Stills</h2>
+<div class="frames" id="stills"></div>
+</main>
+
+<script>
+const G = {
+  area: '<path d="M10 4.5l8.5 4.5-8.5 4.5-8.5-4.5z" fill="currentColor" fill-opacity=".4"/><path d="M1.5 9v3l8.5 4.5 8.5-4.5V9M10 13.5v3"/>',
+  height: '<path d="M7.5 5.5l5-2.6 5 2.6-5 2.6z"/><path d="M7.5 5.5v9.4l5 2.6 5-2.6V5.5M12.5 8.1v9.4"/><path d="M3.5 17.5V3M1.3 5.2L3.5 3l2.2 2.2"/>',
+  layout: '<rect x="2.5" y="2.5" width="15" height="15" rx="1.2"/><path d="M11 2.5v15M2.5 10h8.5M11 12.5h6.5M6.5 10v7.5M14.5 2.5v10"/>',
+  street: '<path d="M1.5 10h17M10 10v8" stroke-width="2"/><g fill="currentColor" stroke="none"><rect x="2.5" y="4.5" width="3" height="4" rx=".5"/><rect x="6.5" y="2.5" width="3" height="6" rx=".5"/><rect x="11" y="5" width="3" height="3.5" rx=".5"/><rect x="15" y="3.5" width="3" height="5" rx=".5"/><rect x="3" y="11.5" width="5.5" height="3.5" rx=".5"/><rect x="11.5" y="11.5" width="3" height="5.5" rx=".5"/><rect x="15.5" y="11.5" width="2.5" height="3" rx=".5"/></g>',
+  treemapstreet: '<path d="M1.5 10h17" stroke-width="2"/><rect x="2.5" y="2.5" width="15" height="6" rx="1"/><path d="M9 2.5v6M13 2.5v6M13 5.5h4.5"/><rect x="2.5" y="11.5" width="7" height="6" rx="1"/><path d="M6 11.5v6"/><rect x="11.5" y="11.5" width="6" height="4" rx="1"/>',
+  sunburst: '<circle cx="10" cy="10" r="2.6"/><circle cx="10" cy="10" r="5.6"/><path d="M10 7.4V4.4M12.3 11.3l2.6 1.5M7.7 11.3l-2.6 1.5"/><path d="M10 1.4a8.6 8.6 0 0 1 8.3 10.8M16.4 15.8a8.6 8.6 0 0 1-9.6 2.2M3.9 16a8.6 8.6 0 0 1-1.6-9.6" stroke-width="1.8"/>',
+  radial: '<circle cx="10" cy="10" r="3"/><circle cx="10" cy="10" r="8.5"/><path d="M10 7V1.5M12.6 11.5l4.8 2.8M7.4 11.5l-4.8 2.8"/><g stroke-width="0.9"><circle cx="10" cy="10" r="4.6"/><path d="M14 7.7l3.4-2M10 14.6v3.9M4.3 6.7l-1.6-1"/><path d="M15.7 6.7a6.6 6.6 0 0 1 0 6.6M4.3 13.3a6.6 6.6 0 0 1 5.7-9.9"/></g>'
+};
+const svg = k => `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">${G[k]}</svg>`;
+const I = { area: svg('area'), height: svg('height'), color: '<i class="fa-solid fa-palette"></i>', edges: '<i class="fa-solid fa-circle-nodes"></i>',
+  labels: '<i class="fa-solid fa-tags"></i>', scenarios: '<i class="fa-regular fa-bookmark"></i>', link: '<i class="fa-solid fa-link"></i>', layout: svg('layout') };
+const TOOLS = ['fa-compass', 'fa-lightbulb', 'fa-camera', 'fa-list'];
+const k = (key, html) => `<span data-k="${key}" style="display:inline-grid;place-items:center">${html}</span>`;
+
+const LAYOUTS = [['layout', 'Squarified TreeMap'], ['street', 'StreetMap'], ['treemapstreet', 'TreeMapStreet'], ['sunburst', 'Sunburst'], ['radial', 'Radial TreeMap']];
+let currentLayout = 0;
+function layoutGlyph() { return svg(LAYOUTS[currentLayout][0]); }
+function layoutTip() { return `Layout · ${LAYOUTS[currentLayout][1]}`; }
+function fullHtml() {
+  const card = (key, label, name, meta) => `<div class="card"><div class="lr"><span class="lbl">${label}</span><span class="sb" title="${label} settings">${k(key, I[key])}</span></div><div class="nm">${name}</div><div class="mt">${meta}</div></div>`;
+  return `<div class="card layout"><div class="lr"><span class="lbl">Layout</span></div><div class="nm" title="${layoutTip()}"><span class="lbtn" data-layout-glyph>${k('layout', layoutGlyph())}<i class="fa-solid fa-caret-down"></i></span></div><div class="mt">&nbsp;</div></div>
+  <span class="div"></span>${card('area', 'Area', 'rloc', 'Σ 408,534')}${card('height', 'Height', 'sonar_complexity', 'Σ 48,431')}
+  <span class="linkf on">${k('link', I.link)}</span>${card('color', 'Color', 'sonar_complexity', 'Σ 48,431')}${card('edges', 'Edges', 'avgCommits', '870 / 912')}
+  <span class="div"></span><div class="card ls"><div class="lr"><span class="lbl">Labels</span><span class="sb">${k('labels', I.labels)}</span></div><div class="lr"><span class="lbl">Scenarios</span><span class="sb">${k('scenarios', I.scenarios)}</span></div><div class="nm">7 scenarios</div></div>
+  <span class="div"></span><div class="tools">${TOOLS.map((t, n) => `<span class="ib">${k(`t${n}`, `<i class="fa-solid ${t}"></i>`)}</span>`).join('')}</div>`;
+}
+function compactHtml() {
+  const b = (key, c, r) => `<span class="ib" style="grid-column:${c};grid-row:${r}">${k(key, I[key])}</span>`;
+  return `<div class="grp"><span class="ib tall" title="${layoutTip()}" data-layout-glyph>${k('layout', layoutGlyph())}<i class="fa-solid fa-caret-down"></i></span></div><span class="div"></span>
+  <div class="grp">${b('area', 1, 1)}${b('edges', 1, 2)}${b('height', 2, 1)}${b('color', 2, 2)}<span class="linkc on" style="grid-column:3">${k('link', I.link)}</span></div><span class="div"></span>
+  <div class="grp">${b('labels', 1, 1)}${b('scenarios', 1, 2)}</div><span class="div"></span>
+  <div class="tools">${TOOLS.map((t, n) => `<span class="ib">${k(`t${n}`, `<i class="fa-solid ${t}"></i>`)}</span>`).join('')}</div>`;
+}
+
+/* ---------- nav fit ---------- */
+const navw = document.getElementById('navw'), nstart = document.getElementById('nstart'), proj = document.getElementById('proj'), branch = document.getElementById('branch');
+const projT = proj.querySelector('.t');
+const BRANCH_FULL = 288, BRANCH_MIN = 144;
+const MIN_TEXT = 6 * 7.6 + 12; // about 6 characters plus "…"
+function fitNav() {
+  const W = +navw.value;
+  const win = document.getElementById('navwin');
+  win.style.width = `${W}px`;
+  document.getElementById('navwv').textContent = `${W} px`;
+  nstart.classList.add('measuring');
+  for (const c of [proj, branch]) { c.classList.remove('icon', 'nocnt'); }
+  projT.style.maxWidth = ''; branch.style.width = '';
+  const over = () => nstart.scrollWidth - nstart.clientWidth;
+  let stage = 'everything fits (branch chip fixed at 288 px)';
+  if (over() > 0) {
+    const shrink = Math.min(over(), projT.scrollWidth - MIN_TEXT);
+    if (shrink > 0) { projT.style.maxWidth = `${projT.scrollWidth - shrink}px`; stage = '1 · project name shortens'; }
+    if (over() > 0) { projT.style.maxWidth = ''; proj.classList.add('icon'); stage = '2 · project icon only'; }
+    if (over() > 0) {
+      const narrowed = Math.max(BRANCH_MIN, BRANCH_FULL - over());
+      branch.style.width = `${narrowed}px`; branch.classList.add('nocnt'); stage = `3 · branch chip narrows (${narrowed} px)`;
+    }
+    if (over() > 0) { branch.style.width = ''; branch.classList.add('icon'); stage = '4 · branch icon only'; }
+  }
+  void nstart.offsetWidth;
+  nstart.classList.remove('measuring');
+  document.getElementById('navstage').textContent = stage;
+}
+navw.addEventListener('input', fitNav);
+
+/* ---------- metrics bar fit ---------- */
+const shell = document.getElementById('shell'), full = document.getElementById('full'), compact = document.getElementById('compact');
+full.innerHTML = fullHtml(); compact.innerHTML = compactHtml();
+const mw = document.getElementById('mw');
+const HYST = 32, DURATION = 240;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let minFull = 0, naturalFull = 0, _animating = false;
+const NAME_KEEP = 12;
+function nameMinimum(card) {
+  const name = card.querySelector('.nm');
+  if (card.classList.contains('layout')) { return card.querySelector('.lbtn').offsetWidth; }
+  if (!name || card.classList.contains('ls')) { return 0; }
+  const probe = name.cloneNode(true);
+  const text = name.textContent.trim();
+  probe.textContent = text.length > NAME_KEEP ? `${text.slice(0, NAME_KEEP)}…` : text;
+  probe.style.cssText = 'position:absolute;visibility:hidden;width:max-content';
+  card.appendChild(probe); const w = probe.offsetWidth; probe.remove();
+  const meta = card.querySelector('.mt');
+  meta.style.width = 'max-content'; const metaWidth = meta.offsetWidth; meta.style.width = '';
+  return Math.max(w, metaWidth);
+}
+function setCardMinimums(root = full) {
+  for (const card of root.querySelectorAll('.card')) {
+    const rows = [...card.querySelectorAll('.lr')];
+    const widest = Math.max(nameMinimum(card), ...rows.map(r => { r.style.width = 'max-content'; const w = r.offsetWidth; r.style.width = ''; return w; }));
+    card.style.minWidth = `${Math.ceil(widest) + 22}px`;
+  }
+}
+function measureMinFull() {
+  setCardMinimums();
+  const was = shell.classList.contains('compact');
+  shell.classList.remove('compact'); shell.style.maxWidth = 'none'; shell.style.width = '1px';
+  minFull = full.scrollWidth + 14;
+  shell.style.width = 'max-content'; naturalFull = shell.offsetWidth;
+  shell.style.width = ''; shell.style.maxWidth = '';
+  if (was) { shell.classList.add('compact'); }
+}
+function layoutStage(freeW) {
+  const box = document.getElementById('mstagebox');
+  const outer = document.getElementById('mapp').clientWidth;
+  const side = Math.max(120, (outer - freeW - 32) / 2);
+  box.style.width = `${freeW + 2 * side + 32}px`;
+  document.getElementById('mapp').scrollLeft = (freeW + 2 * side + 32 - outer) / 2;
+  document.getElementById('sl').style.width = `${side}px`; document.getElementById('sr').style.width = `${side}px`;
+  const free = document.getElementById('free'); free.style.left = `${side + 16}px`; free.style.right = `${side + 16}px`;
+  document.getElementById('freelabel').textContent = `${Math.round(free.clientWidth)} px free`;
+  return free.clientWidth;
+}
+function iconRects() { const m = {}; for (const e of shell.querySelectorAll('[data-k]')) { if (e.offsetParent) { m[e.dataset.k] = e.getBoundingClientRect(); } } return m; }
+function setCompact(on) {
+  if (shell.classList.contains('compact') === on) { return; }
+  if (reduce) { shell.classList.toggle('compact', on); return; }
+  for (const a of shell.getAnimations({ subtree: true })) { a.finish(); }
+  for (const g of shell.querySelectorAll('.ghost')) { g.remove(); }
+  _animating = true;
+  const before = iconRects();
+  const w0 = shell.getBoundingClientRect().width;
+  const ghost = (on ? full : compact).cloneNode(true);
+  ghost.className = 'ghost'; ghost.style.display = 'flex';
+  shell.classList.toggle('compact', on);
+  shell.style.width = 'max-content'; const w1 = Math.min(shell.getBoundingClientRect().width, shell.parentElement.clientWidth); shell.style.width = '';
+  shell.appendChild(ghost);
+  ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: DURATION * .35, easing: 'ease-out', fill: 'forwards' }).onfinish = () => ghost.remove();
+  shell.animate([{ width: `${w0}px` }, { width: `${w1}px` }], { duration: DURATION, easing: 'cubic-bezier(.2,.8,.2,1)' }).onfinish = () => { _animating = false; };
+  const form = on ? compact : full;
+  const after = {}; for (const e of form.querySelectorAll('[data-k]')) { after[e.dataset.k] = e; }
+  const centre = r => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+  // final positions: the shell is centred, so measure the icons at the final width
+  shell.style.width = `${w1}px`;
+  for (const [key, el] of Object.entries(after)) {
+    const a = before[key]; if (!a) { continue; }
+    const b = el.getBoundingClientRect(), ca = centre(a), cb = centre(b);
+    el.animate([{ transform: `translate(${ca.x - cb.x}px, ${ca.y - cb.y}px)` }, { transform: 'none' }], { duration: DURATION, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
+  shell.style.width = '';
+  for (const t of form.querySelectorAll('.nm, .mt, .lbl, .lt, .caret, .fa-caret-down')) { t.animate([{ opacity: 0 }, { opacity: 0, offset: .4 }, { opacity: 1 }], { duration: DURATION, easing: 'ease-out' }); }
+}
+function fitBar() {
+  const freeW = layoutStage(+mw.value);
+  document.getElementById('mwv').textContent = `${mw.value} px`;
+  const isCompact = shell.classList.contains('compact');
+  if (!isCompact && freeW < minFull) { setCompact(true); }
+  else if (isCompact && freeW >= minFull + HYST) { setCompact(false); }
+  const c = shell.classList.contains('compact');
+  document.getElementById('mstage').textContent = c ? `compact (full needs ${minFull} px, back at ${minFull + HYST})` : (freeW < naturalFull ? `full, names shortening (natural ${naturalFull} px)` : 'full, everything readable');
+}
+mw.addEventListener('input', fitBar);
+document.getElementById('play').addEventListener('click', () => {
+  const seq = []; for (let v = 1000; v >= 300; v -= 6) { seq.push(v); } for (let v = 300; v <= 1000; v += 6) { seq.push(v); }
+  let n = 0; const tick = () => { if (n >= seq.length) { return; } mw.value = seq[n++]; fitBar(); setTimeout(tick, 22); }; tick();
+});
+document.getElementById('theme').addEventListener('click', () => { for (const a of document.querySelectorAll('.app')) { a.classList.toggle('light'); } });
+
+/* ---------- stills ---------- */
+function still(freeW, cap, compactForm) {
+  const html = `<div class="fr"><div class="app"><div class="mstage" style="height:120px"><div class="free" style="left:0;right:0;padding-bottom:20px"><div class="shell ${compactForm ? 'compact' : ''}" style="max-width:${freeW}px"><div class="form full">${fullHtml()}</div><div class="form compact">${compactHtml()}</div></div></div></div></div><div class="cap">${cap}</div></div>`;
+  return html;
+}
+function selectLayout(index) {
+  currentLayout = index;
+  document.getElementById('layoutsel').value = String(index);
+  for (const holder of document.querySelectorAll('[data-layout-glyph]')) {
+    holder.querySelector('[data-k="layout"]').innerHTML = layoutGlyph();
+    (holder.closest('.nm') ?? holder).title = layoutTip();
+  }
+  for (const row of document.querySelectorAll('.lrow')) { row.classList.toggle('sel', +row.dataset.index === index); }
+}
+function layoutPicker() {
+  const rows = LAYOUTS;
+  const list = rows.map(([key, name], n) => `<div class="lrow${n === currentLayout ? ' sel' : ''}" data-index="${n}" role="button" tabindex="0"><span class="lg">${svg(key)}</span>${name}</div>`).join('');
+  const glyphs = rows.map(([key, name]) => `<div class="gl"><span class="lg big">${svg(key)}</span><span>${name}</span></div>`).join('');
+  return `<div class="fr"><div class="app"><div class="mstage" style="height:auto;padding:16px;display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap"><div class="picker">${list}</div><div class="glyphs">${glyphs}</div></div></div><div class="cap">Layout cell: always its glyph and a caret, the name in the tooltip ("Layout · Squarified TreeMap"). The picker lists every layout with its glyph; click one and every bar on this page switches to its glyph. The five glyphs are the existing <code>cc-layout-glyph</code> ones.</div></div>`;
+}
+function initStills() {
+  const s = document.getElementById('stills');
+  s.innerHTML = still(1000, 'full bar, everything readable', false) + still(minFull, `full bar at its minimum (${minFull} px): names keep at least 12 characters, labels whole`, false) +
+    still(minFull - 10, `compact bar (below ${minFull} px), same 74 px height`, true) + still(236, '236 px free (900 px window, both panels open)', true);
+  for (const form of s.querySelectorAll('.form.full')) { setCardMinimums(form); }
+  s.insertAdjacentHTML('beforeend', layoutPicker());
+  for (const row of s.querySelectorAll('.lrow')) { row.addEventListener('click', () => selectLayout(+row.dataset.index)); }
+}
+document.getElementById('layoutsel').addEventListener('change', event => selectLayout(+event.target.value));
+document.fonts.ready.then(() => { fitNav(); measureMinFull(); fitBar(); initStills(); });
+window.addEventListener('resize', () => { fitNav(); fitBar(); });
+</script>
+</body>
+</html>

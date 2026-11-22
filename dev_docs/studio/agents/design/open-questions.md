@@ -110,6 +110,11 @@ answer that differs means the named file is changed, nothing else.
     gets the compact icon form; the domain bar and the dependency bar keep their behaviour, because
     their cells are few and narrower. *Alternative:* give them the same compact form with their own
     icons. Applied in `02-themes.md` "T4 compact bar", "Other bars".
+16. **W1's width now follows its content?** (owner request 2026-11-22: drop `@ <sha>` from the branch
+    chip and make it smaller.) *Default (designer):* W1 as wide as its content. *Alternative:* keep
+    OD2a's fixed width, only smaller.
+    - *Answer (owner, 2026-11-22):* keep the fixed width, just smaller (the alternative). Applied: W1
+      is a fixed 18rem (was 22rem), narrowed only by the nav bar fit (`05-snapshots.md` W1, principles §3).
 
 ## Area 01 — desktop tools
 
