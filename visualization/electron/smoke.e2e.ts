@@ -1,6 +1,6 @@
 import { execFile, execFileSync, spawn } from "node:child_process"
 import { once } from "node:events"
-import { access, copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { access, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { promisify } from "node:util"
@@ -11,6 +11,7 @@ const BOOT_TIMEOUT_MS = 60_000
 const SECOND_INSTANCE_TIMEOUT_MS = 20_000
 const DOCTOR_TIMEOUT_MS = 60_000
 const TOOL_COUNT = 5
+const CORE_PROCESS_NAME = "codecharta-core"
 const SAMPLE_MAP = join(__dirname, "..", "app", "codeCharta", "assets", "sample1.cc.json")
 const MAP_CHUNK_BYTES = 16 * 1024 * 1024
 const GZIP_MAGIC_BYTES = [31, 139]
@@ -21,16 +22,21 @@ const BRIDGE_KEYS = [
     "cancel",
     "chooseStoreRoot",
     "chooseToolExecutable",
+    "controlWindow",
     "openDroppedFile",
     "pickFile",
     "pickFolder",
     "protocolVersion",
+    "reopenWindow",
     "request",
     "restartCore",
     "reveal",
     "setColorScheme",
+    "setTitleBarColors",
+    "setUseAppTitleBar",
     "setWindowBackground",
-    "subscribe"
+    "subscribe",
+    "windowState"
 ]
 
 // CI runners have no GPU, and Electron no longer falls back to software WebGL by itself: without this
@@ -51,6 +57,16 @@ async function launchDesktopApp(extraEnv: Record<string, string> = {}) {
 async function waitForBoot(page: Page) {
     await page.locator("cc-code-charta > *").first().waitFor({ state: "attached", timeout: BOOT_TIMEOUT_MS })
     await page.locator("#loading-gif-file").waitFor({ state: "hidden", timeout: BOOT_TIMEOUT_MS })
+}
+
+async function coreProcessIds() {
+    if (process.platform !== "linux") {
+        return "read from /proc on Linux only"
+    }
+    const shellPid = desktopApp.process().pid
+    const childPids = (await readFile(`/proc/${shellPid}/task/${shellPid}/children`, "utf8")).trim().split(" ")
+    const childNames = await Promise.all(childPids.map(pid => readFile(`/proc/${pid}/comm`, "utf8")))
+    return childPids.filter((_pid, index) => childNames[index].trim() === CORE_PROCESS_NAME).join(" ")
 }
 
 async function bootedWindow(extraEnv: Record<string, string> = {}) {
@@ -91,6 +107,32 @@ test("should show no menu bar outside macOS", async () => {
 
     // Assert
     expect(hasApplicationMenu).toBe(process.platform === "darwin")
+})
+
+test("should open the window with CodeCharta's title bar once the setting is saved and reopen it with the core running", async () => {
+    // Arrange
+    const firstPage = await bootedWindow()
+    const corePids = await coreProcessIds()
+    await firstPage.evaluate(() => (window as any).codeChartaDesktop.setUseAppTitleBar(true))
+
+    // Act
+    const reopened = desktopApp.waitForEvent("window")
+    // The page usually closes before the call can answer.
+    const reopenCall = firstPage.evaluate(() => (window as any).codeChartaDesktop.reopenWindow()).catch(() => null)
+    const page = await reopened
+    await reopenCall
+    await waitForBoot(page)
+    const state = await page.evaluate(() => (window as any).codeChartaDesktop.windowState())
+
+    // Assert
+    expect(desktopApp.windows()).toHaveLength(1)
+    expect(state.value).toMatchObject({ usesAppTitleBar: true, savedUseAppTitleBar: true })
+    expect(corePids).not.toBe("")
+    expect(await coreProcessIds()).toBe(corePids)
+    await expect(page.locator(".navbar.cc-window-drag")).toBeVisible()
+    if (process.platform === "linux") {
+        await expect(page.getByRole("button", { name: "Minimize" })).toBeVisible()
+    }
 })
 
 test("should keep Node out of the page", async () => {

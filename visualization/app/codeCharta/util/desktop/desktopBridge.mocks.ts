@@ -1,6 +1,6 @@
 import type { ErrorCode } from "../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
-import type { BridgeMethod, CoreState, DesktopBridge } from "./desktopBridge"
+import type { BridgeMethod, CoreState, DesktopBridge, WindowCommand, WindowState } from "./desktopBridge"
 import { fakeAnalysisBackend } from "./fakeBridge/analysisBackend.mocks"
 import { fakeCompareBackend } from "./fakeBridge/compareBackend.mocks"
 import { fakeCompareSidesBackend } from "./fakeBridge/compareSidesBackend.mocks"
@@ -82,6 +82,17 @@ export function createFakeDesktopBridge(
     const handlersByEvent = new Map<string, Set<(payload: unknown) => void>>()
     const calls: FakeCall[] = []
     let coreState: CoreState = seed.coreState ?? { state: "ready", message: null }
+    const windowState: WindowState = {
+        platform: "linux",
+        usesAppTitleBar: false,
+        savedUseAppTitleBar: false,
+        isMaximized: false,
+        isMaximizable: true,
+        isFullScreen: false,
+        isFocused: true,
+        buttonOrder: ["minimize", "maximize", "close"],
+        ...seed.windowState
+    }
     let createdIds = 0
 
     const succeed = (value: unknown): FakeAnswer => ({ ok: true, value })
@@ -174,6 +185,19 @@ export function createFakeDesktopBridge(
         return recordAndAnswer("openDroppedFile", "openDroppedFile", () => answerFromBackend("snapshots.pickImportFile", {}), file)
     }
 
+    function setUseAppTitleBar(enabled: boolean) {
+        windowState.savedUseAppTitleBar = enabled
+        return recordAndAnswer("setUseAppTitleBar", "setUseAppTitleBar", () => succeed(null), enabled)
+    }
+
+    function controlWindow(command: WindowCommand) {
+        if (command === "toggleMaximize" && windowState.isMaximizable) {
+            windowState.isMaximized = !windowState.isMaximized
+            emit("shell.windowState", { ...windowState })
+        }
+        return recordAndAnswer("controlWindow", "controlWindow", () => succeed(null), command)
+    }
+
     return {
         calls,
         emit,
@@ -201,6 +225,11 @@ export function createFakeDesktopBridge(
         reveal: answeredWithNull("reveal"),
         setWindowBackground: answeredWithNull("setWindowBackground"),
         setColorScheme: answeredWithNull("setColorScheme"),
-        restartCore: answeredWithNull("restartCore")
+        restartCore: answeredWithNull("restartCore"),
+        windowState: () => recordAndAnswer("windowState", "windowState", () => succeed({ ...windowState })),
+        controlWindow,
+        setUseAppTitleBar,
+        reopenWindow: answeredWithNull("reopenWindow"),
+        setTitleBarColors: answeredWithNull("setTitleBarColors")
     } as FakeDesktopBridge
 }

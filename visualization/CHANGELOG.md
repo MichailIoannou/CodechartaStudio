@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **Analysis batches and clean-up**: the desktop app analyses the last commits of a branch or every tag in one go, shows how much space a project's analyses take, and moves single or old analyses to the recycle bin.
 - **Compare commits**: in the desktop app, compare two commits, branches or tags of a project folder or of two of its folders, a commit with an analysed working tree or an imported map, or a pull or merge request opened by its number, picked in the Compare dialog, from a recent comparison, from the History's menus or from the snapshots dialog, either from where a branch left its target or tip with tip; a side without an analysis can be analysed first or shown by its nearest analysis, a compact chip in the nav bar names both sides, marks a stale side with a dot and opens the details, and fetched pull requests can be removed again from a folder's menu.
 - **Changed files**: while comparing, the explorer lists the files that changed and can grey out everything else, and the inspector names the git change of the selected file.
+- **One top bar**: the desktop settings can replace the system title bar with CodeCharta's own, so the window buttons sit in the nav bar and the window moves by its empty space.
 
 ### Changed
 

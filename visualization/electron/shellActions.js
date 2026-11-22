@@ -142,5 +142,6 @@ module.exports = {
     pickPath,
     readShellSettings,
     runAction,
-    showInFileManager
+    showInFileManager,
+    writeShellSetting
 }

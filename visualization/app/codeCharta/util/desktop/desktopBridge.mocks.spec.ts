@@ -108,6 +108,25 @@ describe("createFakeDesktopBridge", () => {
         expect(chosen).toEqual({ ok: true, value: null })
     })
 
+    it("should follow the title bar setting and the maximize button in its window state", async () => {
+        // Arrange
+        const bridge = createFakeDesktopBridge({ windowState: { usesAppTitleBar: true } })
+        const announced: unknown[] = []
+        bridge.subscribe("shell.windowState", state => announced.push(state.isMaximized))
+
+        // Act
+        await bridge.setUseAppTitleBar(false)
+        await bridge.controlWindow("toggleMaximize")
+        const state = await bridge.windowState()
+
+        // Assert
+        expect(state).toEqual({
+            ok: true,
+            value: expect.objectContaining({ usesAppTitleBar: true, savedUseAppTitleBar: false, isMaximized: true })
+        })
+        expect(announced).toEqual([true])
+    })
+
     it("should create and list a project", async () => {
         // Arrange
         const bridge = createFakeDesktopBridge({ pickedFolders: [aPickedFolder("billing")], now: NOW })
