@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } = require("electron")
+const { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } = require("electron")
 const { spawn } = require("node:child_process")
 const fs = require("node:fs")
 const path = require("node:path")
@@ -302,6 +302,11 @@ function stopCoreBeforeQuit(event) {
     coreClient.stop().finally(() => app.quit())
 }
 
+function applyApplicationMenu() {
+    const template = policy.applicationMenuTemplate(process.platform)
+    Menu.setApplicationMenu(template ? Menu.buildFromTemplate(template) : null)
+}
+
 applyUserDataOverride()
 
 if (app.requestSingleInstanceLock()) {
@@ -309,6 +314,7 @@ if (app.requestSingleInstanceLock()) {
     app.enableSandbox()
     registerIpcHandlers()
     app.whenReady().then(() => {
+        applyApplicationMenu()
         startCore()
         createWindow()
         app.on("activate", () => {

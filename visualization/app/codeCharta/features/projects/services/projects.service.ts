@@ -36,6 +36,8 @@ export interface NewProjectRequest {
 export interface FolderChoice {
     projectId: string
     folderId: string
+    /** Without an analysis to show, the view stays instead of turning to the project overview. */
+    staysOnView?: boolean
 }
 
 @Injectable({ providedIn: "root" })
@@ -164,7 +166,7 @@ export class ProjectsService {
         return Promise.resolve(folder && snapshot ? this.toLoad([{ folder, snapshot }]) : [])
     }
 
-    async showWorkingFolder(): Promise<void> {
+    async showWorkingFolder(staysOnView = false): Promise<void> {
         const folder = this.workingFolder()
         for (const snapshot of folder ? this.candidatesFor(folder) : []) {
             const result = await this.loadFilesUseCase.loadProjectSnapshots(this.toLoad([{ folder, snapshot }]))
@@ -172,7 +174,7 @@ export class ProjectsService {
                 return
             }
         }
-        this.showNothing()
+        this.showNothing(staysOnView)
     }
 
     async reloadAfterReset(): Promise<void> {
@@ -295,7 +297,7 @@ export class ProjectsService {
             await this.readProject(choice.projectId)
         }
         await this.rememberView({ workingFolderId: choice.folderId })
-        await this.showWorkingFolder()
+        await this.showWorkingFolder(choice.staysOnView)
     }
 
     private async readStoreStatus(): Promise<void> {
@@ -328,10 +330,12 @@ export class ProjectsService {
         this.showNothing()
     }
 
-    private showNothing(): void {
+    private showNothing(staysOnView = false): void {
         this.shown.set(null)
         this.loadFilesUseCase.unloadAllFiles()
-        this.showOverview()
+        if (!staysOnView) {
+            this.showOverview()
+        }
     }
 
     private candidatesFor(folder: ProjectFolder): SnapshotSummary[] {

@@ -1,5 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, inject, viewChild } from "@angular/core"
-import { ColumnResizeHandleDirective, PANEL_ISLAND_MARGIN_PX, publishBarInset, registerSidePanel } from "../../../shared/facade"
+import {
+    COLLAPSED_STRIP_WIDTH_PX,
+    ColumnResizeHandleDirective,
+    PANEL_ISLAND_MARGIN_PX,
+    publishBarInset,
+    registerSidePanel
+} from "../../../shared/facade"
 import { EXPLORER_CAPABILITIES } from "../../explorerCapabilities"
 import { EXPLORER_METRIC_RULES } from "../../explorerMetricRules.port"
 import { ExplorerCollapseService } from "../../services/explorerCollapse.service"
@@ -13,8 +19,6 @@ import { ExplorerSortControlComponent } from "../explorerSortControl/explorerSor
 import { ExplorerTreeComponent } from "../explorerTree/explorerTree.component"
 import { MetricRuleEditorComponent } from "../metricRuleEditor/metricRuleEditor.component"
 import { RulesPopoverComponent } from "../rulesPopover/rulesPopover.component"
-
-export const COLLAPSED_STRIP_WIDTH_PX = 300
 
 @Component({
     selector: "cc-sidebar-explorer",

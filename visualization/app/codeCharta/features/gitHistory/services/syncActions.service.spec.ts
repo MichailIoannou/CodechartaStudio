@@ -1,3 +1,4 @@
+import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import type { GitLocalBranch } from "../../../model/coreApi/GitLocalBranch"
 import type { GitUpstream } from "../../../model/coreApi/GitUpstream"
@@ -7,6 +8,7 @@ import { ToastService } from "../../shared/facade"
 import { aLocalBranch, aLogCommit, anErrorPayload, anUpstream, aRefs, aRemoteBranch, aRepositoryInfo, aStatusOn } from "./gitApi.mocks"
 import { GitConfirmationService } from "./gitConfirmation.service"
 import { provideGitHistory, settleGit } from "./gitHistoryTestBed.mocks"
+import { HistoryNavigation } from "./historyNavigation.service"
 import { SyncActionsService } from "./syncActions.service"
 
 const API = { projectId: "p-billing", folderId: "f-api" }
@@ -37,8 +39,11 @@ describe("SyncActionsService", () => {
     let bridge: FakeDesktopBridge
     let confirmations: GitConfirmationService
 
+    const history = { isShown: signal(false), open: jest.fn() }
+
     async function createService(seed: FakeDesktopSeed) {
         bridge = provideGitHistory(seed, BILLING).bridge
+        TestBed.overrideProvider(HistoryNavigation, { useValue: history })
         confirmations = TestBed.inject(GitConfirmationService)
         const service = TestBed.inject(SyncActionsService)
         await settleGit()
@@ -73,6 +78,8 @@ describe("SyncActionsService", () => {
 
     afterEach(() => {
         jest.clearAllTimers()
+        history.isShown.set(false)
+        history.open.mockClear()
     })
 
     describe("pull", () => {
@@ -149,24 +156,54 @@ describe("SyncActionsService", () => {
             expect(writesOf("git.pull")).toEqual([{ repo: API, mode: "merge" }])
         })
 
-        it("should count the conflicted files when a pull stops on conflicts", async () => {
-            // Arrange
+        async function pullIntoConflicts(): Promise<void> {
             const service = await createService(seedOn(tracking(2, 3), { pullConflicts: ["src/a.ts", "src/b.ts"] }))
-
-            // Act
             const pulling = service.pull()
             await settleGit()
             confirmations.pick("merge")
             await answerEach()
             await pulling
+        }
+
+        it("should count the conflicted files and lead to the History when a pull outside it stops on conflicts", async () => {
+            // Arrange
+            await pullIntoConflicts()
+
+            // Act
+            toasts()[0].action?.run()
 
             // Assert
             expect(toasts()).toEqual([
                 expect.objectContaining({
-                    text: "Git stopped on conflicts in 2 files. The notice above the list says how to finish or abort.",
+                    text: "Git stopped on conflicts in 2 files. Finish or abort the merge in the History.",
                     severity: "error"
                 })
             ])
+            expect(toasts()[0].action?.label).toBe("Open History")
+            expect(history.open).toHaveBeenCalledTimes(1)
+        })
+
+        it("should raise no toast when a pull stops on conflicts while the History is shown", async () => {
+            // Arrange
+            history.isShown.set(true)
+
+            // Act
+            await pullIntoConflicts()
+
+            // Assert
+            expect(toasts()).toEqual([])
+        })
+
+        it("should not pull while a merge is unfinished", async () => {
+            // Arrange
+            const merging = aStatusOn("feature/x", { upstream: tracking(0, 1), operationInProgress: "merge" })
+            const service = await createService(seedOn(tracking(0, 1), { status: merging }))
+
+            // Act
+            await service.pull()
+
+            // Assert
+            expect(writesOf("git.pull")).toEqual([])
         })
 
         it("should name the remote when a pull cannot reach it", async () => {

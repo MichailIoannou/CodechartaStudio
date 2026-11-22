@@ -2,6 +2,7 @@ const { describe, test } = require("node:test")
 const assert = require("node:assert/strict")
 const path = require("node:path")
 const {
+    applicationMenuTemplate,
     describeTrustedPage,
     isRendererEvent,
     isComposedMethod,
@@ -464,5 +465,31 @@ describe("dropped files", () => {
 
         // Assert
         assert.deepEqual(accepted, [true, true, false, false, false])
+    })
+})
+
+describe("application menu", () => {
+    test("should leave Windows without a menu bar", () => {
+        // Act
+        const template = applicationMenuTemplate("win32")
+
+        // Assert
+        assert.equal(template, null)
+    })
+
+    test("should leave Linux without a menu bar", () => {
+        // Act
+        const template = applicationMenuTemplate("linux")
+
+        // Assert
+        assert.equal(template, null)
+    })
+
+    test("should keep only the app and edit menus on macOS so its keyboard shortcuts keep working", () => {
+        // Act
+        const template = applicationMenuTemplate("darwin")
+
+        // Assert
+        assert.deepEqual(template, [{ role: "appMenu" }, { role: "editMenu" }])
     })
 })

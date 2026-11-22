@@ -58,7 +58,9 @@ desktop, project open, map shown
 └────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
   start: logo, divider, project menu (03 P1), map slot = workspace status (05 W1) or comparison chip (06)
   centre: view switcher (+ History tab, 04)
-  end: Settings (unchanged; no theme control, OD10)
+  end: Settings (unchanged; no theme control, OD10); with the "Use CodeCharta's title bar" setting
+  also the window buttons (Linux) or the space the system's buttons need (Windows right, macOS left
+  before the logo) — `01-desktop-tools.md` D6, D7
 ```
 
 Owner decisions OD1/OD2 (`owner-decisions.md`): the project menu chooses project and working folder;
@@ -128,8 +130,8 @@ its header.
 | `z-0` | 3D map, radial map, dependency graph | — |
 | `z-10` | bottom bar, resize handles, sticky list headers | sticky group headers in History lists |
 | `z-50` | inline colour picker panel | — |
-| `z-[60]` | explorer, inspector, legend drawer and its button | — (History panes are in-flow, not fixed) |
-| `z-[70]` | nav-bar dropdowns, view mode bar and its handle, file extension bar | project menu, workspace status, branch-chip menu, comparison-chip menu, jobs list |
+| `z-[60]` | explorer, inspector, legend drawer and its button, and everything inside them (a collapsed panel's strip and its buttons create no higher layer) | — (History panes are in-flow, not fixed) |
+| `z-[70]` | nav-bar dropdowns, view mode bar and its handle, file extension bar; always above the side panels (O11.2) | project menu, workspace status, branch-chip menu, comparison-chip menu, jobs list |
 | `z-[100]` | floating context menus, file-extension menu | commit, branch, snapshot context menus |
 | `z-[1000]` | loading overlays, code map error | — |
 | `z-[2000]` | toast | the stale notice (05 S2), as a persistent toast |

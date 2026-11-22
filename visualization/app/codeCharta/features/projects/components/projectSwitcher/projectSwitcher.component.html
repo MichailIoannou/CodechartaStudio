@@ -3,6 +3,7 @@
         #trigger
         type="button"
         class="btn btn-ghost btn-sm min-w-0 max-w-24 justify-between xl:max-w-28 2xl:max-w-52"
+        [class]="isIconOnlyBelowXl() ? 'max-xl:px-2' : ''"
         aria-haspopup="menu"
         data-testid="project-switcher-trigger"
         [attr.aria-expanded]="isOpen()"
@@ -12,7 +13,7 @@
     >
         <i class="fa-solid fa-layer-group fa-fw shrink-0"></i>
         @if (activeProject(); as project) {
-            <span class="flex min-w-0 items-center gap-1">
+            <span class="flex min-w-0 items-center gap-1" [class]="isIconOnlyBelowXl() ? 'max-xl:hidden' : ''" data-testid="project-switcher-label">
                 <span class="hidden min-w-0 shrink-[100] truncate text-base-content/60 2xl:inline">{{ project.name }}</span>
                 <span class="hidden shrink-0 text-base-content/60 2xl:inline">/</span>
                 <span class="min-w-0 max-w-32 truncate font-medium">{{ workingFolder()?.label ?? "" }}</span>

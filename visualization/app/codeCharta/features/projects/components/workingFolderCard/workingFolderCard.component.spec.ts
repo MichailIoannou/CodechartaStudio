@@ -45,6 +45,28 @@ describe("WorkingFolderCardComponent", () => {
         expect(screen.queryByTestId("working-folder-git")).toBeNull()
     })
 
+    it("should open the History of a git folder", async () => {
+        // Arrange
+        await renderCard(aFolder("f-api"))
+
+        // Act
+        await userEvent.click(screen.getByTestId("working-folder-open-history"))
+
+        // Assert
+        expect(testBed.router.navigateByUrl).toHaveBeenLastCalledWith("/history")
+    })
+
+    it.each([
+        ["plain", aFolder("f-out", { kind: "plain" })],
+        ["missing", aFolder("f-gone", { status: "missing" })]
+    ])("should offer no History for a %s folder", async (_kind, folder) => {
+        // Arrange & Act
+        await renderCard(folder)
+
+        // Assert
+        expect(screen.queryByTestId("working-folder-open-history")).toBeNull()
+    })
+
     it("should warn about a missing folder", async () => {
         // Arrange & Act
         await renderCard(aFolder("f-gone", { status: "missing" }))

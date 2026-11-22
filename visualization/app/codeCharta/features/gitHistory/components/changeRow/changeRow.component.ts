@@ -2,10 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from "@an
 import { ChangeRow, isDiscardable, isStageable } from "../../model/changeRows"
 import { WAITING_FOR_OPERATION } from "../../util/branchMenu"
 import { displayNameOf, entryBadgeOf, fileNameOf, folderOf } from "../../util/changedFileText"
+import { SELECTED_ROW_CLASS } from "../../util/rowSelection"
 
 const ROW_CLASS =
     "group/row flex h-7 cursor-pointer select-none items-center gap-1.5 whitespace-nowrap rounded-md px-1 text-sm hover:bg-base-200"
-const SELECTED_ROW_CLASS = "bg-primary/20 font-semibold"
 const ACTIVE_ROW_CLASS = "group-focus-visible:outline"
 const CONFLICT_DISCARD_TITLE = "Use Abort to undo a merge"
 

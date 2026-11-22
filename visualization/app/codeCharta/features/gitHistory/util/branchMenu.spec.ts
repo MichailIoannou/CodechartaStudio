@@ -1,4 +1,7 @@
 import { aLocalBranch, anUpstream } from "../services/gitApi.mocks"
+
+const ORIGIN = { name: "origin", url: "https://example.com/billing-api.git" }
+
 import { branchMenuItems } from "./branchMenu"
 import type { BranchRef } from "./branchTree"
 
@@ -10,8 +13,8 @@ describe("branchMenuItems", () => {
     it("should offer each kind of branch its actions", () => {
         // Arrange
         const refs = [
-            aRef("local", { local: aLocalBranch("main", { isCurrent: true }) }),
-            aRef("local", { local: aLocalBranch("feature/x") }),
+            aRef("local", { local: aLocalBranch("main", { isCurrent: true, upstream: anUpstream("origin/main") }) }),
+            aRef("local", { local: aLocalBranch("feature/x", { upstream: anUpstream("origin/feature/x") }) }),
             aRef("remote"),
             aRef("tag")
         ]
@@ -44,7 +47,7 @@ describe("branchMenuItems", () => {
         const ref = aRef("local", { local: aLocalBranch("feature/x", { checkedOutInOtherWorktree: "/work/billing-x" }) })
 
         // Act
-        const items = branchMenuItems(ref, false)
+        const items = branchMenuItems(ref, false, [ORIGIN])
 
         // Assert
         expect(items.map(item => [item.action, item.disabledReason])).toEqual([
@@ -53,9 +56,28 @@ describe("branchMenuItems", () => {
             ["rename", null],
             ["delete", "Checked out in /work/billing-x"],
             ["setUpstream", null],
-            ["push", "'feature/x' has no upstream branch."],
+            ["publish", null],
             ["forcePush", "'feature/x' has no upstream branch."]
         ])
+    })
+
+    it("should offer to publish a branch without upstream, current or not, and say why it cannot without a remote", () => {
+        // Arrange
+        const refs = [
+            aRef("local", { local: aLocalBranch("feature/x") }),
+            aRef("local", { local: aLocalBranch("main", { isCurrent: true }) })
+        ]
+
+        // Act
+        const publishItems = refs.map(ref => branchMenuItems(ref, false, [ORIGIN]).find(item => item.action === "publish"))
+        const withoutRemote = branchMenuItems(refs[0], false, []).find(item => item.action === "publish")
+
+        // Assert
+        expect(publishItems.map(item => [item?.label, item?.disabledReason])).toEqual([
+            ["Publish 'feature/x'", null],
+            ["Publish 'main'", null]
+        ])
+        expect(withoutRemote?.disabledReason).toBe("This repository has no remote.")
     })
 
     it("should offer push and force push of a diverged branch and say when there is nothing to push", () => {

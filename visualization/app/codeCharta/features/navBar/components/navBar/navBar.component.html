@@ -3,7 +3,7 @@
         <cc-nav-bar-logo></cc-nav-bar-logo>
         <div class="divider divider-horizontal mx-0"></div>
         @if (isDesktop()) {
-            <cc-project-switcher></cc-project-switcher>
+            <cc-project-switcher [isIconOnlyBelowXl]="isComparing()"></cc-project-switcher>
             @if (isComparing()) {
                 <cc-workspace-status [iconOnly]="true"></cc-workspace-status>
                 <cc-comparison-chip></cc-comparison-chip>

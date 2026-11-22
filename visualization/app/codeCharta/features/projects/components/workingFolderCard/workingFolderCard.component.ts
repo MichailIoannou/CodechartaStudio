@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from "@angular/core"
 import type { GitCommitSummary } from "../../../../model/coreApi/GitCommitSummary"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
-import { GitRepositoryService, isGitStatus, SyncButtonComponent } from "../../../gitHistory/facade"
+import { GitRepositoryService, HistoryNavigation, isGitStatus, SyncButtonComponent } from "../../../gitHistory/facade"
 import { ProjectFoldersService } from "../../services/projectFolders.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, changesSentence, relativeTime, remoteDisplay, shortSha, upstreamState } from "../../util/folderWording"
@@ -16,6 +16,7 @@ import { branchLabel, changesSentence, relativeTime, remoteDisplay, shortSha, up
 export class WorkingFolderCardComponent {
     private readonly projects = inject(ProjectsService)
     private readonly gitRepository = inject(GitRepositoryService)
+    private readonly history = inject(HistoryNavigation)
     private readonly projectFolders = inject(ProjectFoldersService)
 
     readonly folder = input.required<ProjectFolder>()
@@ -62,5 +63,9 @@ export class WorkingFolderCardComponent {
 
     showInFiles() {
         void this.projectFolders.revealFolder(this.folder().id)
+    }
+
+    openHistory() {
+        void this.history.open()
     }
 }

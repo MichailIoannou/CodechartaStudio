@@ -14,6 +14,12 @@ const WINDOW_BACKGROUND_COLOR = /^#[0-9a-fA-F]{6}$/
 const FILTER_EXTENSION = /^(\*|[A-Za-z0-9]+)$/
 const PROGRESS_EVENT = "core.progress"
 const PROMPT_REQUESTED_EVENT = "prompt.requested"
+// Without an app and an Edit menu, macOS loses Cmd+Q, Cmd+C and Cmd+V.
+const MAC_MENU_TEMPLATE = [{ role: "appMenu" }, { role: "editMenu" }]
+
+function applicationMenuTemplate(platform) {
+    return platform === "darwin" ? MAC_MENU_TEMPLATE : null
+}
 
 function describeTrustedPage({ isPackaged, indexHtmlPath, devServerUrl, platform }) {
     if (!isPackaged && LOCAL_DEV_SERVER.test(devServerUrl ?? "")) {
@@ -179,6 +185,7 @@ function toDialogOptions(options) {
 }
 
 module.exports = {
+    applicationMenuTemplate,
     describeTrustedPage,
     isReadableMapPath,
     isRendererEvent,

@@ -15,6 +15,7 @@ const KIND_BADGES: Record<GitEntryKind, string> = {
 }
 const SKELETON_LINE_COUNT = 8
 const PLAIN_SHELL_WORD = /^[\w./@+-]+$/
+const WINDOWS_USER_AGENT = /Windows/
 
 @Component({
     selector: "cc-diff-view",
@@ -41,7 +42,7 @@ export class DiffViewComponent {
     })
     readonly terminalDiffCommand = computed(() => {
         const entry = this.row()?.entry
-        return entry ? terminalDiffCommandOf(entry.path, entry.kind) : ""
+        return entry ? terminalDiffCommandOf(entry.path, entry.kind, WINDOWS_USER_AGENT.test(navigator.userAgent)) : ""
     })
     readonly diff = computed(() => readyValueOf(this.changes.diff()))
     readonly lines = computed(() => {
@@ -54,7 +55,15 @@ export class DiffViewComponent {
     }
 }
 
-function terminalDiffCommandOf(path: string, kind: GitEntryKind): string {
+/** git diff shows nothing for an untracked file, so it is compared with the system's empty file. */
+function terminalDiffCommandOf(path: string, kind: GitEntryKind, isWindows: boolean): string {
     const quotedPath = PLAIN_SHELL_WORD.test(path) ? path : `"${path}"`
-    return kind === "staged" ? `git diff --cached -- ${quotedPath}` : `git diff -- ${quotedPath}`
+    switch (kind) {
+        case "staged":
+            return `git diff --cached -- ${quotedPath}`
+        case "untracked":
+            return `git diff --no-index -- ${isWindows ? "NUL" : "/dev/null"} ${quotedPath}`
+        default:
+            return `git diff -- ${quotedPath}`
+    }
 }

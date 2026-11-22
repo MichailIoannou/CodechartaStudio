@@ -218,9 +218,15 @@
                         <span class="skeleton h-3 w-24"></span>
                     }
                 </div>
-                @if (gitDetails()) {
-                    <div class="px-2 pb-1" data-testid="workspace-status-sync">
+                @if (gitDetails(); as git) {
+                    @if (git.operation; as operation) {
+                        <span class="px-2 pb-1 text-xs text-warning" data-testid="workspace-status-operation">{{ operation }}</span>
+                    }
+                    <div class="flex items-center gap-2 px-2 pb-1" data-testid="workspace-status-sync">
                         <cc-sync-button />
+                        <button type="button" class="btn btn-ghost btn-xs ml-auto" data-menu-item data-testid="workspace-status-open-history" (click)="openHistory()">
+                            Open History
+                        </button>
                     </div>
                 }
 
