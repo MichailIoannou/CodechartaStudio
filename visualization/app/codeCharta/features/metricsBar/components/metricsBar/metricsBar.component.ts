@@ -4,7 +4,6 @@ import { map } from "rxjs"
 import { FileStoreReadWindow } from "../../../../stores/fileStore/fileStore.facade"
 import { METRICS_BAR_HEIGHT_CSS_VARIABLE } from "../../../../util/barLayout"
 import {
-    AxisCardComponent,
     BAR_BOTTOM_ABOVE_FILE_EXTENSION_BAR,
     BarDividerComponent,
     BarShellDirective,
@@ -15,9 +14,8 @@ import {
 } from "../../../shared/facade"
 import { MetricsBarReadStore } from "../../stores/metricsBar.read.store"
 import { AreaSegmentComponent } from "../areaSegment/areaSegment.component"
-import { CellIconComponent } from "../cellIcon/cellIcon.component"
 import { ColorSegmentComponent } from "../colorSegment/colorSegment.component"
-import { ColorSettingsPopoverComponent } from "../colorSettingsPopover/colorSettingsPopover.component"
+import { DeltaColorSegmentComponent } from "../deltaColorSegment/deltaColorSegment.component"
 import { EdgeSegmentComponent } from "../edgeSegment/edgeSegment.component"
 import { FoldersSegmentComponent } from "../foldersSegment/foldersSegment.component"
 import { HeightSegmentComponent } from "../heightSegment/heightSegment.component"
@@ -31,12 +29,10 @@ import { LinkColorHeightButtonComponent } from "../linkColorHeightButton/linkCol
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         AreaSegmentComponent,
-        AxisCardComponent,
         BarDividerComponent,
         BarToolsCellComponent,
-        CellIconComponent,
         ColorSegmentComponent,
-        ColorSettingsPopoverComponent,
+        DeltaColorSegmentComponent,
         EdgeSegmentComponent,
         FoldersSegmentComponent,
         HeightSegmentComponent,
@@ -62,7 +58,4 @@ export class MetricsBarComponent {
     readonly isRadialLayout = injectIsRadialLayout()
 
     readonly showColorMetricSegment = computed(() => !this.isDeltaState())
-
-    readonly deltaColorSettingsPopoverId = "metric-settings-popover-color-delta"
-    readonly deltaColorSettingsAnchorName = "metric-segment-color-settings"
 }

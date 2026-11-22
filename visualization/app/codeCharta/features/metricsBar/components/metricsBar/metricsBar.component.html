@@ -14,22 +14,7 @@
         <cc-folders-segment></cc-folders-segment>
     }
 } @else {
-    <ng-template #deltaColorIcon><cc-cell-icon cell="color" /></ng-template>
-    <cc-axis-card
-        label="Color"
-        [metricName]="'Settings'"
-        [hasCog]="true"
-        [cogPopoverId]="deltaColorSettingsPopoverId"
-        [cogAnchorName]="deltaColorSettingsAnchorName"
-        [cogIcon]="deltaColorIcon"
-        cogTitle="Color settings"
-        [testId]="'metric-segment-color-settings'"
-        [cogTestId]="'metric-segment-color-settings-cog'"
-    ></cc-axis-card>
-    <cc-color-settings-popover
-        [popoverId]="deltaColorSettingsPopoverId"
-        [anchorName]="deltaColorSettingsAnchorName"
-    ></cc-color-settings-popover>
+    <cc-delta-color-segment></cc-delta-color-segment>
 }
 
 @if (hasEdgeMetric() && !isRadialLayout()) {
