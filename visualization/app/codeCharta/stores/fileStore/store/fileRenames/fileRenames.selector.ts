@@ -5,7 +5,7 @@ import { isDeltaStateSelector } from "../isDeltaState.selector"
 
 const NO_RENAMES: readonly FileRename[] = Object.freeze([])
 
-const fileRenamesSelector = (state: CcState) => state.fileRenames
+export const fileRenamesSelector = (state: CcState) => state.fileRenames
 
 /** Leaving a comparison shows one map before the renames are cleared; the shared empty list keeps that map from being built twice. */
 export const renamesOfTheDeltaSelector = createSelector(

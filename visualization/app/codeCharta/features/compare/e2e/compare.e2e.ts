@@ -303,6 +303,35 @@ test.describe("Compare", () => {
     })
 })
 
+test.describe("Compare a renamed file", () => {
+    const RENAMED_IN_GIT = {
+        source: "git",
+        files: [{ change: "renamed", path: "ParentLeaf/sample2LeafMergedIn.kt", previousPath: "sample1OnlyLeaf.scss" }]
+    }
+
+    test.beforeEach(async ({ page }) => {
+        await standInForTheDesktopBridge(page, seedOf(BILLING, { "compare.changedFiles": RENAMED_IN_GIT }))
+        await goto(page)
+    })
+
+    test("should show a file git renamed as one file at its new path, not as removed plus added", async ({ page }) => {
+        // Arrange
+        const compare = new ComparePageObject(page)
+        const explorer = page.locator("cc-sidebar-explorer")
+        await compare.openTheDialogFromTheCompareTab()
+
+        // Act
+        await compare.compare("main", "feature/x")
+
+        // Assert
+        await expect(compare.chip()).toBeVisible()
+        await expect(explorer).toContainText("bigLeaf.ts")
+        await expect(explorer).not.toContainText("sample1OnlyLeaf.scss")
+        await new ExplorerTreeLevelPageObject(page).openFolder("/root/ParentLeaf")
+        await expect(explorer).toContainText("sample2LeafMergedIn.kt")
+    })
+})
+
 const FORK = aFolder("f-fork", { label: "billing-fork", role: "fork" })
 const WITH_A_FORK = aProject("p-billing", [aFolder("f-api", { label: "billing-api" }), FORK], {
     name: "billing",

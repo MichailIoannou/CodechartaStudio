@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **Nearest analysis**: when the current checkout of a desktop project has no analysis, the map shows the closest analysed commit, a notice and the nav bar say how many commits it is off, and the notice offers to analyse the checkout.
 - **Analysis batches and clean-up**: the desktop app analyses the last commits of a branch or every tag in one go, shows how much space a project's analyses take, and moves single or old analyses to the recycle bin.
 - **Compare commits**: in the desktop app, compare two commits, branches or tags of a project folder or of two of its folders, a commit with an analysed working tree or an imported map, or a pull or merge request opened by its number, picked in the Compare dialog, from a recent comparison, from the History's menus or from the snapshots dialog, either from where a branch left its target or tip with tip; a side without an analysis can be analysed first or shown by its nearest analysis, the nav bar says how far off each side then is, and fetched pull requests can be removed again from a folder's menu.
-- **Changed files**: while comparing, the explorer lists the files that changed and can grey out everything else, and the inspector names the git change of the selected file.
+- **Changed files**: while comparing, the explorer lists the files that changed and can grey out everything else, the inspector names the git change of the selected file, and a file git renamed is shown once at its new path with its metric changes.
 
 ### Changed
 
