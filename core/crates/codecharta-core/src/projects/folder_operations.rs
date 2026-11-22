@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use codecharta_core_api::ids::{FolderId, ProjectId};
+use codecharta_core_api::methods::hosting::HostingOverride;
 use codecharta_core_api::methods::projects::{
     FolderGitFacts, FolderKind, FolderRef, FolderRole, FolderStatus, Project, ProjectView,
     ResolvedCommit,
@@ -23,6 +24,7 @@ use crate::recycle::delete_permanently;
 pub struct FolderChanges {
     pub label: Option<Label>,
     pub role: Option<FolderRole>,
+    pub hosting: Option<HostingOverride>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -121,7 +123,22 @@ impl ProjectRepository<'_> {
         })
     }
 
+    pub fn hosting_override(&self, target: &FolderRef) -> CoreResult<Option<HostingOverride>> {
+        let record = self.read_record(&target.project_id)?;
+        Ok(existing_folder(&record, &target.folder_id)?.hosting.clone())
+    }
+
     /// The folder git runs in; `FOLDER_UNAVAILABLE` while it is missing on disk.
+    /// The default branch git named when the folder was last inspected.
+    pub fn default_branch(&self, target: &FolderRef) -> CoreResult<Option<String>> {
+        let record = self.read_record(&target.project_id)?;
+        let folder = existing_folder(&record, &target.folder_id)?;
+        Ok(folder
+            .git
+            .as_ref()
+            .and_then(|facts| facts.default_branch.clone()))
+    }
+
     pub fn git_folder(&self, target: &FolderRef) -> CoreResult<GitFolder> {
         let folder = self.resolve_folder(target)?;
         if folder.status != FolderStatus::Ok {
@@ -233,6 +250,9 @@ fn apply_folder_changes(
     }
     if let Some(role) = changes.role {
         folder.role = role;
+    }
+    if let Some(hosting) = changes.hosting {
+        folder.hosting = Some(hosting);
     }
     Ok(())
 }

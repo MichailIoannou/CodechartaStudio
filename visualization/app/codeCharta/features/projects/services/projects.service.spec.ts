@@ -234,6 +234,83 @@ describe("ProjectsService", () => {
         expect(router.navigateByUrl).toHaveBeenLastCalledWith("/")
     })
 
+    it("should load a snapshot of the working folder without leaving the current view", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+
+        // Act
+        const isLoaded = await service.loadSnapshot(API_OLD.ref)
+
+        // Assert
+        expect(isLoaded).toBe(true)
+        expect(service.shownSnapshot()?.ref).toEqual(API_OLD.ref)
+        expect(router.navigateByUrl).not.toHaveBeenCalled()
+    })
+
+    it("should load several snapshots in one step and show the first", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+
+        // Act
+        const result = await service.loadSnapshots([API_NEW.ref, API_OLD.ref])
+
+        // Assert
+        expect(loadedSnapshotIds()).toEqual([["s-new", "s-old"]])
+        expect(result.loaded.map(facts => facts.origin.snapshotId)).toEqual(["s-new", "s-old"])
+        expect(service.shownSnapshot()?.ref).toEqual(API_NEW.ref)
+        expect(requestsOf("snapshots.recordMapFacts")).toHaveLength(2)
+        expect(toastService.show).not.toHaveBeenCalled()
+    })
+
+    it("should load nothing when a snapshot to load is not in the store", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        const unknown = { ...API_OLD.ref, snapshotId: "s-unknown" }
+
+        // Act
+        const result = await service.loadSnapshots([API_NEW.ref, unknown])
+
+        // Assert
+        expect(result).toEqual({ loaded: [], identicalContent: [], unreadable: [] })
+        expect(loadFilesUseCase.loadProjectSnapshots).not.toHaveBeenCalled()
+    })
+
+    it("should report an unreadable snapshot of several without showing it", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        loadFilesUseCase.loadProjectSnapshots.mockImplementation((toLoad: ProjectSnapshotToLoad[]) =>
+            Promise.resolve({ loaded: [], identicalContent: [], unreadable: toLoad.map(({ origin }) => origin) })
+        )
+
+        // Act
+        await service.loadSnapshots([API_NEW.ref])
+
+        // Assert
+        expect(toastService.show).toHaveBeenCalledWith("The analysis of 'billing-api' could not be read", "error")
+        expect(service.shownSnapshot()).toBeNull()
+    })
+
+    it("should read the folder's snapshots again before loading one it does not know yet", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        const fresh = aSnapshot("p-billing", "f-api", "s-fresh", { shortCommit: "4444444" })
+        bridge.respondWith("snapshots.list", { snapshots: [fresh] })
+
+        // Act
+        const isLoaded = await service.loadSnapshot(fresh.ref)
+        const isOtherFolderLoaded = await service.loadSnapshot(WEB.ref)
+
+        // Assert
+        expect(isLoaded).toBe(true)
+        expect(isOtherFolderLoaded).toBe(false)
+        expect(loadedSnapshotIds()).toEqual([["s-fresh"]])
+    })
+
     it("should show the working folder when the given snapshot is not in the store", async () => {
         // Arrange
         const service = createService()
@@ -499,6 +576,37 @@ describe("ProjectsService", () => {
 
         // Assert
         expect(toastService.show).toHaveBeenCalledWith("no file manager", "error")
+    })
+
+    it("should read the store usage of the active project", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        const before = await service.readStoreUsage()
+        await service.initialise()
+
+        // Act
+        const usage = await service.readStoreUsage()
+
+        // Assert
+        expect(before).toBeNull()
+        expect(usage?.totalBytes).toBe(3 * API_NEW.mapBytes)
+    })
+
+    it("should re-read the snapshots of one folder of the active project and ignore other projects", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        await bridge.request("snapshots.delete", { ...API_OLD.ref, permanently: false })
+        await bridge.request("snapshots.delete", { ...WEB.ref, permanently: false })
+
+        // Act
+        await service.refreshFolderSnapshots({ projectId: "p-billing", folderId: "f-api" })
+        await service.refreshFolderSnapshots({ projectId: "p-dots", folderId: "f-dots" })
+
+        // Assert
+        expect(service.snapshotsByFolder()["f-api"].map(snapshot => snapshot.ref.snapshotId)).toEqual(["s-new"])
+        expect(service.snapshotsByFolder()["f-web"].map(snapshot => snapshot.ref.snapshotId)).toEqual(["s-web"])
+        expect(requestsOf("snapshots.list")).not.toContainEqual({ projectId: "p-dots", folderId: "f-dots" })
     })
 
     it("should reload the shown snapshot with the default metrics after a reset", async () => {

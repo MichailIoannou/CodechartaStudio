@@ -170,7 +170,7 @@ test.describe("History", () => {
 test.describe("History writes", () => {
     const commits = [aLogCommit("a", "Fix invoice rounding", ["b"]), aLogCommit("b", "Start the invoice module")]
 
-    test("should fetch after the hooks notice and cancel it", async ({ page }) => {
+    test("should fetch after the hooks notice, show its progress in the workspace status and cancel it", async ({ page }) => {
         // Arrange
         const history = new GitHistoryPageObject(page)
         const progress = { message: "Receiving objects: 45% (9/20)", done: 45, total: 100 }
@@ -186,8 +186,10 @@ test.describe("History writes", () => {
         // Assert
         await expect(history.syncButton()).toHaveText("Fetching…")
         await expect(history.syncButton()).toBeDisabled()
+        await expect(history.workspaceStatus()).toContainText(/Fetching ·\s*45 %/)
         await history.cancelSync().click()
         await expect(history.syncButton()).toHaveText("Fetch")
+        await expect(history.workspaceStatus()).not.toContainText("Fetching")
     })
 
     test("should ask for a passphrase over any view and send it once", async ({ page }) => {
@@ -344,5 +346,28 @@ test.describe("History changes", () => {
         await toast.getByRole("button", { name: "Details" }).click()
         await expect(toast).toContainText("lint: 3 problems in src/app.ts")
         await expect(history.commitSummary()).toHaveValue("Add the currency table")
+    })
+})
+
+test.describe("Show in map", () => {
+    test("should show a commit's analysis in the map from its details and on double-click", async ({ page }) => {
+        // Arrange
+        const history = new GitHistoryPageObject(page)
+        const commits = [aLogCommit("a", "Fix invoice rounding", ["c"]), aLogCommit("c", "Release 2.4.0")]
+        const release = aSnapshot("p-billing", "f-api", "s-release", { commit: "c".repeat(40), shortCommit: "ccccccc", target: "commit" })
+        const seed = { ...billingSeed({ "f-api": { commits } }), snapshots: [release], snapshotMaps: { "s-release": SAMPLE_MAP } }
+        await standInForTheDesktopBridge(page, seed)
+        await goto(page)
+        await history.open()
+
+        // Act
+        await history.commitRows().nth(1).click()
+        const firstAction = history.commitDetails().getByRole("button").filter({ hasText: "Show in map" })
+        await expect(firstAction).toBeVisible()
+        await history.commitRows().nth(1).dblclick()
+
+        // Assert
+        await expect(page).toHaveURL(/#\/$/)
+        await expect(history.workspaceStatus()).toContainText("ccccccc")
     })
 })

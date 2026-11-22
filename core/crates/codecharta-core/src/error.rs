@@ -59,6 +59,12 @@ pub enum CoreError {
     NotACommit { commit: String },
     #[error("{}", .0.message)]
     Git(GitError),
+    #[error(
+        "The snapshot {snapshot_id} is still being written; try again when its analysis has finished."
+    )]
+    SnapshotBeingWritten { snapshot_id: String },
+    #[error("Could not move {path} to the recycle bin: {reason}")]
+    RecycleFailed { path: String, reason: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;
@@ -87,6 +93,8 @@ impl CoreError {
             CoreError::TooLarge { .. } => ErrorCode::TooLarge,
             CoreError::NotACommit { .. } => ErrorCode::NotACommit,
             CoreError::Git(error) => error.code,
+            CoreError::SnapshotBeingWritten { .. } => ErrorCode::SnapshotBeingWritten,
+            CoreError::RecycleFailed { .. } => ErrorCode::RecycleFailed,
         }
     }
 
@@ -224,6 +232,19 @@ mod tests {
             (
                 CoreError::Git(GitError::new(ErrorCode::NotARepository, "not here")),
                 ErrorCode::NotARepository,
+            ),
+            (
+                CoreError::SnapshotBeingWritten {
+                    snapshot_id: "worktree-20261119T000000000Z-0a1b2c3d".into(),
+                },
+                ErrorCode::SnapshotBeingWritten,
+            ),
+            (
+                CoreError::RecycleFailed {
+                    path: "/data/store/projects/p-1".into(),
+                    reason: "no recycle bin".into(),
+                },
+                ErrorCode::RecycleFailed,
             ),
         ]
     }

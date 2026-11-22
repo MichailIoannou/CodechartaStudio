@@ -305,6 +305,18 @@
        --marching-ants-period, so the loop has no seam. */
     --animate-marching-ants: marching-ants 0.6s linear infinite;
 
+    /* A band that sweeps across the workspace status while an analysis reports no percentage. */
+    --animate-progress-sweep: progress-sweep 1.4s ease-in-out infinite;
+
+    @keyframes progress-sweep {
+        from {
+            transform: translateX(-100%);
+        }
+        to {
+            transform: translateX(300%);
+        }
+    }
+
     @keyframes marching-ants {
         to {
             stroke-dashoffset: calc(-1 * var(--marching-ants-period));

@@ -24,6 +24,7 @@ pub const MAX_BRANCH_NAME_CHARS: usize = 200;
 pub const MAX_WORKING_TREE_PATH_LENGTH: usize = 4096;
 pub const MAX_COMMIT_SUBJECT_CHARS: usize = 200;
 pub const MAX_COMMIT_BODY_CHARS: usize = 20_000;
+pub const MAX_HOST_NAME_LENGTH: usize = 253;
 const LOCAL_BRANCH_PREFIX: &str = "refs/heads/";
 const OPTION_PREFIX: char = '-';
 const PARENT_SEGMENT: &str = "..";
@@ -41,6 +42,7 @@ const REF_COMPONENT_DOT: char = '.';
 const PATH_SEPARATOR: char = '/';
 const LABEL_FORBIDDEN_CHARACTERS: [char; 3] = ['/', '\\', ':'];
 const LINE_BREAKS: [char; 2] = ['\n', '\r'];
+const HOST_NAME_PUNCTUATION: [char; 2] = ['.', '-'];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InvalidValue {
@@ -220,6 +222,22 @@ fn is_branch_name(value: &str) -> bool {
         && is_well_formed_full_ref_name(&format!("{LOCAL_BRANCH_PREFIX}{value}"))
 }
 
+/// A revision, or a short name git's `check-ref-format` would accept: a branch, remote branch or tag name,
+/// or the leading hexadecimal digits of a commit. Never an expression.
+fn is_typed_revision(value: &str) -> bool {
+    is_revision(value) || is_branch_name(value)
+}
+
+fn is_host_name(value: &str) -> bool {
+    (1..=MAX_HOST_NAME_LENGTH).contains(&value.len())
+        && !value.starts_with(HOST_NAME_PUNCTUATION)
+        && value.chars().all(|character| {
+            character.is_ascii_lowercase()
+                || character.is_ascii_digit()
+                || HOST_NAME_PUNCTUATION.contains(&character)
+        })
+}
+
 /// A text value checked while it is deserialised, so a handler never sees an invalid one. The rule text
 /// never repeats the value: it may be long or carry something the caller did not mean to log.
 macro_rules! validated_text {
@@ -339,6 +357,12 @@ validated_text!(
 );
 
 validated_text!(
+    TypedRevision,
+    is_typed_revision,
+    "use HEAD, a branch, remote branch or tag name, a full ref name or hexadecimal digits of a commit; no expression"
+);
+
+validated_text!(
     LogCursor,
     is_log_cursor,
     "use the cursor of the previous page: 1 to 128 ASCII letters, digits, _ or -"
@@ -386,10 +410,39 @@ validated_text!(
     "use 1 to 200 characters git accepts as a branch name: no leading -, not HEAD or @, no .., @{, spaces, control characters or ~^:?*[\\"
 );
 
+validated_text!(
+    HostName,
+    is_host_name,
+    "use 1 to 253 lowercase letters, digits, dots or hyphens, not starting with a dot or hyphen"
+);
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn should_accept_only_a_lowercase_host_name() {
+        // Arrange
+        let candidates = [
+            "git.example.org",
+            "gitlab-01.corp",
+            "Git.example.org",
+            "-flag",
+            ".example",
+            "host:22",
+            "",
+        ];
+
+        // Act
+        let accepted: Vec<bool> = candidates
+            .iter()
+            .map(|candidate| HostName::try_from(*candidate).is_ok())
+            .collect();
+
+        // Assert
+        assert_eq!(accepted, [true, true, false, false, false, false, false]);
+    }
 
     #[test]
     fn should_accept_only_a_full_lowercase_commit_hash() {

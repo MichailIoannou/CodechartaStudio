@@ -59,6 +59,10 @@ export function aSnapshot(
         mapBytes: 1024,
         checksum: null,
         profileHash: null,
+        target: null,
+        finishedAt: null,
+        durationMs: null,
+        notInMap: [],
         ...overrides
     }
 }

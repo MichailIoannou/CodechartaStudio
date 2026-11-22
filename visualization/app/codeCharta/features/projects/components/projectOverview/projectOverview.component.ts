@@ -65,6 +65,7 @@ export class ProjectOverviewComponent {
 
     readonly now = signal(Date.now())
     readonly commits = signal<GitCommitSummary[] | null>(null)
+    readonly storeBytes = signal<number | null>(null)
 
     readonly project = this.projects.activeProject
     readonly isBusy = this.projects.isBusy
@@ -146,11 +147,13 @@ export class ProjectOverviewComponent {
         }
         const gitFolders = project.folders.filter(candidate => candidate.kind === "git" && candidate.status === "ok")
         const workingRef = folder?.kind === "git" && folder.status === "ok" ? { projectId: project.id, folderId: folder.id } : null
-        const [commits] = await Promise.all([
+        const [commits, usage] = await Promise.all([
             workingRef ? this.gitRepository.recentCommits(workingRef) : Promise.resolve(null),
+            this.projects.readStoreUsage().catch(() => null),
             this.gitRepository.refreshFolders(gitFolders.map(candidate => ({ projectId: project.id, folderId: candidate.id })))
         ])
         this.commits.set(commits)
+        this.storeBytes.set(usage?.folders.find(entry => entry.folderId === folder?.id)?.bytes ?? null)
     }
 
     private snapshotsOf(folder: ProjectFolder | null): SnapshotSummary[] {

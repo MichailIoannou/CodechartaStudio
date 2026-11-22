@@ -1,4 +1,5 @@
 use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
+use codecharta_core_api::methods::analysis::TargetKind;
 use codecharta_core_api::methods::projects::{AnalyserName, GitRemote};
 use codecharta_core_api::methods::snapshots::{SnapshotRef, SnapshotSource, SnapshotSummary};
 use codecharta_core_api::values::FullCommit;
@@ -40,6 +41,9 @@ pub struct GitRecord {
     pub head_at_run: Option<HeadAtRun>,
     pub dirty: bool,
     pub remotes: Vec<GitRemote>,
+    /// The commit's tree, so an analysis that does not read the history can reuse a map of the same files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tree: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -89,6 +93,11 @@ pub struct AnalysisRecord {
     pub profile_hash: String,
     pub exit_code: i32,
     pub not_in_map: Vec<String>,
+    #[serde(default)]
+    pub target: Option<TargetKind>,
+    /// The snapshot whose map was copied instead of running ccsh (same tree, history left out).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reused_from: Option<SnapshotId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -138,6 +147,7 @@ impl SnapshotRecord {
     pub fn to_summary(&self) -> SnapshotSummary {
         let git = self.git.as_ref();
         let imported = self.imported.as_ref();
+        let analysis = self.analysis.as_ref();
         SnapshotSummary {
             snapshot_ref: self.snapshot_ref(),
             source: self.source,
@@ -151,10 +161,13 @@ impl SnapshotRecord {
             file_modified_at: imported.map(|imported| imported.file_modified_at.clone()),
             map_bytes: self.map.bytes,
             checksum: self.map.checksum.clone(),
-            profile_hash: self
-                .analysis
-                .as_ref()
-                .map(|analysis| analysis.profile_hash.clone()),
+            profile_hash: analysis.map(|analysis| analysis.profile_hash.clone()),
+            target: analysis.and_then(|analysis| analysis.target),
+            finished_at: analysis.map(|analysis| analysis.finished_at.clone()),
+            duration_ms: analysis.map(|analysis| analysis.duration_ms),
+            not_in_map: analysis
+                .map(|analysis| analysis.not_in_map.clone())
+                .unwrap_or_default(),
         }
     }
 }

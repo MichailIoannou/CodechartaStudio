@@ -10,16 +10,17 @@ const IMPORTED = aSnapshot("p-1", "f-1", "s-imported", { source: "imported", cre
 const ANALYSED = aSnapshot("p-1", "f-1", "s-analysed", {
     shortCommit: "9f8e7d6",
     subject: "Release 2.4.0",
-    createdAt: "2026-10-28T09:00:00Z"
+    finishedAt: "2026-10-28T09:00:00Z"
 })
 
 describe("AnalysesCardComponent", () => {
     let testBed: ProjectsTestBed
 
-    async function renderCard(snapshots: SnapshotSummary[]) {
+    async function renderCard(snapshots: SnapshotSummary[], storeBytes: number | null = null) {
         testBed = await setUpProjects({ projects: [aProject("p-1", [aFolder("f-1")])], activeProjectId: "p-1", snapshots })
         const fixture = TestBed.createComponent(AnalysesCardComponent)
         fixture.componentRef.setInput("snapshots", snapshots)
+        fixture.componentRef.setInput("storeBytes", storeBytes)
         fixture.autoDetectChanges()
         await settle()
         return fixture
@@ -47,9 +48,9 @@ describe("AnalysesCardComponent", () => {
         expect(screen.getByTestId("analyses-in-the-map").textContent).toContain("nothing shown")
     })
 
-    it("should show what is in the map, the count and go to the map", async () => {
+    it("should show what is in the map, the count with the store size and go to the map", async () => {
         // Arrange
-        await renderCard([ANALYSED])
+        await renderCard([ANALYSED], 61_200_000)
         await testBed.projects.showWorkingFolder()
         await settle()
 
@@ -58,7 +59,7 @@ describe("AnalysesCardComponent", () => {
 
         // Assert
         expect(screen.getByTestId("analyses-in-the-map").textContent).toContain("9f8e7d6")
-        expect(screen.getByTestId("analyses-rows").textContent).toContain("Analyses1")
+        expect(screen.getByTestId("analyses-rows").textContent).toContain("1 · 61.2 MB")
         expect(screen.getByTestId("analyses-rows").textContent).toContain("28 Oct")
         expect(testBed.router.navigateByUrl).toHaveBeenCalledWith("/")
     })

@@ -1,10 +1,11 @@
 <button
     type="button"
-    class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium hover:bg-base-200 focus-visible:bg-base-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+    class="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium hover:bg-base-200 focus-visible:bg-base-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-transparent"
     [attr.id]="buttonId()"
     [disabled]="disabled()"
-    [title]="hoverHint()"
-    (click)="itemClick.emit()"
+    [attr.aria-disabled]="disabledReason() !== null ? 'true' : null"
+    [title]="disabledReason() ?? hoverHint()"
+    (click)="click()"
 >
     <i class="w-4 text-center {{ icon() }}"></i>
     <span class="truncate"><ng-content></ng-content></span>

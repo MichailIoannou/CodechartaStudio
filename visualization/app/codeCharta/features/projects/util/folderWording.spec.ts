@@ -4,6 +4,7 @@ import {
     byteSize,
     changesSentence,
     counted,
+    durationText,
     fileDate,
     longDate,
     relativeTime,
@@ -135,5 +136,13 @@ describe("folderWording", () => {
         // Assert
         expect(date).toBe("12 Nov 2026")
         expect(withTime).toMatch(/^12 Nov 2026, \d{2}:\d{2}$/)
+    })
+
+    it("should write how long an analysis took", () => {
+        // Arrange & Act
+        const durations = [400, 45_000, 72_000, 3_900_000].map(durationText)
+
+        // Assert
+        expect(durations).toEqual(["0 s", "45 s", "1 min 12 s", "1 h 5 min"])
     })
 })

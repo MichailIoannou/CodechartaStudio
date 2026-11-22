@@ -1,3 +1,6 @@
+import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
+import type { AnalysisTarget } from "../../../model/coreApi/AnalysisTarget"
+import type { CompareIntent } from "../../../model/coreApi/CompareIntent"
 import type { ErrorCode } from "../../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../../model/coreApi/ErrorPayload"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
@@ -12,6 +15,8 @@ import type { GitRefs } from "../../../model/coreApi/GitRefs"
 import type { GitRepositoryInfo } from "../../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import type { GitWorkingTreeEntry } from "../../../model/coreApi/GitWorkingTreeEntry"
+import type { JobError } from "../../../model/coreApi/JobError"
+import type { JobProgress } from "../../../model/coreApi/JobProgress"
 import type { NewFolder } from "../../../model/coreApi/NewFolder"
 import type { PickedFolder } from "../../../model/coreApi/PickedFolder"
 import type { PickedImportFile } from "../../../model/coreApi/PickedImportFile"
@@ -19,6 +24,7 @@ import type { Project } from "../../../model/coreApi/Project"
 import type { ProjectView } from "../../../model/coreApi/ProjectView"
 import type { PromptKind } from "../../../model/coreApi/PromptKind"
 import type { ResolvedCommit } from "../../../model/coreApi/ResolvedCommit"
+import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import type { UpdateProjectParams } from "../../../model/coreApi/UpdateProjectParams"
 import type { BridgeMethod, CoreState } from "../desktopBridge"
@@ -107,6 +113,11 @@ export interface FakeDesktopSeed {
     gitStatuses?: Record<string, GitStatus>
     gitLogs?: Record<string, GitCommitSummary[]>
     commits?: Record<string, ResolvedCommit[]>
+    analysisJobs?: AnalysisJob[]
+    snapshotLogs?: Record<string, string>
+    failedJobLogs?: Record<string, string>
+    /** By `<folderId>/<sha or "workingTree">`; answered until an analysis of that target finishes. */
+    resolutions?: Record<string, SnapshotResolution>
     now?: string
 }
 
@@ -121,9 +132,10 @@ export interface FakeRequestParams extends Partial<UpdateProjectParams> {
     view?: ProjectView
     checksum?: string
     importToken?: string
-    target?: FolderRef | string | null
+    target?: FolderRef | AnalysisTarget | string | null
     candidates?: string[]
     force?: boolean
+    jobId?: string
     bindToCommit?: string | null
     toFolderId?: string
     hash?: string
@@ -135,6 +147,8 @@ export interface FakeRequestParams extends Partial<UpdateProjectParams> {
     scope?: GitLogParams["scope"]
     filter?: GitLogParams["filter"]
     cursor?: string | null
+    intent?: CompareIntent
+    shownCommit?: string | null
     promptId?: string
     name?: string
     startPoint?: string
@@ -184,6 +198,10 @@ interface FakeStore {
     importedContent: Map<string, FolderRef & { snapshotId: string }>
     git: Record<string, FakeGitRepository>
     heldOperations: Map<string, FakeHeldOperation>
+    jobs: AnalysisJob[]
+    snapshotLogs: Record<string, string>
+    failedJobLogs: Record<string, string>
+    resolutions: Record<string, SnapshotResolution>
 }
 
 interface FakeProjectsApi {
@@ -218,6 +236,19 @@ interface FakeOperationsApi {
     cancel(operationId: string): void
 }
 
+/** Ways for a test to drive the fake from outside, offered on the fake bridge itself. */
+export interface FakeBridgeControls {
+    startJob(jobId: string): void
+    reportProgress(jobId: string, progress: JobProgress): void
+    completeJob(jobId: string, snapshot?: SnapshotSummary): void
+    failJob(jobId: string, error: JobError, log?: string): void
+    setResolution(folder: FolderRef, target: AnalysisTarget, resolution: SnapshotResolution): void
+}
+
+interface FakeResolutionsApi {
+    forget(folderId: string, target: AnalysisTarget): void
+}
+
 /** What every backend group of the fake bridge shares; each group fills in the API other groups call. */
 export interface FakeBridgeKit {
     seed: FakeDesktopSeed
@@ -233,6 +264,8 @@ export interface FakeBridgeKit {
     snapshots: FakeSnapshotsApi
     git: FakeGitApi
     operations?: FakeOperationsApi
+    resolutions: FakeResolutionsApi
+    controls: Partial<FakeBridgeControls>
 }
 
 /**

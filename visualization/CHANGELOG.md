@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **Desktop tools check**: the settings of the desktop app show whether git, ccsh, Java and the GitHub and GitLab command lines were found and in which version, and let you pick another executable.
 - **Open cc.json files**: the desktop app files a cc.json you open from the project menu, with Ctrl+O or by dropping it on the window into a project for its folder, marked as imported with an unknown analysis time, and can tie it to the commit its name points to.
 - **Store folder**: the desktop settings can move where analyses are kept to another folder.
+- **Analyses in the app**: the desktop app analyses the current checkout, the HEAD commit or any commit picked in the History of a project folder, shows the progress in the nav bar and which commits are analysed in the History, opens the new map when it is done, shows the analysis of a commit picked in the History in the map, and lists every analysis of a project to reopen later.
+- **Nearest analysis**: when the current checkout of a desktop project has no analysis, the map shows the closest analysed commit, a notice and the nav bar say how many commits it is off, and the notice offers to analyse the checkout.
+- **Compare commits**: in the desktop app, compare two commits, branches or tags of a project folder, picked in the Compare dialog, from a recent comparison or from the History's menus, either from where a branch left its target or tip with tip; a side without an analysis can be analysed first or shown by its nearest analysis, and the nav bar says how far off each side then is.
 
 ### Changed
 
@@ -23,6 +26,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **Bars beside the side panels**: the bar under the map, the word cloud or the dependency graph centres in the space the open explorer and inspector leave free, so its controls stay within reach.
 - **Blended file extension bar**: neighbouring colours in the file extension bar fade into each other instead of meeting at a hard edge with a white gap.
 - **Messages below the nav bar**: messages appear at the top right just below the nav bar instead of covering Settings.
+
+### Fixed 🐞
+
+- **Delta screenshot names**: a screenshot taken while comparing two maps names the reference map before the comparison map.
 
 ## [2.11.0] - 2026-11-10
 

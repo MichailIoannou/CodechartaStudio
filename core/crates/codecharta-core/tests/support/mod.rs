@@ -4,6 +4,7 @@
     reason = "each integration test binary compiles this module and uses a different part of it"
 )]
 
+pub mod fake_ccsh;
 pub mod git_fixture;
 pub mod git_operations;
 pub mod recycler;

@@ -6,6 +6,7 @@ import { provideEffects } from "@ngrx/effects"
 import { provideStore } from "@ngrx/store"
 import { ChangelogFacade } from "app/codeCharta/features/changelog/facade"
 import { codeMapEffects } from "app/codeCharta/features/codeMap/effects/codeMap.effects"
+import { provideCompareForGitHistory } from "app/codeCharta/features/compare/facade"
 import { fileExtensionBarEffects } from "app/codeCharta/features/fileExtensionBar/effects/fileExtensionBar.effects"
 import { WORKING_FOLDER_SOURCE } from "app/codeCharta/features/gitHistory/facade"
 import { labelSettingsEffects } from "app/codeCharta/features/labelSettings/effects/labelSettings.effects"
@@ -15,6 +16,7 @@ import { metricsBarEffects } from "app/codeCharta/features/metricsBar/effects/me
 import { navBarEffects } from "app/codeCharta/features/navBar/effects/navBar.effects"
 import { ProjectsFacade } from "app/codeCharta/features/projects/facade"
 import { sharedEffects } from "app/codeCharta/features/shared/effects/shared.effects"
+import { provideSnapshotsForGitHistory } from "app/codeCharta/features/snapshots/facade"
 import { themeEffects } from "app/codeCharta/features/theme/effects/theme.effects"
 import { loadEffects } from "app/codeCharta/load/effects/load.effects"
 import { CloseDialogsOfLeftViewEffect } from "app/codeCharta/routing/closeDialogsOfLeftView.effect"
@@ -67,6 +69,8 @@ export const appConfig: ApplicationConfig = {
         { provide: RouteReuseStrategy, useClass: KeepAliveRouteReuseStrategy },
 
         { provide: WORKING_FOLDER_SOURCE, useExisting: ProjectsFacade },
+        ...provideSnapshotsForGitHistory(),
+        ...provideCompareForGitHistory(),
 
         provideEffects([
             ...codeMapEffects,

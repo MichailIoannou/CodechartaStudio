@@ -3,6 +3,8 @@
     reason = "each integration test binary compiles this module and uses a different part of it"
 )]
 
+pub mod analysis;
+
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{self, Receiver};

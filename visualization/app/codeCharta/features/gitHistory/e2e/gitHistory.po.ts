@@ -59,6 +59,10 @@ export class GitHistoryPageObject {
         return this.page.getByTestId("sync-button-cancel")
     }
 
+    workspaceStatus() {
+        return this.page.getByTestId("workspace-status-trigger")
+    }
+
     confirmDialog() {
         return this.page.getByTestId("git-confirm-dialog")
     }

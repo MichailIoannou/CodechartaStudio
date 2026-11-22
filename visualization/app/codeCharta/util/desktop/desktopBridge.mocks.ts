@@ -1,11 +1,14 @@
 import type { ErrorCode } from "../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../model/coreApi/ErrorPayload"
 import type { BridgeMethod, CoreState, DesktopBridge } from "./desktopBridge"
+import { fakeAnalysisBackend } from "./fakeBridge/analysisBackend.mocks"
+import { fakeCompareBackend } from "./fakeBridge/compareBackend.mocks"
 import type {
     FakeAnswer,
     FakeAnswerKey,
     FakeBackend,
     FakeBackendGroup,
+    FakeBridgeControls,
     FakeBridgeKit,
     FakeDesktopSeed,
     FakeRequestParams
@@ -18,6 +21,7 @@ import { fakeGitWorkingTreeBackend } from "./fakeBridge/gitWorkingTreeBackend.mo
 import { fakeImportBackend } from "./fakeBridge/importBackend.mocks"
 import { fakeOperationsBackend } from "./fakeBridge/operationsBackend.mocks"
 import { fakeProjectsBackend } from "./fakeBridge/projectsBackend.mocks"
+import { fakeResolutionsBackend } from "./fakeBridge/resolutionsBackend.mocks"
 import { fakeSnapshotsBackend } from "./fakeBridge/snapshotsBackend.mocks"
 
 export type { FakeDesktopSeed } from "./fakeBridge/fakeBridgeKit"
@@ -27,7 +31,7 @@ interface FakeCall {
     args: unknown[]
 }
 
-export interface FakeDesktopBridge extends DesktopBridge {
+export interface FakeDesktopBridge extends DesktopBridge, FakeBridgeControls {
     readonly calls: FakeCall[]
     emit(event: string, payload: unknown): void
     respondWith(key: FakeAnswerKey, value: unknown): void
@@ -43,7 +47,10 @@ const FAKE_BACKEND_GROUPS: FakeBackendGroup[] = [
     fakeGitHistoryBackend,
     fakeGitBranchesBackend,
     fakeGitWorkingTreeBackend,
-    fakeOperationsBackend
+    fakeOperationsBackend,
+    fakeResolutionsBackend,
+    fakeAnalysisBackend,
+    fakeCompareBackend
 ]
 
 /** The source of an expression that builds the fake bridge, for a page that cannot import it. */
@@ -83,13 +90,14 @@ export function createFakeDesktopBridge(
     const kit = {
         seed,
         store: {},
+        controls: {},
         now: seed.now ?? FALLBACK_NOW,
         succeed,
         refuse,
         nextId,
         emit,
         answer: answerFromBackend
-    } as FakeBridgeKit
+    } as unknown as FakeBridgeKit
     const backend: FakeBackend = Object.assign({}, ...backendGroups.map(group => group(kit)))
 
     function answerFor(key: FakeAnswerKey, fallback: () => unknown) {
@@ -170,6 +178,7 @@ export function createFakeDesktopBridge(
         failWith: (key, error) => {
             failures[key] = error
         },
+        ...kit.controls,
         protocolVersion: seed.protocolVersion ?? FALLBACK_PROTOCOL_VERSION,
         request: request as DesktopBridge["request"],
         cancel: operationId => {

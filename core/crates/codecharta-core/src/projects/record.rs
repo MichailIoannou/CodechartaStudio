@@ -1,4 +1,5 @@
 use codecharta_core_api::ids::{FolderId, ProjectId};
+use codecharta_core_api::methods::hosting::HostingOverride;
 use codecharta_core_api::methods::projects::{
     AnalysisProfile, FolderGitFacts, FolderKind, FolderRole, ProjectView,
 };
@@ -33,6 +34,8 @@ pub struct FolderRecord {
     pub kind: FolderKind,
     pub git: Option<FolderGitFacts>,
     pub added_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hosting: Option<HostingOverride>,
 }
 
 impl ProjectRecord {

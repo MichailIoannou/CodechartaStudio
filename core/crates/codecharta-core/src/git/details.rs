@@ -5,7 +5,7 @@ use codecharta_core_api::values::CommitSha;
 use super::command::{DETAILS_LIMITS, GitCommand};
 use super::error::GitError;
 use super::parse::changed_files::{
-    ChangedFileList, DIFF_TREE_ARGS, NAME_STATUS_ARG, NUMSTAT_ARG, join_changed_files,
+    ChangedFileList, DIFF_TREE_ARGS, NAME_STATUS_ARG, NUMSTAT_ARG, NameStatus, join_changed_files,
     parse_name_status, parse_numstat,
 };
 use super::parse::log::{DETAILS_FORMAT, parse_details};
@@ -16,6 +16,7 @@ use crate::error::CoreResult;
 const SHOW_ARGS: [&str; 3] = ["show", "-s", "-z"];
 const END_OF_OPTIONS: &str = "--end-of-options";
 const ROOT_ARGS: [&str; 2] = ["--root", "--no-commit-id"];
+const RELATIVE_ARG: &str = "--relative";
 const AS_COMMIT: &str = "^{commit}";
 
 /// Two commits whose files are compared; `to` alone for a root commit.
@@ -65,6 +66,19 @@ pub async fn changed_files(
         are_files_truncated: list.are_files_truncated,
         totals: list.totals,
     })
+}
+
+/// Every changed file below the folder git runs in, with paths relative to it, and no counts: for a
+/// comparison that needs all paths and nothing else.
+pub async fn changed_paths(
+    at: FolderGit<'_>,
+    from: &CommitSha,
+    to: &CommitSha,
+) -> CoreResult<Vec<NameStatus>> {
+    let (from, to) = (as_commit(from.as_str()), as_commit(to.as_str()));
+    let mut args: Vec<&str> = DIFF_TREE_ARGS.to_vec();
+    args.extend([RELATIVE_ARG, NAME_STATUS_ARG, &from, &to]);
+    parse_name_status(&at.run(&args, DETAILS_LIMITS).await?)
 }
 
 fn no_common_history() -> crate::error::CoreError {

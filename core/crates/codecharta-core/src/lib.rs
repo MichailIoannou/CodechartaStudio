@@ -1,7 +1,10 @@
+pub mod analysis;
+pub mod compare;
 pub mod config;
 pub mod error;
 pub mod folders;
 pub mod git;
+pub mod hosting;
 pub mod ids;
 pub mod process;
 pub mod projects;
@@ -20,6 +23,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, PoisonError, RwLock};
 
 use codecharta_core_api::ids::InvalidStoreId;
+use codecharta_core_api::methods::analysis::AnalysisJob;
 use codecharta_core_api::methods::core::Platform;
 use codecharta_core_api::methods::git::RepositoryChanged;
 use codecharta_core_api::methods::paths::PathsInfo;
@@ -28,6 +32,8 @@ use codecharta_core_api::methods::shell::ShellPathTarget;
 use codecharta_core_api::methods::snapshots::SnapshotRef;
 use codecharta_core_api::methods::store::{StoreRootChange, StoreStatus};
 
+use analysis::jobs::Analyses;
+use analysis::queue::AnalysisQueue;
 use config::settings::SETTINGS_FILE_NAME;
 use git::changes::RepositoryChanges;
 use git::command::UserEnvironment;
@@ -42,6 +48,7 @@ use projects::tokens::PickTokens;
 use prompt::PromptBroker;
 use recycle::SystemRecycler;
 use snapshots::SnapshotRepository;
+use snapshots::nearest::ResolutionCache;
 use store::Store;
 use store::root_change::{PreparedRoot, prepare_store_root};
 use store::state::StoreState;
@@ -61,6 +68,8 @@ pub struct Core {
     user_environment: UserEnvironment,
     operation_queue: OperationQueue,
     prompts: Arc<PromptBroker>,
+    analysis_queue: AnalysisQueue,
+    resolutions: ResolutionCache,
 }
 
 impl Core {
@@ -91,6 +100,8 @@ impl Core {
             user_environment: UserEnvironment::read(&|name| std::env::var_os(name)),
             operation_queue: OperationQueue::default(),
             prompts: Arc::default(),
+            analysis_queue: AnalysisQueue::new(),
+            resolutions: ResolutionCache::default(),
         })
     }
 
@@ -129,6 +140,7 @@ impl Core {
 
     /// `None` when `target` is the folder of the store that is open already.
     fn open_store_at(&self, target: &Path) -> CoreResult<(Option<Store>, PreparedRoot)> {
+        self.ensure_no_analysis_runs()?;
         let current = self.store().ok();
         let current_root = current.as_ref().map(|store| store.paths().root());
         if current_root.is_some_and(|root| is_same_folder(root, target)) {
@@ -136,6 +148,16 @@ impl Core {
         }
         let prepared = prepare_store_root(current_root, target)?;
         Ok((Some(Store::open(target)?), prepared))
+    }
+
+    fn ensure_no_analysis_runs(&self) -> CoreResult<()> {
+        let is_running = |job: &AnalysisJob| !job.state.is_finished();
+        if !self.analysis_queue.list().iter().any(is_running) {
+            return Ok(());
+        }
+        Err(CoreError::Conflict(
+            "Analyses are running; change the store folder when they are done.".to_string(),
+        ))
     }
 
     /// Requests that are running keep the store they started with until they end.
@@ -197,6 +219,25 @@ impl Core {
     /// Network git operations open a prompt session here; `serve` starts the askpass server for it.
     pub fn prompts(&self) -> &Arc<PromptBroker> {
         &self.prompts
+    }
+
+    /// The one queue of analysis jobs of this core; `analyses().drive()` runs it.
+    pub fn analysis_queue(&self) -> &AnalysisQueue {
+        &self.analysis_queue
+    }
+
+    pub fn analyses(&self) -> Analyses<'_> {
+        Analyses::new(self)
+    }
+
+    /// The snapshot resolutions of this core, shared by every request.
+    pub fn resolution_cache(&self) -> &ResolutionCache {
+        &self.resolutions
+    }
+
+    /// Every child process of the core runs through this runner, so `shutdown` can stop them all.
+    pub fn runner(&self) -> &ProcessRunner {
+        &self.runner
     }
 
     pub fn subscribe_repository_changes(

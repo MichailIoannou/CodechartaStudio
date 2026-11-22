@@ -19,13 +19,17 @@ const RESOLVE_ARGS: [&str; 4] = ["rev-parse", "--verify", "--quiet", "--end-of-o
 const SUMMARY_ARGS: [&str; 3] = ["show", "-s", "-z"];
 const END_OF_OPTIONS: &str = "--end-of-options";
 const AS_COMMIT: &str = "^{commit}";
+const AS_TREE: &str = "^{tree}";
 const COUNT_ARGS: [&str; 2] = ["rev-list", "--count"];
 const DISTANCE_ARGS: [&str; 3] = ["rev-list", "--left-right", "--count"];
 const POINTS_AT_FORMAT: &str = "--format=%(refname)";
 const BRANCHES_PREFIX: &str = "refs/heads/";
 const TAGS_PREFIX: &str = "refs/tags/";
-const REV_LIST_ARGS: [&str; 3] = ["rev-list", "--date-order", "--stdin"];
+const DATE_ORDER_ARGS: [&str; 3] = ["rev-list", "--date-order", "--stdin"];
+const PARENTS_ARGS: [&str; 3] = ["rev-list", "--parents", "--stdin"];
 const FIRST_PARENT_ARG: &str = "--first-parent";
+const PARENT_SEPARATOR: char = ' ';
+const MERGE_PARENTS: usize = 2;
 const EXCLUDE_MARK: char = '^';
 const LINE_END: char = '\n';
 const COUNT_SEPARATOR: char = '\t';
@@ -40,7 +44,16 @@ pub struct RevListRequest {
     pub max_count: Option<u32>,
 }
 
-pub type ShaSink<'sink> = dyn FnMut(&[CommitSha]) -> ControlFlow<()> + Send + 'sink;
+/// One commit of a walk that names parents; a merge has more than one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WalkedCommit {
+    pub sha: CommitSha,
+    pub is_merge: bool,
+}
+
+pub type BatchSink<'sink, Item> = dyn FnMut(&[Item]) -> ControlFlow<()> + Send + 'sink;
+pub type ShaSink<'sink> = BatchSink<'sink, CommitSha>;
+pub type WalkSink<'sink> = BatchSink<'sink, WalkedCommit>;
 
 pub async fn resolve_commit(
     at: FolderGit<'_>,
@@ -68,6 +81,35 @@ async fn summary_of_commit(at: FolderGit<'_>, sha: &str) -> CoreResult<GitCommit
 fn unknown_revision() -> CoreError {
     let code = ErrorCode::UnknownRevision;
     GitError::new(code, message_for(code)).into()
+}
+
+/// `--quiet` turns "not found" and "ambiguous" into the same silent exit 1.
+pub async fn resolve_abbreviated(at: FolderGit<'_>, prefix: &str) -> CoreResult<Option<CommitSha>> {
+    let peeled = format!("{prefix}{AS_COMMIT}");
+    let args = [&RESOLVE_ARGS[..], &[peeled.as_str()]].concat();
+    let output = at.run_raw(&args, QUERY_LIMITS).await?;
+    match output.exit_code {
+        0 => {
+            let sha = commit_sha(output.stdout.trim())?;
+            CommitSha::try_from(sha)
+                .map(Some)
+                .map_err(|_| parse_failed(WHAT))
+        }
+        NO_ANSWER_EXIT_CODE => Ok(None),
+        _ => Err(command_failed(&output)),
+    }
+}
+
+/// The tree a commit records; two commits with the same tree have the same files.
+pub async fn tree_of(at: FolderGit<'_>, sha: &CommitSha) -> CoreResult<String> {
+    let peeled = format!("{sha}{AS_TREE}");
+    let args = [&RESOLVE_ARGS[..], &[peeled.as_str()]].concat();
+    let output = at.run_raw(&args, QUERY_LIMITS).await?;
+    match output.exit_code {
+        0 => Ok(output.stdout.trim().to_string()),
+        NO_ANSWER_EXIT_CODE => Err(unknown_revision()),
+        _ => Err(command_failed(&output)),
+    }
 }
 
 /// The commits reachable from `to` but not from `from`.
@@ -221,23 +263,69 @@ pub async fn rev_list(
     request: &RevListRequest,
     sink: &mut ShaSink<'_>,
 ) -> CoreResult<u64> {
-    if request.include.is_empty() {
+    let walk = Walk {
+        request,
+        leading_args: &DATE_ORDER_ARGS,
+        parse: |line| CommitSha::try_from(line).ok(),
+    };
+    stream_walk(at, &walk, sink).await
+}
+
+/// Like `rev_list`, telling merge commits apart, in git's default order: newest commit date first,
+/// without `rev_list`'s promise of children before parents, so git answers without first walking the
+/// whole history (`--date-order` takes about 0.4 s for the first line of 100 000 commits). A walk that
+/// met no merge commit yet has followed one line of parents, whatever the dates.
+pub async fn rev_list_with_parents(
+    at: FolderGit<'_>,
+    request: &RevListRequest,
+    sink: &mut WalkSink<'_>,
+) -> CoreResult<u64> {
+    let walk = Walk {
+        request,
+        leading_args: &PARENTS_ARGS,
+        parse: walked_commit,
+    };
+    stream_walk(at, &walk, sink).await
+}
+
+/// `<sha> <parent>…`, as `--parents` prints a commit.
+fn walked_commit(line: &str) -> Option<WalkedCommit> {
+    let mut fields = line.split(PARENT_SEPARATOR);
+    let sha = CommitSha::try_from(fields.next()?).ok()?;
+    Some(WalkedCommit {
+        sha,
+        is_merge: fields.count() >= MERGE_PARENTS,
+    })
+}
+
+struct Walk<'request, Item> {
+    request: &'request RevListRequest,
+    leading_args: &'static [&'static str],
+    parse: fn(&str) -> Option<Item>,
+}
+
+async fn stream_walk<Item: Send>(
+    at: FolderGit<'_>,
+    walk: &Walk<'_, Item>,
+    sink: &mut BatchSink<'_, Item>,
+) -> CoreResult<u64> {
+    if walk.request.include.is_empty() {
         return Ok(0);
     }
-    let args = rev_list_args(request);
+    let args = rev_list_args(walk.request, walk.leading_args);
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     let command = at
         .read(&args, REV_LIST_LIMITS)
-        .with_stdin(rev_list_stdin(request));
-    let mut batcher = ShaBatcher::new(sink);
+        .with_stdin(rev_list_stdin(walk.request));
+    let mut batcher = Batcher::new(sink, walk.parse);
     at.git
         .stream_lines(&command, at.cancel, &mut |line| batcher.take(line))
         .await?;
     batcher.finish()
 }
 
-fn rev_list_args(request: &RevListRequest) -> Vec<String> {
-    let mut args: Vec<String> = REV_LIST_ARGS.iter().map(ToString::to_string).collect();
+fn rev_list_args(request: &RevListRequest, leading_args: &[&str]) -> Vec<String> {
+    let mut args: Vec<String> = leading_args.iter().map(ToString::to_string).collect();
     if request.first_parent {
         args.push(FIRST_PARENT_ARG.to_string());
     }
@@ -261,18 +349,20 @@ fn rev_list_stdin(request: &RevListRequest) -> String {
         .collect()
 }
 
-struct ShaBatcher<'sink, 'call> {
-    sink: &'call mut ShaSink<'sink>,
-    batch: Vec<CommitSha>,
+struct Batcher<'sink, 'call, Item> {
+    sink: &'call mut BatchSink<'sink, Item>,
+    parse: fn(&str) -> Option<Item>,
+    batch: Vec<Item>,
     delivered: u64,
     is_stopped: bool,
     is_malformed: bool,
 }
 
-impl<'sink, 'call> ShaBatcher<'sink, 'call> {
-    fn new(sink: &'call mut ShaSink<'sink>) -> Self {
+impl<'sink, 'call, Item> Batcher<'sink, 'call, Item> {
+    fn new(sink: &'call mut BatchSink<'sink, Item>, parse: fn(&str) -> Option<Item>) -> Self {
         Self {
             sink,
+            parse,
             batch: Vec::with_capacity(REV_LIST_BATCH),
             delivered: 0,
             is_stopped: false,
@@ -281,11 +371,11 @@ impl<'sink, 'call> ShaBatcher<'sink, 'call> {
     }
 
     fn take(&mut self, line: &str) -> ControlFlow<()> {
-        let Ok(sha) = CommitSha::try_from(line) else {
+        let Some(item) = (self.parse)(line) else {
             self.is_malformed = true;
             return ControlFlow::Break(());
         };
-        self.batch.push(sha);
+        self.batch.push(item);
         if self.batch.len() < REV_LIST_BATCH {
             return ControlFlow::Continue(());
         }

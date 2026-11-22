@@ -44,7 +44,8 @@ const SEED: FakeDesktopSeed = {
         aSnapshot("p-billing", "f-api", "s-release", {
             shortCommit: "9f8e7d6",
             commit: RELEASE.sha,
-            subject: "Release 2.4.0"
+            subject: "Release 2.4.0",
+            durationMs: 72_000
         }),
         aSnapshot("p-billing", "f-out", "s-out", { source: "imported", originalFileName: "out.cc.json" })
     ],
@@ -83,6 +84,7 @@ describe("ProjectOverviewComponent", () => {
         expect(git.textContent).toContain("Fix invoice rounding")
         expect(git.textContent).toContain("origin github.com/acme/billing-api")
         expect(screen.getByTestId("analyses-rows").textContent).toContain("Release 2.4.0")
+        expect(screen.getByTestId("analyses-rows").textContent).toContain("took 1 min 12 s")
     })
 
     it("should mark the head and the analysed commits in the recent commits", async () => {

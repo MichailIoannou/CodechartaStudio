@@ -49,3 +49,7 @@ export type ErrorCode =
     | "PUSH_REJECTED"
     | "NO_UPSTREAM"
     | "STALE_PUSH_LEASE"
+    | "SNAPSHOT_BEING_WRITTEN"
+    | "RECYCLE_FAILED"
+    | "REF_NOT_ON_REMOTE"
+    | "HEAD_NOT_LOCAL"

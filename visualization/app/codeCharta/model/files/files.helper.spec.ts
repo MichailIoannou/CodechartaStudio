@@ -214,6 +214,20 @@ describe("files", () => {
             expect(result).toBe(expectedFileName)
         })
 
+        it("should name the reference before the comparison", () => {
+            // Arrange
+            files[0].selectedAs = FileSelectionState.Comparison
+            files[1].selectedAs = FileSelectionState.Reference
+            files[0].file.fileMeta.fileName = "repo@a1b2c3d.cc.json"
+            files[1].file.fileMeta.fileName = "repo@f9e8d7c.cc.json"
+
+            // Act
+            const result = createPNGFileName(files, "map")
+
+            // Assert
+            expect(result).toBe("delta_repo@f9e8d7c_repo@a1b2c3d_map.png")
+        })
+
         it("should cut off a file name when it is longer than 255 characters", () => {
             files[0].selectedAs = FileSelectionState.Partial
             files[1].selectedAs = FileSelectionState.Partial

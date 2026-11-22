@@ -214,6 +214,20 @@ mod tests {
     }
 
     #[test]
+    fn should_keep_paths_with_spaces_and_non_ascii_characters() {
+        // Arrange
+        let stdout = "A\0src/a file ü.txt\0R087\0old ö.txt\0new ö.txt\0";
+
+        // Act
+        let entries = parse_name_status(stdout).unwrap();
+
+        // Assert
+        assert_eq!(entries[0].path, "src/a file ü.txt");
+        assert_eq!(entries[1].path, "new ö.txt");
+        assert_eq!(entries[1].previous_path.as_deref(), Some("old ö.txt"));
+    }
+
+    #[test]
     fn should_join_numstat_by_the_new_path() {
         // Arrange
         let entries = parse_name_status(NAME_STATUS).unwrap();

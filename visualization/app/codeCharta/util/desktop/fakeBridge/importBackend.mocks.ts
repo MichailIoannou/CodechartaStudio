@@ -42,7 +42,11 @@ export function fakeImportBackend(kit: FakeBridgeKit): FakeBackend {
             fileModifiedAt: file.fileModifiedAt,
             mapBytes: file.sizeBytes,
             checksum: null,
-            profileHash: null
+            profileHash: null,
+            target: null,
+            finishedAt: null,
+            durationMs: null,
+            notInMap: []
         }
     }
 

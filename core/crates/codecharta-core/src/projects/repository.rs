@@ -146,6 +146,7 @@ impl<'deps> ProjectRepository<'deps> {
             kind: inspection.kind,
             git: inspection.git,
             added_at: timestamps::now(),
+            hosting: None,
         })
     }
 

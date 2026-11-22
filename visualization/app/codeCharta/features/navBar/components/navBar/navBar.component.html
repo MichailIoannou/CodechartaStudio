@@ -4,12 +4,15 @@
         <div class="divider divider-horizontal mx-0"></div>
         @if (isDesktop()) {
             <cc-project-switcher></cc-project-switcher>
-            @if (hasFiles()) {
-                @if (isDeltaState()) {
-                    <cc-delta-selector></cc-delta-selector>
-                } @else if (!hasActiveProject()) {
-                    <cc-map-selector></cc-map-selector>
-                }
+            @if (isComparing()) {
+                <cc-workspace-status [iconOnly]="true"></cc-workspace-status>
+                <cc-comparison-chip></cc-comparison-chip>
+            } @else if (hasFiles() && isDeltaState()) {
+                <cc-delta-selector></cc-delta-selector>
+            } @else if (hasActiveProject()) {
+                <cc-workspace-status></cc-workspace-status>
+            } @else if (hasFiles()) {
+                <cc-map-selector></cc-map-selector>
             }
         } @else {
             <cc-nav-bar-folder-button></cc-nav-bar-folder-button>
@@ -31,4 +34,10 @@
 </div>
 @if (isExportDialogOpen()) {
     <cc-export-3D-map-dialog (closed)="closeExportDialog()" />
+}
+@if (isDesktop()) {
+    <cc-compare-host />
+}
+@if (isSnapshotsDialogOpen()) {
+    <cc-snapshots-dialog />
 }

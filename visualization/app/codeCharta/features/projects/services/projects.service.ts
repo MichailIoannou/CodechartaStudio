@@ -1,6 +1,6 @@
 import { computed, effect, Injectable, inject, signal, untracked } from "@angular/core"
 import { Router } from "@angular/router"
-import { LoadFilesUseCase, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad } from "../../../load/load.facade"
+import { LoadedSnapshotFacts, LoadFilesUseCase, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad } from "../../../load/load.facade"
 import type { ErrorCode } from "../../../model/coreApi/ErrorCode"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { NewFolder } from "../../../model/coreApi/NewFolder"
@@ -11,6 +11,7 @@ import type { ResolveCommitResult } from "../../../model/coreApi/ResolveCommitRe
 import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import type { StoreProblemCode } from "../../../model/coreApi/StoreProblemCode"
+import type { StoreUsage } from "../../../model/coreApi/StoreUsage"
 import type { UpdateProjectParams } from "../../../model/coreApi/UpdateProjectParams"
 import { ProjectSnapshotOrigin } from "../../../model/projectSnapshot.model"
 import { projectRouteLink } from "../../../routing/projectRoute"
@@ -20,6 +21,7 @@ import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.ser
 import { DesktopBridgeError, valueOrThrow } from "../../../util/desktop/desktopResult"
 import { StoreFolderService } from "../../desktopTools/facade"
 import { ToastService } from "../../shared/facade"
+import { candidatesOf, entriesOf, findSnapshot, folderLabelOf, ViewChange, viewWith, workingFolderOf } from "../util/projectSnapshots"
 import { snapshotDisplayName, uniqueDisplayNames } from "../util/snapshotDisplayName"
 import { readSnapshotBytes } from "./snapshotBytes"
 
@@ -123,6 +125,39 @@ export class ProjectsService {
         await this.showWorkingFolder()
     }
 
+    /** Loads a snapshot of the working folder into the map and stays on the current view. */
+    async loadSnapshot(ref: SnapshotRef): Promise<boolean> {
+        const folder = this.workingFolder()
+        if (folder?.id !== ref.folderId || ref.projectId !== this.project()?.id) {
+            return false
+        }
+        if (!this.hasSnapshot(ref)) {
+            await this.refreshFolderSnapshots(ref)
+        }
+        const snapshot = this.findSnapshot(ref)
+        return snapshot
+            ? this.acceptLoadResult(await this.loadFilesUseCase.loadProjectSnapshots(this.toLoad([{ folder, snapshot }])))
+            : false
+    }
+
+    /**
+     * Replaces the loaded maps with snapshots of the active project in one step; the first is the one the map shows.
+     * Snapshots of identical content are loaded once, as the earliest in the list.
+     */
+    async loadSnapshots(refs: SnapshotRef[]): Promise<ProjectSnapshotsLoadResult> {
+        for (const ref of refs.filter(ref => !this.hasSnapshot(ref))) {
+            await this.refreshFolderSnapshots(ref)
+        }
+        const entries = entriesOf(this.project(), this.snapshots(), refs)
+        if (!entries) {
+            return { loaded: [], identicalContent: [], unreadable: [] }
+        }
+        const result = await this.loadFilesUseCase.loadProjectSnapshots(this.toLoad(entries))
+        this.reportUnreadable(result)
+        await this.showLoaded(result.loaded)
+        return result
+    }
+
     snapshotsToShow(): Promise<ProjectSnapshotToLoad[]> {
         const folder = this.workingFolder()
         const snapshot = folder ? this.candidatesFor(folder)[0] : undefined
@@ -166,17 +201,26 @@ export class ProjectsService {
 
     async acceptLoadResult(result: ProjectSnapshotsLoadResult): Promise<boolean> {
         this.toastIdenticalContent(result)
+        this.reportUnreadable(result)
+        return this.showLoaded(result.loaded)
+    }
+
+    private reportUnreadable(result: ProjectSnapshotsLoadResult): void {
         for (const origin of result.unreadable) {
             this.unreadableSnapshotIds.add(origin.snapshotId)
             this.toastService.show(`The analysis of '${origin.folderLabel}' could not be read`, "error")
         }
-        const loaded = result.loaded[0]
-        if (!loaded) {
+    }
+
+    /** The first loaded snapshot becomes the shown one; the facts of every loaded map are recorded. */
+    private async showLoaded(loaded: LoadedSnapshotFacts[]): Promise<boolean> {
+        const [first] = loaded
+        if (!first) {
             return false
         }
-        const snapshot = this.findSnapshot(loaded.origin)
-        this.shown.set(snapshot)
-        await Promise.all([this.recordMapFacts(snapshot, loaded), this.rememberShown(loaded.origin)])
+        this.shown.set(this.findSnapshot(first.origin))
+        const recordings = loaded.map(facts => this.recordMapFacts(this.findSnapshot(facts.origin), facts))
+        await Promise.all([...recordings, this.rememberShown(first.origin)])
         return true
     }
 
@@ -224,6 +268,19 @@ export class ProjectsService {
     async moveSnapshot(ref: SnapshotRef, change: { toFolderId: string; bindToCommit: string | null }): Promise<void> {
         const moved = await this.request("snapshots.move", { ...ref, ...change })
         await this.showSnapshot(moved.ref)
+    }
+
+    async refreshFolderSnapshots(folder: FolderRef): Promise<void> {
+        if (folder.projectId !== this.project()?.id) {
+            return
+        }
+        const { snapshots } = await this.request("snapshots.list", folder)
+        this.snapshots.update(byFolder => ({ ...byFolder, [folder.folderId]: snapshots }))
+    }
+
+    async readStoreUsage(): Promise<StoreUsage | null> {
+        const project = this.project()
+        return project ? this.request("snapshots.usage", { projectId: project.id }) : null
     }
 
     toastUnlessSilent(error: unknown, text: string): void {
@@ -278,10 +335,8 @@ export class ProjectsService {
     }
 
     private candidatesFor(folder: ProjectFolder): SnapshotSummary[] {
-        const readable = (this.snapshots()[folder.id] ?? []).filter(snapshot => !this.unreadableSnapshotIds.has(snapshot.ref.snapshotId))
         const rememberedId = this.project()?.view.shownSnapshotIdByFolder[folder.id]
-        const remembered = readable.find(snapshot => snapshot.ref.snapshotId === rememberedId)
-        return remembered ? [remembered, ...readable.filter(snapshot => snapshot !== remembered)] : readable
+        return candidatesOf(this.snapshots(), folder, this.unreadableSnapshotIds, rememberedId)
     }
 
     private toLoad(entries: { folder: ProjectFolder; snapshot: SnapshotSummary }[]): ProjectSnapshotToLoad[] {
@@ -304,9 +359,12 @@ export class ProjectsService {
         return snapshotDisplayName(origin.folderLabel, this.findSnapshot(origin))
     }
 
+    private hasSnapshot(ref: SnapshotRef): boolean {
+        return findSnapshot(this.snapshots(), ref) !== undefined
+    }
+
     private findSnapshot(origin: SnapshotRef): SnapshotSummary {
-        const snapshots = this.snapshots()[origin.folderId] ?? []
-        return snapshots.find(snapshot => snapshot.ref.snapshotId === origin.snapshotId) as SnapshotSummary
+        return findSnapshot(this.snapshots(), origin) as SnapshotSummary
     }
 
     private async recordMapFacts(snapshot: SnapshotSummary, facts: { checksum: string; rootName: string }): Promise<void> {
@@ -327,19 +385,15 @@ export class ProjectsService {
         await this.rememberView({ shownSnapshotIdByFolder: { [origin.folderId]: origin.snapshotId } })
     }
 
-    private async rememberView(change: { workingFolderId?: string; shownSnapshotIdByFolder?: Record<string, string> }): Promise<void> {
+    private async rememberView(change: ViewChange): Promise<void> {
         const project = this.requireProject()
-        const view = {
-            workingFolderId: change.workingFolderId ?? project.view.workingFolderId,
-            shownSnapshotIdByFolder: { ...project.view.shownSnapshotIdByFolder, ...change.shownSnapshotIdByFolder }
-        }
+        const view = viewWith(project.view, change)
         await this.request("projects.setView", { projectId: project.id, view })
         this.project.set({ ...project, view })
     }
 
     private labelOf(choice: FolderChoice): string {
-        const summary = this.projectList().find(project => project.id === choice.projectId)
-        return summary?.folders.find(folder => folder.id === choice.folderId)?.label ?? choice.folderId
+        return folderLabelOf(this.projectList(), choice.projectId, choice.folderId)
     }
 
     requireProject(): Project {
@@ -357,12 +411,4 @@ export class ProjectsService {
     async request<Method extends BridgeMethod>(method: Method, params: BridgeParams<Method>): Promise<BridgeResult<Method>> {
         return valueOrThrow(await this.bridge.request(method, params))
     }
-}
-
-function workingFolderOf(project: Project | null): ProjectFolder | null {
-    if (!project) {
-        return null
-    }
-    const working = project.folders.find(folder => folder.id === project.view.workingFolderId)
-    return working ?? project.folders.find(folder => folder.role === "primary") ?? project.folders[0] ?? null
 }

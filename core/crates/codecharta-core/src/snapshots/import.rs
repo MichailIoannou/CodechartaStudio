@@ -185,6 +185,7 @@ impl SnapshotRepository<'_> {
             head_at_run: None,
             dirty: false,
             remotes,
+            tree: None,
         })
     }
 
