@@ -30,7 +30,6 @@ export interface SyncContext {
 const PREFERRED_REMOTE = "origin"
 const DETACHED = "HEAD is detached: switch to a branch first."
 const NO_REMOTE = "This repository has no remote."
-const NOTHING_TO_PULL = "Nothing to pull: the remote has no new commits. Use Push."
 const NOTHING_TO_PUSH = "Nothing to push"
 const NOTHING_TO_REPLACE = "Nothing on the remote would be replaced."
 const REMOTE_REF_PREFIX = "refs/remotes/"
@@ -98,7 +97,7 @@ function menuItem(action: SyncMenuAction, label: string, icon: string, hint = ""
 }
 
 export function pullReasonOf(branch: GitLocalBranch | null, inProgress: OperationInProgress | null = null): string | null {
-    return blockingReasonOf(branch, inProgress) ?? ((branch?.upstream?.behind ?? 0) > 0 ? null : NOTHING_TO_PULL)
+    return blockingReasonOf(branch, inProgress)
 }
 
 export function pushReasonOf(branch: GitLocalBranch | null, inProgress: OperationInProgress | null = null): string | null {
@@ -125,7 +124,7 @@ export function remoteOfUpstream(upstream: GitUpstream, remotes: readonly GitRem
     return matching.reduce<string | null>((longest, remote) => (remote.name.length > (longest?.length ?? 0) ? remote.name : longest), null)
 }
 
-/** Why no pull, push or force push can run at all; "nothing to pull" may come from counts an older fetch left. */
+/** Why no pull, push or force push can run at all; the counts of an older fetch may be stale, so git answers "Already up to date". */
 export function blockingReasonOf(branch: GitLocalBranch | null, inProgress: OperationInProgress | null = null): string | null {
     return unfinishedReasonOf(inProgress) ?? trackingReasonOf(branch)
 }

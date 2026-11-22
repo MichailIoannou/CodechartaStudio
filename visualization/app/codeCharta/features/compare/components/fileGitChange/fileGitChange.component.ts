@@ -13,7 +13,7 @@ const RENAMES: ReadonlySet<string> = new Set(["renamed", "copied"])
             <div class="mt-1 flex min-w-0 items-center gap-1 text-xs" data-testid="inspector-git-change">
                 <span class="badge badge-xs shrink-0 {{ change.badge.toneClass }}" [attr.title]="change.badge.title">{{ change.badge.label }}</span>
                 @if (change.previousPath; as previousPath) {
-                    <span class="min-w-0 truncate text-base-content/60" [title]="previousPath">{{ change.origin }} from {{ previousPath }}</span>
+                    <span class="min-w-0 truncate text-base-content/60" [title]="previousPath">from {{ previousPath }}</span>
                 }
             </div>
         }
@@ -36,6 +36,6 @@ export class FileGitChangeComponent {
         if (!file) {
             return null
         }
-        return { badge: changeBadgeOf(file.change), origin: file.change, previousPath: RENAMES.has(file.change) ? file.previousPath : null }
+        return { badge: changeBadgeOf(file.change), previousPath: RENAMES.has(file.change) ? file.previousPath : null }
     })
 }

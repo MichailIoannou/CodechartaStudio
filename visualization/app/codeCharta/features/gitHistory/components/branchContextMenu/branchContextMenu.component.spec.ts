@@ -31,7 +31,8 @@ describe("BranchContextMenuComponent", () => {
         push: jest.fn(),
         forcePush: jest.fn(),
         publish: jest.fn(),
-        remotes: signal([{ name: "origin", url: "https://example.com/billing-api.git" }])
+        remotes: signal([{ name: "origin", url: "https://example.com/billing-api.git" }]),
+        inProgress: signal<"merge" | null>(null)
     }
     const isBusy = signal(false)
 
@@ -86,6 +87,20 @@ describe("BranchContextMenuComponent", () => {
             [{ kind: "setUpstream", branch: FEATURE }]
         ])
         expect(closed).toHaveBeenCalledWith(false)
+    })
+
+    it("should hold push and force push while a merge is unfinished", async () => {
+        // Arrange
+        isBusy.set(false)
+        sync.inProgress.set("merge")
+        await renderMenu(LOCAL_REF)
+
+        // Act
+        const held = ["Push", "Force Push (with Lease)…"].map(label => screen.getByText(label).closest("button")?.title)
+        sync.inProgress.set(null)
+
+        // Assert
+        expect(held).toEqual(["Finish or abort the merge first.", "Finish or abort the merge first."])
     })
 
     it("should publish a local branch without upstream", async () => {

@@ -18,7 +18,8 @@ const GIT_LIST: ChangedFilesState = {
     source: "git",
     files: [
         { change: "renamed", path: "big/MyClass.ts", previousPath: "old/MyClass.ts" },
-        { change: "modified", path: "small/SmallClass.ts", previousPath: null }
+        { change: "modified", path: "small/SmallClass.ts", previousPath: null },
+        { change: "copied", path: "big/Copy.ts", previousPath: "big/MyClass.ts" }
     ]
 }
 
@@ -55,7 +56,15 @@ describe("FileGitChangeComponent", () => {
         await renderWith(GIT_LIST, "/root/big/MyClass.ts")
 
         // Assert
-        expect(wordsOf(screen.getByTestId("inspector-git-change"))).toBe("renamed renamed from old/MyClass.ts")
+        expect(wordsOf(screen.getByTestId("inspector-git-change"))).toBe("renamed from old/MyClass.ts")
+    })
+
+    it("should say where a copied file came from", async () => {
+        // Act
+        await renderWith(GIT_LIST, "/root/big/Copy.ts")
+
+        // Assert
+        expect(wordsOf(screen.getByTestId("inspector-git-change"))).toBe("copied from big/MyClass.ts")
     })
 
     it("should name the change of a modified file by its badge alone", async () => {

@@ -165,7 +165,7 @@ describe("syncState", () => {
             ])
         })
 
-        it("should refuse a pull with nothing to pull, a push with nothing to push and a force push with nothing to replace", () => {
+        it("should leave a pull to git when nothing is behind and refuse a push with nothing to push and a force push with nothing to replace", () => {
             // Arrange
             const branch = onBranch(anUpstream("origin/feature/x"))
 
@@ -173,11 +173,7 @@ describe("syncState", () => {
             const reasons = [pullReasonOf(branch), pushReasonOf(branch), forcePushReasonOf(branch)]
 
             // Assert
-            expect(reasons).toEqual([
-                "Nothing to pull: the remote has no new commits. Use Push.",
-                "Nothing to push",
-                "Nothing on the remote would be replaced."
-            ])
+            expect(reasons).toEqual([null, "Nothing to push", "Nothing on the remote would be replaced."])
         })
 
         it("should refuse pull, push, publish and force push until a merge or rebase is finished", () => {

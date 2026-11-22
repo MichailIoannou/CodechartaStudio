@@ -1,4 +1,5 @@
 import type { GitRemote } from "../../../model/coreApi/GitRemote"
+import type { OperationInProgress } from "../../../model/coreApi/OperationInProgress"
 import type { BranchRef } from "./branchTree"
 import { forcePushReasonOf, publishReasonOf, pushReasonOf } from "./syncState"
 
@@ -57,13 +58,18 @@ const ACTIONS_BY_KIND: Readonly<Record<"current" | BranchRef["kind"], readonly B
 const WORKTREE_BOUND: ReadonlySet<BranchMenuAction> = new Set(["switch", "delete"])
 
 /** A local branch without upstream is published rather than pushed. */
-export function branchMenuItems(ref: BranchRef, isBusy: boolean, remotes: readonly GitRemote[] = []): BranchMenuItem[] {
+export function branchMenuItems(
+    ref: BranchRef,
+    isBusy: boolean,
+    remotes: readonly GitRemote[] = [],
+    inProgress: OperationInProgress | null = null
+): BranchMenuItem[] {
     const kind = ref.local?.isCurrent ? "current" : ref.kind
     const worktreePath = ref.local?.checkedOutInOtherWorktree ?? null
     return ACTIONS_BY_KIND[kind].map(offered => {
         const action = offered === "push" && ref.local && !ref.local.upstream ? "publish" : offered
         const worktreeReason = worktreePath && WORKTREE_BOUND.has(action) ? `Checked out in ${worktreePath}` : null
-        const disabledReason = isBusy ? WAITING_FOR_OPERATION : (worktreeReason ?? syncReasonOf(action, ref, remotes))
+        const disabledReason = isBusy ? WAITING_FOR_OPERATION : (worktreeReason ?? syncReasonOf(action, ref, remotes, inProgress))
         return { ...templateOf(action, ref), disabledReason }
     })
 }
@@ -72,14 +78,19 @@ function templateOf(action: BranchMenuAction, ref: BranchRef): ItemTemplate {
     return action === "publish" ? { ...ITEMS.publish, label: `Publish '${ref.local?.name}'` } : ITEMS[action]
 }
 
-function syncReasonOf(action: BranchMenuAction, ref: BranchRef, remotes: readonly GitRemote[]): string | null {
+function syncReasonOf(
+    action: BranchMenuAction,
+    ref: BranchRef,
+    remotes: readonly GitRemote[],
+    inProgress: OperationInProgress | null
+): string | null {
     switch (action) {
         case "push":
-            return pushReasonOf(ref.local)
+            return pushReasonOf(ref.local, inProgress)
         case "publish":
-            return publishReasonOf(remotes)
+            return publishReasonOf(remotes, inProgress)
         case "forcePush":
-            return forcePushReasonOf(ref.local)
+            return forcePushReasonOf(ref.local, inProgress)
         default:
             return null
     }
