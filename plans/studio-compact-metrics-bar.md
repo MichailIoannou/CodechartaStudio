@@ -1,6 +1,6 @@
 ---
 name: Compact metrics bar and cell icons
-state: progress
+state: complete
 version: 1
 ---
 
@@ -34,9 +34,9 @@ becomes a two-row icon bar. The side panels no longer give way (plan `studio-pan
 ## Steps
 
 - [x] Complete Task 1: Remove the side panels giving way
-- [ ] Complete Task 2: Cell icons
-- [ ] Complete Task 3: Compact bar
-- [ ] Complete Task 4: Tests, docs, all checks
+- [x] Complete Task 2: Cell icons
+- [x] Complete Task 3: Compact bar
+- [x] Complete Task 4: Tests, docs, all checks
 
 ## Notes
 
