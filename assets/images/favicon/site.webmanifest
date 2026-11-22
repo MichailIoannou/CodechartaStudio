@@ -1,0 +1,23 @@
+{
+  "name": "CodeCharta",
+  "short_name": "CodeCharta",
+  "icons": [
+    {
+      "src": "/assets/images/favicon/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/assets/images/favicon/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#4a93c7",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "description": "Turn your codebase into an interactive 3D map of code metrics, domain language and dependencies.",
+  "start_url": "/"
+}
