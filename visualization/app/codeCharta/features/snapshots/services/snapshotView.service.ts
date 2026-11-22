@@ -4,7 +4,6 @@ import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
 import type { AnalysisTarget } from "../../../model/coreApi/AnalysisTarget"
 import type { EnqueueResult } from "../../../model/coreApi/EnqueueResult"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
-import type { GitCommitDistance } from "../../../model/coreApi/GitCommitDistance"
 import type { PreflightProblem } from "../../../model/coreApi/PreflightProblem"
 import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
 import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
@@ -17,12 +16,9 @@ import { targetName } from "../util/analysisWording"
 import {
     analysisTargetFor,
     answersTarget,
-    CheckoutComparison,
-    checkoutResolutionOf,
     firstTargetOf,
     folderKeyOf,
     folderTargetKeyOf,
-    isAnalysisOf,
     isAnsweredBy,
     isFailureInNotice,
     isMapChangeFollowed,
@@ -37,6 +33,7 @@ import {
     visibleNoticeOf
 } from "../util/snapshotViewRules"
 import { AnalysisJobsService } from "./analysisJobs.service"
+import { CheckoutComparisonTracker } from "./checkoutComparisonTracker"
 import { SnapshotCatalogService } from "./snapshotCatalog.service"
 
 /** Where a refused analysis shows its preflight problems: the snapshots dialog, the workspace status or the notice. */
@@ -61,19 +58,6 @@ interface ResolutionRequest {
     key: string
     folder: FolderRef
     target: SelectedTarget
-}
-
-/** The commit of the snapshot target on the map, to be measured against HEAD. */
-interface CheckoutDistanceRequest {
-    key: string
-    folder: FolderRef
-    head: string
-    commit: string
-}
-
-interface CheckoutDistance {
-    key: string
-    distance: GitCommitDistance | null
 }
 
 interface ResolutionState {
@@ -103,7 +87,6 @@ export class SnapshotViewService {
     private readonly targetsByFolder = signal<Readonly<Record<string, SelectedTarget>>>({})
     private readonly state = signal<ResolutionState>(IDLE_STATE)
     private readonly dismissedNoticeKey = signal<string | null>(null)
-    private readonly checkoutDistance = signal<CheckoutDistance | null>(null)
     private latestTicket = 0
     private showsMapAfterResolving = false
 
@@ -122,13 +105,20 @@ export class SnapshotViewService {
     readonly resolution = computed(() => (this.state().folderTargetKey === this.folderTargetKey() ? this.state().resolution : null))
     readonly status = computed(() => this.state().status)
     readonly targetJob = computed(() => newestJobOf(this.jobs.jobs(), this.workingRef(), this.target()))
-    private readonly checkoutDistanceRequest = computed(() => this.checkoutDistanceRequestOfTarget(), {
-        equal: (first, second) => first?.key === second?.key
-    })
-    /** How far the snapshot target on the map is from the current checkout, as a resolution of the current checkout. */
-    readonly checkoutResolution = computed(() => this.checkoutResolutionOfTarget())
+    private readonly checkout = new CheckoutComparisonTracker(
+        {
+            folder: this.workingRef,
+            target: this.target,
+            shown: this.projects.shownSnapshot,
+            headCommit: this.headCommit,
+            resolution: this.resolution
+        },
+        this.gitRepository,
+        this.catalog
+    )
+    readonly checkoutResolution = this.checkout.resolution
     /** What the map is compared with: the resolution of the target, or for a snapshot target the current checkout. */
-    readonly comparedResolution = computed(() => this.resolution() ?? this.checkoutResolution())
+    readonly comparedResolution = this.checkout.comparedResolution
     readonly noticeText = computed(() => this.noticeTextOfTarget())
     readonly notice = computed(() => visibleNoticeOf(this.noticeText().notice, this.dismissedNoticeKey(), this.noticeKey()))
 
@@ -140,14 +130,11 @@ export class SnapshotViewService {
             const ref = this.workingRef()
             untracked(() => this.chooseFirstTarget(ref))
         })
+        this.checkout.track()
         const request = computed(() => this.resolutionRequest(), { equal: (first, second) => first?.key === second?.key })
         effect(() => {
             const next = request()
             untracked(() => void this.resolve(next))
-        })
-        effect(() => {
-            const next = this.checkoutDistanceRequest()
-            untracked(() => void this.measureCheckoutDistance(next))
         })
         effect(() => {
             const shown = this.projects.shownSnapshot()
@@ -175,10 +162,11 @@ export class SnapshotViewService {
 
     /** For a snapshot target away from the current checkout the notice offers the current checkout, which becomes the target. */
     analyseTarget(surface: ProblemsSurface): Promise<void> {
-        const folder = this.workingRef()
-        if (folder && this.checkoutResolution()) {
-            this.setTarget(folder, { kind: "workingTree" })
+        const awayFromCheckout = this.checkout.folderAwayFromCheckout()
+        if (awayFromCheckout) {
+            this.setTarget(awayFromCheckout, { kind: "workingTree" })
         }
+        const folder = this.workingRef()
         const analysisTarget = analysisTargetFor(folder, this.target())
         return folder && analysisTarget ? this.analyse({ folder, target: analysisTarget, surface }) : Promise.resolve()
     }
@@ -367,49 +355,8 @@ export class SnapshotViewService {
             resolution: this.resolution(),
             job: this.targetJob(),
             shownSnapshotId: this.projects.shownSnapshot()?.ref.snapshotId ?? null,
-            checkout: this.checkoutComparison()
+            checkout: this.checkout.comparison()
         })
-    }
-
-    private checkoutDistanceRequestOfTarget(): CheckoutDistanceRequest | null {
-        const folder = this.workingRef()
-        const target = this.target()
-        const shown = this.projects.shownSnapshot()
-        const head = this.headCommit()
-        const commit = shown?.commit
-        if (!(folder && head && commit && target?.kind === "snapshot" && target.ref.snapshotId === shown.ref.snapshotId)) {
-            return null
-        }
-        return { key: `${folderKeyOf(folder)}|${shown.ref.snapshotId}|${commit}|${head}`, folder, head, commit }
-    }
-
-    private async measureCheckoutDistance(request: CheckoutDistanceRequest | null): Promise<void> {
-        if (!request || request.head === request.commit) {
-            return
-        }
-        const distance = await this.gitRepository.distanceOf(request.folder, request.head, request.commit)
-        if (this.checkoutDistanceRequest()?.key === request.key) {
-            this.checkoutDistance.set({ key: request.key, distance })
-        }
-    }
-
-    private checkoutResolutionOfTarget(): SnapshotResolution | null {
-        const request = this.checkoutDistanceRequest()
-        const shown = this.projects.shownSnapshot()
-        const measured = this.checkoutDistance()
-        if (!(request && shown && measured?.key === request.key)) {
-            return null
-        }
-        return checkoutResolutionOf(shown, measured.distance)
-    }
-
-    private checkoutComparison(): CheckoutComparison | null {
-        const resolution = this.checkoutResolution()
-        const request = this.checkoutDistanceRequest()
-        if (!(resolution && request)) {
-            return null
-        }
-        return { resolution, isHeadAnalysed: isAnalysisOf(request.head, this.catalog.snapshots(request.folder.folderId)) }
     }
 
     private noticeKey(): string {

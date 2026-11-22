@@ -38,7 +38,8 @@ import {
     SnapshotViewService,
     targetName
 } from "../../../snapshots/facade"
-import { gitActivityOf, RecentOutcome, stalenessOf, TriggerBadge, uncommittedTitle, workspaceTrigger } from "../../util/workspaceTrigger"
+import { stalenessOf, TriggerBadge } from "../../util/triggerBadge"
+import { gitActivityOf, RecentOutcome, uncommittedTitle, workspaceTrigger } from "../../util/workspaceTrigger"
 import { AnalysisActivityComponent } from "../analysisActivity/analysisActivity.component"
 
 const FINISHED_TINT_MS = 1500

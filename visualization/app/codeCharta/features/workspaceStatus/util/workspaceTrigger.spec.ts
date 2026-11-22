@@ -1,7 +1,8 @@
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import { aFolder, aSnapshot } from "../../projects/projects.mocks"
 import { aJob } from "../../snapshots/snapshots.mocks"
-import { gitActivityOf, stalenessOf, TriggerInput, uncommittedTitle, workspaceTrigger } from "./workspaceTrigger"
+import { stalenessOf } from "./triggerBadge"
+import { gitActivityOf, TriggerInput, uncommittedTitle, workspaceTrigger } from "./workspaceTrigger"
 
 const STATUS: GitStatus = {
     head: { kind: "branch", name: "feature/invoice-rounding", commit: "a".repeat(40) },
@@ -270,28 +271,6 @@ describe("workspaceTrigger", () => {
         expect(view.badge).toEqual({ text: "stale by 4", tone: "warning", hint: "Map is 4 commits behind the current checkout" })
         expect(view.title).toContain("Map shows 9f8e7d6 Release 2.4.0 with uncommitted changes, 4 commits behind the current checkout")
         expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, map is 4 commits behind the current checkout")
-    })
-
-    it("should word each distance and a different profile", () => {
-        // Arrange
-        const badge = { text: "badge", tone: "warning" as const }
-        const base = { kind: "nearest" as const, snapshot: SHOWN, isCurrentProfile: true }
-
-        // Act
-        const phrases = [
-            stalenessOf({ ...base, relation: "descendant", behind: 0, ahead: 1 }, badge, "a1b2c3d"),
-            stalenessOf({ ...base, relation: "diverged", behind: 3, ahead: 2 }, badge, "a1b2c3d"),
-            stalenessOf({ kind: "exact", snapshot: SHOWN, isCurrentProfile: false }, badge, "a1b2c3d")
-        ].map(staleness => staleness?.phrase)
-        const withoutBadge = stalenessOf({ kind: "exact", snapshot: SHOWN, isCurrentProfile: true }, null, "a1b2c3d")
-
-        // Assert
-        expect(phrases).toEqual([
-            "1 commit ahead of a1b2c3d",
-            "3 commits behind and 2 ahead of a1b2c3d",
-            "analysed with a different profile"
-        ])
-        expect(withoutBadge).toBeNull()
     })
 
     it("should count uncommitted changes in words", () => {
