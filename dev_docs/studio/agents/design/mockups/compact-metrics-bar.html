@@ -99,7 +99,7 @@ th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: v
 
 <h2>2 · Full bar up close: cell icons instead of the cog</h2>
 <div class="row" id="fullclose"></div>
-<p class="note">Each card's settings button shows the cell's own icon and opens the same settings popover; title "Area settings", "Height settings", …. Scenarios keeps its ＋, Layout its glyph and caret.</p>
+<p class="note">Each card's settings button shows the cell's own icon and opens the same settings popover; title "Area settings", "Height settings", …. Scenarios shows its bookmark, which opens the same menu as in the compact bar; Layout keeps its glyph and caret.</p>
 
 <h2>3 · Compact bar up close (dark and light)</h2>
 <div class="row" id="closeup"></div>
@@ -159,7 +159,7 @@ function full(style) {
     ${c('Area', 'rloc', 'Σ 1,420', 'area')}${c('Height', 'sonar_complexity', 'Σ 393', 'height')}
     <span class="link on" style="align-self:center;height:28px;width:28px"><i class="fa-solid fa-link"></i></span>
     ${c('Color', 'sonar_complexity', 'Σ 393', 'color')}${c('Edges', 'avgCommits', 'Σ 5 / 5', 'edges')}<span class="div"></span>
-    <div class="card"><div class="lbl"><span>Labels</span><span class="cog" title="Label settings">${ICON.labels}</span></div><div class="lbl" style="margin-top:6px"><span>Scenarios</span><i class="fa-solid fa-plus"></i></div><div class="val" style="font-size:12px">7 scenarios</div></div><span class="div"></span>
+    <div class="card"><div class="lbl"><span>Labels</span><span class="cog" title="Label settings">${ICON.labels}</span></div><div class="lbl" style="margin-top:6px"><span>Scenarios</span><span class="cog" title="Scenarios">${ICON.scenarios}</span></div><div class="val" style="font-size:12px">7 scenarios</div></div><span class="div"></span>
     <div class="grp">${['fa-compass','fa-lightbulb','fa-camera','fa-list'].map(i => `<span class="ib"><i class="fa-solid ${i}"></i></span>`).join('')}</div></div>`;
 }
 const PAL = ['#3b82f6','#22c55e','#eab308','#ef4444','#a855f7','#14b8a6','#f97316'];

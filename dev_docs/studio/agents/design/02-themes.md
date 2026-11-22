@@ -136,8 +136,11 @@ Studio (dark, one rounded rectangle, nothing protrudes):
   opens the same settings popover. Its `title` and `aria-label` name the cell: "Area settings",
   "Height settings", "Color settings", "Edge settings", "Folder settings", "Label settings"; the delta
   Color card uses the palette too. `cc-axis-card-header` gets an optional icon input; a card without
-  one keeps the cog, so the domain and dependency bars stay as they are. Scenarios keeps its ＋ (it
-  saves, it has no settings); Layout keeps its glyph and caret.
+  one keeps the cog, so the domain and dependency bars stay as they are. Scenarios gets its bookmark
+  in place of its ＋ (title "Scenarios"): it opens the same menu as in the compact bar ("Open saved
+  scenarios (7)", "Save current state as scenario"), so saving stays one click away and the icon
+  matches the compact bar. Clicking the count still opens the saved scenarios. Layout keeps its glyph
+  and caret.
 - **Layout** becomes the first cell inside the bar: label "LAYOUT", glyph + layout name (two lines
   allowed, `leading-tight`) + `fa-caret-down`; same `title` "Change the map layout" and same popover
   (`cc-settings-popover-shell`, now anchored above the cell).
@@ -290,7 +293,7 @@ Delta values in the tooltip keep their sign (`+12`, `−3`) but not their colour
 - **Labels:** the label settings popover.
 - **Scenarios:** a small menu above the button (`menu menu-sm`, in `cc-settings-popover-shell`
   `w-60`): `fa-regular fa-bookmark` "Open saved scenarios (7)" and `fa-plus` "Save current state as
-  scenario". Each runs what the card's count and ＋ button run today.
+  scenario". The full bar's bookmark button opens the same menu.
 - **Link, view tools:** unchanged; right-click on Center map keeps its zoom menu.
 - **Keyboard:** each button is a normal button (Enter/Space); popovers close with Esc and return
   focus to the button.

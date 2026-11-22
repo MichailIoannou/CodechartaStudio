@@ -85,7 +85,9 @@ answer that differs means the named file is changed, nothing else.
       footprint tile, height building with an up arrow (new glyphs), color `fa-palette`, edges
       `fa-circle-nodes`, scenarios `fa-regular fa-bookmark`, labels `fa-solid fa-tags`, layout its
       current glyph. Owner follow-up (2026-11-22): the full bar shows the same icons on each card's
-      settings button instead of the cog, and Labels uses the standard tags icon. The tooltip and `aria-label` text is "<cell> · <metric> ·
+      settings button instead of the cog, and Labels uses the standard tags icon. Scenarios shows its
+      bookmark in place of its ＋; it opens the menu with "Open saved scenarios" and "Save current state
+      as scenario". The tooltip and `aria-label` text is "<cell> · <metric> ·
       <meta>". The give-way removal includes the collapsed inspector strip and its selection dot, which
       existed only for it. Mock-up `mockups/compact-metrics-bar.html`.
 
