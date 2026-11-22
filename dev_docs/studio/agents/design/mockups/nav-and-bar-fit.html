@@ -38,6 +38,11 @@ p { margin: 0 0 10px; color: var(--mute-ink); max-width: 84ch; }
 .chip:hover { background: var(--b200); }
 .chip .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .chip .caret { font-size: 10px; color: var(--mute); }
+#branch { width: 288px; box-sizing: border-box; transition: width .2s ease-out; }
+#branch .t { flex: 0 1 auto; min-width: 0; }
+#branch .caret { margin-left: auto; }
+#branch.icon { width: 52px; }
+.measuring .chip { transition: none !important; }
 .chip .cnt { font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; display: inline-flex; gap: 4px; align-items: center; }
 .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex-shrink: 0; }
 .badge { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--warn); color: var(--warnfg); flex-shrink: 0; }
@@ -98,7 +103,7 @@ p { margin: 0 0 10px; color: var(--mute-ink); max-width: 84ch; }
 <body>
 <main>
 <h1>Nav bar and metrics bar fit</h1>
-<p>Owner requests from 2026-11-22. The nav bar uses all the room left of the view tabs and collapses one thing at a time: the project chip first, then the branch chip. The CodeCharta logo keeps its size. The metrics bar shrinks only as far as its labels stay readable. Below that it folds into the compact bar, which has the same height; the cell icons fly to their new places while the bar narrows.</p>
+<p>Owner requests from 2026-11-22. The nav bar uses all the room left of the view tabs and collapses one thing at a time: the project chip first, then the branch chip, which keeps a fixed, smaller width until then. The CodeCharta logo keeps its size. The metrics bar shrinks only as far as its labels stay readable. Below that it folds into the compact bar, which has the same height; the cell icons fly to their new places while the bar narrows.</p>
 <div class="controls"><button id="theme">Toggle light / dark</button></div>
 
 <h2>1 · Nav bar: drag the window width</h2>
@@ -119,7 +124,7 @@ p { margin: 0 0 10px; color: var(--mute-ink); max-width: 84ch; }
   </div>
   <div class="navmap"></div>
 </div></div></div>
-<p class="note">Order as the window narrows: (1) the project name shortens with "…", down to 6 characters; (2) the project chip shows only its icon; (3) the branch chip drops its ↑↓ counts; (4) the branch name shortens, down to 6 characters; (5) the branch chip shows only its icon, with the badge as a dot on it. The map's commit (<code>@ ad536f668</code>) is no longer in the chip; it's in the dropdown ("Showing ad536f668 …") and in the <code>title</code>.</p>
+<p class="note">Order as the window narrows: (1) the project name shortens with "…", down to 6 characters; (2) the project chip shows only its icon; (3) the branch chip, otherwise a fixed 18rem (288 px, was 22rem) whatever its text, narrows down to 9rem: the ↑↓ counts go first, then the branch name shortens; (4) the branch chip shows only its icon, with the badge as a dot on it. The map's commit (<code>@ ad536f668</code>) is no longer in the chip; it's in the dropdown ("Showing ad536f668 …") and in the <code>title</code>.</p>
 
 <h2>2 · Metrics bar: drag the free map width (or press Play)</h2>
 <div class="controls">
@@ -174,7 +179,8 @@ function compactHtml() {
 
 /* ---------- nav fit ---------- */
 const navw = document.getElementById('navw'), nstart = document.getElementById('nstart'), proj = document.getElementById('proj'), branch = document.getElementById('branch');
-const projT = proj.querySelector('.t'), branchT = branch.querySelector('.t');
+const projT = proj.querySelector('.t');
+const BRANCH_FULL = 288, BRANCH_MIN = 144;
 const MIN_TEXT = 6 * 7.6 + 12; // about 6 characters plus "…"
 function fitNav() {
   const W = +navw.value;
@@ -183,21 +189,23 @@ function fitNav() {
   const scale = Math.min(1, vp.clientWidth / W);
   win.style.transform = `scale(${scale})`; vp.style.height = `${119 * scale}px`;
   document.getElementById('navwv').textContent = `${W} px`;
+  nstart.classList.add('measuring');
   for (const c of [proj, branch]) { c.classList.remove('icon', 'nocnt'); }
-  projT.style.maxWidth = branchT.style.maxWidth = '';
+  projT.style.maxWidth = ''; branch.style.width = '';
   const over = () => nstart.scrollWidth - nstart.clientWidth;
-  let stage = 'everything fits';
+  let stage = 'everything fits (branch chip fixed at 288 px)';
   if (over() > 0) {
     const shrink = Math.min(over(), projT.scrollWidth - MIN_TEXT);
     if (shrink > 0) { projT.style.maxWidth = `${projT.scrollWidth - shrink}px`; stage = '1 · project name shortens'; }
     if (over() > 0) { projT.style.maxWidth = ''; proj.classList.add('icon'); stage = '2 · project icon only'; }
-    if (over() > 0) { branch.classList.add('nocnt'); stage = '3 · branch counts hidden'; }
     if (over() > 0) {
-      const s2 = Math.min(over(), branchT.scrollWidth - MIN_TEXT);
-      if (s2 > 0) { branchT.style.maxWidth = `${branchT.scrollWidth - s2}px`; stage = '4 · branch name shortens'; }
-      if (over() > 0) { branchT.style.maxWidth = ''; branch.classList.add('icon'); stage = '5 · branch icon only'; }
+      const narrowed = Math.max(BRANCH_MIN, BRANCH_FULL - over());
+      branch.style.width = `${narrowed}px`; branch.classList.add('nocnt'); stage = `3 · branch chip narrows (${narrowed} px)`;
     }
+    if (over() > 0) { branch.style.width = ''; branch.classList.add('icon'); stage = '4 · branch icon only'; }
   }
+  void nstart.offsetWidth;
+  nstart.classList.remove('measuring');
   document.getElementById('navstage').textContent = stage;
 }
 navw.addEventListener('input', fitNav);

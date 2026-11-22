@@ -65,14 +65,13 @@ not analysed:          [⎇ main  (not analysed)                                
 detached HEAD:         [⎇ detached at a1b2c3d                                      ▾]
 ```
 
-- **Width** (owner, 2026-11-22, changing OD2a; owner question 16): `btn btn-ghost btn-sm relative
-  overflow-hidden isolate shrink-0`, as wide as its idle content (branch, counts, dirty dot, badge)
-  and no wider than the nav bar fit allows (principles §3, "Narrow window", steps 3–5). The width is
-  recalculated only when the window or panels resize, or the branch or badge changes (`transition-[width]
-  duration-200`). Activity never changes it: while something runs, the activity text takes the counts'
-  place and the branch name shortens if needed, so an analysis starting or a percentage counting up
-  still moves nothing. The map's commit (`@ 9f8e7d6`) is not in the trigger any more; it's in the
-  dropdown's "Showing …" line and in the `title`.
+- **Fixed width** (owner decision OD2a; smaller since owner, 2026-11-22): `btn btn-ghost btn-sm
+  relative overflow-hidden isolate shrink-0 w-72` (18rem, was 22rem). Only the nav bar fit narrows it, when the
+  window or panels leave too little room (principles §3, "Narrow window", steps 3–4); its text
+  never does. Nothing that happens (an analysis starting, a percentage counting up, a badge
+  appearing, a long branch name) changes the element's size or moves its neighbours; only how many
+  characters of the text fit before "…" changes. The map's commit (`@ 9f8e7d6`) is not in the
+  trigger any more; it's in the dropdown's "Showing …" line and in the `title`.
   Inside, a CSS grid `grid-cols-[1rem_minmax(0,1fr)_auto_auto] items-center gap-2` keeps every part in
   its place. Children, all `relative z-10` above the fill:
   1. **Activity icon** in a fixed `size-4 grid place-items-center` slot: every icon and the spinner
@@ -84,7 +83,7 @@ detached HEAD:         [⎇ detached at a1b2c3d                                 
      text-error`.
   2. **Text column** (`minmax(0,1fr)`, `flex min-w-0 gap-2`): **branch** `font-medium truncate
      shrink` (gives way first), then the map part. Ahead/behind `text-xs
-     tabular-nums` with `fa-arrow-up`/`fa-arrow-down` icons until the nav bar fit drops them (step 3); a dirty dot
+     tabular-nums` with `fa-arrow-up`/`fa-arrow-down` icons while W1 has its full 18rem; a dirty dot
      (`size-2 rounded-full bg-warning`, `title` "3 uncommitted changes") after the branch.
   3. **Map part** `text-base-content/70 truncate`: empty while idle on a git branch (the commit is in
      the dropdown); the activity text while something runs; for a plain folder the snapshot date, for
@@ -118,8 +117,8 @@ detached HEAD:         [⎇ detached at a1b2c3d                                 
 - `title` (multi-line): "Working folder billing-api (C:\work\billing-api)\nBranch feature/x, 2 to
   push, 1 to pull, 3 uncommitted\nMap shows 9f8e7d6 Release 2.4.0, 4 commits behind the current
   checkout\nAnalysing a1b2c3d — 42 %".
-- Narrow: principles §3, "Narrow window", steps 3–5: the counts go, the branch name shortens, then
-  only the icon (badge as a dot) and caret stay; everything is in the title.
+- Narrow: principles §3, "Narrow window", steps 3–4: W1 narrows (the counts go, then the branch name
+  shortens), then only the icon (badge as a dot) and caret stay; everything is in the title.
 
 ### Dropdown
 

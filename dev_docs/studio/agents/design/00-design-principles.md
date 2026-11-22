@@ -84,27 +84,29 @@ Map slot, first match wins:
 
 Web build left side stays exactly: logo, divider, `cc-nav-bar-folder-button`, map/delta selector.
 
-**Narrow window** (owner, 2026-11-22; replaces the fixed widths per breakpoint). The project menu (P1)
-and W1 are sized by their content and use all of `navbar-start`, up to the view tabs, which stay
-centred and never shrink. When they don't fit, one thing at a time gives way, in this order:
+**Narrow window** (owner, 2026-11-22; replaces the widths per breakpoint). W1 keeps a fixed width
+(OD2a), now a smaller **18rem** (`w-72`, was 22rem) because the commit left the trigger. The project menu is
+sized by its content and takes the rest of `navbar-start`, up to the view tabs, which stay centred
+and never shrink. When they don't fit, one thing at a time gives way, in this order:
 
 | Step | What changes | Example |
 |---|---|---|
-| 0 | everything at its natural width | `[▣ codechartastudio ▾] [⎇ docs/studio-plans ↑5 ● dirty ▾]` |
+| 0 | project menu at its natural width, W1 at 18rem | `[▣ codechartastudio ▾] [⎇ docs/studio-plans ↑5 ● dirty ▾]` |
 | 1 | the project menu's folder name shortens with "…", down to 6 characters | `[▣ codecha… ▾]` |
 | 2 | the project menu shows only its icon and caret | `[▣ ▾]` |
-| 3 | W1 drops its ↑↓ counts (and an activity word, keeping the percentage) | `[⎇ docs/studio-plans ● dirty ▾]` |
-| 4 | W1's branch name shortens with "…", down to 6 characters | `[⎇ docs/st… ● dirty ▾]` |
-| 5 | W1 shows only its icon (the badge as a `size-2` dot on it) and caret | `[⎇• ▾]` |
+| 3 | W1 narrows from 18rem down to 9rem; inside, the ↑↓ counts go first, then the branch name shortens | `[⎇ docs/st… ● dirty ▾]` |
+| 4 | W1 shows only its icon (the badge as a `size-2` dot on it) and caret, `w-[3.25rem]` | `[⎇• ▾]` |
 
 - **Mechanism:** a small `NavBarFit` service in `features/navBar` watches the width of `navbar-start`
-  with a `ResizeObserver` and measures each trigger's parts (natural text widths, counts, badge) when
-  their text changes. It picks the first step that fits and gives the shortening text an explicit
-  `max-width` (steps 1 and 4) or sets the trigger's icon-only form (steps 2 and 5). Both triggers
-  get `shrink-0` so the browser never squeezes them on its own. A width change runs `transition-[max-width]
-  duration-200 ease-out`; with reduced motion it's instant.
+  with a `ResizeObserver` and measures the project menu's natural label width when it changes. It
+  picks the first step that fits: it gives the project label an explicit `max-width` (step 1), the
+  project menu its icon-only form (step 2), W1 a width between 18rem and 9rem (step 3) or W1 its
+  icon-only form (step 4). W1's width therefore depends only on the room, never on its text, so an
+  analysis starting, a percentage counting up or a badge appearing still moves nothing (OD2a). Both
+  triggers get `shrink-0` so the browser never squeezes them on its own. Width changes run
+  `transition-[width,max-width] duration-200 ease-out`; with reduced motion they're instant.
 - **Comparison:** during a project comparison the comparison chip (06 C2) takes W1's place in
-  steps 3–5: its labels shorten, then it shows its labels-only form.
+  steps 3–4: it narrows (its labels shorten), then it shows its labels-only form.
 - **Web build:** the folder button and the map selector keep today's behaviour.
 - Text inside every trigger is `truncate`; the full text is always in `title`.
 - **Logo:** `cc-nav-bar-logo` and its link are `shrink-0`, the image a fixed `h-8 w-11` (the logo

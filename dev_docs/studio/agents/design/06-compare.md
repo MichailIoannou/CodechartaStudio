@@ -82,7 +82,7 @@ noDifferences, nav bar:   [≡ No metric differences ▾]  (dropdown adds "12 fi
   `title`: "Base: main (9f8e7d6) · Head: feature/x (a1b2c3d)" plus the folder of each side when the
   sides come from different folders ("… in billing-fork").
 - **Width** (owner, 2026-11-22): sized by its content within the nav bar fit (principles §3, "Narrow
-  window"); it takes W1's place in steps 3–5: first the project menu goes icon-only, then the chip's
+  window"); it takes W1's place in steps 3–4: first the project menu goes icon-only, then the chip's
   labels shorten (each keeps `min-w-10`), then it shows its labels-only form (the compare and PR icons
   drop out, both are in the dropdown). The chip never pushes the view tabs and never wraps to a second
   row.
