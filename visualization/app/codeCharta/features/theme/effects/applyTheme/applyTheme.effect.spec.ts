@@ -178,8 +178,10 @@ describe("ApplyThemeEffect", () => {
         expect(desktop.calls.filter(call => call.name !== "subscribe")).toEqual([
             { name: "setWindowBackground", args: ["#1e2329"] },
             { name: "setColorScheme", args: ["dark"] },
-            { name: "setWindowBackground", args: [expect.stringMatching(/^#[0-9a-f]{6}$/i)] },
-            { name: "setColorScheme", args: ["light"] }
+            { name: "setTitleBarColors", args: [{ color: "#1e2329", symbolColor: "#e6e9ee" }] },
+            { name: "setWindowBackground", args: ["#ffffff"] },
+            { name: "setColorScheme", args: ["light"] },
+            { name: "setTitleBarColors", args: [{ color: "#ffffff", symbolColor: expect.stringMatching(/^#[0-9a-f]{6}$/i) }] }
         ])
     })
 
@@ -192,7 +194,7 @@ describe("ApplyThemeEffect", () => {
         restoreSession("system")
 
         // Assert
-        expect(desktop.calls.at(-1)).toEqual({ name: "setColorScheme", args: ["system"] })
+        expect(desktop.calls.filter(call => call.name === "setColorScheme").at(-1)).toEqual({ name: "setColorScheme", args: ["system"] })
     })
 
     it("should ignore a desktop shell that refuses the theme", () => {
@@ -200,6 +202,7 @@ describe("ApplyThemeEffect", () => {
         const desktop = createFakeDesktopBridge()
         desktop.failWith("setWindowBackground", { code: "BAD_REQUEST", message: "no", details: {} })
         desktop.failWith("setColorScheme", { code: "BAD_REQUEST", message: "no", details: {} })
+        desktop.failWith("setTitleBarColors", { code: "BAD_REQUEST", message: "no", details: {} })
 
         // Act
         setup({ desktop })

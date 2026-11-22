@@ -1,0 +1,18 @@
+<section class="rounded-box border border-base-300 p-3 flex flex-col gap-2" aria-labelledby="window-setting-title">
+    <h3 id="window-setting-title" class="font-semibold">Window</h3>
+    <div class="flex items-center gap-4">
+        <label class="label cursor-pointer justify-start items-start gap-4 flex-1 min-w-0 whitespace-normal">
+            <input type="checkbox" class="toggle toggle-primary" [checked]="isChecked()" (change)="handleChange($event)" />
+            <span class="flex flex-col gap-0.5">
+                <span class="label-text">Use CodeCharta's title bar</span>
+                <span class="text-sm text-base-content/60">One bar at the top: the window buttons move into CodeCharta's top bar.</span>
+                <span class="text-sm" [class]="isRestartNeeded() ? 'text-warning' : 'text-base-content/60'">
+                    Takes effect when CodeCharta restarts.
+                </span>
+            </span>
+        </label>
+        @if (isRestartNeeded()) {
+            <button type="button" class="btn btn-sm" (click)="restart()">Restart now</button>
+        }
+    </div>
+</section>

@@ -33,7 +33,7 @@ import type { SideInput } from "../../../model/coreApi/SideInput"
 import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import type { UpdateProjectParams } from "../../../model/coreApi/UpdateProjectParams"
-import type { BridgeMethod, CoreState } from "../desktopBridge"
+import type { BridgeMethod, CoreState, WindowState } from "../desktopBridge"
 
 export type FakeAnswerKey =
     | BridgeMethod
@@ -46,6 +46,11 @@ export type FakeAnswerKey =
     | "setWindowBackground"
     | "setColorScheme"
     | "restartCore"
+    | "windowState"
+    | "controlWindow"
+    | "setUseAppTitleBar"
+    | "reopenWindow"
+    | "setTitleBarColors"
 
 export type FakeGitMethod =
     | "git.repositoryInfo"
@@ -112,6 +117,7 @@ export interface FakeGitRepository {
 export interface FakeDesktopSeed {
     protocolVersion?: number
     coreState?: CoreState
+    windowState?: Partial<WindowState>
     responses?: Partial<Record<FakeAnswerKey, unknown>>
     failures?: Partial<Record<FakeAnswerKey, ErrorPayload>>
     projects?: Project[]

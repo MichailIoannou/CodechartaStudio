@@ -153,6 +153,19 @@ describe("GlobalConfigurationDialogComponent", () => {
             expect(panel).toBeNull()
         })
 
+        it("should show the window section right after the desktop tools, and only on the desktop", () => {
+            // Act
+            const desktopPanel = panelOfAFreshDialog(createFakeDesktopBridge())
+            TestBed.resetTestingModule()
+            configureDialog(null)
+            const webDialog = TestBed.createComponent(GlobalConfigurationDialogComponent)
+            webDialog.detectChanges()
+
+            // Assert
+            expect(desktopPanel.nextElementSibling.tagName).toBe("CC-WINDOW-TITLE-BAR-SETTING")
+            expect(webDialog.nativeElement.querySelector("cc-window-title-bar-setting")).toBeNull()
+        })
+
         function aFreshDesktopDialog() {
             TestBed.resetTestingModule()
             configureDialog(createFakeDesktopBridge())

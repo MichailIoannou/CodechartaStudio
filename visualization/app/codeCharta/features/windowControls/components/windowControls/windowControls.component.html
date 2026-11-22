@@ -1,0 +1,66 @@
+@for (button of buttons(); track button) {
+    @switch (button) {
+        @case ("minimize") {
+            <button
+                type="button"
+                tabindex="-1"
+                [class]="buttonClasses()"
+                aria-label="Minimize"
+                title="Minimize"
+                (click)="minimize()"
+            >
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 4.5 6 8.5 10 4.5" />
+                </svg>
+            </button>
+        }
+        @case ("maximize") {
+            <button
+                type="button"
+                tabindex="-1"
+                [class]="buttonClasses()"
+                [attr.aria-label]="maximizeLabel()"
+                [title]="maximizeLabel()"
+                [disabled]="!canMaximize()"
+                (click)="toggleMaximize()"
+            >
+                @if (isMaximized()) {
+                    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+                        <path d="M6 1.8 10.2 6 6 10.2 1.8 6Z" />
+                    </svg>
+                } @else {
+                    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 7.5 6 3.5 10 7.5" />
+                    </svg>
+                }
+            </button>
+        }
+        @case ("close") {
+            <button
+                type="button"
+                tabindex="-1"
+                [class]="closeButtonClasses()"
+                aria-label="Close"
+                title="Close"
+                (click)="close()"
+            >
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <path d="M2.5 2.5 9.5 9.5M9.5 2.5 2.5 9.5" />
+                </svg>
+            </button>
+        }
+    }
+}
+@if (menuAnchor(); as anchor) {
+    <cc-floating-menu class="w-48" [anchor]="anchor" (dismissed)="closeMenu()">
+        <cc-context-menu-item icon="fa-solid fa-window-minimize" (itemClick)="minimize()">Minimize</cc-context-menu-item>
+        <cc-context-menu-item
+            [icon]="isMaximized() ? 'fa-regular fa-window-restore' : 'fa-regular fa-window-maximize'"
+            [disabled]="!canMaximize()"
+            (itemClick)="toggleMaximize()"
+        >
+            {{ maximizeLabel() }}
+        </cc-context-menu-item>
+        <cc-context-menu-item icon="fa-solid fa-xmark" (itemClick)="close()">Close</cc-context-menu-item>
+    </cc-floating-menu>
+}
