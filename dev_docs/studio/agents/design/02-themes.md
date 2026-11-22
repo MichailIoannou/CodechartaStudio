@@ -141,9 +141,12 @@ Studio (dark, one rounded rectangle, nothing protrudes):
   scenarios (7)", "Save current state as scenario"), so saving stays one click away and the icon
   matches the compact bar. Clicking the count still opens the saved scenarios. Layout keeps its glyph
   and caret.
-- **Layout** becomes the first cell inside the bar: label "LAYOUT", glyph + layout name (two lines
-  allowed, `leading-tight`) + `fa-caret-down`; same `title` "Change the map layout" and same popover
-  (`cc-settings-popover-shell`, now anchored above the cell).
+- **Layout** becomes the first cell inside the bar: label "LAYOUT", and below it **always only the
+  current layout's glyph** (`cc-layout-glyph`, 20 px) + `fa-caret-down` (owner, 2026-11-22); the
+  layout name is not shown in the bar. Tooltip and `aria-label` "Layout · Squarified TreeMap". Same
+  popover (`cc-settings-popover-shell`, now anchored above the cell); each layout in it is listed with
+  its glyph before its name. All five layouts already have a glyph: Squarified TreeMap, StreetMap,
+  TreeMapStreet, Sunburst, Radial TreeMap.
 - **Link Height and Color**: a `btn btn-sm btn-square rounded-lg` centred vertically in its own
   narrow column between Height and Color, inside the bar's height. Linked: `btn-soft btn-primary`
   with `fa-link`; unlinked: `btn-ghost border border-dashed border-base-300 text-base-content/60` with
@@ -160,13 +163,14 @@ Studio (dark, one rounded rectangle, nothing protrudes):
 - **Variants keep their cells**: radial layout (Folders cell, no Height, no link button), delta mode
   (Color shows "Settings" with the delta colour popover), no edges (no Edges cell).
 - **States**: disabled cell `opacity-50 cursor-default`.
-- **Narrow map** (owner, 2026-11-22: no clipped labels, no jumps): the full bar shortens only text,
-  continuously: metric names, meta values and the layout name truncate with "…". Labels, icons, the
-  link button and the tools never shrink: each card's `min-width` is its label row (label + icon
-  button + padding, measured once and set inline; the name and meta are `min-w-0 truncate`). The
-  layout name no longer drops to glyph-only and the tools grid stays 2 × 2, because both steps
-  changed the bar's width or height in a jump. When the full bar can't get narrower without cutting a
-  label, the compact bar takes over (T4 compact bar). The bar never scrolls or wraps.
+- **Narrow map** (owner, 2026-11-22: no clipped labels, no jumps, room for the names): the full bar
+  shortens only metric names, continuously, with "…", and **never below 12 characters** ("complexity"
+  always fits, "sonar_complexity" at least "sonar_comple…"). Labels, icons, meta values (`Σ 408,534`),
+  the link button and the tools never shrink. Each card's `min-width` is the widest of its label row,
+  its meta value and the first 12 characters of its name plus "…", measured when the metric changes
+  and set inline; the name is `min-w-0 truncate`. The tools grid stays 2 × 2 (the old one-column
+  step changed the bar's height). When the full bar can't get narrower than these minimums, the
+  compact bar takes over (T4 compact bar). The bar never scrolls or wraps.
 - **Keyboard**: unchanged order (layout, area, height, link, color, edges, labels, scenarios, tools);
   every icon-only button has `title` = `aria-label`.
 - **Domain bar** (`features/domainBar`) and **dependency bar** use the same shell and get the same
@@ -196,7 +200,7 @@ compact bar, 900 px window, both panels open (236 px free, bar 235 px):
 
 - **When:** the compact bar takes over when the free map width (the width the bar shell already
   computes from the panel insets, `FREE_WIDTH`) is less than the **full bar's minimum**: the sum of
-  the card minimums plus link, tools, dividers and padding (641 px with the sample map; it depends on
+  the card minimums plus link, tools, dividers and padding (732 px with the sample map; it depends on
   which cells show). It returns to the full bar when the free width is **32 px more** than that, so
   dragging a panel edge near the limit doesn't make it flicker. The minimum is measured again when
   the cells change (layout, delta mode, edges); the free width on every panel open, close or resize

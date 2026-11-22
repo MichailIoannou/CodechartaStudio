@@ -155,7 +155,7 @@ function compact(o = {}) {
 function full(style) {
   const c = (l, v, m, key) => `<div class="card"><div class="lbl"><span>${l}</span><span class="cog" title="${l.replace(/s$/, "")} settings">${ICON[key]}</span></div><div class="val">${v}</div><div class="meta">${m}</div></div>`;
   return `<div class="shell" style="${style}">
-    <div class="card"><div class="lbl"><span>Layout</span></div><div class="val" style="display:flex;gap:6px;align-items:center"><span class="ib" style="width:16px;height:16px">${svg('layout')}</span>Squarified <i class="fa-solid fa-caret-down" style="font-size:9px;color:var(--mute)"></i></div><div class="meta">TreeMap</div></div><span class="div"></span>
+    <div class="card"><div class="lbl"><span>Layout</span></div><div class="val" style="display:flex;gap:4px;align-items:center;justify-content:center" title="Layout · Squarified TreeMap"><span class="ib" style="width:20px;height:20px">${svg('layout')}</span><i class="fa-solid fa-caret-down" style="font-size:9px;color:var(--mute)"></i></div><div class="meta">&nbsp;</div></div><span class="div"></span>
     ${c('Area', 'rloc', 'Σ 1,420', 'area')}${c('Height', 'sonar_complexity', 'Σ 393', 'height')}
     <span class="link on" style="align-self:center;height:28px;width:28px"><i class="fa-solid fa-link"></i></span>
     ${c('Color', 'sonar_complexity', 'Σ 393', 'color')}${c('Edges', 'avgCommits', 'Σ 5 / 5', 'edges')}<span class="div"></span>
