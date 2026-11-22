@@ -1,0 +1,87 @@
+<div class="flex items-center gap-2">
+    <label class="input input-sm input-bordered flex min-w-40 flex-1 items-center gap-2" title="Filters the commit list">
+        <i class="fa-solid fa-magnifying-glass opacity-60"></i>
+        <input
+            #searchInput
+            type="text"
+            class="grow"
+            maxlength="200"
+            placeholder="Search messages and hashes"
+            aria-label="Search messages and hashes"
+            data-testid="history-search"
+            [value]="draft().text"
+            (input)="update('text', $event)"
+        />
+    </label>
+    <input
+        type="text"
+        class="input input-sm input-bordered w-36 @max-[40rem]:hidden"
+        maxlength="200"
+        placeholder="Author"
+        aria-label="Author"
+        title="Filters the commit list"
+        data-testid="history-author"
+        [value]="draft().author"
+        (input)="update('author', $event)"
+    />
+    <input
+        type="text"
+        class="input input-sm input-bordered w-44 font-mono @max-[40rem]:hidden"
+        maxlength="1024"
+        placeholder="Path, e.g. src/app"
+        aria-label="Path, e.g. src/app"
+        title="Filters the commit list"
+        data-testid="history-path"
+        [value]="draft().path"
+        (input)="update('path', $event)"
+    />
+    <button
+        type="button"
+        class="btn btn-ghost btn-sm gap-2 @min-[40rem]:hidden"
+        popovertarget="commit-filters-popover"
+        style="anchor-name: --commit-filters"
+        data-anchor-name="commit-filters"
+        data-testid="history-filters-button"
+    >
+        <i class="fa-solid fa-filter fa-fw"></i>
+        Filters
+        @if (hiddenFilterCount() > 0) {
+            <span class="badge badge-sm">{{ hiddenFilterCount() }}</span>
+        }
+    </button>
+    @if (isAnySet()) {
+        <button type="button" class="btn btn-ghost btn-xs" data-testid="history-clear-filters" (click)="clear()">Clear</button>
+    }
+</div>
+@if (isFiltered()) {
+    <p class="text-xs text-base-content/60" data-testid="history-filtered-note">Filtered — the graph is hidden while searching.</p>
+}
+<cc-settings-popover-shell
+    popoverId="commit-filters-popover"
+    anchorName="commit-filters"
+    positionArea="bottom span-right"
+    widthClass="w-64"
+    contentClass="gap-2 p-3"
+    ariaLabel="Filters"
+>
+    <input
+        type="text"
+        class="input input-sm input-bordered w-full"
+        maxlength="200"
+        placeholder="Author"
+        aria-label="Author"
+        title="Filters the commit list"
+        [value]="draft().author"
+        (input)="update('author', $event)"
+    />
+    <input
+        type="text"
+        class="input input-sm input-bordered w-full font-mono"
+        maxlength="1024"
+        placeholder="Path, e.g. src/app"
+        aria-label="Path, e.g. src/app"
+        title="Filters the commit list"
+        [value]="draft().path"
+        (input)="update('path', $event)"
+    />
+</cc-settings-popover-shell>

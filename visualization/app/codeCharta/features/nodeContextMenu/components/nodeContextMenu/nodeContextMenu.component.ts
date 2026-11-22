@@ -14,7 +14,13 @@ import { NodeContextMenuReadStore } from "../../stores/nodeContextMenu.read.stor
 import { NodeContextMenuWriteStore } from "../../stores/nodeContextMenu.write.store"
 import { MarkFolderRowComponent } from "./markFolderRow.component"
 
-const JUMP_TARGETS: Record<ViewId, { label: string; icon: string; hoverHint: string }> = {
+interface JumpTarget {
+    label: string
+    icon: string
+    hoverHint: string
+}
+
+const JUMP_TARGETS: Partial<Record<ViewId, JumpTarget>> = {
     metrics: { label: "Show in Metrics", icon: "fa-solid fa-cubes", hoverHint: "Select this node on the metrics map" },
     domain: { label: "Show in Domain", icon: "fa-solid fa-cloud", hoverHint: "Show the domain words below this node" },
     dependencies: {
@@ -76,12 +82,13 @@ export class NodeContextMenuComponent {
     private readonly isMenuNodeInDependencyLens = toSignal(this.readStore.isRightClickedNodeInDependencyLens$, { requireSync: true })
     readonly jumpTargets = computed(() => {
         const node = this.menuNode()
-        return node === null
-            ? []
-            : VIEW_IDS.filter(view => view !== this.activeView() && this.canShowMenuNodeIn(view)).map(view => ({
-                  view,
-                  ...JUMP_TARGETS[view]
-              }))
+        if (node === null) {
+            return []
+        }
+        return VIEW_IDS.flatMap(view => {
+            const target = JUMP_TARGETS[view]
+            return target && view !== this.activeView() && this.canShowMenuNodeIn(view) ? [{ view, ...target }] : []
+        })
     })
 
     readonly isFolder = computed(() => (this.menuNode()?.children?.length ?? 0) > 0)

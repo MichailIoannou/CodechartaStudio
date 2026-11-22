@@ -24,9 +24,12 @@ export interface FloatingMenuAnchor {
 })
 export class FloatingMenuComponent {
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
+    private readonly destroyRef = inject(DestroyRef)
 
     readonly anchor = input.required<FloatingMenuAnchor>()
     readonly dismissed = output<void>()
+    /** The menu has its clamped position and becomes visible with the next render, so it can take the focus then. */
+    readonly positioned = output<void>()
 
     private readonly clampedPosition = signal<{ left: number; top: number } | null>(null)
     private clampAnimationFrameId: number | null = null
@@ -36,7 +39,7 @@ export class FloatingMenuComponent {
 
     constructor() {
         effect(() => this.clampOnceTheMenuIsRendered(this.anchor()))
-        inject(DestroyRef).onDestroy(() => this.cancelPendingClamp())
+        this.destroyRef.onDestroy(() => this.cancelPendingClamp())
     }
 
     protected dismissWhenOutside(event: Event): void {
@@ -66,7 +69,9 @@ export class FloatingMenuComponent {
         this.cancelPendingClamp()
         this.clampAnimationFrameId = requestAnimationFrame(() => {
             this.clampAnimationFrameId = null
-            this.clampToViewport(anchor)
+            if (!this.destroyRef.destroyed) {
+                this.clampToViewport(anchor)
+            }
         })
     }
 
@@ -76,6 +81,7 @@ export class FloatingMenuComponent {
             left: Math.max(VIEWPORT_MARGIN, Math.min(x, window.innerWidth - width - VIEWPORT_MARGIN)),
             top: Math.max(VIEWPORT_MARGIN, Math.min(y, window.innerHeight - height - VIEWPORT_MARGIN))
         })
+        this.positioned.emit()
     }
 
     private cancelPendingClamp(): void {

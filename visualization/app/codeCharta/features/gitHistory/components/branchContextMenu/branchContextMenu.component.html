@@ -1,0 +1,14 @@
+<cc-floating-menu
+    class="w-max min-w-64 max-w-[32rem]"
+    data-testid="branch-context-menu"
+    [anchor]="target().anchor"
+    (dismissed)="dismiss()"
+    (positioned)="focusFirstItemIfFromKeyboard()"
+    (keydown)="onKeydown($event)"
+>
+    @for (item of items(); track item.action) {
+        <cc-context-menu-item [icon]="item.icon" [hoverHint]="item.disabledReason ?? item.hint" [disabled]="item.disabledReason !== null" (itemClick)="run(item)">{{
+            item.label
+        }}</cc-context-menu-item>
+    }
+</cc-floating-menu>

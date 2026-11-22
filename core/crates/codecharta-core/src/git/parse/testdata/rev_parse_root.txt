@@ -1,0 +1,6 @@
+false
+false
+/fixture/refs/.git
+/fixture/refs/.git
+
+/fixture/refs

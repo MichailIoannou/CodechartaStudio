@@ -35,7 +35,7 @@
         >
             <cc-view-mode-bar [view]="previewed" />
         </div>
-    } @else {
+    } @else if (isModeBarHandleShown()) {
         <span
             class="absolute left-1/2 top-full z-[70] mt-px flex -translate-x-1/2 cursor-pointer items-center rounded-b-md border border-t-0 border-base-300 bg-base-100 px-2.5 pb-1 pt-0.5 text-base-content/40 shadow-sm hover:text-base-content/70"
             aria-hidden="true"

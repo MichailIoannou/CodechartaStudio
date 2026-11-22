@@ -11,7 +11,12 @@ import type {
     FakeRequestParams
 } from "./fakeBridge/fakeBridgeKit"
 import { fakeFoldersBackend } from "./fakeBridge/foldersBackend.mocks"
+import { fakeGitBackend } from "./fakeBridge/gitBackend.mocks"
+import { fakeGitBranchesBackend } from "./fakeBridge/gitBranchesBackend.mocks"
+import { fakeGitHistoryBackend } from "./fakeBridge/gitHistoryBackend.mocks"
+import { fakeGitWorkingTreeBackend } from "./fakeBridge/gitWorkingTreeBackend.mocks"
 import { fakeImportBackend } from "./fakeBridge/importBackend.mocks"
+import { fakeOperationsBackend } from "./fakeBridge/operationsBackend.mocks"
 import { fakeProjectsBackend } from "./fakeBridge/projectsBackend.mocks"
 import { fakeSnapshotsBackend } from "./fakeBridge/snapshotsBackend.mocks"
 
@@ -29,7 +34,17 @@ export interface FakeDesktopBridge extends DesktopBridge {
     failWith(key: FakeAnswerKey, error: ErrorPayload): void
 }
 
-const FAKE_BACKEND_GROUPS: FakeBackendGroup[] = [fakeSnapshotsBackend, fakeProjectsBackend, fakeFoldersBackend, fakeImportBackend]
+const FAKE_BACKEND_GROUPS: FakeBackendGroup[] = [
+    fakeSnapshotsBackend,
+    fakeProjectsBackend,
+    fakeFoldersBackend,
+    fakeImportBackend,
+    fakeGitBackend,
+    fakeGitHistoryBackend,
+    fakeGitBranchesBackend,
+    fakeGitWorkingTreeBackend,
+    fakeOperationsBackend
+]
 
 /** The source of an expression that builds the fake bridge, for a page that cannot import it. */
 export function fakeDesktopBridgeSource(seed: FakeDesktopSeed): string {
@@ -65,7 +80,16 @@ export function createFakeDesktopBridge(
         return `${prefix}-${String(createdIds).padStart(16, "0")}`
     }
 
-    const kit = { seed, store: {}, now: seed.now ?? FALLBACK_NOW, succeed, refuse, nextId } as FakeBridgeKit
+    const kit = {
+        seed,
+        store: {},
+        now: seed.now ?? FALLBACK_NOW,
+        succeed,
+        refuse,
+        nextId,
+        emit,
+        answer: answerFromBackend
+    } as FakeBridgeKit
     const backend: FakeBackend = Object.assign({}, ...backendGroups.map(group => group(kit)))
 
     function answerFor(key: FakeAnswerKey, fallback: () => unknown) {
@@ -123,7 +147,12 @@ export function createFakeDesktopBridge(
         return () => handlersOf(event).delete(handler)
     }
 
-    function request(method: BridgeMethod, params: unknown, options?: unknown) {
+    function request(method: BridgeMethod, params: unknown, options?: { operationId?: string }) {
+        const held = kit.operations?.holdIfSlow(method, params, options?.operationId)
+        if (held) {
+            record("request", method, params, options)
+            return held
+        }
         return recordAndAnswer("request", method, () => answerFromBackend(method, params), method, params, options)
     }
 
@@ -145,6 +174,7 @@ export function createFakeDesktopBridge(
         request: request as DesktopBridge["request"],
         cancel: operationId => {
             record("cancel", operationId)
+            kit.operations?.cancel(operationId)
             return Promise.resolve()
         },
         subscribe: subscribe as DesktopBridge["subscribe"],

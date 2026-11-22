@@ -40,10 +40,12 @@ pub struct ResolvedTool {
 pub struct ToolRunOptions {
     pub cwd: Option<PathBuf>,
     pub env: EnvVars,
+    pub env_remove: Vec<OsString>,
     pub timeout: Duration,
     pub max_output_bytes: Option<u64>,
     pub askpass: Option<AskpassSetup>,
     pub output: OutputMode,
+    pub stdin: Option<String>,
 }
 
 impl ToolRunOptions {
@@ -51,10 +53,12 @@ impl ToolRunOptions {
         Self {
             cwd: None,
             env: Vec::new(),
+            env_remove: Vec::new(),
             timeout,
             max_output_bytes: None,
             askpass: None,
             output: OutputMode::Collect,
+            stdin: None,
         }
     }
 }
@@ -106,10 +110,12 @@ impl Tools {
         env.extend(options.env);
         let request = RunRequest {
             env,
+            env_remove: options.env_remove,
             cwd: options.cwd,
             max_output_bytes: options.max_output_bytes.unwrap_or(DEFAULT_MAX_OUTPUT_BYTES),
             askpass: options.askpass,
             output: options.output,
+            stdin: options.stdin,
             ..RunRequest::new(tool, resolved.path, args, options.timeout)
         };
         self.setup.runner.run(request, cancel).await

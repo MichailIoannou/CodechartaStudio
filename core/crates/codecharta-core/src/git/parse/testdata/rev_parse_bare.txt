@@ -1,0 +1,5 @@
+true
+false
+/fixture/origin.git
+/fixture/origin.git
+

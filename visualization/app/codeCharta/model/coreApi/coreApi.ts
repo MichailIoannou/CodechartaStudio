@@ -13,6 +13,41 @@ import type { EmptyParams } from "./EmptyParams"
 import type { ErrorCode } from "./ErrorCode"
 import type { FolderPath } from "./FolderPath"
 import type { FolderRef } from "./FolderRef"
+import type { GitAbortOperationParams } from "./GitAbortOperationParams"
+import type { GitBranchCreateParams } from "./GitBranchCreateParams"
+import type { GitBranchDeleteParams } from "./GitBranchDeleteParams"
+import type { GitBranchRenameParams } from "./GitBranchRenameParams"
+import type { GitChangedFiles } from "./GitChangedFiles"
+import type { GitChangedFilesParams } from "./GitChangedFilesParams"
+import type { GitCommitDetails } from "./GitCommitDetails"
+import type { GitCommitDistances } from "./GitCommitDistances"
+import type { GitCommitParams } from "./GitCommitParams"
+import type { GitCommitSummary } from "./GitCommitSummary"
+import type { GitCreateCommitParams } from "./GitCreateCommitParams"
+import type { GitDiff } from "./GitDiff"
+import type { GitDiffFileParams } from "./GitDiffFileParams"
+import type { GitDiscardParams } from "./GitDiscardParams"
+import type { GitFetchParams } from "./GitFetchParams"
+import type { GitFetchResult } from "./GitFetchResult"
+import type { GitIsAncestorParams } from "./GitIsAncestorParams"
+import type { GitLogPage } from "./GitLogPage"
+import type { GitLogParams } from "./GitLogParams"
+import type { GitMeasureDistancesParams } from "./GitMeasureDistancesParams"
+import type { GitMergeBaseParams } from "./GitMergeBaseParams"
+import type { GitOperationResult } from "./GitOperationResult"
+import type { GitPullParams } from "./GitPullParams"
+import type { GitPushParams } from "./GitPushParams"
+import type { GitRefs } from "./GitRefs"
+import type { GitRepoParams } from "./GitRepoParams"
+import type { GitRepositoryInfo } from "./GitRepositoryInfo"
+import type { GitResolveCommitParams } from "./GitResolveCommitParams"
+import type { GitRevListCountParams } from "./GitRevListCountParams"
+import type { GitSetUpstreamParams } from "./GitSetUpstreamParams"
+import type { GitStageParams } from "./GitStageParams"
+import type { GitStatus } from "./GitStatus"
+import type { GitSwitchParams } from "./GitSwitchParams"
+import type { GitUnstageParams } from "./GitUnstageParams"
+import type { GitWorkingTree } from "./GitWorkingTree"
 import type { HelloParams } from "./HelloParams"
 import type { HelloResult } from "./HelloResult"
 import type { ImportSnapshotParams } from "./ImportSnapshotParams"
@@ -30,9 +65,15 @@ import type { ProgressParams } from "./ProgressParams"
 import type { Project } from "./Project"
 import type { ProjectIdParams } from "./ProjectIdParams"
 import type { ProjectList } from "./ProjectList"
+import type { PromptAnswerParams } from "./PromptAnswerParams"
+import type { PromptCancelParams } from "./PromptCancelParams"
+import type { PromptClosed } from "./PromptClosed"
+import type { PromptRequested } from "./PromptRequested"
 import type { RecordMapFactsParams } from "./RecordMapFactsParams"
+import type { RefsAt } from "./RefsAt"
 import type { RelinkFolderParams } from "./RelinkFolderParams"
 import type { RemoveFolderParams } from "./RemoveFolderParams"
+import type { RepositoryChanged } from "./RepositoryChanged"
 import type { ResolveCommitParams } from "./ResolveCommitParams"
 import type { ResolveCommitResult } from "./ResolveCommitResult"
 import type { ResolvePathParams } from "./ResolvePathParams"
@@ -75,7 +116,33 @@ export const CORE_ERROR_CODES = [
     "FOLDER_UNAVAILABLE",
     "DIFFERENT_HISTORY",
     "TOO_LARGE",
-    "NOT_A_COMMIT"
+    "NOT_A_COMMIT",
+    "GIT_TOO_OLD",
+    "NOT_A_REPOSITORY",
+    "DUBIOUS_OWNERSHIP",
+    "BARE_REPOSITORY",
+    "INDEX_LOCKED",
+    "PARSE_FAILED",
+    "COMMAND_FAILED",
+    "LOG_SESSION_EXPIRED",
+    "UNKNOWN_REVISION",
+    "AUTHENTICATION_CANCELLED",
+    "BRANCH_EXISTS",
+    "BRANCH_NOT_FULLY_MERGED",
+    "BRANCH_CHECKED_OUT_ELSEWHERE",
+    "LOCAL_CHANGES_WOULD_BE_OVERWRITTEN",
+    "OPERATION_IN_PROGRESS",
+    "AUTHENTICATION_REQUIRED",
+    "NETWORK_UNAVAILABLE",
+    "CHANGED_SINCE_LISTED",
+    "IDENTITY_UNKNOWN",
+    "NOTHING_TO_COMMIT",
+    "HOOK_FAILED",
+    "CONFLICTS",
+    "NOT_FAST_FORWARD",
+    "PUSH_REJECTED",
+    "NO_UPSTREAM",
+    "STALE_PUSH_LEASE"
 ] as const satisfies ReadonlyArray<ErrorCode>
 
 export type CoreMethods = {
@@ -115,10 +182,43 @@ export type CoreMethods = {
     "snapshots.import": { params: ImportSnapshotParams; result: SnapshotSummary }
     "snapshots.move": { params: MoveSnapshotParams; result: SnapshotSummary }
     "snapshots.delete": { params: DeleteSnapshotParams; result: null }
+    "git.repositoryInfo": { params: GitRepoParams; result: GitRepositoryInfo }
+    "git.status": { params: GitRepoParams; result: GitStatus }
+    "git.branches": { params: GitRepoParams; result: GitRefs }
+    "git.refsFingerprint": { params: GitRepoParams; result: string }
+    "git.log": { params: GitLogParams; result: GitLogPage }
+    "git.commitDetails": { params: GitCommitParams; result: GitCommitDetails }
+    "git.resolveCommit": { params: GitResolveCommitParams; result: GitCommitSummary }
+    "git.revListCount": { params: GitRevListCountParams; result: number }
+    "git.mergeBase": { params: GitMergeBaseParams; result: string | null }
+    "git.isAncestor": { params: GitIsAncestorParams; result: boolean }
+    "git.measureDistances": { params: GitMeasureDistancesParams; result: GitCommitDistances }
+    "git.refsAt": { params: GitCommitParams; result: RefsAt }
+    "git.changedFiles": { params: GitChangedFilesParams; result: GitChangedFiles }
+    "git.fetch": { params: GitFetchParams; result: GitFetchResult }
+    "git.switch": { params: GitSwitchParams; result: GitOperationResult }
+    "git.branchCreate": { params: GitBranchCreateParams; result: GitOperationResult }
+    "git.branchRename": { params: GitBranchRenameParams; result: GitOperationResult }
+    "git.branchDelete": { params: GitBranchDeleteParams; result: GitOperationResult }
+    "git.setUpstream": { params: GitSetUpstreamParams; result: GitOperationResult }
+    "git.workingTree": { params: GitRepoParams; result: GitWorkingTree }
+    "git.diffFile": { params: GitDiffFileParams; result: GitDiff }
+    "git.stage": { params: GitStageParams; result: GitWorkingTree }
+    "git.unstage": { params: GitUnstageParams; result: GitWorkingTree }
+    "git.discard": { params: GitDiscardParams; result: GitWorkingTree }
+    "git.commit": { params: GitCreateCommitParams; result: GitOperationResult }
+    "git.pull": { params: GitPullParams; result: GitOperationResult }
+    "git.push": { params: GitPushParams; result: GitOperationResult }
+    "git.abortOperation": { params: GitAbortOperationParams; result: GitOperationResult }
+    "prompt.answer": { params: PromptAnswerParams; result: null }
+    "prompt.cancel": { params: PromptCancelParams; result: null }
 }
 
 export type CoreEvents = {
     "core.progress": ProgressParams
+    "repository.changed": RepositoryChanged
+    "prompt.requested": PromptRequested
+    "prompt.closed": PromptClosed
 }
 
 export type CoreClientNotifications = {
@@ -151,11 +251,46 @@ export const RENDERER_METHODS = [
     "snapshots.openFile",
     "snapshots.import",
     "snapshots.move",
-    "snapshots.delete"
+    "snapshots.delete",
+    "git.repositoryInfo",
+    "git.status",
+    "git.branches",
+    "git.refsFingerprint",
+    "git.log",
+    "git.commitDetails",
+    "git.resolveCommit",
+    "git.revListCount",
+    "git.mergeBase",
+    "git.isAncestor",
+    "git.measureDistances",
+    "git.refsAt",
+    "git.changedFiles",
+    "git.fetch",
+    "git.switch",
+    "git.branchCreate",
+    "git.branchRename",
+    "git.branchDelete",
+    "git.setUpstream",
+    "git.workingTree",
+    "git.diffFile",
+    "git.stage",
+    "git.unstage",
+    "git.discard",
+    "git.commit",
+    "git.pull",
+    "git.push",
+    "git.abortOperation",
+    "prompt.answer",
+    "prompt.cancel"
 ] as const satisfies ReadonlyArray<keyof CoreMethods>
 
 export type RendererMethod = (typeof RENDERER_METHODS)[number]
 
-export const RENDERER_EVENTS = ["core.progress"] as const satisfies ReadonlyArray<keyof CoreEvents>
+export const RENDERER_EVENTS = [
+    "core.progress",
+    "repository.changed",
+    "prompt.requested",
+    "prompt.closed"
+] as const satisfies ReadonlyArray<keyof CoreEvents>
 
 export type RendererEvent = (typeof RENDERER_EVENTS)[number]

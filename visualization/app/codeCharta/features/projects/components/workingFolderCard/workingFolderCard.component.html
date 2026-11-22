@@ -20,13 +20,55 @@
     </div>
 } @else if (folder().kind === "plain") {
     <p class="text-sm text-base-content/70">Plain folder — no git history.</p>
-} @else if (remotes().length > 0) {
+} @else if (problem(); as problem) {
+    <p class="text-sm text-warning" data-testid="working-folder-git-problem">{{ problem }}</p>
+} @else {
     <dl class="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm" data-testid="working-folder-git">
-        <dt class="text-base-content/60">Remotes</dt>
-        <dd class="min-w-0">
-            @for (remote of remotes(); track remote.name) {
-                <span class="block truncate" [title]="remote.address">{{ remote.name }} {{ remote.address }}</span>
+        @if (status()) {
+            <dt class="text-base-content/60">Branch</dt>
+            <dd class="truncate" [title]="branch()">{{ branch() }}</dd>
+            @if (upstream(); as upstream) {
+                <dt class="text-base-content/60">Upstream</dt>
+                <dd class="min-w-0">
+                    @if (upstream.name) {
+                        <span class="truncate" [title]="upstream.name">{{ upstream.name }}</span>
+                    }
+                    @if (upstream.sentence) {
+                        <span class="text-base-content/70">{{ upstream.name ? " · " : "" }}{{ upstream.sentence }}</span>
+                    } @else {
+                        @if (upstream.toPush > 0) {
+                            <span class="whitespace-nowrap"> · <i class="fa-solid fa-arrow-up"></i> {{ upstream.toPush }} to push</span>
+                        }
+                        @if (upstream.toPull > 0) {
+                            <span class="whitespace-nowrap"> · <i class="fa-solid fa-arrow-down"></i> {{ upstream.toPull }} to pull</span>
+                        }
+                    }
+                </dd>
             }
-        </dd>
+            @if (changes(); as changes) {
+                <dt class="text-base-content/60">Changes</dt>
+                <dd [class.text-warning]="changes.needsAttention">{{ changes.sentence }}</dd>
+            }
+        } @else {
+            @for (row of [1, 2, 3]; track row) {
+                <dt class="skeleton h-4 w-16"></dt>
+                <dd class="skeleton h-4 w-40"></dd>
+            }
+        }
+        @if (lastCommitLine(); as commit) {
+            <dt class="text-base-content/60">Last commit</dt>
+            <dd class="min-w-0">
+                <span class="block truncate" [title]="commit.subject"><span class="font-mono">{{ commit.sha }}</span> {{ commit.subject }}</span>
+                <span class="text-xs text-base-content/60">{{ commit.author }} · {{ commit.when }}</span>
+            </dd>
+        }
+        @if (remotes().length > 0) {
+            <dt class="text-base-content/60">Remotes</dt>
+            <dd class="min-w-0">
+                @for (remote of remotes(); track remote.name) {
+                    <span class="block truncate" [title]="remote.address">{{ remote.name }} {{ remote.address }}</span>
+                }
+            </dd>
+        }
     </dl>
 }

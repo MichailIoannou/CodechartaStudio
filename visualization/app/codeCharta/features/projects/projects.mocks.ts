@@ -1,3 +1,5 @@
+import type { GitCommitSummary } from "../../model/coreApi/GitCommitSummary"
+import type { GitStatus } from "../../model/coreApi/GitStatus"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
 import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { Project } from "../../model/coreApi/Project"
@@ -68,6 +70,29 @@ export function aPickedFolder(name: string, overrides: Partial<PickedFolder> = {
         suggestedLabel: name,
         kind: "git",
         git: null,
+        ...overrides
+    }
+}
+
+export function aGitStatus(branch: string, overrides: Partial<GitStatus> = {}): GitStatus {
+    return {
+        head: { kind: "branch", name: branch, commit: "a1b2c3d".padEnd(40, "0") },
+        upstream: null,
+        counts: { staged: 0, unstaged: 0, untracked: 0, conflicted: 0 },
+        operationInProgress: null,
+        ...overrides
+    }
+}
+
+export function aCommit(shortSha: string, subject: string, overrides: Partial<GitCommitSummary> = {}): GitCommitSummary {
+    return {
+        sha: shortSha.padEnd(40, "0"),
+        parents: [],
+        authorName: "Mia Chen",
+        authorEmail: "mia@example.com",
+        authoredAt: Date.parse(PROJECT_NOW) / 1000,
+        committedAt: Date.parse(PROJECT_NOW) / 1000,
+        subject,
         ...overrides
     }
 }

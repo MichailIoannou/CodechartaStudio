@@ -111,7 +111,7 @@ export function fakeImportBackend(kit: FakeBridgeKit): FakeBackend {
         if (!file) {
             return refuse("TOKEN_EXPIRED", "Pick the file again.")
         }
-        const target = params.target ?? existingTargetOf(file)
+        const target = (params.target as FolderRef | null | undefined) ?? existingTargetOf(file)
         return target ? openInto(file, target, params.bindToCommit, false) : openIntoNewProject(file, params.bindToCommit)
     }
 

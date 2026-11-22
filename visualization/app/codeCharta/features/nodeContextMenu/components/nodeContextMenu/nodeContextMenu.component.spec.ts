@@ -324,6 +324,15 @@ describe("nodeContextMenu component", () => {
         expect(offeredJumps).toEqual(["Show in Metrics", "Show in Domain"])
     })
 
+    it("should not offer the history view as a jump target", async () => {
+        // Arrange & Act
+        await renderMenu({ pathsWithDependencyLevels: new Set(["/root/src/RatingBean.java"]) })
+
+        // Assert — the history view lists commits, it has no node to show
+        expect(screen.queryByText(/Show in History/)).toBe(null)
+        expect(screen.getAllByText(/^\s*Show in /).map(item => item.textContent.trim())).not.toContain("Show in History")
+    })
+
     it("should offer Exclude alone, below a divider, where the view has no map to shape", async () => {
         // Arrange
         const { container, dispatchSpy } = await renderMenu({

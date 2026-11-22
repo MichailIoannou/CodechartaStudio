@@ -1,11 +1,13 @@
 import { CORE_PROTOCOL_VERSION } from "../../model/coreApi/coreApi"
+import type { GitEntryKind } from "../../model/coreApi/GitEntryKind"
+import type { GitFileChange } from "../../model/coreApi/GitFileChange"
 import type { PickedFolder } from "../../model/coreApi/PickedFolder"
 import type { PickedImportFile } from "../../model/coreApi/PickedImportFile"
 import type { Project } from "../../model/coreApi/Project"
 import type { ProjectFolder } from "../../model/coreApi/ProjectFolder"
 import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 import type { BridgeMethod, DesktopBridge } from "./desktopBridge"
-import { createFakeDesktopBridge, FakeDesktopSeed, fakeDesktopBridgeSource } from "./desktopBridge.mocks"
+import { createFakeDesktopBridge, FakeDesktopBridge, FakeDesktopSeed, fakeDesktopBridgeSource } from "./desktopBridge.mocks"
 
 const TOOL_FAILURE = { code: "TOOL_FAILED" as const, message: "git failed", details: {} }
 const NOW = "2026-11-19T08:00:00Z"
@@ -501,6 +503,202 @@ describe("createFakeDesktopBridge", () => {
         expect(created.folders).toEqual([expect.objectContaining({ path: "/downloads/out", kind: "plain" })])
     })
 
+    it("should answer the seeded git status and log of a folder and refuse an unseeded one", async () => {
+        // Arrange
+        const status = {
+            head: { kind: "branch" as const, name: "main", commit: "a".repeat(40) },
+            upstream: null,
+            counts: { staged: 0, unstaged: 0, untracked: 0, conflicted: 0 },
+            operationInProgress: null
+        }
+        const commit = {
+            sha: "a".repeat(40),
+            parents: [],
+            authorName: "Mia",
+            authorEmail: "mia@example.com",
+            authoredAt: 1,
+            committedAt: 1,
+            subject: "Start"
+        }
+        const bridge = createFakeDesktopBridge({ gitStatuses: { "f-1": status }, gitLogs: { "f-1": [commit] } })
+        const repo = { projectId: "p-1", folderId: "f-1" }
+
+        // Act
+        const answeredStatus = await answerValue(bridge, "git.status", { repo })
+        const log = await answerValue(bridge, "git.log", { repo, scope: { kind: "head" }, filter: null, cursor: null })
+        const unseeded = await bridge.request("git.status", { repo: { projectId: "p-1", folderId: "f-2" } })
+
+        // Assert
+        expect(answeredStatus).toEqual(status)
+        expect(log).toEqual({ commits: [commit], nextCursor: null, isGraphAvailable: true })
+        expect(unseeded).toEqual({ ok: false, error: expect.objectContaining({ code: "NOT_A_REPOSITORY" }) })
+    })
+
+    it("should answer the repository, refs and fingerprint of a seeded git folder and fail a seeded method", async () => {
+        // Arrange
+        const head = { kind: "branch" as const, name: "main", commit: "a".repeat(40) }
+        const info = {
+            repositoryId: "/work/api/.git",
+            rootPath: "/work/api",
+            folderPrefix: "",
+            isShallow: false,
+            isLinkedWorktree: false,
+            gitVersion: "2.56.0"
+        }
+        const refs = { fingerprint: "f1", head, localBranches: [], remoteBranches: [], tags: [], remotes: [] }
+        const failure = { code: "INDEX_LOCKED" as const, message: "locked", details: {} }
+        const seed: FakeDesktopSeed = { git: { "f-1": { info, refs, failures: { "git.status": failure } } } }
+        const rebuild = new Function(`return ${fakeDesktopBridgeSource(seed)}`)
+        const repo = { projectId: "p-1", folderId: "f-1" }
+
+        // Act
+        const answers = await Promise.all(
+            [createFakeDesktopBridge(seed), rebuild() as FakeDesktopBridge].map(bridge =>
+                Promise.all([
+                    bridge.request("git.repositoryInfo", { repo }),
+                    bridge.request("git.branches", { repo }),
+                    bridge.request("git.refsFingerprint", { repo }),
+                    bridge.request("git.status", { repo }),
+                    bridge.request("git.log", { repo, scope: { kind: "all" }, filter: null, cursor: null })
+                ])
+            )
+        )
+
+        // Assert
+        const expected = [
+            { ok: true, value: info },
+            { ok: true, value: refs },
+            { ok: true, value: "f1" },
+            { ok: false, error: failure },
+            { ok: false, error: expect.objectContaining({ code: "NOT_A_REPOSITORY" }) }
+        ]
+        expect(answers).toEqual([expected, expected])
+    })
+
+    it("should page, scope and filter the seeded history and answer commit details", async () => {
+        // Arrange
+        const commitOf = (index: number, parents: string[]) => ({
+            sha: index.toString(16).padStart(40, "0"),
+            parents,
+            authorName: index % 2 === 0 ? "Mia" : "Jo",
+            authorEmail: "dev@example.com",
+            authoredAt: index,
+            committedAt: index,
+            subject: `Commit ${index}`
+        })
+        const commits = Array.from({ length: 1200 }, (_, index) =>
+            commitOf(1200 - index, index < 1199 ? [(1199 - index).toString(16).padStart(40, "0")] : [])
+        )
+        const side = commitOf(5000, [commits[1199].sha])
+        const refs = {
+            fingerprint: "f1",
+            head: { kind: "branch" as const, name: "main", commit: commits[0].sha },
+            localBranches: [],
+            remoteBranches: [],
+            tags: [{ refName: "refs/tags/side", name: "side", commit: side.sha, isAnnotated: false, createdAt: 1 }],
+            remotes: []
+        }
+        const file = { change: "added" as const, path: "src/app/a.ts", previousPath: null, insertions: 1, deletions: 0 }
+        const details = {
+            ...commits[3],
+            committerName: "Mia",
+            committerEmail: "dev@example.com",
+            message: "Commit",
+            comparedToParent: null
+        }
+        const seed: FakeDesktopSeed = {
+            git: {
+                "f-1": {
+                    refs,
+                    commits: [...commits, side],
+                    details: {
+                        [commits[3].sha]: {
+                            ...details,
+                            files: [file],
+                            areFilesTruncated: false,
+                            totals: { filesChanged: 1, insertions: 1, deletions: 0 }
+                        }
+                    }
+                }
+            }
+        }
+        const bridge = new Function(`return ${fakeDesktopBridgeSource(seed)}`)() as FakeDesktopBridge
+        const repo = { projectId: "p-1", folderId: "f-1" }
+        const all = { kind: "all" as const }
+
+        // Act
+        const first = await answerValue(bridge, "git.log", { repo, scope: all, filter: null, cursor: null })
+        const last = await answerValue(bridge, "git.log", { repo, scope: all, filter: null, cursor: "page-1000" })
+        const expired = await bridge.request("git.log", { repo, scope: all, filter: null, cursor: "gone" })
+        const scoped = await answerValue(bridge, "git.log", {
+            repo,
+            scope: { kind: "refs", refNames: ["refs/tags/side"] },
+            filter: null,
+            cursor: null
+        })
+        const byAuthor = await answerValue(bridge, "git.log", {
+            repo,
+            scope: all,
+            filter: { text: "commit 1", author: "jo", path: null },
+            cursor: null
+        })
+        const byPath = await answerValue(bridge, "git.log", {
+            repo,
+            scope: all,
+            filter: { text: null, author: null, path: "src/app" },
+            cursor: null
+        })
+        const listed = await answerValue(bridge, "git.commitDetails", { repo, sha: commits[3].sha })
+        const derived = await answerValue(bridge, "git.commitDetails", { repo, sha: side.sha })
+        const unknown = await bridge.request("git.commitDetails", { repo, sha: "f".repeat(40) })
+
+        // Assert
+        expect([first.commits.length, first.nextCursor, first.isGraphAvailable]).toEqual([500, "page-500", true])
+        expect([last.commits.length, last.nextCursor]).toEqual([201, null])
+        expect(expired).toEqual({ ok: false, error: expect.objectContaining({ code: "LOG_SESSION_EXPIRED" }) })
+        expect(scoped.commits.map(commit => commit.sha)).toEqual([commits[1199].sha, side.sha])
+        expect(byAuthor.isGraphAvailable).toBe(false)
+        expect(byAuthor.commits.every(commit => commit.authorName === "Jo" && commit.subject.startsWith("Commit 1"))).toBe(true)
+        expect(byPath.commits.map(commit => commit.sha)).toEqual([commits[3].sha])
+        expect(listed.files).toEqual([file])
+        expect(derived).toEqual(
+            expect.objectContaining({ sha: side.sha, files: [], message: "Commit 5000", comparedToParent: commits[1199].sha })
+        )
+        expect(unknown).toEqual({ ok: false, error: expect.objectContaining({ code: "UNKNOWN_REVISION" }) })
+    })
+
+    it("should measure how far commits are apart and leave out unknown candidates", async () => {
+        // Arrange
+        const repo = { projectId: "p-1", folderId: "f-1" }
+        const commitOf = (seed: string, parentSeeds: string[]) => ({
+            sha: seed.repeat(40),
+            parents: parentSeeds.map(parent => parent.repeat(40)),
+            authorName: "Mia",
+            authorEmail: "mia@example.com",
+            authoredAt: 0,
+            committedAt: 0,
+            subject: seed
+        })
+        const base = commitOf("1", [])
+        const main = commitOf("2", ["1"])
+        const side = commitOf("3", ["1"])
+        const tip = commitOf("4", ["2"])
+        const bridge = createFakeDesktopBridge({ git: { "f-1": { commits: [tip, side, main, base] } } })
+
+        // Act
+        const measured = await answerValue(bridge, "git.measureDistances", {
+            repo,
+            target: tip.sha,
+            candidates: [side.sha, base.sha, "f".repeat(40)]
+        })
+
+        // Assert
+        expect(measured.distances).toEqual([
+            { sha: side.sha, onlyInCandidate: 1, onlyInTarget: 2 },
+            { sha: base.sha, onlyInCandidate: 0, onlyInTarget: 2 }
+        ])
+    })
+
     it("should read a seeded map in chunks", async () => {
         // Arrange
         const ref = { projectId: "p-1", folderId: "f-1", snapshotId: "s-1" }
@@ -594,6 +792,257 @@ describe("createFakeDesktopBridge", () => {
 
         // Assert
         expect(handler).not.toHaveBeenCalled()
+    })
+
+    describe("git writes", () => {
+        const repo = { projectId: "p-1", folderId: "f-1" }
+        const A = "a".repeat(40)
+        const B = "b".repeat(40)
+        const lastCommit = { subject: "Add billing", committedAt: 0 }
+
+        function aBranch(name: string, commit: string, isCurrent = false) {
+            return { refName: `refs/heads/${name}`, name, commit, isCurrent, upstream: null, checkedOutInOtherWorktree: null, lastCommit }
+        }
+
+        function writableSeed(extra: Partial<NonNullable<FakeDesktopSeed["git"]>[string]> = {}): FakeDesktopSeed {
+            const head = { kind: "branch" as const, name: "main", commit: A }
+            const remote = { refName: "refs/remotes/origin/x", remote: "origin", name: "origin/x", branchName: "x", commit: B, lastCommit }
+            const refs = {
+                fingerprint: "f1",
+                head,
+                localBranches: [aBranch("main", A, true), aBranch("old", B)],
+                remoteBranches: [remote],
+                tags: [],
+                remotes: []
+            }
+            const status = {
+                head,
+                upstream: null,
+                counts: { staged: 0, unstaged: 0, untracked: 0, conflicted: 0 },
+                operationInProgress: null
+            }
+            return {
+                projects: [{ id: "p-1", folders: [{ id: "f-1", label: "billing-api" }] } as unknown as Project],
+                git: { "f-1": { info: { repositoryId: "/r/.git" } as never, refs, status, ...extra } }
+            }
+        }
+
+        function errorCodeOf(answer: object) {
+            return "error" in answer ? (answer.error as { code: string }).code : null
+        }
+
+        async function branchNames(bridge: DesktopBridge) {
+            const answer = await bridge.request("git.branches", { repo })
+            return answer.ok ? answer.value.localBranches.map(branch => `${branch.name}${branch.isCurrent ? "*" : ""}`) : []
+        }
+
+        it("should create, switch to, rename, track and delete branches and announce each change", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(writableSeed())
+            const changed = jest.fn()
+            bridge.subscribe("repository.changed", changed)
+
+            // Act
+            await bridge.request("git.branchCreate", { repo, name: "feature", startPoint: B, checkout: true })
+            await bridge.request("git.branchRename", { repo, refName: "refs/heads/feature", newName: "renamed" })
+            await bridge.request("git.switch", {
+                repo,
+                target: { kind: "trackRemote", remoteRefName: "refs/remotes/origin/x", localName: "x" }
+            })
+            await bridge.request("git.setUpstream", { repo, refName: "refs/heads/x", upstreamRefName: null })
+            await bridge.request("git.branchDelete", { repo, target: { kind: "local", refName: "refs/heads/old", force: false } })
+            await bridge.request("git.branchDelete", { repo, target: { kind: "remote", remoteRefName: "refs/remotes/origin/x" } })
+            const status = await bridge.request("git.status", { repo })
+
+            // Assert
+            expect(await branchNames(bridge)).toEqual(["main", "renamed", "x*"])
+            expect(status.ok && status.value.head).toEqual({ kind: "branch", name: "x", commit: B })
+            expect(changed).toHaveBeenCalledTimes(6)
+            expect(changed).toHaveBeenLastCalledWith(
+                expect.objectContaining({ repo, parts: ["status", "refs", "workingTree"], fingerprint: "f1++++++" })
+            )
+        })
+
+        it("should refuse an existing name and an unmerged branch unless forced", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(writableSeed({ unmergedBranches: ["old"] }))
+            const deleteOld = (force: boolean) =>
+                bridge.request("git.branchDelete", { repo, target: { kind: "local", refName: "refs/heads/old", force } })
+
+            // Act
+            const exists = await bridge.request("git.branchCreate", { repo, name: "old", startPoint: A, checkout: false })
+            const unmerged = await deleteOld(false)
+            const forced = await deleteOld(true)
+
+            // Assert
+            expect([exists, unmerged].map(answer => errorCodeOf(answer))).toEqual(["BRANCH_EXISTS", "BRANCH_NOT_FULLY_MERGED"])
+            expect(forced.ok).toBe(true)
+        })
+
+        function anEntry(path: string, kind: GitEntryKind, change: GitFileChange = "modified") {
+            return { path, previousPath: null, kind, change, conflict: kind === "conflicted" ? "UU" : null }
+        }
+
+        async function listedRows(bridge: DesktopBridge) {
+            const answer = await bridge.request("git.workingTree", { repo })
+            return answer.ok ? answer.value.entries.map(entry => `${entry.kind}:${entry.path}:${entry.change}`) : []
+        }
+
+        it("should stage, unstage and discard listed rows and keep the status counts in step", async () => {
+            // Arrange
+            const changes = [anEntry("a.ts", "unstaged"), anEntry("new.ts", "untracked", "added"), anEntry("old.ts", "unstaged", "deleted")]
+            const bridge = createFakeDesktopBridge(writableSeed({ changes }))
+
+            // Act
+            await bridge.request("git.stage", { repo, target: { kind: "paths", paths: ["a.ts"] } })
+            await bridge.request("git.stage", { repo, target: { kind: "all" } })
+            await bridge.request("git.unstage", { repo, paths: ["new.ts", "a.ts"] })
+            await bridge.request("git.discard", { repo, entries: [{ path: "new.ts", kind: "untracked", change: "added" }] })
+            const status = await bridge.request("git.status", { repo })
+
+            // Assert
+            expect(await listedRows(bridge)).toEqual(["staged:old.ts:deleted", "unstaged:a.ts:modified"])
+            expect(status.ok && status.value.counts).toEqual({ staged: 1, unstaged: 1, untracked: 0, conflicted: 0 })
+        })
+
+        it("should refuse rows that are no longer listed as named, a conflicted row, and answer a listed row's diff", async () => {
+            // Arrange
+            const diff = { path: "a.ts", text: "@@ -1 +1 @@\n-a\n+b\n", isBinary: false, isTruncated: false }
+            const changes = [anEntry("a.ts", "unstaged"), anEntry("c.ts", "conflicted")]
+            const bridge = createFakeDesktopBridge(writableSeed({ changes, diffs: { "unstaged:a.ts": diff } }))
+
+            // Act
+            const answers = [
+                await bridge.request("git.stage", { repo, target: { kind: "paths", paths: ["gone.ts"] } }),
+                await bridge.request("git.unstage", { repo, paths: ["a.ts"] }),
+                await bridge.request("git.discard", { repo, entries: [{ path: "a.ts", kind: "unstaged", change: "deleted" }] }),
+                await bridge.request("git.discard", { repo, entries: [{ path: "c.ts", kind: "conflicted", change: "modified" }] }),
+                await bridge.request("git.diffFile", { repo, path: "a.ts", kind: "staged" })
+            ]
+            const shown = await bridge.request("git.diffFile", { repo, path: "a.ts", kind: "unstaged" })
+            const empty = await bridge.request("git.diffFile", { repo, path: "c.ts", kind: "conflicted" })
+
+            // Assert
+            expect(answers.map(errorCodeOf)).toEqual([
+                "CHANGED_SINCE_LISTED",
+                "CHANGED_SINCE_LISTED",
+                "CHANGED_SINCE_LISTED",
+                "NOT_ALLOWED",
+                "NOT_FOUND"
+            ])
+            expect(shown).toEqual({ ok: true, value: diff })
+            expect(empty.ok && empty.value.text).toBe("")
+        })
+
+        it("should commit the staged rows onto the current branch, amend the last commit and answer ancestry", async () => {
+            // Arrange
+            const commits = [{ sha: A, parents: [], subject: "Start", authorName: "M", authorEmail: "m@x", authoredAt: 0, committedAt: 0 }]
+            const changes = [anEntry("a.ts", "staged"), anEntry("b.ts", "unstaged")]
+            const bridge = createFakeDesktopBridge(writableSeed({ changes, commits }))
+
+            // Act
+            await bridge.request("git.commit", { repo, subject: "Add a", body: "", amend: false })
+            const first = await bridge.request("git.status", { repo })
+            const nothing = await bridge.request("git.commit", { repo, subject: "Again", body: "", amend: false })
+            await bridge.request("git.commit", { repo, subject: "Add a, amended", body: "", amend: true })
+            const amended = await bridge.request("git.status", { repo })
+            const amendedSha = amended.ok ? (amended.value.head.commit ?? "") : ""
+            const ancestry = [
+                await bridge.request("git.isAncestor", { repo, ancestor: A, descendant: amendedSha }),
+                await bridge.request("git.isAncestor", { repo, ancestor: amendedSha, descendant: A })
+            ]
+
+            // Assert
+            expect(first.ok && first.value.counts).toEqual({ staged: 0, unstaged: 1, untracked: 0, conflicted: 0 })
+            expect(errorCodeOf(nothing)).toBe("NOTHING_TO_COMMIT")
+            expect(await branchNames(bridge)).toEqual(["main*", "old"])
+            expect(amendedSha).not.toBe(A)
+            expect(ancestry.map(answer => answer.ok && answer.value)).toEqual([true, false])
+        })
+
+        it("should refuse to commit while files have conflicts", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(writableSeed({ changes: [anEntry("c.ts", "conflicted")] }))
+
+            // Act
+            const answer = await bridge.request("git.commit", { repo, subject: "Merge", body: "", amend: false })
+
+            // Assert
+            expect(errorCodeOf(answer)).toBe("CONFLICTS")
+        })
+
+        it("should fetch with the seeded number of updated refs", async () => {
+            // Arrange
+            const bridge = createFakeDesktopBridge(writableSeed({ fetchedRefs: 3 }))
+
+            // Act
+            const answer = await bridge.request("git.fetch", { repo, prune: false })
+
+            // Assert
+            expect(answer).toEqual({ ok: true, value: expect.objectContaining({ updatedRefs: 3 }) })
+        })
+
+        it("should hold a slow fetch with its progress until the operation is cancelled", async () => {
+            // Arrange
+            const progress = { message: "Receiving objects: 45%", done: 45, total: 100 }
+            const bridge = createFakeDesktopBridge(writableSeed({ slow: { "git.fetch": { progress } } }))
+            const reported = jest.fn()
+            bridge.subscribe("core.progress", reported)
+
+            // Act
+            const answer = bridge.request("git.fetch", { repo, prune: false }, { operationId: "op-1" })
+            await Promise.resolve()
+            await bridge.cancel("op-1")
+
+            // Assert
+            expect(reported).toHaveBeenCalledWith({ requestId: "op-1", ...progress })
+            expect(await answer).toEqual({ ok: false, error: expect.objectContaining({ code: "CANCELLED" }) })
+        })
+
+        it("should ask the prompts of a slow operation and finish it once every prompt is answered", async () => {
+            // Arrange
+            const prompts = [
+                { kind: "text" as const, message: "Username for 'https://example.com': " },
+                { kind: "secret" as const, message: "Password for 'https://ada@example.com': " }
+            ]
+            const bridge = createFakeDesktopBridge(writableSeed({ slow: { "git.fetch": { prompts } } }))
+            const requested = jest.fn()
+            const closed = jest.fn()
+            bridge.subscribe("prompt.requested", requested)
+            bridge.subscribe("prompt.closed", closed)
+
+            // Act
+            const answer = bridge.request("git.fetch", { repo, prune: false }, { operationId: "op-1" })
+            await Promise.resolve()
+            const ids = requested.mock.calls.map(([prompt]) => prompt.promptId)
+            await bridge.request("prompt.answer", { promptId: ids[0], answer: "ada" })
+            const late = await bridge.request("prompt.answer", { promptId: ids[0], answer: "ada" })
+            await bridge.request("prompt.answer", { promptId: ids[1], answer: "secret" })
+
+            // Assert
+            expect(requested).toHaveBeenCalledWith({ promptId: ids[0], requestId: "op-1", repositoryLabel: "billing-api", ...prompts[0] })
+            expect(closed.mock.calls.map(([event]) => event.promptId)).toEqual(ids)
+            expect(errorCodeOf(late)).toBe("NOT_FOUND")
+            expect((await answer).ok).toBe(true)
+        })
+
+        it("should fail a slow operation as cancelled sign-in when its prompt is cancelled", async () => {
+            // Arrange
+            const prompts = [{ kind: "confirm" as const, message: "Are you sure you want to continue connecting (yes/no)? " }]
+            const bridge = createFakeDesktopBridge(writableSeed({ slow: { "git.fetch": { prompts } } }))
+            const requested = jest.fn()
+            bridge.subscribe("prompt.requested", requested)
+
+            // Act
+            const answer = bridge.request("git.fetch", { repo, prune: false }, { operationId: "op-1" })
+            await Promise.resolve()
+            await bridge.request("prompt.cancel", { promptId: requested.mock.calls[0][0].promptId })
+            const unknown = await bridge.request("prompt.cancel", { promptId: "gone" })
+
+            // Assert
+            expect(await answer).toEqual({ ok: false, error: expect.objectContaining({ code: "AUTHENTICATION_CANCELLED" }) })
+            expect(errorCodeOf(unknown)).toBe("NOT_FOUND")
+        })
     })
 
     it("should work when rebuilt from its own source text", async () => {

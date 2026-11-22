@@ -2,7 +2,7 @@ import { TestBed } from "@angular/core/testing"
 import { screen } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
-import { aFolder, aPickedImportFile, aProject, aSnapshot } from "../../projects.mocks"
+import { aFolder, aGitStatus, aPickedImportFile, aProject, aSnapshot } from "../../projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../projectsTestBed.mocks"
 import { ProjectSwitcherComponent } from "./projectSwitcher.component"
 
@@ -26,7 +26,8 @@ const CODECHARTA = aProject("p-cc", [aFolder("f-cc", { label: "codecharta" })], 
 const SEED: FakeDesktopSeed = {
     projects: [DOTFILES, BILLING, CODECHARTA],
     activeProjectId: "p-billing",
-    snapshots: [aSnapshot("p-dots", "f-dots", "s-dots")]
+    snapshots: [aSnapshot("p-dots", "f-dots", "s-dots")],
+    gitStatuses: { "f-api": aGitStatus("feature/invoice-rounding"), "f-dots": aGitStatus("main") }
 }
 
 describe("ProjectSwitcherComponent", () => {
@@ -57,7 +58,7 @@ describe("ProjectSwitcherComponent", () => {
         expect(trigger.getAttribute("aria-expanded")).toBe("false")
     })
 
-    it("should list the folders of the project with the working folder checked", async () => {
+    it("should list the folders of the project with the working folder checked and their branches", async () => {
         // Arrange
         await renderSwitcher()
 
@@ -67,6 +68,7 @@ describe("ProjectSwitcherComponent", () => {
         // Assert
         const api = screen.getByTestId("project-switcher-folder-billing-api")
         expect(api.getAttribute("aria-checked")).toBe("true")
+        expect(api.textContent).toContain("feature/invoice-rounding")
         expect(api.textContent).toContain("C:\\work\\billing-api")
         expect(screen.getByTestId("project-switcher-folder-billing-web").getAttribute("aria-checked")).toBe("false")
         expect(screen.getByTestId("project-switcher-folder-out").textContent).toContain("plain folder")
@@ -85,7 +87,7 @@ describe("ProjectSwitcherComponent", () => {
         const projectRows = screen.getAllByRole("menuitem").map(row => row.dataset.testid)
         expect(projectRows).toEqual(["project-switcher-project-codecharta", "project-switcher-project-dotfiles"])
         expect(screen.getByTestId("project-switcher-project-dotfiles").textContent).toContain("2 folders")
-        expect(screen.getByTestId("project-switcher-folder-dotfiles").textContent).toContain("dotfiles")
+        expect(screen.getByTestId("project-switcher-folder-dotfiles").textContent).toContain("main")
         expect(screen.getByTestId("project-switcher-folder-dotfiles-work").textContent).toContain("missing")
         expect(screen.queryByTestId("project-switcher-folder-codecharta")).toBeNull()
     })

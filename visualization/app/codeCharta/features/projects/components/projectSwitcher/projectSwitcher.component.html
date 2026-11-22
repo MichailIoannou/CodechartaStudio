@@ -145,6 +145,8 @@
             <span class="shrink-0 text-xs text-warning"><i class="fa-solid fa-triangle-exclamation"></i> missing</span>
         } @else if (entry.folder.kind === "plain") {
             <span class="shrink-0 text-xs text-base-content/60"><i class="fa-solid fa-folder"></i> plain folder</span>
+        } @else if (entry.branch) {
+            <span class="min-w-0 truncate text-xs text-base-content/60" [title]="entry.branch"><i class="fa-solid fa-code-branch"></i> {{ entry.branch }}</span>
         }
         @if (entry.path) {
             <span class="ml-auto min-w-0 max-w-40 shrink-[2] truncate font-mono text-xs text-base-content/60" [title]="entry.path">{{ entry.path }}</span>

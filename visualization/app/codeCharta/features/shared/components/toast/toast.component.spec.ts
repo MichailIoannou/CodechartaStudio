@@ -46,6 +46,61 @@ describe("ToastComponent", () => {
         expect(dismiss).toHaveBeenCalledWith(7)
     })
 
+    it("should show the details of a message only after Details is clicked", async () => {
+        // Arrange
+        await renderComponent({
+            messages: (() => [
+                { id: 1, text: "Git failed", severity: "error" as const, details: "fatal: unable to access" }
+            ]) as unknown as ToastService["messages"]
+        })
+        const hiddenBefore = screen.queryByTestId("toast-details")
+
+        // Act
+        await userEvent.click(screen.getByRole("button", { name: "Details" }))
+
+        // Assert
+        expect(hiddenBefore).toBe(null)
+        expect(screen.getByTestId("toast-details").textContent).toBe("fatal: unable to access")
+    })
+
+    it("should run the follow-up action and close the message", async () => {
+        // Arrange
+        const run = jest.fn()
+        const dismiss = jest.fn()
+        await renderComponent({
+            messages: (() => [
+                { id: 2, text: "Pull first", severity: "error" as const, action: { label: "Pull", run } }
+            ]) as unknown as ToastService["messages"],
+            dismiss
+        })
+
+        // Act
+        await userEvent.click(screen.getByRole("button", { name: "Pull" }))
+
+        // Assert
+        expect(run).toHaveBeenCalledTimes(1)
+        expect(dismiss).toHaveBeenCalledWith(2)
+    })
+
+    it("should fold the details again on a second click", async () => {
+        // Arrange
+        await renderComponent({
+            messages: (() => [
+                { id: 3, text: "Git failed", severity: "error" as const, details: "fatal" }
+            ]) as unknown as ToastService["messages"],
+            dismiss: jest.fn()
+        })
+        const details = screen.getByRole("button", { name: "Details" })
+
+        // Act
+        await userEvent.click(details)
+        await userEvent.click(details)
+
+        // Assert
+        expect(screen.queryByTestId("toast-details")).toBe(null)
+        expect(details.getAttribute("aria-expanded")).toBe("false")
+    })
+
     it("should stack the messages at the top right just below the nav bar", async () => {
         // Act
         await renderComponent({ messages: (() => []) as ToastService["messages"] })

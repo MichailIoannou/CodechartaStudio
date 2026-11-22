@@ -7,6 +7,7 @@ import { showSpinnerBeforeBuildingView } from "app/codeCharta/routing/showSpinne
 import { createFakeDesktopBridge } from "app/codeCharta/util/desktop/desktopBridge.mocks"
 import { DESKTOP_BRIDGE } from "app/codeCharta/util/desktop/desktopBridge.token"
 import { DomainViewComponent } from "app/codeCharta/views/domainView/domainView.component"
+import { HistoryViewComponent } from "app/codeCharta/views/historyView/historyView.component"
 import { MetricsViewComponent } from "app/codeCharta/views/metricsView/metricsView.component"
 import { routerProviders, routes } from "./app.config"
 
@@ -28,12 +29,21 @@ describe("app routes", () => {
         expect(await domainRoute?.loadComponent?.()).toBe(DomainViewComponent)
     })
 
-    it("should show the spinner before building any of the views", () => {
+    it("should show the spinner before building any of the map views", () => {
         // Arrange & Act
-        const viewRoutes = routes.filter(route => route.path !== projectRoutePath)
+        const viewRoutes = routes.filter(route => route.path !== projectRoutePath && route.path !== routePaths.history)
 
         // Assert
         expect(viewRoutes.map(route => route.canActivate)).toEqual(viewRoutes.map(() => [showSpinnerBeforeBuildingView]))
+    })
+
+    it("should lazy load the history view without waiting for it to be drawn", async () => {
+        // Arrange & Act
+        const historyRoute = routes.find(route => route.path === routePaths.history)
+
+        // Assert — the history never reports itself drawn, so the spinner guard would hold every switch for its timeout
+        expect(historyRoute?.canActivate).toBeUndefined()
+        expect(await historyRoute?.loadComponent?.()).toBe(HistoryViewComponent)
     })
 
     it("should lazy load the project overview only in the desktop app", async () => {

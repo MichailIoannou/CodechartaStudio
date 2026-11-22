@@ -2,7 +2,7 @@ import { TestBed } from "@angular/core/testing"
 import { screen, within } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
-import { aFolder, aPickedFolder, aPickedImportFile, aProject, aSnapshot } from "../../projects.mocks"
+import { aCommit, aFolder, aGitStatus, aPickedFolder, aPickedImportFile, aProject, aSnapshot } from "../../projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../projectsTestBed.mocks"
 import { OpenFileService } from "../../services/openFile.service"
 import { ProjectOverviewComponent } from "./projectOverview.component"
@@ -31,18 +31,25 @@ const DOTFILES = aProject("p-dots", [aFolder("f-dots", { label: "dotfiles", stat
     name: "dotfiles",
     updatedAt: "2026-11-10T00:00:00Z"
 })
-const RELEASE_SHA = "9f8e7d6".padEnd(40, "0")
+const HEAD = aCommit("a1b2c3d", "Fix invoice rounding")
+const RELEASE = aCommit("9f8e7d6", "Release 2.4.0", { authorName: "Jo Park" })
+const STATUS = aGitStatus("feature/invoice-rounding", {
+    upstream: { refName: "refs/remotes/origin/x", name: "origin/feature/invoice-rounding", ahead: 2, behind: 1, isGone: false },
+    counts: { staged: 1, unstaged: 2, untracked: 0, conflicted: 0 }
+})
 const SEED: FakeDesktopSeed = {
     projects: [BILLING, DOTFILES],
     activeProjectId: "p-billing",
     snapshots: [
         aSnapshot("p-billing", "f-api", "s-release", {
             shortCommit: "9f8e7d6",
-            commit: RELEASE_SHA,
+            commit: RELEASE.sha,
             subject: "Release 2.4.0"
         }),
         aSnapshot("p-billing", "f-out", "s-out", { source: "imported", originalFileName: "out.cc.json" })
-    ]
+    ],
+    gitStatuses: { "f-api": STATUS, "f-web": aGitStatus("main") },
+    gitLogs: { "f-api": [HEAD, RELEASE] }
 }
 
 function cellsOf(row: HTMLElement): string[] {
@@ -61,7 +68,7 @@ describe("ProjectOverviewComponent", () => {
         return fixture
     }
 
-    it("should show the working folder, its remotes and its analyses", async () => {
+    it("should show the working folder, its git state and its analyses", async () => {
         // Arrange & Act
         await renderOverview()
 
@@ -69,11 +76,29 @@ describe("ProjectOverviewComponent", () => {
         expect(screen.getByRole("heading", { name: "billing" })).toBeTruthy()
         expect(screen.getByText("Invoicing services.")).toBeTruthy()
         const git = screen.getByTestId("working-folder-git")
+        expect(git.textContent).toContain("feature/invoice-rounding")
+        expect(git.textContent).toContain("2 to push")
+        expect(git.textContent).toContain("1 to pull")
+        expect(git.textContent).toContain("3 uncommitted (1 staged)")
+        expect(git.textContent).toContain("Fix invoice rounding")
         expect(git.textContent).toContain("origin github.com/acme/billing-api")
         expect(screen.getByTestId("analyses-rows").textContent).toContain("Release 2.4.0")
     })
 
-    it("should list the folders with their kind, analyses and the plain-folder hint", async () => {
+    it("should mark the head and the analysed commits in the recent commits", async () => {
+        // Arrange & Act
+        await renderOverview()
+
+        // Assert
+        const rows = within(screen.getByTestId("project-overview-commits")).getAllByRole("listitem")
+        expect(rows.map(cellsOf)).toEqual([
+            ["", "a1b2c3d", "Fix invoice rounding", "Mia Chen", expect.stringMatching(/ago$/), ""],
+            ["", "9f8e7d6", "Release 2.4.0", "Jo Park", expect.stringMatching(/ago$/), "analysed"]
+        ])
+        expect(rows[0].querySelector("i")?.classList.contains("fa-regular")).toBe(true)
+    })
+
+    it("should list the folders with their branch, analyses and the plain-folder hint", async () => {
         // Arrange & Act
         await renderOverview()
 
@@ -83,7 +108,7 @@ describe("ProjectOverviewComponent", () => {
         const out = screen.getByTestId("project-overview-folder-out").textContent ?? ""
         expect(api).toContain("1 analysis")
         expect(api).toContain("(working)")
-        expect(web).toContain("git folder")
+        expect(web).toContain("main")
         expect(web).toContain("Work here")
         expect(out).toContain("plain folder")
         expect(out).toContain("1 imported")
@@ -124,6 +149,22 @@ describe("ProjectOverviewComponent", () => {
 
         // Assert
         expect(testBed.requestsOf("projects.revealFolder")).toEqual([{ projectId: "p-billing", folderId: "f-api" }])
+    })
+
+    it("should read the git state again on window focus, at most every few seconds", async () => {
+        // Arrange
+        await renderOverview()
+        const statusReads = testBed.requestsOf("git.status").length
+        jest.spyOn(Date, "now").mockReturnValue(Date.now() + 60_000)
+
+        // Act
+        window.dispatchEvent(new Event("focus"))
+        window.dispatchEvent(new Event("focus"))
+        await settle()
+
+        // Assert
+        expect(testBed.requestsOf("git.status").length).toBe(statusReads + 2)
+        jest.restoreAllMocks()
     })
 
     it("should open the manage project dialog", async () => {

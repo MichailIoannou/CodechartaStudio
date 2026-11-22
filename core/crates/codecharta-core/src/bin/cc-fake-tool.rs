@@ -2,7 +2,7 @@
 //! picks the behaviour. Asked for its version (`--version`, `-version`), it prints the files
 //! `<own name>.stdout` and `<own name>.stderr` next to itself, so a test can copy it as `git` or `java`
 //! and decide what it answers. `hold-store-lock <root>` plays a second core process that holds the
-//! store lock until its stdin closes.
+//! store lock until its stdin closes. `echo-stdin` prints its input once stdin is closed.
 
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -43,6 +43,7 @@ fn run(mode: &str, rest: &[String]) -> FakeResult {
         "utf8-split" => write_split_multibyte_text(),
         "print-env" => print_stdout(&std::env::var(first(rest)?).unwrap_or_default()),
         "hold-store-lock" => hold_store_lock(first(rest)?),
+        "echo-stdin" => echo_stdin(),
         unknown => Err(format!("unknown mode {unknown:?}")),
     }
 }
@@ -132,6 +133,16 @@ fn hold_store_lock(root: &str) -> FakeResult {
     std::io::stdin()
         .read_to_end(&mut Vec::new())
         .map_err(|error| error.to_string())?;
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Prints its whole input once stdin is closed, so a run that never closes it never ends.
+fn echo_stdin() -> FakeResult {
+    let mut input = String::new();
+    std::io::stdin()
+        .read_to_string(&mut input)
+        .map_err(|error| error.to_string())?;
+    print!("{input}");
     Ok(ExitCode::SUCCESS)
 }
 

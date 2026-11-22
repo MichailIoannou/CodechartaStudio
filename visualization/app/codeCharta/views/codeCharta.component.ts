@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from "@angular/core"
 import { RouterOutlet } from "@angular/router"
 import { ChangelogDialogComponent } from "../features/changelog/facade"
+import { CredentialPromptDialogComponent } from "../features/gitHistory/facade"
 import { NavBarComponent } from "../features/navBar/facade"
 import { FileDropOverlayComponent, ProjectsBootService } from "../features/projects/facade"
 import { BootLoadingIndicatorComponent, ErrorDialogComponent, ToastComponent } from "../features/shared/facade"
@@ -15,7 +16,8 @@ import { BootLoadingIndicatorComponent, ErrorDialogComponent, ToastComponent } f
         ToastComponent,
         RouterOutlet,
         BootLoadingIndicatorComponent,
-        FileDropOverlayComponent
+        FileDropOverlayComponent,
+        CredentialPromptDialogComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
