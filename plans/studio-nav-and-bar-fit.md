@@ -1,6 +1,6 @@
 ---
 name: Nav bar and metrics bar fit
-state: progress
+state: complete
 version: 1
 ---
 
@@ -30,9 +30,9 @@ keeps its labels whole, switches to the compact bar at its measured minimum and 
 
 ## Steps
 
-- [ ] Complete Task 1: Nav bar
-- [ ] Complete Task 2: Metrics bar
-- [ ] Complete Task 3: Verification
+- [x] Complete Task 1: Nav bar
+- [x] Complete Task 2: Metrics bar
+- [x] Complete Task 3: Verification
 
 ## Notes
 
