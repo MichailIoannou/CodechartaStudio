@@ -28,13 +28,15 @@ describe("CopyCommandComponent", () => {
         return [...(screen.getByRole("button", { name: "Copy command" }).querySelector("i")?.classList ?? [])].sort()
     }
 
-    it("should show the command in a monospace block with a copy button", async () => {
+    it("should show the whole command, wrapped rather than cut off, in a monospace block with a copy button", async () => {
         // Arrange & Act
         await render(CopyCommandComponent, { inputs: { command: COMMAND } })
 
         // Assert
         const code = screen.getByText(COMMAND)
-        expect(code.getAttribute("title")).toBe(COMMAND)
+        expect(code.className).toContain("whitespace-pre-wrap")
+        expect(code.className).toContain("break-all")
+        expect(code.className).not.toContain("truncate")
         expect(code.closest("[data-testid='copy-command']")?.className).toContain("font-mono")
         expect(copyIconClasses()).toEqual(["fa-copy", "fa-regular"])
     })

@@ -1,5 +1,5 @@
 import { aStatusOn } from "../services/gitApi.mocks"
-import { operationNoticeOf } from "./operationNotice"
+import { operationNoticeOf, operationSummaryOf } from "./operationNotice"
 
 const CONFLICTS = { staged: 0, unstaged: 0, untracked: 0, conflicted: 2 }
 
@@ -74,5 +74,25 @@ describe("operationNoticeOf", () => {
 
         // Assert
         expect(notice?.text).toMatch(/^Merging into bbbbbbb\./)
+    })
+})
+
+describe("operationSummaryOf", () => {
+    it("should name a merge or rebase with its conflicts and point to the History, and other operations to a terminal", () => {
+        // Arrange & Act
+        const summaries = [
+            operationSummaryOf(aStatusOn("main")),
+            operationSummaryOf(aStatusOn("main", { operationInProgress: "merge", counts: CONFLICTS })),
+            operationSummaryOf(aStatusOn("main", { operationInProgress: "rebase", counts: { ...CONFLICTS, conflicted: 0 } })),
+            operationSummaryOf(aStatusOn("main", { operationInProgress: "cherryPick" }))
+        ]
+
+        // Assert
+        expect(summaries).toEqual([
+            null,
+            "Merging — 2 files have conflicts. Finish or abort it in the History.",
+            "Rebasing. Finish or abort it in the History.",
+            "A cherry-pick is in progress. Finish or abort it in a terminal."
+        ])
     })
 })

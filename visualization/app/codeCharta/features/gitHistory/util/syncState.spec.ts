@@ -57,7 +57,7 @@ describe("syncState", () => {
             const action = mainSyncAction({ branch: onBranch(null), remotes: [] })
 
             // Assert
-            expect(action).toEqual(expect.objectContaining({ kind: "publish", disabledReason: "This repository has no remote" }))
+            expect(action).toEqual(expect.objectContaining({ kind: "publish", disabledReason: "This repository has no remote." }))
         })
 
         it("should fetch when the upstream no longer exists", () => {
@@ -117,6 +117,20 @@ describe("syncState", () => {
             )
         })
 
+        it("should fetch during a merge or rebase, even when the branch is behind or unpublished", () => {
+            // Arrange
+            const branches = [onBranch(anUpstream("origin/feature/x", { behind: 3 })), onBranch(null)]
+
+            // Act
+            const actions = branches.map(branch => mainSyncAction({ branch, remotes: [ORIGIN], inProgress: "rebase" }))
+
+            // Assert
+            expect(actions.map(action => [action.kind, action.disabledReason])).toEqual([
+                ["fetch", null],
+                ["fetch", null]
+            ])
+        })
+
         it("should fetch when the branch is in sync or git could not count", () => {
             // Arrange & Act
             const kinds = [anUpstream("origin/feature/x"), anUpstream("origin/feature/x", { ahead: null, behind: null })].map(
@@ -134,7 +148,7 @@ describe("syncState", () => {
             const reasons = [pullReasonOf(null), pushReasonOf(null), forcePushReasonOf(null)]
 
             // Assert
-            expect(reasons).toEqual(Array.from({ length: 3 }, () => "HEAD is detached: switch to a branch first"))
+            expect(reasons).toEqual(Array.from({ length: 3 }, () => "HEAD is detached: switch to a branch first."))
         })
 
         it("should refuse pull, push and force push without an upstream or with a gone one", () => {
@@ -151,7 +165,7 @@ describe("syncState", () => {
             ])
         })
 
-        it("should refuse a push with nothing to push and a force push with nothing to replace", () => {
+        it("should refuse a pull with nothing to pull, a push with nothing to push and a force push with nothing to replace", () => {
             // Arrange
             const branch = onBranch(anUpstream("origin/feature/x"))
 
@@ -159,7 +173,30 @@ describe("syncState", () => {
             const reasons = [pullReasonOf(branch), pushReasonOf(branch), forcePushReasonOf(branch)]
 
             // Assert
-            expect(reasons).toEqual([null, "Nothing to push", "The remote has no commits that your branch lacks — use Push"])
+            expect(reasons).toEqual([
+                "Nothing to pull: the remote has no new commits. Use Push.",
+                "Nothing to push",
+                "Nothing on the remote would be replaced."
+            ])
+        })
+
+        it("should refuse pull, push, publish and force push until a merge or rebase is finished", () => {
+            // Arrange
+            const branch = onBranch(anUpstream("origin/feature/x", { ahead: 2, behind: 1 }))
+
+            // Act
+            const reasons = (["merge", "rebase"] as const).map(inProgress => [
+                pullReasonOf(branch, inProgress),
+                pushReasonOf(branch, inProgress),
+                forcePushReasonOf(branch, inProgress),
+                publishReasonOf([ORIGIN], inProgress)
+            ])
+
+            // Assert
+            expect(reasons).toEqual([
+                Array.from({ length: 4 }, () => "Finish or abort the merge first."),
+                Array.from({ length: 4 }, () => "Finish or abort the rebase first.")
+            ])
         })
 
         it("should allow push and force push of a branch that has diverged", () => {
@@ -178,7 +215,7 @@ describe("syncState", () => {
             const reasons = [publishReasonOf([]), publishReasonOf([ORIGIN])]
 
             // Assert
-            expect(reasons).toEqual(["This repository has no remote", null])
+            expect(reasons).toEqual(["This repository has no remote.", null])
         })
     })
 
@@ -220,6 +257,24 @@ describe("syncState", () => {
             ])
         })
 
+        it("should disable every item but fetch and set upstream during a merge", () => {
+            // Arrange
+            const branch = onBranch(anUpstream("origin/feature/x", { behind: 1 }))
+
+            // Act
+            const items = syncMenuItems({ branch, remotes: [ORIGIN], inProgress: "merge" })
+
+            // Assert
+            expect(items.map(item => [item.action, item.disabledReason])).toEqual([
+                ["fetch", null],
+                ["fetchPrune", null],
+                ["pull", "Finish or abort the merge first."],
+                ["push", "Finish or abort the merge first."],
+                ["forcePush", "Finish or abort the merge first."],
+                ["setUpstream", null]
+            ])
+        })
+
         it("should add Publish Branch for a branch without upstream", () => {
             // Arrange & Act
             const items = syncMenuItems({ branch: onBranch(null), remotes: [ORIGIN] })
@@ -234,7 +289,7 @@ describe("syncState", () => {
 
             // Assert
             expect(items.map(item => item.action)).toEqual(["fetch", "fetchPrune", "pull", "push", "forcePush"])
-            expect(items[2].disabledReason).toBe("HEAD is detached: switch to a branch first")
+            expect(items[2].disabledReason).toBe("HEAD is detached: switch to a branch first.")
         })
     })
 })

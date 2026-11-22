@@ -80,3 +80,9 @@
         }
     </dl>
 }
+@if (folder().kind === "git" && folder().status !== "missing") {
+    <button type="button" class="btn btn-sm self-start" data-testid="working-folder-open-history" (click)="openHistory()">
+        <i class="fa-solid fa-code-branch fa-fw"></i>
+        Open History
+    </button>
+}

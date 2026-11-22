@@ -28,6 +28,7 @@ export { SelectionShortcutsComponent } from "./components/selectionShortcuts/sel
 export { SettingsPopoverShellComponent } from "./components/settingsPopoverShell/settingsPopoverShell.component"
 export { SliderNumberInputComponent } from "./components/sliderNumberInput/sliderNumberInput.component"
 export { ToastComponent } from "./components/toast/toast.component"
+export { ToastOffsetDirective } from "./components/toast/toastOffset.directive"
 export { UnfocusToolComponent } from "./components/unfocusTool/unfocusTool.component"
 export { provideViewScopedCssVariables } from "./cssVariableHost"
 export { ExcludeGuard } from "./effects/addExcludedNodesIfNotResultsInEmptyMap/excludeGuard"

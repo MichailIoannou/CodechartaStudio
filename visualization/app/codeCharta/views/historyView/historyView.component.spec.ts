@@ -90,7 +90,7 @@ describe("HistoryViewComponent", () => {
         expect(startRelink).toHaveBeenCalledWith({ id: "f-api", label: "billing-api" })
     })
 
-    it("should make the folder the panel names the working folder of the active project", async () => {
+    it("should make the folder the panel names the working folder of the active project and stay in the History", async () => {
         // Arrange
         const { fixture } = await renderView({ isDesktop: true })
         const panel = fixture.debugElement.query(By.directive(GitHistoryPanelComponent)).componentInstance as GitHistoryPanelComponent
@@ -99,7 +99,7 @@ describe("HistoryViewComponent", () => {
         panel.workInFolder.emit({ id: "f-web", label: "billing-web" })
 
         // Assert
-        expect(projectsFacade.chooseFolder).toHaveBeenCalledWith({ projectId: "p-billing", folderId: "f-web" })
+        expect(projectsFacade.chooseFolder).toHaveBeenCalledWith({ projectId: "p-billing", folderId: "f-web", staysOnView: true })
     })
 
     it("should open the project menu when the panel asks to choose the working folder", async () => {

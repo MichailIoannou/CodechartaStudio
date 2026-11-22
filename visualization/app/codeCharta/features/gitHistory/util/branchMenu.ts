@@ -1,5 +1,6 @@
+import type { GitRemote } from "../../../model/coreApi/GitRemote"
 import type { BranchRef } from "./branchTree"
-import { forcePushReasonOf, pushReasonOf } from "./syncState"
+import { forcePushReasonOf, publishReasonOf, pushReasonOf } from "./syncState"
 
 export type BranchMenuAction =
     | "switch"
@@ -8,6 +9,7 @@ export type BranchMenuAction =
     | "delete"
     | "setUpstream"
     | "push"
+    | "publish"
     | "forcePush"
     | "checkOutAsNew"
     | "deleteRemote"
@@ -32,6 +34,7 @@ const ITEMS: Readonly<Record<BranchMenuAction, ItemTemplate>> = {
     delete: { action: "delete", label: "Delete…", icon: "fa-solid fa-trash", hint: "" },
     setUpstream: { action: "setUpstream", label: "Set Upstream…", icon: "fa-solid fa-link", hint: "" },
     push: { action: "push", label: "Push", icon: "fa-solid fa-arrow-up", hint: "" },
+    publish: { action: "publish", label: "Publish", icon: "fa-solid fa-cloud-arrow-up", hint: "Publish the branch and track it" },
     forcePush: { action: "forcePush", label: "Force Push (with Lease)…", icon: "fa-solid fa-arrow-up", hint: "" },
     checkOutAsNew: {
         action: "checkOutAsNew",
@@ -53,19 +56,31 @@ const ACTIONS_BY_KIND: Readonly<Record<"current" | BranchRef["kind"], readonly B
 /** Actions that touch the checkout of the branch, which another worktree holds. */
 const WORKTREE_BOUND: ReadonlySet<BranchMenuAction> = new Set(["switch", "delete"])
 
-export function branchMenuItems(ref: BranchRef, isBusy: boolean): BranchMenuItem[] {
+/** A local branch without upstream is published rather than pushed. */
+export function branchMenuItems(ref: BranchRef, isBusy: boolean, remotes: readonly GitRemote[] = []): BranchMenuItem[] {
     const kind = ref.local?.isCurrent ? "current" : ref.kind
     const worktreePath = ref.local?.checkedOutInOtherWorktree ?? null
-    return ACTIONS_BY_KIND[kind].map(action => {
+    return ACTIONS_BY_KIND[kind].map(offered => {
+        const action = offered === "push" && ref.local && !ref.local.upstream ? "publish" : offered
         const worktreeReason = worktreePath && WORKTREE_BOUND.has(action) ? `Checked out in ${worktreePath}` : null
-        const disabledReason = isBusy ? WAITING_FOR_OPERATION : (worktreeReason ?? syncReasonOf(action, ref))
-        return { ...ITEMS[action], disabledReason }
+        const disabledReason = isBusy ? WAITING_FOR_OPERATION : (worktreeReason ?? syncReasonOf(action, ref, remotes))
+        return { ...templateOf(action, ref), disabledReason }
     })
 }
 
-function syncReasonOf(action: BranchMenuAction, ref: BranchRef): string | null {
-    if (action === "push") {
-        return pushReasonOf(ref.local)
+function templateOf(action: BranchMenuAction, ref: BranchRef): ItemTemplate {
+    return action === "publish" ? { ...ITEMS.publish, label: `Publish '${ref.local?.name}'` } : ITEMS[action]
+}
+
+function syncReasonOf(action: BranchMenuAction, ref: BranchRef, remotes: readonly GitRemote[]): string | null {
+    switch (action) {
+        case "push":
+            return pushReasonOf(ref.local)
+        case "publish":
+            return publishReasonOf(remotes)
+        case "forcePush":
+            return forcePushReasonOf(ref.local)
+        default:
+            return null
     }
-    return action === "forcePush" ? forcePushReasonOf(ref.local) : null
 }

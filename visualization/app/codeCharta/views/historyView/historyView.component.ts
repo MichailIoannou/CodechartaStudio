@@ -31,7 +31,7 @@ export class HistoryViewComponent {
     workIn(folder: { id: string }) {
         const project = this.projects.activeProject()
         if (project) {
-            void this.projects.chooseFolder({ projectId: project.id, folderId: folder.id })
+            void this.projects.chooseFolder({ projectId: project.id, folderId: folder.id, staysOnView: true })
         }
     }
 

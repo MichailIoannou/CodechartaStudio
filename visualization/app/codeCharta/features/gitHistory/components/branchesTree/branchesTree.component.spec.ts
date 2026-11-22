@@ -119,6 +119,7 @@ describe("BranchesTreeComponent", () => {
         // Assert
         expect(scope()).toEqual({ kind: "refs", refNames: ["refs/heads/main", "refs/remotes/origin/main"] })
         expect(rowOf("refs/heads/main").classList).toContain("bg-primary/20")
+        expect(rowOf("refs/heads/main").classList).toContain("outline-primary/60")
         expect(rowOf("refs/heads/main").getAttribute("aria-selected")).toBe("true")
         expect(rowOf("all").classList).not.toContain("bg-primary/20")
     })

@@ -137,13 +137,13 @@ describe("ToastComponent", () => {
         expect(screen.getAllByTestId("copy-command")[0].closest(".alert")?.classList).toContain("grid-cols-[minmax(0,1fr)_auto]")
     })
 
-    it("should stack the messages at the top right just below the nav bar", async () => {
+    it("should stack the messages at the top right just below the nav bar and any offset a view asks for", async () => {
         // Act
         await renderComponent({ messages: (() => []) as ToastService["messages"] })
 
         // Assert
         const stack = screen.getByRole("status")
         expect(stack.classList).toContain("toast-end")
-        expect(stack.classList).toContain("top-[var(--cc-bars-height,49px)]")
+        expect(stack.classList).toContain("top-[calc(var(--cc-bars-height,49px)+var(--cc-toast-offset,0px))]")
     })
 })
