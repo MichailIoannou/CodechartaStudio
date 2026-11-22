@@ -20,6 +20,9 @@ use support::{PROTOCOL_VERSION, hello_params};
 
 const EVENT_TIMEOUT: Duration = Duration::from_secs(10);
 const SHORT_WAIT: Duration = Duration::from_millis(300);
+/// A prompt over stdio waits for the core, git and the helper to start, which is slow on Windows.
+#[cfg(feature = "test-methods")]
+const GIT_ANSWER_TIMEOUT: Duration = Duration::from_secs(30);
 #[cfg(unix)]
 const FIXTURE_PASSPHRASE: &str = "fixture-passphrase";
 
@@ -305,7 +308,7 @@ impl Inbox {
 
     fn answer_to(&mut self, core: &ServingCore, id: i64) -> Value {
         loop {
-            let message = core.receive();
+            let message = core.receive_within(GIT_ANSWER_TIMEOUT);
             if message.get("id") == Some(&json!(id)) {
                 return message;
             }
@@ -323,7 +326,11 @@ impl Inbox {
             return message["params"].clone();
         }
         loop {
-            let message = core.receive();
+            let message = core.receive_within(GIT_ANSWER_TIMEOUT);
+            assert!(
+                message.get("error").is_none(),
+                "the core failed while {method} was awaited: {message}"
+            );
             if message["method"] == method {
                 return message["params"].clone();
             }
