@@ -100,4 +100,8 @@ export class MetricsBarPageObject {
         await this.page.getByTestId("folder-style-popover").waitFor({ state: "visible", timeout: 10_000 })
         await this.page.getByTestId(`folder-style-${style}`).click()
     }
+
+    bar(): Locator {
+        return this.page.locator("cc-metrics-bar")
+    }
 }
