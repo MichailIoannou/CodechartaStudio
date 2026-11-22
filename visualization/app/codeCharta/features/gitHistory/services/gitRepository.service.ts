@@ -1,5 +1,6 @@
 import { computed, DestroyRef, effect, Injectable, inject, signal, untracked } from "@angular/core"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
+import type { GitCommitDistance } from "../../../model/coreApi/GitCommitDistance"
 import type { GitCommitSummary } from "../../../model/coreApi/GitCommitSummary"
 import type { GitRefs } from "../../../model/coreApi/GitRefs"
 import type { GitRepositoryInfo } from "../../../model/coreApi/GitRepositoryInfo"
@@ -86,6 +87,12 @@ export class GitRepositoryService {
     async recentCommits(folder: FolderRef): Promise<GitCommitSummary[] | null> {
         const answer = await this.api.log({ repo: folder, scope: { kind: "head" }, filter: null, cursor: null })
         return "error" in answer ? null : answer.value.commits.slice(0, RECENT_COMMIT_COUNT)
+    }
+
+    /** `null` when the repository does not contain the candidate or git cannot answer. */
+    async distanceOf(folder: FolderRef, target: string, candidate: string): Promise<GitCommitDistance | null> {
+        const answer = await this.api.measureDistances(folder, target, [candidate])
+        return answer.ok ? (answer.value.distances[0] ?? null) : null
     }
 
     private async open(repo: FolderRef | null): Promise<void> {

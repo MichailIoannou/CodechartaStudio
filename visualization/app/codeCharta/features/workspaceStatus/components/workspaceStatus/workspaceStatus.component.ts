@@ -130,7 +130,7 @@ export class WorkspaceStatusComponent {
     })
     readonly hasStatusProblems = computed(() => this.view.rejectedRun()?.surface === "status")
     readonly target = this.view.target
-    readonly staleness = computed(() => stalenessOf(this.view.resolution(), this.view.noticeText().badge, this.wantedPhrase()))
+    readonly staleness = computed(() => stalenessOf(this.view.comparedResolution(), this.view.noticeText().badge, this.wantedPhrase()))
     readonly askedFor = computed(() => this.askedForOfTarget())
     readonly analyseLabel = computed(() => this.analyseLabelOfTarget())
 

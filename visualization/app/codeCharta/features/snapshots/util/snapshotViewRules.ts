@@ -1,8 +1,11 @@
 import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
 import type { AnalysisTarget } from "../../../model/coreApi/AnalysisTarget"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
+import type { GitCommitDistance } from "../../../model/coreApi/GitCommitDistance"
 import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
+import type { SnapshotRelation } from "../../../model/coreApi/SnapshotRelation"
 import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
+import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import { analysisTargetOf, isSameAnalysisTarget, SelectedTarget, targetKeyOf } from "../model/snapshotTarget"
 import { isPendingJob } from "./analysisWording"
 import { Notice, NoticeBadge, noticeText } from "./noticeText"
@@ -76,19 +79,55 @@ export function resolutionKeyOf(folderTargetKey: string, target: SelectedTarget,
     return `${folderTargetKey}|${head}`
 }
 
+const CURRENT_CHECKOUT: SelectedTarget = { kind: "workingTree" }
+
+/**
+ * How far a snapshot target is from the current checkout, worded as the nearest snapshot of the current checkout.
+ * Its profile is not compared: only the core knows the current one.
+ */
+export function checkoutResolutionOf(shown: SnapshotSummary, distance: GitCommitDistance | null): SnapshotResolution | null {
+    if (!distance || (distance.onlyInCandidate === 0 && distance.onlyInTarget === 0)) {
+        return null
+    }
+    const { onlyInCandidate: ahead, onlyInTarget: behind } = distance
+    return { kind: "nearest", snapshot: shown, isCurrentProfile: true, relation: relationOf(distance), behind, ahead }
+}
+
+function relationOf({ onlyInCandidate, onlyInTarget }: GitCommitDistance): SnapshotRelation {
+    if (onlyInCandidate === 0) {
+        return "ancestor"
+    }
+    return onlyInTarget === 0 ? "descendant" : "diverged"
+}
+
+/** A snapshot target away from the current checkout; the notice offers an analysis only while HEAD has none. */
+export interface CheckoutComparison {
+    resolution: SnapshotResolution
+    isHeadAnalysed: boolean
+}
+
+export function isAnalysisOf(commit: string, snapshots: readonly SnapshotSummary[]): boolean {
+    return snapshots.some(snapshot => snapshot.commit === commit && !snapshot.dirty)
+}
+
 export interface NoticeSituation {
     folderLabel: string | null
     target: SelectedTarget | null
     resolution: SnapshotResolution | null
     job: AnalysisJob | null
     shownSnapshotId: string | null
+    checkout: CheckoutComparison | null
 }
 
 /** The notice speaks about the resolved snapshot only while it is the one on the map. */
 export function noticeTextFor(situation: NoticeSituation): { notice: Notice | null; badge: NoticeBadge | null } {
-    const { folderLabel, target, job, shownSnapshotId } = situation
+    const { folderLabel, target, job, shownSnapshotId, checkout } = situation
     if (!(target && folderLabel !== null)) {
         return { notice: null, badge: null }
+    }
+    if (target.kind === "snapshot" && checkout) {
+        const { notice, badge } = noticeText({ folderLabel, target: CURRENT_CHECKOUT, resolution: checkout.resolution, job })
+        return { notice: checkout.isHeadAnalysed ? null : notice, badge }
     }
     const resolvedId = snapshotRefOf(situation.resolution)?.snapshotId ?? null
     const resolution = resolvedId === null || shownSnapshotId === resolvedId ? situation.resolution : null

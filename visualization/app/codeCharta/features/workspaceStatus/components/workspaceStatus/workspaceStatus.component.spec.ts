@@ -290,6 +290,27 @@ describe("WorkspaceStatusComponent", () => {
         expect(within(menu).queryByTestId("workspace-status-analyse")).toBeNull()
     })
 
+    it("should badge how far a restored snapshot is from the current checkout", async () => {
+        // Arrange
+        const restored = aSnapshot("p-billing", "f-api", "s-restored", {
+            target: "commit",
+            commit: "9f8e7d6".padEnd(40, "0"),
+            shortCommit: "9f8e7d6",
+            subject: "Release 2.4.0"
+        })
+        const remembering = { ...BILLING, view: { workingFolderId: "f-api", shownSnapshotIdByFolder: { "f-api": "s-restored" } } }
+        const distances = { distances: [{ sha: restored.commit, onlyInCandidate: 0, onlyInTarget: 4 }] }
+
+        // Act
+        await renderStatus({ projects: [remembering], snapshots: [restored], responses: { "git.measureDistances": distances } })
+
+        // Assert
+        const badge = screen.getByTestId("workspace-status-badge")
+        expect(badge.textContent).toBe("stale by 4")
+        expect(badge.title).toBe("Map is 4 commits behind the current checkout")
+        expect(trigger().title).toContain("Map shows 9f8e7d6 Release 2.4.0, 4 commits behind the current checkout")
+    })
+
     it("should explain the badge of an analysis of uncommitted changes, also as a dot", async () => {
         // Arrange
         const fixture = await renderStatus({ snapshots: [{ ...SHOWN, dirty: true, target: "workingTree" }] })

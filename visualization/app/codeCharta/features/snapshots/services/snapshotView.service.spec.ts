@@ -8,6 +8,7 @@ import { GitRepositoryService } from "../../gitHistory/facade"
 import { aFolder, aProject, aSnapshot } from "../../projects/projects.mocks"
 import { settle, setUpProjects } from "../../projects/projectsTestBed.mocks"
 import { aJob, COMMIT_SHA } from "../snapshots.mocks"
+import { sentenceOf } from "../util/noticeText"
 import { SnapshotCatalogService } from "./snapshotCatalog.service"
 import { SnapshotViewService } from "./snapshotView.service"
 
@@ -49,8 +50,8 @@ async function setUp(seed: FakeDesktopSeed = {}) {
     return { ...bed, view }
 }
 
-async function setUpWithHead() {
-    const bed = await setUp({ gitStatuses: { "f-api": statusAt(OLDER_SHA) } })
+async function setUpWithHead(seed: FakeDesktopSeed = {}) {
+    const bed = await setUp({ gitStatuses: { "f-api": statusAt(OLDER_SHA) }, ...seed })
     const gitRepository = TestBed.inject(GitRepositoryService)
     await gitRepository.refreshFolders([FOLDER])
     await settle()
@@ -201,6 +202,56 @@ describe("SnapshotViewService", () => {
             expect(view.notice()).toBeNull()
         })
 
+        it("should compare a restored snapshot with the current checkout once HEAD moved away from it", async () => {
+            // Arrange
+            const remembering = { ...BILLING, view: { workingFolderId: "f-api", shownSnapshotIdByFolder: { "f-api": "s-older" } } }
+            const { view, bridge, projects, gitStatusChange } = await setUpWithHead({ projects: [remembering] })
+            await projects.loadSnapshot(OLDER.ref)
+            bridge.respondWith("git.measureDistances", { distances: [{ sha: OLDER_SHA, onlyInCandidate: 0, onlyInTarget: 2 }] })
+
+            // Act
+            await gitStatusChange(HEAD_SHA)
+
+            // Assert
+            expect(view.target()).toEqual({ kind: "snapshot", ref: OLDER.ref })
+            expect(view.noticeText().badge).toEqual({ text: "stale by 2", tone: "warning" })
+            expect(sentenceOf(view.notice()?.parts ?? [])).toBe(
+                "No analysis of the current checkout — showing 9f8e7d6, stale by 2 commits."
+            )
+            expect(view.notice()?.action).toBe("Analyse current checkout")
+        })
+
+        it("should keep the distance but offer no analysis when the current checkout has an analysis of its own", async () => {
+            // Arrange
+            const remembering = { ...BILLING, view: { workingFolderId: "f-api", shownSnapshotIdByFolder: { "f-api": "s-older" } } }
+            const atHead = aSnapshot("p-billing", "f-api", "s-head", { commit: HEAD_SHA, shortCommit: "c0ffee1", target: "commit" })
+            const { view, bridge, projects, gitStatusChange } = await setUpWithHead({ projects: [remembering], snapshots: [OLDER, atHead] })
+            await projects.loadSnapshot(OLDER.ref)
+            bridge.respondWith("git.measureDistances", { distances: [{ sha: OLDER_SHA, onlyInCandidate: 1, onlyInTarget: 2 }] })
+
+            // Act
+            await gitStatusChange(HEAD_SHA)
+
+            // Assert
+            expect(view.comparedResolution()).toMatchObject({ kind: "nearest", relation: "diverged", behind: 2, ahead: 1 })
+            expect(view.noticeText().badge).toEqual({ text: "diverged 2↓ 1↑", tone: "warning" })
+            expect(view.notice()).toBeNull()
+        })
+
+        it("should not measure a snapshot target at HEAD", async () => {
+            // Arrange
+            const { view, requestsOf } = await setUpWithHead()
+
+            // Act
+            await view.open(OLDER.ref)
+            await settle()
+
+            // Assert
+            expect(view.target()).toEqual({ kind: "snapshot", ref: OLDER.ref })
+            expect(requestsOf("git.measureDistances")).toEqual([])
+            expect(view.comparedResolution()).toBeNull()
+        })
+
         it("should follow a snapshot that something else put on the map", async () => {
             // Arrange
             const { view, projects } = await setUp()
@@ -296,6 +347,25 @@ describe("SnapshotViewService", () => {
             expect(view.resolution()).toMatchObject({ kind: "exact" })
             expect(view.notice()).toBeNull()
             expect(toastService.show).toHaveBeenCalledWith("Showing the analysis of a1b2c3d", "success")
+        })
+
+        it("should make the current checkout the target when analysing it from a snapshot away from HEAD", async () => {
+            // Arrange
+            const { view, bridge, requestsOf, gitStatusChange } = await setUpWithHead()
+            await view.open(OLDER.ref)
+            bridge.respondWith("git.measureDistances", { distances: [{ sha: OLDER_SHA, onlyInCandidate: 0, onlyInTarget: 2 }] })
+            await gitStatusChange(HEAD_SHA)
+            const away = view.checkoutResolution()
+
+            // Act
+            await view.analyseTarget("notice")
+            await settle()
+
+            // Assert
+            expect(away).toMatchObject({ kind: "nearest", behind: 2 })
+            expect(view.target()).toEqual(WORKING_TREE)
+            expect(requestsOf("analysis.enqueue")).toEqual([expect.objectContaining({ target: WORKING_TREE })])
+            expect(view.notice()).toMatchObject({ kind: "running" })
         })
 
         it("should switch the current checkout to a finished analysis of the commit at HEAD", async () => {

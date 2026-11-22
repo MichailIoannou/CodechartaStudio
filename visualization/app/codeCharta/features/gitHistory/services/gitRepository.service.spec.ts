@@ -299,4 +299,33 @@ describe("GitRepositoryService", () => {
         expect(recent).toEqual(commits.slice(0, RECENT_COMMIT_COUNT))
         expect(none).toBeNull()
     })
+
+    it("should measure how far a commit is from another one", async () => {
+        // Arrange
+        const service = await createService()
+        const distance = { sha: "9f8e7d6", onlyInCandidate: 1, onlyInTarget: 4 }
+        bridge.respondWith("git.measureDistances", { distances: [distance] })
+
+        // Act
+        const measured = await service.distanceOf(API, "a1b2c3d", "9f8e7d6")
+
+        // Assert
+        expect(measured).toEqual(distance)
+        expect(requestsOf("git.measureDistances")[0]?.args[1]).toEqual({ repo: API, target: "a1b2c3d", candidates: ["9f8e7d6"] })
+    })
+
+    it("should know no distance when git cannot measure it or the commit is unknown", async () => {
+        // Arrange
+        const service = await createService()
+        bridge.respondWith("git.measureDistances", { distances: [] })
+        const unknown = await service.distanceOf(API, "a1b2c3d", "9f8e7d6")
+        bridge.failWith("git.measureDistances", anErrorPayload("UNKNOWN_REVISION"))
+
+        // Act
+        const failed = await service.distanceOf(API, "a1b2c3d", "9f8e7d6")
+
+        // Assert
+        expect(unknown).toBeNull()
+        expect(failed).toBeNull()
+    })
 })
