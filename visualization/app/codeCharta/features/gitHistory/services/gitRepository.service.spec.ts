@@ -284,6 +284,21 @@ describe("GitRepositoryService", () => {
         expect(service.statusOf(API)).toEqual(aStatusOn("main"))
     })
 
+    it("should know the commit at HEAD of a folder only while git answers", async () => {
+        // Arrange
+        const service = await createService()
+        await service.refreshFolders([WEB])
+        bridge.failWith("git.status", anErrorPayload("NOT_A_REPOSITORY"))
+
+        // Act
+        await service.refreshFolders([WEB])
+
+        // Assert
+        expect(service.headCommitOf(API)).toBe(aStatusOn("main").head.commit)
+        expect(service.headCommitOf(WEB)).toBeNull()
+        expect(service.headCommitOf({ projectId: "p-billing", folderId: "f-unknown" })).toBeNull()
+    })
+
     it("should read the newest commits of the head", async () => {
         // Arrange
         const commits = Array.from({ length: RECENT_COMMIT_COUNT + 2 }, (_, index) =>

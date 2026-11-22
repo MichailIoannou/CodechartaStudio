@@ -6,7 +6,7 @@ import type { GitRefs } from "../../../model/coreApi/GitRefs"
 import type { GitRepositoryInfo } from "../../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import type { RepositoryChanged } from "../../../model/coreApi/RepositoryChanged"
-import { FolderGitStatus, GitProblem } from "../model/folderGitStatus"
+import { FolderGitStatus, GitProblem, isGitStatus } from "../model/folderGitStatus"
 import type { GitResult } from "../model/gitError"
 import { IDLE, LOADING, LoadState, loadStateOf, readyValueOf } from "../model/loadState"
 import { WORKING_FOLDER_SOURCE } from "../ports/workingFolderSource.port"
@@ -78,6 +78,12 @@ export class GitRepositoryService {
 
     statusOf(folder: FolderRef): FolderGitStatus {
         return this.folderStatuses()[keyOf(folder)]
+    }
+
+    /** `null` while the status is unknown or git cannot answer. */
+    headCommitOf(folder: FolderRef): string | null {
+        const status = this.statusOf(folder)
+        return isGitStatus(status) ? status.head.commit : null
     }
 
     async refreshFolders(folders: FolderRef[]): Promise<void> {

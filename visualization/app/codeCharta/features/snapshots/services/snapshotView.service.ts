@@ -9,7 +9,7 @@ import type { PreflightProblem } from "../../../model/coreApi/PreflightProblem"
 import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
 import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
 import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.service"
-import { GitRepositoryService, isGitStatus } from "../../gitHistory/facade"
+import { GitRepositoryService } from "../../gitHistory/facade"
 import { ProjectsFacade } from "../../projects/facade"
 import { ToastService } from "../../shared/facade"
 import { analysisTargetOf, SelectedTarget } from "../model/snapshotTarget"
@@ -117,8 +117,7 @@ export class SnapshotViewService {
     })
     readonly headCommit = computed(() => {
         const ref = this.workingRef()
-        const status = ref ? this.gitRepository.statusOf(ref) : undefined
-        return isGitStatus(status) ? status.head.commit : null
+        return ref && this.gitRepository.headCommitOf(ref)
     })
     readonly resolution = computed(() => (this.state().folderTargetKey === this.folderTargetKey() ? this.state().resolution : null))
     readonly status = computed(() => this.state().status)
