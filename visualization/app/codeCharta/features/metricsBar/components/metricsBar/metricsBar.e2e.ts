@@ -77,7 +77,7 @@ test.describe("MetricsBar layout cell", () => {
         await expect(page.getByTestId("metrics-bar-layout-picker")).toBeVisible()
     })
 
-    test("should switch the map layout and name it on the cell", async ({ page }) => {
+    test("should switch the map layout and name it in the cell's tooltip", async ({ page }) => {
         // Arrange
         const metricsBar = new MetricsBarPageObject(page)
         await metricsBar.openLayoutPicker()
@@ -86,7 +86,7 @@ test.describe("MetricsBar layout cell", () => {
         await metricsBar.pickLayout("StreetMap")
 
         // Assert
-        await expect(metricsBar.layoutCell()).toContainText("StreetMap")
+        await expect(metricsBar.layoutCell()).toHaveAttribute("title", "Layout · StreetMap")
         await expect(page.locator("[data-testid='metrics-bar-layout-picker'] button[data-layout='StreetMap']")).toHaveAttribute(
             "aria-pressed",
             "true"
