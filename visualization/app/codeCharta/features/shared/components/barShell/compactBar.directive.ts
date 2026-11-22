@@ -1,27 +1,35 @@
-import { afterNextRender, DestroyRef, Directive, ElementRef, inject, signal } from "@angular/core"
+import { afterNextRender, DestroyRef, Directive, ElementRef, Injector, inject, signal } from "@angular/core"
 import { PANEL_ISLAND_MARGIN_PX } from "../../util/publishBarInset"
 import { INSET_LEFT, INSET_RIGHT } from "./barShell.directive"
+import { prepareBarSwitch } from "./barSwitchAnimation"
+import { measureFullBarMinimum } from "./fullBarMinimum"
 
-/** The narrowest the full bar can shrink to; below it the bar turns compact. */
-const COMPACT_BELOW_REM = 30
-/** A gap above the limit, so dragging a panel edge near it does not make the bar flicker. */
-const FULL_FROM_REM = 32
-const DEFAULT_ROOT_FONT_SIZE_PX = 16
-
-export function isCompactAtFreeWidth(freeWidthPx: number, rootFontSizePx: number, wasCompact: boolean): boolean {
-    const limitRem = wasCompact ? FULL_FROM_REM : COMPACT_BELOW_REM
-    return freeWidthPx < limitRem * rootFontSizePx
+/** A gap above the full bar's minimum, so dragging a panel edge near it does not make the bar flicker. */
+const FULL_AGAIN_ABOVE_MINIMUM_PX = 32
+/** What, besides the free width, can change the full bar's minimum: its cells, their names, a tool appearing. */
+const WATCHED_CHANGES: MutationObserverInit = {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributeFilter: ["class", "data-revealed"]
 }
 
-/** Tells a bar whether the map left free between the side panels is too narrow for its full form. */
+export function isCompactAtFreeWidth(freeWidthPx: number, fullMinimumPx: number, wasCompact: boolean): boolean {
+    return freeWidthPx < fullMinimumPx + (wasCompact ? FULL_AGAIN_ABOVE_MINIMUM_PX : 0)
+}
+
+/** Tells a bar whether the map left free between the side panels is narrower than its full form can get. */
 @Directive({
     selector: "[ccCompactBar]",
     host: { "[attr.data-compact]": "isCompact() ? 'true' : null" }
 })
 export class CompactBarDirective {
     private readonly host: HTMLElement = inject(ElementRef).nativeElement
+    private readonly injector = inject(Injector)
     private readonly compact = signal(false)
     readonly isCompact = this.compact.asReadonly()
+    /** Measured while the full form shows; the compact form keeps the last value. */
+    private fullMinimumPx = 0
 
     constructor() {
         const destroyRef = inject(DestroyRef)
@@ -37,10 +45,22 @@ export class CompactBarDirective {
         }
         const probe = createFreeWidthProbe()
         this.host.appendChild(probe)
-        const observer = new ResizeObserver(() => this.update(probe.clientWidth))
-        observer.observe(probe)
+        const updateNow = () => this.update(probe.clientWidth)
+        let frame = 0
+        const updateNextFrame = () => {
+            frame ||= requestAnimationFrame(() => {
+                frame = 0
+                updateNow()
+            })
+        }
+        const resizes = new ResizeObserver(updateNow)
+        resizes.observe(probe)
+        const changes = new MutationObserver(updateNextFrame)
+        changes.observe(this.host, WATCHED_CHANGES)
         return () => {
-            observer.disconnect()
+            cancelAnimationFrame(frame)
+            resizes.disconnect()
+            changes.disconnect()
             probe.remove()
         }
     }
@@ -50,7 +70,22 @@ export class CompactBarDirective {
         if (freeWidthPx === 0) {
             return
         }
-        this.compact.update(wasCompact => isCompactAtFreeWidth(freeWidthPx, rootFontSizePx(), wasCompact))
+        const wasCompact = this.compact()
+        if (!wasCompact) {
+            this.fullMinimumPx = measureFullBarMinimum(this.host)
+        }
+        const isCompact = isCompactAtFreeWidth(freeWidthPx, this.fullMinimumPx, wasCompact)
+        if (isCompact !== wasCompact) {
+            this.switchTo(isCompact)
+        }
+    }
+
+    private switchTo(isCompact: boolean) {
+        const playSwitch = prepareBarSwitch(this.host)
+        this.compact.set(isCompact)
+        if (playSwitch) {
+            afterNextRender(playSwitch, { injector: this.injector })
+        }
     }
 }
 
@@ -70,8 +105,4 @@ function createFreeWidthProbe(): HTMLElement {
         pointerEvents: "none"
     })
     return probe
-}
-
-function rootFontSizePx(): number {
-    return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || DEFAULT_ROOT_FONT_SIZE_PX
 }

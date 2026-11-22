@@ -20,11 +20,11 @@
         <cc-cell-icon cell="scenarios" size="compact" />
     </cc-compact-bar-button>
 } @else {
-    <div class="flex min-w-0 max-w-[220px] flex-col items-stretch gap-1.5">
+    <div class="flex min-w-0 flex-col items-stretch gap-0.5">
         @if (!isRadialLayout()) {
-            <div class="flex flex-col gap-1" data-testid="metric-segment-labels">
-                <div class="flex items-center justify-between gap-1">
-                    <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">Labels</span>
+            <div class="flex flex-col" data-testid="metric-segment-labels">
+                <div class="flex items-center justify-between gap-1" data-label-row>
+                    <span class="whitespace-nowrap text-[10px] uppercase tracking-wide text-base-content/60" data-bar-text>Labels</span>
                     <button
                         type="button"
                         [class]="settingsButtonClasses"
@@ -38,11 +38,10 @@
                     </button>
                 </div>
             </div>
-            <div class="border-t border-base-300 -mx-1"></div>
         }
-        <div class="flex flex-col gap-1" data-testid="metric-segment-scenario">
-            <div class="flex items-center justify-between gap-1">
-                <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">Scenarios</span>
+        <div class="flex flex-col gap-0.5" data-testid="metric-segment-scenario">
+            <div class="flex items-center justify-between gap-1" data-label-row>
+                <span class="whitespace-nowrap text-[10px] uppercase tracking-wide text-base-content/60" data-bar-text>Scenarios</span>
                 <button
                     type="button"
                     [class]="settingsButtonClasses"
@@ -58,8 +57,9 @@
             </div>
             <button
                 type="button"
-                class="cursor-pointer truncate border-0 bg-transparent p-0 text-center text-sm font-semibold leading-tight"
+                class="min-w-0 cursor-pointer truncate border-0 bg-transparent p-0 text-center text-xs font-semibold leading-tight"
                 title="Open saved scenarios"
+                data-bar-text
                 (click)="openScenarioList()"
             >
                 {{ scenariosCountLabel() }}

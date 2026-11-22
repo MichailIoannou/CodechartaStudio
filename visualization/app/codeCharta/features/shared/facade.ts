@@ -1,6 +1,6 @@
 // Reusable presentational UI kit — the public surface other features compose in their templates.
 export { ActionIconComponent } from "./components/actionIcon/actionIcon.component"
-export { AxisCardComponent } from "./components/axisCard/axisCard.component"
+export { AxisCardComponent, SHORTEST_CARD_NAME_CHARACTERS } from "./components/axisCard/axisCard.component"
 export { BarDividerComponent } from "./components/barDivider/barDivider.component"
 export { BAR_CELL_CLASSES, openBarCellClasses } from "./components/barShell/barCell"
 export {
@@ -40,7 +40,9 @@ export { ToastService } from "./services/toast.service"
 export { SharedFocusStore } from "./stores/sharedFocus.store"
 export { injectIsAnyPopoverOpen } from "./util/injectIsAnyPopoverOpen"
 export { injectIsRadialLayout } from "./util/injectIsRadialLayout"
+export { maxContentWidth } from "./util/maxContentWidth"
 export { measureShortenedTextWidth, measureTextWidth } from "./util/measureTextWidth"
 export { PANEL_ISLAND_MARGIN_PX, publishBarInset } from "./util/publishBarInset"
 export { parseChangedNumberInput, SETTINGS_INPUT_DEBOUNCE_MS } from "./util/settingsInput"
+export { fontsLoadedSignal, shortestCellWidth } from "./util/shortestCellWidth"
 export { clampToSidePanelWidth, SIDE_PANEL_WIDTH_PX } from "./util/sidePanelWidth"

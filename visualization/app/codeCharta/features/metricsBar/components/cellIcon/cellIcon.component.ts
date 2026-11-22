@@ -19,7 +19,7 @@ const FONT_AWESOME_SIZES: Record<CellIconSize, string> = { card: "text-[13px]", 
     selector: "cc-cell-icon",
     templateUrl: "./cellIcon.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: "inline-flex items-center justify-center" },
+    host: { class: "inline-flex items-center justify-center", "[attr.data-bar-icon]": "cell()" },
     imports: [MetricGlyphComponent]
 })
 export class CellIconComponent {

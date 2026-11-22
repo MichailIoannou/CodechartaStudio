@@ -46,6 +46,10 @@ describe("MetricsBarComponent", () => {
         ]
     }
 
+    afterEach(() => {
+        jest.restoreAllMocks()
+    })
+
     async function setup(options: Parameters<typeof barProviders>[0] = {}) {
         return render(MetricsBarComponent, { providers: barProviders(options) })
     }
@@ -142,16 +146,35 @@ describe("MetricsBarComponent", () => {
         expect(screen.getByTestId("metric-segment-edges")).not.toBeNull()
     })
 
+    it("should be 74 px tall with its cards centred and keep 12 characters of every metric name", async () => {
+        // Arrange
+        jest.spyOn(CanvasRenderingContext2D.prototype, "measureText").mockImplementation(text => ({ width: text.length }) as TextMetrics)
+
+        // Act
+        const { container } = await setup()
+
+        // Assert
+        expect(container.classList).toContain("h-[4.625rem]")
+        expect(container.classList).not.toContain("gap-x-0")
+        const areaCard: HTMLElement = container.querySelector("cc-axis-card")
+        expect(areaCard.style.minWidth).toMatch(/^\d+px$/)
+    })
+
     describe("with too little free map for the full bar", () => {
         const NARROW_FREE_MAP_PX = 236
+        const CELL_WIDTH_PX = 100
         let restoreElementSize: () => void
 
         beforeEach(() => {
             stubResizeObserver()
             restoreElementSize = stubElementSize(() => ({ width: NARROW_FREE_MAP_PX, height: 0 }))
+            jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: CELL_WIDTH_PX } as DOMRect)
         })
 
-        afterEach(() => restoreElementSize())
+        afterEach(() => {
+            restoreElementSize()
+            jest.restoreAllMocks()
+        })
 
         async function setupCompact(options: Parameters<typeof barProviders>[0] = {}) {
             const rendered = await render('<cc-metrics-bar><button type="button" barTools>Center map</button></cc-metrics-bar>', {
@@ -166,6 +189,17 @@ describe("MetricsBarComponent", () => {
         function compactButtonNames(container: Element) {
             return [...container.querySelectorAll("cc-compact-bar-button button")].map(button => button.getAttribute("aria-label"))
         }
+
+        it("should keep the full bar's 74 px height and space its groups by the dividers alone", async () => {
+            // Act
+            const { container } = await setupCompact()
+
+            // Assert
+            const bar = container.querySelector("cc-metrics-bar")
+            expect(bar.classList).toContain("h-[4.625rem]")
+            expect(bar.classList).toContain("gap-x-0")
+            expect(bar.classList).toContain("[&>cc-bar-divider]:mx-1")
+        })
 
         it("should show one icon button per cell, in today's order, instead of the cards", async () => {
             // Act

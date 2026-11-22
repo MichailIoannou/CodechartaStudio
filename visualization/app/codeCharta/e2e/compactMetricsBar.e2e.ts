@@ -3,10 +3,12 @@ import { clearIndexedDB, goto } from "../../playwright.helper"
 import { MetricsBarPageObject } from "../features/metricsBar/components/metricsBar/metricsBar.po"
 import { ExplorerTreeLevelPageObject } from "../features/sidebarExplorer/components/explorerTreeLevel/explorerTreeLevel.po"
 import { SidebarInspectorPageObject } from "../features/sidebarInspector/components/sidebarInspector/sidebarInspector.po"
+import { CompactMetricsBarPageObject } from "./compactMetricsBar.po"
 
 const NARROW_WINDOW = { width: 900, height: 900 }
-const JUST_ABOVE_THE_FULL_BAR_FLOOR = { width: 1150, height: 900 }
-const WIDE_ENOUGH_WINDOW = { width: 1250, height: 900 }
+const WIDE_WINDOW = { width: 1600, height: 900 }
+const WINDOW_STEP_PX = 8
+const SAME_HEIGHT_PX = 74
 const SAMPLE_FOLDER = "/root/sample1.cc.json"
 const SAMPLE_FILE = "/root/sample1.cc.json/bigLeaf.ts"
 
@@ -22,7 +24,7 @@ test.describe("Compact metrics bar", () => {
         await clearIndexedDB(page)
     })
 
-    test("should turn compact between both open side panels and return once 32rem of map are free", async ({ page }) => {
+    test("should turn compact between both open side panels and stay compact until 32 px more than needed are free", async ({ page }) => {
         // Arrange
         await page.setViewportSize(NARROW_WINDOW)
         await goto(page)
@@ -36,18 +38,57 @@ test.describe("Compact metrics bar", () => {
         await expect(page.getByTestId("explorer-collapse-button")).toBeVisible()
         await expect(new SidebarInspectorPageObject(page).nodeName()).toBeVisible()
 
+        // Arrange
+        const compactBar = new CompactMetricsBarPageObject(page)
+        await compactBar.resizeTo(WIDE_WINDOW.width)
+        await expect(metricsBar.bar()).not.toHaveAttribute("data-compact")
+
         // Act
-        await page.setViewportSize(JUST_ABOVE_THE_FULL_BAR_FLOOR)
+        const compactBelow = await compactBar.narrowestFullWindow(WIDE_WINDOW.width, WINDOW_STEP_PX)
+        await compactBar.resizeTo(compactBelow + 3 * WINDOW_STEP_PX)
+        const isCompactJustAbove = await compactBar.isCompact()
+        await compactBar.resizeTo(compactBelow + 5 * WINDOW_STEP_PX)
 
         // Assert
-        await expect(metricsBar.bar()).toHaveAttribute("data-compact", "true")
-
-        // Act
-        await page.setViewportSize(WIDE_ENOUGH_WINDOW)
-
-        // Assert
+        expect(isCompactJustAbove).toBe(true)
         await expect(metricsBar.bar()).not.toHaveAttribute("data-compact")
         await expect(page.getByTestId("metric-segment-area")).toBeVisible()
+    })
+
+    test("should keep the bar 74 px tall in both forms", async ({ page }) => {
+        // Arrange
+        await page.setViewportSize(WIDE_WINDOW)
+        await goto(page)
+        await openInspectorBesideExplorer(page)
+        const compactBar = new CompactMetricsBarPageObject(page)
+        const fullHeight = await compactBar.height()
+
+        // Act
+        await compactBar.resizeTo(NARROW_WINDOW.width)
+
+        // Assert
+        await expect(new MetricsBarPageObject(page).bar()).toHaveAttribute("data-compact", "true")
+        expect(fullHeight).toBe(SAME_HEIGHT_PX)
+        expect(await compactBar.height()).toBe(SAME_HEIGHT_PX)
+    })
+
+    test("should animate the switch and switch instantly with reduced motion", async ({ page }) => {
+        // Arrange
+        await page.setViewportSize(WIDE_WINDOW)
+        await goto(page)
+        await openInspectorBesideExplorer(page)
+        const compactBar = new CompactMetricsBarPageObject(page)
+
+        // Act
+        const animatedSwitch = await compactBar.switchAnimationsWhenResizedTo(NARROW_WINDOW.width)
+        await page.emulateMedia({ reducedMotion: "reduce" })
+        await compactBar.resizeTo(WIDE_WINDOW.width)
+        const instantSwitch = await compactBar.switchAnimationsWhenResizedTo(NARROW_WINDOW.width)
+
+        // Assert
+        expect(animatedSwitch).toBeGreaterThan(0)
+        expect(instantSwitch).toBe(0)
+        await expect(new MetricsBarPageObject(page).bar()).toHaveAttribute("data-compact", "true")
     })
 
     test("should open a cell's chooser and from it the cell's settings at the same button", async ({ page }) => {

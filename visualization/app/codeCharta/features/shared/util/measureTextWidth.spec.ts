@@ -59,4 +59,19 @@ describe("measureTextWidth", () => {
         // Assert
         expect(measured).toEqual(["rloc"])
     })
+
+    it("should measure the text as the element's text transform shows it", () => {
+        // Arrange
+        const upper = anElementWithFont()
+        upper.style.textTransform = "uppercase"
+        const lower = anElementWithFont()
+        lower.style.textTransform = "lowercase"
+
+        // Act
+        measureTextWidth("Area", upper)
+        measureTextWidth("Area", lower)
+
+        // Assert
+        expect(measured).toEqual(["AREA", "area"])
+    })
 })

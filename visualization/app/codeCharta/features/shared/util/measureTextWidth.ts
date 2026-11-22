@@ -11,13 +11,20 @@ export function measureTextWidth(text: string, element: Element): number {
     const style = getComputedStyle(element)
     canvas.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
     canvas.letterSpacing = style.letterSpacing === "normal" ? "0px" : style.letterSpacing
-    return canvas.measureText(text).width
+    return canvas.measureText(transformed(text, style.textTransform)).width
 }
 
 /** The width of the text cut to its first characters plus "…", or of the whole text when it is no longer than that. */
 export function measureShortenedTextWidth(text: string, keptCharacters: number, element: Element): number {
     const shortened = text.length > keptCharacters ? `${text.slice(0, keptCharacters)}${ELLIPSIS}` : text
     return measureTextWidth(shortened, element)
+}
+
+function transformed(text: string, textTransform: string): string {
+    if (textTransform === "uppercase") {
+        return text.toUpperCase()
+    }
+    return textTransform === "lowercase" ? text.toLowerCase() : text
 }
 
 function canvasContext(): CanvasRenderingContext2D | null {

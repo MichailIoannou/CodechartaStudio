@@ -143,6 +143,21 @@ describe("LabelsScenariosSegmentComponent", () => {
         expect(menu.textContent).toContain("Open saved scenarios (1)")
     })
 
+    it("should keep its label rows whole and let only the scenario count shorten", async () => {
+        // Arrange
+        jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+            return { width: this.hasAttribute("data-label-row") ? 88 : 0 } as DOMRect
+        })
+
+        // Act
+        const { fixture } = await setup([createScenario("A", "a")])
+
+        // Assert
+        expect(fixture.nativeElement.style.minWidth).toBe("88px")
+        expect(screen.getByTitle("Open saved scenarios").classList).toContain("truncate")
+        jest.restoreAllMocks()
+    })
+
     describe("in the compact bar", () => {
         it("should stack the Labels and Scenarios buttons", async () => {
             // Act
@@ -152,6 +167,7 @@ describe("LabelsScenariosSegmentComponent", () => {
             const labels = screen.getByTestId("metric-segment-labels-compact")
             const scenarios = screen.getByTestId("metric-segment-scenario-compact")
             expect(fixture.nativeElement.classList).toContain("grid-rows-2")
+            expect(fixture.nativeElement.style.minWidth).toBe("")
             expect(labels.getAttribute("aria-label")).toBe("Labels · label settings")
             expect(labels.getAttribute("popovertarget")).toBe("metric-settings-popover-labels")
             expect(scenarios.getAttribute("aria-label")).toBe("Scenarios · 2 available")

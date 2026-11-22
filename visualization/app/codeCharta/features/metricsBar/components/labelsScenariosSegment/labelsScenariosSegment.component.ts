@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, viewChild } from "@angular/core"
+import {
+    afterRenderEffect,
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    ElementRef,
+    inject,
+    OnInit,
+    signal,
+    viewChild
+} from "@angular/core"
 import { toSignal } from "@angular/core/rxjs-interop"
 import { MetricData } from "../../../../model/codeCharta.model"
 import { LabelSettingsPanelComponent } from "../../../labelSettings/facade"
@@ -10,11 +20,13 @@ import {
     ScenariosService
 } from "../../../scenarios/facade"
 import {
-    BAR_CELL_CLASSES,
+    fontsLoadedSignal,
     injectIsAnyPopoverOpen,
     injectIsRadialLayout,
+    maxContentWidth,
     openBarCellClasses,
-    SettingsPopoverShellComponent
+    SettingsPopoverShellComponent,
+    shortestCellWidth
 } from "../../../shared/facade"
 import { cellTooltip } from "../../util/cellTooltip"
 import { injectIsCompactBar } from "../../util/injectIsCompactBar"
@@ -23,14 +35,14 @@ import { CellIconComponent } from "../cellIcon/cellIcon.component"
 import { CompactBarButtonComponent } from "../compactBarButton/compactBarButton.component"
 import { ScenariosMenuComponent } from "../scenariosMenu/scenariosMenu.component"
 
-const FULL_HOST_CLASSES = `group relative flex min-w-0 flex-col items-stretch ${BAR_CELL_CLASSES}`
-const COMPACT_HOST_CLASSES = "grid shrink-0 grid-rows-2 grid-flow-col gap-0.5"
+const FULL_HOST_CLASSES = "group relative flex flex-col items-stretch justify-center rounded-xl px-3 transition-colors hover:bg-base-200"
+const COMPACT_HOST_CLASSES = "grid shrink-0 grid-rows-2 grid-flow-col gap-x-0.5 gap-y-1.5 self-center"
 
 @Component({
     selector: "cc-labels-scenarios-segment",
     templateUrl: "./labelsScenariosSegment.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { "[class]": "hostClasses()" },
+    host: { "[class]": "hostClasses()", "[style.min-width.px]": "isCompact() ? null : shortestWidth()" },
     imports: [
         CellIconComponent,
         CompactBarButtonComponent,
@@ -51,6 +63,7 @@ export class LabelsScenariosSegmentComponent implements OnInit {
     readonly settingsButtonClasses = "btn btn-ghost btn-xs btn-square shrink-0 rounded-lg text-base-content/70 hover:text-base-content"
     private readonly isPopoverOpen = injectIsAnyPopoverOpen(() => [this.labelSettingsPopoverId, this.scenariosMenuPopoverId])
     protected readonly isCompact = injectIsCompactBar()
+    protected readonly shortestWidth = signal<number | null>(null)
     protected readonly hostClasses = computed(() =>
         this.isCompact() ? COMPACT_HOST_CLASSES : `${FULL_HOST_CLASSES} ${openBarCellClasses(this.isPopoverOpen())}`
     )
@@ -71,6 +84,18 @@ export class LabelsScenariosSegmentComponent implements OnInit {
     })
     protected readonly scenariosTooltip = computed(() => cellTooltip("Scenarios", `${this.scenarios().length} available`))
 
+    constructor() {
+        const host: HTMLElement = inject(ElementRef).nativeElement
+        const areFontsLoaded = fontsLoadedSignal()
+        afterRenderEffect(() => {
+            this.isRadialLayout()
+            areFontsLoaded()
+            if (!this.isCompact()) {
+                this.shortestWidth.set(shortestLabelRowsWidth(host))
+            }
+        })
+    }
+
     async ngOnInit(): Promise<void> {
         await this.scenariosService.loadScenarios()
     }
@@ -90,4 +115,9 @@ export class LabelsScenariosSegmentComponent implements OnInit {
     handleApplyClosed() {
         this.applyTarget.set(null)
     }
+}
+
+/** The full cell keeps its label rows whole; only the scenario count shortens. */
+function shortestLabelRowsWidth(cell: HTMLElement): number {
+    return shortestCellWidth(cell, Array.from(cell.querySelectorAll<HTMLElement>("[data-label-row]"), maxContentWidth))
 }

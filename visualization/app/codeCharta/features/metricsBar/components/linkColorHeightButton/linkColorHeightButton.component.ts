@@ -17,7 +17,7 @@ const COMPACT_CLASSES = {
     selector: "cc-link-color-height-button",
     templateUrl: "./linkColorHeightButton.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { "[class]": "isCompact() ? 'col-start-3 row-start-1 row-span-2 flex' : 'self-center'" }
+    host: { "[class]": "isCompact() ? 'col-start-3 row-start-1 row-span-2 flex' : 'shrink-0 self-center'" }
 })
 export class LinkColorHeightButtonComponent {
     private readonly preferencesReadWindow = inject(PreferencesReadWindow)

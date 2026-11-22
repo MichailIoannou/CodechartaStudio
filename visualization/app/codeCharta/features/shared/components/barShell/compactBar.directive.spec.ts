@@ -1,70 +1,83 @@
-import { Component, inject } from "@angular/core"
+import { Component, inject, signal } from "@angular/core"
 import { render } from "@testing-library/angular"
 import { reportResize, resizeObserverDisconnect, stubElementSize, stubResizeObserver } from "../../../../util/testUtils/domStubs"
 import { CompactBarDirective, isCompactAtFreeWidth } from "./compactBar.directive"
 
-@Component({ selector: "cc-test-bar", template: "", hostDirectives: [CompactBarDirective] })
+@Component({
+    selector: "cc-test-bar",
+    template: `<div data-cell style="flex-shrink: 0" [style.width.px]="cellWidth()">{{ metricName() }}</div>`,
+    hostDirectives: [CompactBarDirective]
+})
 class TestBarComponent {
     readonly compactBar = inject(CompactBarDirective)
+    readonly cellWidth = signal(FULL_BAR_MINIMUM_PX)
+    readonly metricName = signal("rloc")
 }
 
-const ROOT_FONT_SIZE_PX = 16
-const REM = ROOT_FONT_SIZE_PX
+const FULL_BAR_MINIMUM_PX = 500
+const HYSTERESIS_PX = 32
 
 describe("isCompactAtFreeWidth", () => {
-    it("should turn compact below 30rem of free map", () => {
+    it("should turn compact below the full bar's minimum", () => {
         // Act
-        const isCompact = isCompactAtFreeWidth(30 * REM - 1, ROOT_FONT_SIZE_PX, false)
+        const isCompact = isCompactAtFreeWidth(FULL_BAR_MINIMUM_PX - 1, FULL_BAR_MINIMUM_PX, false)
 
         // Assert
         expect(isCompact).toBe(true)
     })
 
-    it("should stay full at exactly 30rem", () => {
+    it("should stay full at exactly the full bar's minimum", () => {
         // Act
-        const isCompact = isCompactAtFreeWidth(30 * REM, ROOT_FONT_SIZE_PX, false)
+        const isCompact = isCompactAtFreeWidth(FULL_BAR_MINIMUM_PX, FULL_BAR_MINIMUM_PX, false)
 
         // Assert
         expect(isCompact).toBe(false)
     })
 
-    it("should stay compact between 30rem and 32rem", () => {
+    it("should stay compact until 32 px more than the minimum are free", () => {
         // Act
-        const isCompact = isCompactAtFreeWidth(31 * REM, ROOT_FONT_SIZE_PX, true)
+        const isCompact = isCompactAtFreeWidth(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX - 1, FULL_BAR_MINIMUM_PX, true)
 
         // Assert
         expect(isCompact).toBe(true)
     })
 
-    it("should return to the full bar at 32rem", () => {
+    it("should return to the full bar at 32 px more than the minimum", () => {
         // Act
-        const isCompact = isCompactAtFreeWidth(32 * REM, ROOT_FONT_SIZE_PX, true)
+        const isCompact = isCompactAtFreeWidth(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX, FULL_BAR_MINIMUM_PX, true)
 
         // Assert
         expect(isCompact).toBe(false)
-    })
-
-    it("should measure in the root font size", () => {
-        // Act
-        const isCompact = isCompactAtFreeWidth(500, 20, false)
-
-        // Assert
-        expect(isCompact).toBe(true)
     })
 })
 
 describe("CompactBarDirective", () => {
     let freeWidthPx = 1000
     let restoreElementSize: () => void
+    let frames: FrameRequestCallback[]
+
+    function runFrames() {
+        for (const frame of frames.splice(0)) {
+            frame(0)
+        }
+    }
 
     beforeEach(() => {
         stubResizeObserver()
         resizeObserverDisconnect.mockClear()
         freeWidthPx = 1000
         restoreElementSize = stubElementSize(() => ({ width: freeWidthPx, height: 0 }))
+        jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+            return { width: Number.parseFloat(this.style.width) || 0 } as DOMRect
+        })
+        frames = []
+        jest.spyOn(globalThis, "requestAnimationFrame").mockImplementation(callback => frames.push(callback))
     })
 
-    afterEach(() => restoreElementSize())
+    afterEach(() => {
+        restoreElementSize()
+        jest.restoreAllMocks()
+    })
 
     async function renderBar() {
         const { fixture } = await render(TestBarComponent)
@@ -91,32 +104,50 @@ describe("CompactBarDirective", () => {
         expect(probe.getAttribute("aria-hidden")).toBe("true")
     })
 
-    it("should turn compact once the free map narrows below 30rem and say so on the bar", async () => {
+    it("should turn compact once the free map narrows below the full bar's minimum and say so on the bar", async () => {
         // Arrange
         const { fixture, bar, compactBar } = await renderBar()
 
         // Act
-        await resizeFreeMapTo(400, fixture)
+        await resizeFreeMapTo(FULL_BAR_MINIMUM_PX - 1, fixture)
 
         // Assert
         expect(compactBar.isCompact()).toBe(true)
         expect(bar.dataset.compact).toBe("true")
     })
 
-    it("should keep the compact bar until 32rem are free again", async () => {
+    it("should keep the compact bar until 32 px more than the full bar's minimum are free again", async () => {
         // Arrange
         const { fixture, bar, compactBar } = await renderBar()
         await resizeFreeMapTo(400, fixture)
 
         // Act
-        await resizeFreeMapTo(31 * REM, fixture)
+        await resizeFreeMapTo(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX - 1, fixture)
         const isCompactBelowThreshold = compactBar.isCompact()
-        await resizeFreeMapTo(32 * REM, fixture)
+        await resizeFreeMapTo(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX, fixture)
 
         // Assert
         expect(isCompactBelowThreshold).toBe(true)
         expect(compactBar.isCompact()).toBe(false)
         expect(bar.hasAttribute("data-compact")).toBe(false)
+    })
+
+    it("should measure its minimum again when its cells change", async () => {
+        // Arrange
+        const { fixture, compactBar } = await renderBar()
+        await resizeFreeMapTo(600, fixture)
+        const wasCompact = compactBar.isCompact()
+
+        // Act
+        fixture.componentInstance.cellWidth.set(700)
+        fixture.componentInstance.metricName.set("sonar_complexity")
+        fixture.detectChanges()
+        await Promise.resolve()
+        runFrames()
+
+        // Assert
+        expect(wasCompact).toBe(false)
+        expect(compactBar.isCompact()).toBe(true)
     })
 
     it("should keep its form while its view is not on screen", async () => {

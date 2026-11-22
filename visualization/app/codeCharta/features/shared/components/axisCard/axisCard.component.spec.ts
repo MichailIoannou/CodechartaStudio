@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/angular"
-import { AxisCardComponent } from "./axisCard.component"
+import { AxisCardComponent, SHORTEST_CARD_NAME_CHARACTERS } from "./axisCard.component"
 
 describe("AxisCardComponent", () => {
     it("should render the label", async () => {
@@ -98,5 +98,56 @@ describe("AxisCardComponent", () => {
         expect(settingsButton.querySelector("[data-testid='cell-icon']")).not.toBeNull()
         expect(settingsButton.querySelector(".fa-cog")).toBeNull()
         expect(settingsButton.classList).toContain("text-base-content/70")
+    })
+
+    describe("its shortest width", () => {
+        const KEEP_TWELVE_CHARACTERS = { provide: SHORTEST_CARD_NAME_CHARACTERS, useValue: 12 }
+
+        beforeEach(() => {
+            jest.spyOn(CanvasRenderingContext2D.prototype, "measureText").mockImplementation(
+                text => ({ width: text.length * 7 }) as TextMetrics
+            )
+        })
+
+        afterEach(() => {
+            jest.restoreAllMocks()
+        })
+
+        it("should keep the first characters of the metric name plus an ellipsis in a bar that asks for it", async () => {
+            // Arrange & Act
+            const { fixture } = await render(AxisCardComponent, {
+                inputs: { label: "Height", metricName: "sonar_complexity" },
+                providers: [KEEP_TWELVE_CHARACTERS]
+            })
+
+            // Assert
+            expect(fixture.nativeElement.style.minWidth).toBe(`${13 * 7}px`)
+        })
+
+        it("should keep its label row whole when it is wider than the shortened name", async () => {
+            // Arrange
+            const naturalWidths = new Map([["data-card-header", 120]])
+            jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+                const width = [...naturalWidths].find(([attribute]) => this.hasAttribute(attribute))?.[1] ?? 0
+                return { width } as DOMRect
+            })
+
+            // Act
+            const { fixture } = await render(AxisCardComponent, {
+                inputs: { label: "Height", metricName: "rloc" },
+                providers: [KEEP_TWELVE_CHARACTERS]
+            })
+
+            // Assert
+            expect(fixture.nativeElement.style.minWidth).toBe("120px")
+        })
+
+        it("should let other bars' cards shrink as before", async () => {
+            // Arrange & Act
+            const { fixture } = await render(AxisCardComponent, { inputs: { label: "Height", metricName: "sonar_complexity" } })
+
+            // Assert
+            expect(fixture.nativeElement.style.minWidth).toBe("")
+        })
     })
 })
