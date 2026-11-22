@@ -337,6 +337,23 @@ describe("DesktopToolsPanelComponent", () => {
             expect(document.activeElement).toBe(chooseButtonOf("git"))
         })
 
+        it.each([
+            ["git"],
+            [undefined]
+        ])("should focus the section heading while the core is offline, since its buttons are disabled (tool %s)", async tool => {
+            // Arrange
+            await renderPanel({ coreState: { state: "unavailable", message: "gave up" } })
+
+            // Act
+            fixture.componentInstance.reveal(tool as "git" | undefined)
+            await settle()
+
+            // Assert
+            const heading = element().querySelector<HTMLElement>("#desktop-tools-heading")
+            expect(heading.getAttribute("tabindex")).toBe("-1")
+            expect(document.activeElement).toBe(heading)
+        })
+
         it("should focus only once, not on every later check", async () => {
             // Arrange
             await renderPanel()

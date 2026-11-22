@@ -2,13 +2,13 @@ import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { render, screen } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
-import { registerSidePanel, SidePanelRoom } from "../../../shared/facade"
+import { COLLAPSED_STRIP_WIDTH_PX, registerSidePanel, SidePanelRoom } from "../../../shared/facade"
 import { ExplorerMode, FILES_EXPLORER_MODE } from "../../explorerModes"
 import { provideExplorerPortsMock } from "../../explorerPorts.mocks"
 import { ExplorerCollapseService } from "../../services/explorerCollapse.service"
 import { ExplorerModeService } from "../../services/explorerMode.service"
 import { EXPLORER_DEFAULT_WIDTH, ExplorerWidthService } from "../../services/explorerWidth.service"
-import { COLLAPSED_STRIP_WIDTH_PX, SidebarExplorerComponent } from "./sidebarExplorer.component"
+import { SidebarExplorerComponent } from "./sidebarExplorer.component"
 
 const WORDS_MODE: ExplorerMode = {
     id: "words",

@@ -21,6 +21,10 @@ export class SidebarInspectorPageObject {
         return this.page.getByTestId("inspector-collapsed-name")
     }
 
+    selectionChangedDot(): Locator {
+        return this.page.getByTestId("inspector-selection-changed")
+    }
+
     nodeName(): Locator {
         return this.page.locator("[data-testid='inspector-node-name']")
     }

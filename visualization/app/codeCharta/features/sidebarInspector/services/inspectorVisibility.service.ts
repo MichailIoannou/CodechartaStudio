@@ -19,6 +19,10 @@ export class InspectorVisibilityService {
     readonly isCollapsed = computed(() => this.isVisible() && this.isCollapsedWhileVisible())
     readonly isExpanded = computed(() => this.isVisible() && !this.isCollapsedWhileVisible())
 
+    private readonly seenPath = signal<string | null>(null)
+
+    readonly hasUnseenSelection = computed(() => this.isCollapsed() && this.selectedNode()?.path !== this.seenPath())
+
     constructor() {
         this.readStore.selectedNode$.pipe(takeUntilDestroyed()).subscribe(node => {
             if (node == null) {
@@ -27,7 +31,9 @@ export class InspectorVisibilityService {
         })
     }
 
+    /** What the inspector showed when it collapsed counts as seen; selections made afterwards do not. */
     collapse() {
+        this.seenPath.set(this.selectedNode()?.path ?? null)
         this.isCollapsedWhileVisible.set(true)
     }
 
