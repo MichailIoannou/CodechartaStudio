@@ -11,10 +11,14 @@ import {
     SliderNumberInputComponent
 } from "../../../shared/facade"
 import { MetricsBarWriteStore } from "../../stores/metricsBar.write.store"
+import { cellTooltip } from "../../util/cellTooltip"
+import { injectIsCompactBar } from "../../util/injectIsCompactBar"
+import { CompactBarButtonComponent } from "../compactBarButton/compactBarButton.component"
 import { LayoutGlyphComponent } from "./layoutGlyph.component"
 
 const MIN_RADIAL_LEVELS = 1
 const MAX_RADIAL_LEVELS = 10
+const COMPACT_HOST_CLASSES = "grid shrink-0 grid-rows-2"
 const RADIAL_LAYOUTS = new Set([LayoutAlgorithm.Sunburst, LayoutAlgorithm.RadialTreeMap])
 
 const LAYOUT_DESCRIPTIONS: Record<LayoutAlgorithm, string> = {
@@ -29,8 +33,8 @@ const LAYOUT_DESCRIPTIONS: Record<LayoutAlgorithm, string> = {
     selector: "cc-layout-cell",
     templateUrl: "./layoutCell.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: `flex shrink-0 ${BAR_CELL_CLASSES}`, "[class]": "openClasses()" },
-    imports: [LayoutGlyphComponent, SettingsPopoverShellComponent, SliderNumberInputComponent]
+    host: { "[class]": "hostClasses()" },
+    imports: [CompactBarButtonComponent, LayoutGlyphComponent, SettingsPopoverShellComponent, SliderNumberInputComponent]
 })
 export class LayoutCellComponent {
     private readonly writeStore = inject(MetricsBarWriteStore)
@@ -38,11 +42,15 @@ export class LayoutCellComponent {
     readonly popoverId = "metrics-bar-layout-picker"
     readonly anchorName = "metrics-bar-layout-cell"
     private readonly isPickerOpen = injectIsAnyPopoverOpen(() => [this.popoverId])
-    protected readonly openClasses = computed(() => openBarCellClasses(this.isPickerOpen()))
+    protected readonly isCompact = injectIsCompactBar()
+    protected readonly hostClasses = computed(() =>
+        this.isCompact() ? COMPACT_HOST_CLASSES : `flex shrink-0 ${BAR_CELL_CLASSES} ${openBarCellClasses(this.isPickerOpen())}`
+    )
     readonly layoutOptions = Object.values(LayoutAlgorithm).map(layout => ({ layout, description: LAYOUT_DESCRIPTIONS[layout] }))
 
     readonly layoutAlgorithm = toSignal(inject(MapStateReadWindow).layoutAlgorithm$, { requireSync: true })
     readonly maxTreeMapFiles = toSignal(inject(PreferencesReadWindow).maxTreeMapFiles$, { requireSync: true })
+    protected readonly tooltip = computed(() => cellTooltip("Layout", this.layoutAlgorithm()))
     readonly showMaxTreeMapFiles = computed(() => this.layoutAlgorithm() === LayoutAlgorithm.TreeMapStreet)
     readonly radialLevels = toSignal(inject(PreferencesReadWindow).radialLevels$, { requireSync: true })
     readonly showRadialLevels = computed(() => RADIAL_LAYOUTS.has(this.layoutAlgorithm()))

@@ -1,29 +1,41 @@
-<ng-template #cellIcon><cc-cell-icon [cell]="cell()" /></ng-template>
-<cc-axis-card
-    [label]="label()"
-    [metricName]="metricName()"
-    [hasCog]="hasSettings()"
-    [cogPopoverId]="settingsPopoverId()"
-    [cogAnchorName]="settingsAnchorName()"
-    [cogIcon]="cellIcon"
-    [cogTitle]="settingsTitle()"
-    [searchPopoverId]="searchPopoverId()"
-    [searchAnchorName]="searchAnchorName()"
-    [testId]="testIdPrefix()"
-    [cogTestId]="testIdPrefix() + '-cog'"
->
-    <div body class="flex flex-col items-stretch gap-1">
-        <cc-metric-meta-value [metricFor]="metricFor()"></cc-metric-meta-value>
-    </div>
-</cc-axis-card>
-
+@if (isCompact()) {
+    <cc-compact-bar-button
+        [class]="compactSlot()"
+        [tooltip]="tooltip()"
+        [popoverId]="searchPopoverId()"
+        [popoverIds]="[settingsPopoverId()]"
+        [anchorNames]="[searchAnchorName(), settingsAnchorName()]"
+        [testId]="testIdPrefix() + '-compact'"
+    >
+        <cc-cell-icon [cell]="cell()" size="compact" />
+    </cc-compact-bar-button>
+} @else {
+    <ng-template #cellIcon><cc-cell-icon [cell]="cell()" /></ng-template>
+    <cc-axis-card
+        [label]="label()"
+        [metricName]="metricName()"
+        [hasCog]="hasSettings()"
+        [cogPopoverId]="settingsPopoverId()"
+        [cogAnchorName]="settingsAnchorName()"
+        [cogIcon]="cellIcon"
+        [cogTitle]="settingsTitle()"
+        [searchPopoverId]="searchPopoverId()"
+        [searchAnchorName]="searchAnchorName()"
+        [testId]="testIdPrefix()"
+        [cogTestId]="testIdPrefix() + '-cog'"
+    >
+        <div body class="flex flex-col items-stretch gap-1">
+            <cc-metric-meta-value [metricFor]="metricFor()"></cc-metric-meta-value>
+        </div>
+    </cc-axis-card>
+}
 <cc-metric-bar-select-popover
     [popoverId]="searchPopoverId()"
     [anchorName]="searchAnchorName()"
     [placeholder]="placeholder()"
     kind="node"
     [selected]="metricName()"
+    [settingsShortcut]="settingsShortcut()"
     (metricSelected)="metricSelected.emit($event)"
 ></cc-metric-bar-select-popover>
-
 <ng-content></ng-content>

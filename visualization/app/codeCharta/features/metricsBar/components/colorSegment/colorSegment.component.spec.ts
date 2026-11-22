@@ -7,17 +7,20 @@ import { setColorMetric } from "../../../../stores/mapState/mapState.write.facad
 import { isColorMetricLinkedToHeightMetricSelector } from "../../../../stores/preferences/preferences.read.facade"
 import { setIsColorMetricLinkedToHeightMetricAction } from "../../../../stores/preferences/preferences.write.facade"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
+import { provideCompactBar } from "../../metricsBar.mocks"
 import { ColorSegmentComponent } from "./colorSegment.component"
 
 describe("ColorSegmentComponent", () => {
     async function setup({
         colorMetric = "mcc",
         isLinked = false,
-        isRadialLayout = false
+        isRadialLayout = false,
+        isCompact = false
     }: {
         colorMetric?: string
         isLinked?: boolean
         isRadialLayout?: boolean
+        isCompact?: boolean
     } = {}) {
         return render(ColorSegmentComponent, {
             providers: [
@@ -29,7 +32,8 @@ describe("ColorSegmentComponent", () => {
                         { selector: isRadialLayoutSelector, value: isRadialLayout }
                     ]
                 }),
-                { provide: State, useValue: { getValue: () => defaultState } }
+                { provide: State, useValue: { getValue: () => defaultState } },
+                ...(isCompact ? [provideCompactBar()] : [])
             ]
         })
     }
@@ -112,5 +116,27 @@ describe("ColorSegmentComponent", () => {
             [setIsColorMetricLinkedToHeightMetricAction({ value: false })],
             [setColorMetric({ value: "loc" })]
         ])
+    })
+
+    describe("in the compact bar", () => {
+        it("should open the metric chooser, which ends with the color settings", async () => {
+            // Act
+            await setup({ isCompact: true })
+
+            // Assert
+            const button = screen.getByTestId("metric-segment-color-compact")
+            expect(button.getAttribute("aria-label")).toBe("Color · mcc")
+            expect(button.getAttribute("popovertarget")).toBe("metric-select-popover-color")
+            expect(button.querySelector(".fa-palette")).not.toBeNull()
+            expect(screen.getByTestId("settings-shortcut").textContent.trim()).toBe("Color settings")
+        })
+
+        it("should open the color settings directly while Color follows Height", async () => {
+            // Act
+            await setup({ isCompact: true, isLinked: true })
+
+            // Assert
+            expect(screen.getByTestId("metric-segment-color-compact").getAttribute("popovertarget")).toBe("metric-settings-popover-color")
+        })
     })
 })

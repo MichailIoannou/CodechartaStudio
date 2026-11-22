@@ -4,9 +4,13 @@ import { RadialFolderStyle, RadialFolderValue } from "../../../../model/codeChar
 import { MapStateReadWindow } from "../../../../stores/mapState/mapState.read.facade"
 import { PreferencesReadWindow } from "../../../../stores/preferences/preferences.read.facade"
 import { describeRadialFolderValue, folderSwatchBackground } from "../../../../util/radialFolderValues"
-import { AxisCardComponent } from "../../../shared/facade"
+import { AxisCardComponent, SettingsShortcut } from "../../../shared/facade"
 import { MetricsBarWriteStore } from "../../stores/metricsBar.write.store"
+import { cellTooltip } from "../../util/cellTooltip"
+import { injectIsCompactBar } from "../../util/injectIsCompactBar"
+import { CELL_SETTINGS_TITLES, COMPACT_SLOT_CLASSES } from "../cellIcon/barCellKind"
 import { CellIconComponent } from "../cellIcon/cellIcon.component"
+import { CompactBarButtonComponent } from "../compactBarButton/compactBarButton.component"
 import { FolderStylePopoverComponent } from "../folderStylePopover/folderStylePopover.component"
 import { FolderValuePopoverComponent } from "../folderValuePopover/folderValuePopover.component"
 
@@ -17,7 +21,7 @@ const PERCENT = 100
     templateUrl: "./foldersSegment.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "contents" },
-    imports: [AxisCardComponent, CellIconComponent, FolderStylePopoverComponent, FolderValuePopoverComponent]
+    imports: [AxisCardComponent, CellIconComponent, CompactBarButtonComponent, FolderStylePopoverComponent, FolderValuePopoverComponent]
 })
 export class FoldersSegmentComponent {
     readonly valuePopoverId = "metric-select-popover-folders"
@@ -47,6 +51,13 @@ export class FoldersSegmentComponent {
     readonly tintPercent = computed(() => Math.round(this.tint() * PERCENT))
     readonly valueLabel = computed(() => describeRadialFolderValue(this.folderValue()).label)
     readonly styleLabel = computed(() => (this.isNeutral() ? "neutral" : `tinted ${this.tintPercent()} %`))
+
+    protected readonly isCompact = injectIsCompactBar()
+    protected readonly compactSlot = COMPACT_SLOT_CLASSES.folders
+    protected readonly tooltip = computed(() => cellTooltip("Folders", this.valueLabel(), this.styleLabel()))
+    protected readonly settingsShortcut = computed<SettingsShortcut | null>(() =>
+        this.isCompact() ? { label: CELL_SETTINGS_TITLES.folders, popoverId: this.stylePopoverId } : null
+    )
 
     selectValue(value: RadialFolderValue) {
         this.metricsBarWriteStore.setRadialFolderValue(value)

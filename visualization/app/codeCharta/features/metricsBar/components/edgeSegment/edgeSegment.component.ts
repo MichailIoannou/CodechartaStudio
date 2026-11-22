@@ -1,10 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from "@angular/core"
 import { toSignal } from "@angular/core/rxjs-interop"
 import { MapStateReadWindow } from "../../../../stores/mapState/mapState.read.facade"
-import { AxisCardComponent } from "../../../shared/facade"
+import { AxisCardComponent, SettingsShortcut } from "../../../shared/facade"
 import { NodeSelectionService } from "../../services/nodeSelection.service"
 import { MetricsBarWriteStore } from "../../stores/metricsBar.write.store"
+import { cellTooltip } from "../../util/cellTooltip"
+import { injectIsCompactBar } from "../../util/injectIsCompactBar"
+import { CELL_SETTINGS_TITLES, COMPACT_SLOT_CLASSES } from "../cellIcon/barCellKind"
 import { CellIconComponent } from "../cellIcon/cellIcon.component"
+import { CompactBarButtonComponent } from "../compactBarButton/compactBarButton.component"
 import { EdgeSettingsPopoverComponent } from "../edgeSettingsPopover/edgeSettingsPopover.component"
 import { MetricBarSelectPopoverComponent } from "../metricBarSelectPopover/metricBarSelectPopover.component"
 import { MetricChooserTypeComponent } from "../metricMetaValue/metricChooserType.component"
@@ -17,6 +21,7 @@ import { MetricChooserTypeComponent } from "../metricMetaValue/metricChooserType
     imports: [
         AxisCardComponent,
         CellIconComponent,
+        CompactBarButtonComponent,
         MetricChooserTypeComponent,
         MetricBarSelectPopoverComponent,
         EdgeSettingsPopoverComponent
@@ -34,6 +39,13 @@ export class EdgeSegmentComponent {
 
     readonly edgeMetric = toSignal(this.mapStateReadWindow.edgeMetric$, { initialValue: "" })
     readonly isEdgeMetricVisible = toSignal(this.mapStateReadWindow.isEdgeMetricVisible$, { initialValue: true })
+    protected readonly isCompact = injectIsCompactBar()
+    protected readonly compactSlot = COMPACT_SLOT_CLASSES.edges
+    protected readonly tooltip = computed(() => cellTooltip("Edges", this.edgeMetric(), this.isEdgeMetricVisible() ? null : "hidden"))
+    protected readonly settingsShortcut = computed<SettingsShortcut | null>(() =>
+        this.isCompact() ? { label: CELL_SETTINGS_TITLES.edges, popoverId: this.settingsPopoverId } : null
+    )
+
     readonly hoveredNode = toSignal(this.nodeSelectionService.createNodeObservable())
 
     readonly hoveredEdgeValue = computed(() => {

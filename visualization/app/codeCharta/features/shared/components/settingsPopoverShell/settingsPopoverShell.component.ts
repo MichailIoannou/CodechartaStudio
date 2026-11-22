@@ -39,7 +39,7 @@ export class SettingsPopoverShellComponent implements AfterViewInit, OnDestroy {
     }
 
     private positionRelativeToAnchor() {
-        const anchor = document.querySelector(`[data-anchor-name="${this.anchorName()}"]`)
+        const anchor = document.querySelector(`[data-anchor-name~="${this.anchorName()}"]`)
         if (!(anchor instanceof HTMLElement)) {
             return
         }

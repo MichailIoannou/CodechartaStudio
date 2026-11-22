@@ -8,6 +8,7 @@ export {
     BAR_BOTTOM_ABOVE_FILE_EXTENSION_BAR,
     BarShellDirective
 } from "./components/barShell/barShell.directive"
+export { CompactBarDirective } from "./components/barShell/compactBar.directive"
 export { BarToolComponent } from "./components/barTool/barTool.component"
 export { BarToolsCellComponent } from "./components/barToolsCell/barToolsCell.component"
 export { BootLoadingIndicatorComponent } from "./components/bootLoadingIndicator/bootLoadingIndicator.component"
@@ -27,6 +28,7 @@ export { HEIGHT_CSS_VARIABLE, PublishesHeightDirective } from "./components/publ
 export { ResetSettingsButtonComponent } from "./components/resetSettingsButton/resetSettingsButton.component"
 export { SelectionShortcutsComponent } from "./components/selectionShortcuts/selectionShortcuts.component"
 export { SettingsPopoverShellComponent } from "./components/settingsPopoverShell/settingsPopoverShell.component"
+export { SettingsShortcut, SettingsShortcutComponent } from "./components/settingsShortcut/settingsShortcut.component"
 export { SliderNumberInputComponent } from "./components/sliderNumberInput/sliderNumberInput.component"
 export { ToastComponent } from "./components/toast/toast.component"
 export { ToastOffsetDirective } from "./components/toast/toastOffset.directive"

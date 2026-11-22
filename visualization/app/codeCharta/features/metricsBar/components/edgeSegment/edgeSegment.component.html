@@ -1,34 +1,48 @@
-<ng-template #cellIcon><cc-cell-icon cell="edges" /></ng-template>
-<cc-axis-card
-    label="Edges"
-    [metricName]="edgeMetric()"
-    [hasCog]="true"
-    [cogPopoverId]="settingsPopoverId"
-    [cogAnchorName]="settingsAnchorName"
-    [cogIcon]="cellIcon"
-    cogTitle="Edge settings"
-    [searchPopoverId]="searchPopoverId"
-    [searchAnchorName]="searchAnchorName"
-    [dimmed]="!isEdgeMetricVisible()"
-    [testId]="'metric-segment-edges'"
-    [cogTestId]="'metric-segment-edges-cog'"
->
-    <div body class="flex min-h-4 items-center justify-center gap-1 overflow-hidden whitespace-nowrap text-xs leading-tight opacity-60">
-        @if (hoveredEdgeValue(); as value) {
-            <cc-metric-chooser-type attributeType="edges" [metricFor]="'edgeMetric'"></cc-metric-chooser-type>
-            <span>{{ value }}</span>
-        } @else {
-            <span aria-hidden="true">&nbsp;</span>
-        }
-    </div>
-</cc-axis-card>
-
+@if (isCompact()) {
+    <cc-compact-bar-button
+        [class]="compactSlot"
+        [tooltip]="tooltip()"
+        [popoverId]="searchPopoverId"
+        [popoverIds]="[settingsPopoverId]"
+        [anchorNames]="[searchAnchorName, settingsAnchorName]"
+        [isDimmed]="!isEdgeMetricVisible()"
+        testId="metric-segment-edges-compact"
+    >
+        <cc-cell-icon cell="edges" size="compact" />
+    </cc-compact-bar-button>
+} @else {
+    <ng-template #cellIcon><cc-cell-icon cell="edges" /></ng-template>
+    <cc-axis-card
+        label="Edges"
+        [metricName]="edgeMetric()"
+        [hasCog]="true"
+        [cogPopoverId]="settingsPopoverId"
+        [cogAnchorName]="settingsAnchorName"
+        [cogIcon]="cellIcon"
+        cogTitle="Edge settings"
+        [searchPopoverId]="searchPopoverId"
+        [searchAnchorName]="searchAnchorName"
+        [dimmed]="!isEdgeMetricVisible()"
+        [testId]="'metric-segment-edges'"
+        [cogTestId]="'metric-segment-edges-cog'"
+    >
+        <div body class="flex min-h-4 items-center justify-center gap-1 overflow-hidden whitespace-nowrap text-xs leading-tight opacity-60">
+            @if (hoveredEdgeValue(); as value) {
+                <cc-metric-chooser-type attributeType="edges" [metricFor]="'edgeMetric'"></cc-metric-chooser-type>
+                <span>{{ value }}</span>
+            } @else {
+                <span aria-hidden="true">&nbsp;</span>
+            }
+        </div>
+    </cc-axis-card>
+}
 <cc-metric-bar-select-popover
     [popoverId]="searchPopoverId"
     [anchorName]="searchAnchorName"
     placeholder="Edge Metric (highest value)"
     kind="edge"
     [selected]="edgeMetric()"
+    [settingsShortcut]="settingsShortcut()"
     (metricSelected)="handleMetricSelected($event)"
 ></cc-metric-bar-select-popover>
 

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from "@angular/core"
 import { toSignal } from "@angular/core/rxjs-interop"
 import { MetricsLensFacade } from "../../../../lenses/metrics/metricsLens.facade"
-import { MetricSelectPopoverComponent } from "../../../shared/facade"
+import { MetricSelectPopoverComponent, SettingsShortcut } from "../../../shared/facade"
 import { MetricsBarReadStore } from "../../stores/metricsBar.read.store"
 
 type MetricSelectKind = "node" | "edge"
@@ -22,6 +22,7 @@ export class MetricBarSelectPopoverComponent {
     readonly placeholder = input("Search metric")
     readonly kind = input<MetricSelectKind>("node")
     readonly selected = input<string | null>(null)
+    readonly settingsShortcut = input<SettingsShortcut | null>(null)
     readonly metricSelected = output<string>()
 
     private readonly metricData = toSignal(this.metricsBarReadStore.metricData$, {

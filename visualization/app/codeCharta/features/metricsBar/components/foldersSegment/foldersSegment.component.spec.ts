@@ -6,17 +6,20 @@ import { RadialFolderStyle, RadialFolderValue } from "../../../../model/codeChar
 import { colorMetricSelector } from "../../../../stores/mapState/mapState.read.facade"
 import { setRadialFolderStyle, setRadialFolderTint, setRadialFolderValue } from "../../../../stores/preferences/preferences.write.facade"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
+import { provideCompactBar } from "../../metricsBar.mocks"
 import { FoldersSegmentComponent } from "./foldersSegment.component"
 
 describe("FoldersSegmentComponent", () => {
     async function setup({
         folderValue = RadialFolderValue.Max,
         folderStyle = RadialFolderStyle.Tinted,
-        tint = 0.5
+        tint = 0.5,
+        isCompact = false
     }: {
         folderValue?: RadialFolderValue
         folderStyle?: RadialFolderStyle
         tint?: number
+        isCompact?: boolean
     } = {}) {
         const preferences = {
             ...defaultState.preferences,
@@ -30,7 +33,8 @@ describe("FoldersSegmentComponent", () => {
                     initialState: { ...defaultState, preferences },
                     selectors: [{ selector: colorMetricSelector, value: "mcc" }]
                 }),
-                { provide: State, useValue: { getValue: () => defaultState } }
+                { provide: State, useValue: { getValue: () => defaultState } },
+                ...(isCompact ? [provideCompactBar()] : [])
             ]
         })
         const dispatchSpy = jest.spyOn(TestBed.inject(MockStore), "dispatch")
@@ -114,5 +118,27 @@ describe("FoldersSegmentComponent", () => {
 
         // Assert
         expect(dispatchSpy).toHaveBeenCalledWith(setRadialFolderTint({ value: 0.7 }))
+    })
+
+    describe("in the compact bar", () => {
+        it("should name the folder value and style and open the value popover, which ends with the folder settings", async () => {
+            // Act
+            await setup({ folderValue: RadialFolderValue.Max, tint: 0.5, isCompact: true })
+
+            // Assert
+            const button = screen.getByTestId("metric-segment-folders-compact")
+            expect(button.getAttribute("aria-label")).toBe("Folders · max · tinted 50 %")
+            expect(button.getAttribute("popovertarget")).toBe("metric-select-popover-folders")
+            expect(button.querySelector(".fa-folder")).not.toBeNull()
+            expect(screen.getByTestId("settings-shortcut").textContent.trim()).toBe("Folder settings")
+        })
+
+        it("should dim its icon while folders are neutral", async () => {
+            // Act
+            await setup({ folderStyle: RadialFolderStyle.Neutral, isCompact: true })
+
+            // Assert
+            expect(screen.getByTestId("metric-segment-folders-compact").classList).toContain("text-base-content/40")
+        })
     })
 })

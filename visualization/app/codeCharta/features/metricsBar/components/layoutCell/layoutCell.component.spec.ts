@@ -3,6 +3,7 @@ import { BehaviorSubject, of } from "rxjs"
 import { LayoutAlgorithm } from "../../../../model/codeCharta.model"
 import { MapStateReadWindow } from "../../../../stores/mapState/mapState.read.facade"
 import { PreferencesReadWindow } from "../../../../stores/preferences/preferences.read.facade"
+import { provideCompactBar } from "../../metricsBar.mocks"
 import { MetricsBarWriteStore } from "../../stores/metricsBar.write.store"
 import { LayoutCellComponent } from "./layoutCell.component"
 
@@ -11,14 +12,15 @@ describe("LayoutCellComponent", () => {
         jest.useRealTimers()
     })
 
-    async function setup(layoutAlgorithm = LayoutAlgorithm.SquarifiedTreeMap) {
+    async function setup(layoutAlgorithm = LayoutAlgorithm.SquarifiedTreeMap, isCompact = false) {
         const layoutAlgorithm$ = new BehaviorSubject(layoutAlgorithm)
         const writeStore = { setLayoutAlgorithm: jest.fn(), setMaxTreeMapFiles: jest.fn(), setRadialLevels: jest.fn() }
         const renderResult = await render(LayoutCellComponent, {
             providers: [
                 { provide: MapStateReadWindow, useValue: { layoutAlgorithm$ } },
                 { provide: PreferencesReadWindow, useValue: { maxTreeMapFiles$: of(100), radialLevels$: of(3) } },
-                { provide: MetricsBarWriteStore, useValue: writeStore }
+                { provide: MetricsBarWriteStore, useValue: writeStore },
+                ...(isCompact ? [provideCompactBar()] : [])
             ]
         })
         return { layoutAlgorithm$, writeStore, fixture: renderResult.fixture }
@@ -121,5 +123,20 @@ describe("LayoutCellComponent", () => {
 
         // Assert
         expect(writeStore.setRadialLevels).toHaveBeenCalledWith(7)
+    })
+
+    it("should show the layout glyph over a caret in both rows of the compact bar, named by the layout", async () => {
+        // Act
+        const { fixture } = await setup(LayoutAlgorithm.StreetMap, true)
+
+        // Assert
+        const button = screen.getByTestId("metrics-bar-layout-cell-compact")
+        expect(button.getAttribute("aria-label")).toBe(`Layout · ${LayoutAlgorithm.StreetMap}`)
+        expect(button.getAttribute("popovertarget")).toBe("metrics-bar-layout-picker")
+        expect(button.querySelector("cc-layout-glyph")).not.toBeNull()
+        expect(button.querySelector(".fa-caret-down")).not.toBeNull()
+        expect(button.parentElement.classList).toContain("row-span-2")
+        expect(fixture.nativeElement.classList).toContain("grid-rows-2")
+        expect(screen.queryByTestId("metrics-bar-layout-cell")).toBeNull()
     })
 })

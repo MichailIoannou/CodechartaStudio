@@ -1,29 +1,31 @@
 <cc-layout-cell />
 <cc-bar-divider />
-<cc-area-segment></cc-area-segment>
-@if (!isRadialLayout()) {
-    <cc-height-segment></cc-height-segment>
-}
-
-@if (showColorMetricSegment()) {
+<div [class]="metricCellsClasses()" data-testid="metrics-bar-metric-cells">
+    <cc-area-segment></cc-area-segment>
     @if (!isRadialLayout()) {
-        <cc-link-color-height-button></cc-link-color-height-button>
+        <cc-height-segment></cc-height-segment>
     }
-    <cc-color-segment></cc-color-segment>
-    @if (isRadialLayout()) {
-        <cc-folders-segment></cc-folders-segment>
-    }
-} @else {
-    <cc-delta-color-segment></cc-delta-color-segment>
-}
 
-@if (hasEdgeMetric() && !isRadialLayout()) {
-    <cc-edge-segment></cc-edge-segment>
-}
+    @if (showColorMetricSegment()) {
+        @if (!isRadialLayout()) {
+            <cc-link-color-height-button></cc-link-color-height-button>
+        }
+        <cc-color-segment></cc-color-segment>
+        @if (isRadialLayout()) {
+            <cc-folders-segment></cc-folders-segment>
+        }
+    } @else {
+        <cc-delta-color-segment></cc-delta-color-segment>
+    }
+
+    @if (hasEdgeMetric() && !isRadialLayout()) {
+        <cc-edge-segment></cc-edge-segment>
+    }
+</div>
 
 <cc-bar-divider />
 <cc-labels-scenarios-segment></cc-labels-scenarios-segment>
 <cc-bar-divider />
-<cc-bar-tools-cell>
+<cc-bar-tools-cell [isCompact]="isCompact()">
     <ng-content select="[barTools]"></ng-content>
 </cc-bar-tools-cell>

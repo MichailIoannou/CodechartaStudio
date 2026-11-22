@@ -8,6 +8,7 @@ import {
     BarDividerComponent,
     BarShellDirective,
     BarToolsCellComponent,
+    CompactBarDirective,
     HEIGHT_CSS_VARIABLE,
     injectIsRadialLayout,
     PublishesHeightDirective
@@ -40,7 +41,7 @@ import { LinkColorHeightButtonComponent } from "../linkColorHeightButton/linkCol
         LayoutCellComponent,
         LinkColorHeightButtonComponent
     ],
-    hostDirectives: [BarShellDirective, PublishesHeightDirective],
+    hostDirectives: [BarShellDirective, CompactBarDirective, PublishesHeightDirective],
     providers: [{ provide: HEIGHT_CSS_VARIABLE, useValue: METRICS_BAR_HEIGHT_CSS_VARIABLE }],
     host: { "[style.bottom]": "barBottom" }
 })
@@ -58,4 +59,9 @@ export class MetricsBarComponent {
     readonly isRadialLayout = injectIsRadialLayout()
 
     readonly showColorMetricSegment = computed(() => !this.isDeltaState())
+
+    protected readonly isCompact = inject(CompactBarDirective).isCompact
+    protected readonly metricCellsClasses = computed(() =>
+        this.isCompact() ? "grid shrink-0 grid-rows-2 grid-flow-col gap-0.5" : "contents"
+    )
 }

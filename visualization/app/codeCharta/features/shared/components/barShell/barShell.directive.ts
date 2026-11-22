@@ -14,8 +14,8 @@ export const BAR_BOTTOM_ABOVE_FILE_EXTENSION_BAR =
     `calc(var(${BOTTOM_BAR_HEIGHT_CSS_VARIABLE}, ${DEFAULT_BOTTOM_BAR_HEIGHT_PX}px)` +
     ` + var(${FILE_EXTENSION_BAR_HEIGHT_CSS_VARIABLE}, ${DEFAULT_FILE_EXTENSION_BAR_HEIGHT_PX}px) + ${BAR_GAP_PX}px)`
 
-const INSET_LEFT = `var(${BAR_INSET_LEFT_CSS_VARIABLE}, 0px)`
-const INSET_RIGHT = `var(${BAR_INSET_RIGHT_CSS_VARIABLE}, 0px)`
+export const INSET_LEFT = `var(${BAR_INSET_LEFT_CSS_VARIABLE}, 0px)`
+export const INSET_RIGHT = `var(${BAR_INSET_RIGHT_CSS_VARIABLE}, 0px)`
 const FREE_WIDTH = `calc(100vw - ${INSET_LEFT} - ${INSET_RIGHT} - ${2 * PANEL_ISLAND_MARGIN_PX}px)`
 /** Below this the cells cannot even show their labels, so a bar that needs more than the free space reaches under the inspector. */
 const NARROWEST_SHRUNKEN_WIDTH = `min(30rem, calc(100vw - ${2 * PANEL_ISLAND_MARGIN_PX}px))`

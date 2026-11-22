@@ -1,29 +1,42 @@
-<ng-template #cellIcon><cc-cell-icon cell="color" /></ng-template>
-<cc-axis-card
-    label="Color"
-    [metricName]="colorMetric()"
-    [hasCog]="true"
-    [cogPopoverId]="settingsPopoverId"
-    [cogAnchorName]="settingsAnchorName"
-    [cogIcon]="cellIcon"
-    cogTitle="Color settings"
-    [searchPopoverId]="searchPopoverId"
-    [searchAnchorName]="searchAnchorName"
-    [disabled]="isSelectionLocked()"
-    [testId]="'metric-segment-color'"
-    [cogTestId]="'metric-segment-color-cog'"
->
-    <div body class="flex flex-col items-stretch gap-1">
-        <cc-metric-meta-value metricFor="colorMetric"></cc-metric-meta-value>
-    </div>
-</cc-axis-card>
-
+@if (isCompact()) {
+    <cc-compact-bar-button
+        [class]="compactSlot"
+        [tooltip]="tooltip()"
+        [popoverId]="isSelectionLocked() ? settingsPopoverId : searchPopoverId"
+        [popoverIds]="[searchPopoverId, settingsPopoverId]"
+        [anchorNames]="[searchAnchorName, settingsAnchorName]"
+        testId="metric-segment-color-compact"
+    >
+        <cc-cell-icon cell="color" size="compact" />
+    </cc-compact-bar-button>
+} @else {
+    <ng-template #cellIcon><cc-cell-icon cell="color" /></ng-template>
+    <cc-axis-card
+        label="Color"
+        [metricName]="colorMetric()"
+        [hasCog]="true"
+        [cogPopoverId]="settingsPopoverId"
+        [cogAnchorName]="settingsAnchorName"
+        [cogIcon]="cellIcon"
+        cogTitle="Color settings"
+        [searchPopoverId]="searchPopoverId"
+        [searchAnchorName]="searchAnchorName"
+        [disabled]="isSelectionLocked()"
+        [testId]="'metric-segment-color'"
+        [cogTestId]="'metric-segment-color-cog'"
+    >
+        <div body class="flex flex-col items-stretch gap-1">
+            <cc-metric-meta-value metricFor="colorMetric"></cc-metric-meta-value>
+        </div>
+    </cc-axis-card>
+}
 <cc-metric-bar-select-popover
     [popoverId]="searchPopoverId"
     [anchorName]="searchAnchorName"
     placeholder="Color Metric (highest value)"
     kind="node"
     [selected]="colorMetric()"
+    [settingsShortcut]="settingsShortcut()"
     (metricSelected)="handleMetricSelected($event)"
 ></cc-metric-bar-select-popover>
 

@@ -1,7 +1,8 @@
 import { CodeMapNode, PrimaryMetrics } from "../../../../model/codeCharta.model"
 
-export type DeltaDisplay = {
+type DeltaDisplay = {
     label: string
+    signedLabel: string
     styleClass: string
 }
 
@@ -34,7 +35,8 @@ function toDeltaDisplay(node: CodeMapNode, metricName: string, metricFor: keyof 
     if (typeof delta !== "number") {
         return null
     }
-    return { label: delta.toLocaleString(), styleClass: deltaStyleClass(delta, metricFor) }
+    const label = delta.toLocaleString()
+    return { label, signedLabel: delta > 0 ? `+${label}` : label, styleClass: deltaStyleClass(delta, metricFor) }
 }
 
 function deltaStyleClass(delta: number, metricFor: keyof PrimaryMetrics): string {

@@ -157,6 +157,27 @@ describe("SettingsPopoverShellComponent", () => {
             expect(shell.style.maxHeight).toBe(`${ANCHOR_TOP - 8}px`)
         })
 
+        it("should find an anchor that carries several anchor names", async () => {
+            // Arrange
+            const anchor = document.createElement("button")
+            anchor.dataset.anchorName = "compact-search compact-settings"
+            jest.spyOn(anchor, "getBoundingClientRect").mockReturnValue({ top: ANCHOR_TOP, bottom: ANCHOR_BOTTOM, left: 50 } as DOMRect)
+            document.body.appendChild(anchor)
+            const renderResult = await render(SettingsPopoverShellComponent, {
+                inputs: { popoverId: "id", anchorName: "compact-settings" }
+            })
+            const shell = renderResult.container.querySelector("[popover]") as HTMLElement
+            const toggleEvent = new Event("toggle")
+            Object.assign(toggleEvent, { newState: "open" })
+
+            // Act
+            shell.dispatchEvent(toggleEvent)
+            anchor.remove()
+
+            // Assert
+            expect(shell.style.bottom).toBe(`${window.innerHeight - ANCHOR_TOP}px`)
+        })
+
         it("should place itself below its anchor when it opens downward", async () => {
             // Arrange & Act
             const shell = await openNextToAnchor("bottom span-right")

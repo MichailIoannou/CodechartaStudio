@@ -1,0 +1,12 @@
+<button
+    type="button"
+    [class]="buttonClasses()"
+    [attr.data-tip]="isOpen() ? null : tooltip()"
+    [attr.aria-label]="tooltip()"
+    [attr.popovertarget]="popoverId()"
+    [style.anchor-name]="anchorStyle()"
+    [attr.data-anchor-name]="anchorAttribute()"
+    [attr.data-testid]="testId()"
+>
+    <ng-content></ng-content>
+</button>

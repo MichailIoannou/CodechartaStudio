@@ -70,7 +70,11 @@ describe("MetricMetaValueComponent", () => {
         const component = fixture.componentInstance as MetricMetaValueComponent
 
         // Act & Assert
-        expect(component.display()?.delta).toEqual({ label: (5).toLocaleString(), styleClass: "text-success" })
+        expect(component.display()?.delta).toEqual({
+            label: (5).toLocaleString(),
+            signedLabel: `+${(5).toLocaleString()}`,
+            styleClass: "text-success"
+        })
         expect(screen.getByText(`Δ${(5).toLocaleString()}`)).not.toBeNull()
     })
 

@@ -16,17 +16,24 @@ import {
     openBarCellClasses,
     SettingsPopoverShellComponent
 } from "../../../shared/facade"
-import { CELL_SETTINGS_TITLES } from "../cellIcon/barCellKind"
+import { cellTooltip } from "../../util/cellTooltip"
+import { injectIsCompactBar } from "../../util/injectIsCompactBar"
+import { CELL_SETTINGS_TITLES, COMPACT_SLOT_CLASSES } from "../cellIcon/barCellKind"
 import { CellIconComponent } from "../cellIcon/cellIcon.component"
+import { CompactBarButtonComponent } from "../compactBarButton/compactBarButton.component"
 import { ScenariosMenuComponent } from "../scenariosMenu/scenariosMenu.component"
+
+const FULL_HOST_CLASSES = `group relative flex min-w-0 flex-col items-stretch ${BAR_CELL_CLASSES}`
+const COMPACT_HOST_CLASSES = "grid shrink-0 grid-rows-2 grid-flow-col gap-0.5"
 
 @Component({
     selector: "cc-labels-scenarios-segment",
     templateUrl: "./labelsScenariosSegment.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: `group relative flex min-w-0 flex-col items-stretch ${BAR_CELL_CLASSES}`, "[class]": "openClasses()" },
+    host: { "[class]": "hostClasses()" },
     imports: [
         CellIconComponent,
+        CompactBarButtonComponent,
         ScenariosMenuComponent,
         LabelSettingsPanelComponent,
         ScenarioListDialogComponent,
@@ -43,7 +50,13 @@ export class LabelsScenariosSegmentComponent implements OnInit {
     readonly labelSettingsTitle = CELL_SETTINGS_TITLES.labels
     readonly settingsButtonClasses = "btn btn-ghost btn-xs btn-square shrink-0 rounded-lg text-base-content/70 hover:text-base-content"
     private readonly isPopoverOpen = injectIsAnyPopoverOpen(() => [this.labelSettingsPopoverId, this.scenariosMenuPopoverId])
-    protected readonly openClasses = computed(() => openBarCellClasses(this.isPopoverOpen()))
+    protected readonly isCompact = injectIsCompactBar()
+    protected readonly hostClasses = computed(() =>
+        this.isCompact() ? COMPACT_HOST_CLASSES : `${FULL_HOST_CLASSES} ${openBarCellClasses(this.isPopoverOpen())}`
+    )
+    protected readonly labelsSlot = COMPACT_SLOT_CLASSES.labels
+    protected readonly scenariosSlot = COMPACT_SLOT_CLASSES.scenarios
+    protected readonly labelsTooltip = cellTooltip("Labels", "label settings")
 
     readonly listDialog = viewChild.required<ScenarioListDialogComponent>("listDialog")
     readonly saveDialog = viewChild.required<SaveScenarioDialogComponent>("saveDialog")
@@ -56,6 +69,7 @@ export class LabelsScenariosSegmentComponent implements OnInit {
         const count = this.scenarios().length
         return `${count} ${count === 1 ? "scenario" : "scenarios"} available`
     })
+    protected readonly scenariosTooltip = computed(() => cellTooltip("Scenarios", `${this.scenarios().length} available`))
 
     async ngOnInit(): Promise<void> {
         await this.scenariosService.loadScenarios()

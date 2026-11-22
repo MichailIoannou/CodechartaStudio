@@ -1,50 +1,72 @@
-<div class="flex min-w-0 max-w-[220px] flex-col items-stretch gap-1.5">
+@if (isCompact()) {
     @if (!isRadialLayout()) {
-        <div class="flex flex-col gap-1" data-testid="metric-segment-labels">
+        <cc-compact-bar-button
+            [class]="labelsSlot"
+            [tooltip]="labelsTooltip"
+            [popoverId]="labelSettingsPopoverId"
+            [anchorNames]="['metric-segment-labels']"
+            testId="metric-segment-labels-compact"
+        >
+            <cc-cell-icon cell="labels" size="compact" />
+        </cc-compact-bar-button>
+    }
+    <cc-compact-bar-button
+        [class]="scenariosSlot"
+        [tooltip]="scenariosTooltip()"
+        [popoverId]="scenariosMenuPopoverId"
+        [anchorNames]="['metric-segment-scenarios']"
+        testId="metric-segment-scenario-compact"
+    >
+        <cc-cell-icon cell="scenarios" size="compact" />
+    </cc-compact-bar-button>
+} @else {
+    <div class="flex min-w-0 max-w-[220px] flex-col items-stretch gap-1.5">
+        @if (!isRadialLayout()) {
+            <div class="flex flex-col gap-1" data-testid="metric-segment-labels">
+                <div class="flex items-center justify-between gap-1">
+                    <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">Labels</span>
+                    <button
+                        type="button"
+                        [class]="settingsButtonClasses"
+                        [attr.popovertarget]="labelSettingsPopoverId"
+                        style="anchor-name: --metric-segment-labels"
+                        data-anchor-name="metric-segment-labels"
+                        [title]="labelSettingsTitle"
+                        [attr.aria-label]="labelSettingsTitle"
+                    >
+                        <cc-cell-icon cell="labels" />
+                    </button>
+                </div>
+            </div>
+            <div class="border-t border-base-300 -mx-1"></div>
+        }
+        <div class="flex flex-col gap-1" data-testid="metric-segment-scenario">
             <div class="flex items-center justify-between gap-1">
-                <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">Labels</span>
+                <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">Scenarios</span>
                 <button
                     type="button"
                     [class]="settingsButtonClasses"
-                    [attr.popovertarget]="labelSettingsPopoverId"
-                    style="anchor-name: --metric-segment-labels"
-                    data-anchor-name="metric-segment-labels"
-                    [title]="labelSettingsTitle"
-                    [attr.aria-label]="labelSettingsTitle"
+                    [attr.popovertarget]="scenariosMenuPopoverId"
+                    style="anchor-name: --metric-segment-scenarios"
+                    data-anchor-name="metric-segment-scenarios"
+                    title="Scenarios"
+                    aria-label="Scenarios"
+                    data-testid="metric-segment-scenario-menu"
                 >
-                    <cc-cell-icon cell="labels" />
+                    <cc-cell-icon cell="scenarios" />
                 </button>
             </div>
-        </div>
-        <div class="border-t border-base-300 -mx-1"></div>
-    }
-    <div class="flex flex-col gap-1" data-testid="metric-segment-scenario">
-        <div class="flex items-center justify-between gap-1">
-            <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">Scenarios</span>
             <button
                 type="button"
-                [class]="settingsButtonClasses"
-                [attr.popovertarget]="scenariosMenuPopoverId"
-                style="anchor-name: --metric-segment-scenarios"
-                data-anchor-name="metric-segment-scenarios"
-                title="Scenarios"
-                aria-label="Scenarios"
-                data-testid="metric-segment-scenario-menu"
+                class="cursor-pointer truncate border-0 bg-transparent p-0 text-center text-sm font-semibold leading-tight"
+                title="Open saved scenarios"
+                (click)="openScenarioList()"
             >
-                <cc-cell-icon cell="scenarios" />
+                {{ scenariosCountLabel() }}
             </button>
         </div>
-        <button
-            type="button"
-            class="cursor-pointer truncate border-0 bg-transparent p-0 text-center text-sm font-semibold leading-tight"
-            title="Open saved scenarios"
-            (click)="openScenarioList()"
-        >
-            {{ scenariosCountLabel() }}
-        </button>
     </div>
-</div>
-
+}
 @if (!isRadialLayout()) {
     <cc-settings-popover-shell [popoverId]="labelSettingsPopoverId" anchorName="metric-segment-labels" widthClass="w-80">
         <cc-label-settings-panel></cc-label-settings-panel>
