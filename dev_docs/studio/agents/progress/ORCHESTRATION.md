@@ -443,6 +443,13 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-22: merged the panels follow-ups (dependency view gives way, inspector strip with a dot, D2 offline
+  focus) and the window controls (D6/D7: "Use CodeCharta's title bar", Breeze buttons on Linux,
+  `titleBarOverlay` on Windows, `hiddenInset` on macOS; verified on KDE Wayland: shadow, edge resize,
+  double-click, right-click menu; Windows/macOS not checked). Agent-reported gates: quality gate 0 errors,
+  npm test 810 suites (6608), test:electron 116, e2e:desktop 20, web e2e 226. Designer questions as O12.
+  Projects/snapshots agent running; renames and O11 tweaks queued.
+
 - 2026-11-22: gates at 49a602cdc all green — quality gate 0 errors (first time), npm test 807/807 (6578),
   cargo 870/866, contract, test:electron, build, e2e:desktop 19/19, web e2e 224/224. Designer delivered O10
   (D6 setting, D7 window controls, `mockups/window-controls.html`) and answered O11; merged (18b8f88cd).

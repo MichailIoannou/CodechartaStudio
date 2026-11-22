@@ -390,3 +390,19 @@ answer that differs means the named file is changed, nothing else.
      path>"); "Pull request #7" without a title is right; Swap keeping the dropdown open is intended.
      z-order: nav-bar dropdowns (`z-[70]`) are always above the side panels, and nothing inside a panel
      (its collapsed strip included) may create a higher layer (principles §4) — the overlap is a bug.
+
+- **O12 (2026-11-22). Follow-ups from the fourth implementation round** (built with the reading given):
+  1. Panels (`progress/panels-followups.md`): T4 says the inspector strip mirrors the explorer's "with the
+     expand button on the side facing the map", but the explorer strip has its button at the screen edge.
+     Built as written (inspector button faces the map), so the strips are not exact mirrors. Move the
+     inspector's button to its right end, or the explorer's to face the map? The O11 z-order overlap could
+     not be reproduced with the collapsed strip (it sits in the panels' `z-[60]` layer); the screenshot
+     may show the view switcher's mode-bar handle (`z-[70]`) drawn over the top of the compare chip's
+     dropdown — which of the two `z-[70]` layers wins?
+  2. Window controls (`progress/window-controls.md`): when the system leaves a button out (KDE without
+     minimize), should ours hide it too? (Now all three show, the missing ones after the named ones.) When
+     the system puts the buttons on the left (GNOME `close:`, KDE `ButtonsOnLeft`), should ours move to the
+     left end? (Now always right; only the order follows the system.) Should "Reset global settings" also
+     switch "Use CodeCharta's title bar" off (it lives in the shell's file, not the store)? The Linux
+     right-click menu is opened by the page, because the shell's `system-context-menu` point is offset by
+     the window shadow on Linux.
