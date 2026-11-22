@@ -59,9 +59,8 @@ export interface TriggerInput {
     gitActivity?: GitActivity | null
 }
 
-/** The part after the branch: the commit in the map, what runs, or a short state. */
+/** The part after the branch: what runs, or a short state; the commit in the map is only in the title and the dropdown. */
 interface MapPart {
-    sha: string | null
     text: string | null
     isAnalysing: boolean
     percent: number | null
@@ -151,10 +150,10 @@ function mapPartOf(input: TriggerInput): MapPart | null {
         return textPart("Core offline")
     }
     if (input.gitActivity) {
-        return { sha: null, text: null, isAnalysing: false, percent: input.gitActivity.percent, activity: input.gitActivity.label }
+        return { text: null, isAnalysing: false, percent: input.gitActivity.percent, activity: input.gitActivity.label }
     }
     if (input.activeJob) {
-        return { sha: null, text: null, isAnalysing: true, percent: progressPercent(input.activeJob.progress) }
+        return { text: null, isAnalysing: true, percent: progressPercent(input.activeJob.progress) }
     }
     if (input.outcome === "failed") {
         return textPart("Analysis failed")
@@ -162,17 +161,15 @@ function mapPartOf(input: TriggerInput): MapPart | null {
     return input.shown ? shownPartOf(input.shown) : null
 }
 
-function shownPartOf(shown: SnapshotSummary): MapPart {
+function shownPartOf(shown: SnapshotSummary): MapPart | null {
     if (isUnboundImport(shown)) {
         return textPart(IMPORTED_UNKNOWN)
     }
-    return shown.shortCommit
-        ? { sha: shown.shortCommit, text: null, isAnalysing: false, percent: null }
-        : textPart(`snapshot from ${shortDate(shown.createdAt)}`)
+    return shown.shortCommit ? null : textPart(`snapshot from ${shortDate(shown.createdAt)}`)
 }
 
 function textPart(text: string): MapPart {
-    return { sha: null, text, isAnalysing: false, percent: null }
+    return { text, isAnalysing: false, percent: null }
 }
 
 function badgeOf(input: TriggerInput): TriggerBadge | null {
@@ -265,9 +262,6 @@ function activityLine(job: AnalysisJob | null): string | null {
 }
 
 function mapAriaOf(input: TriggerInput, mapPart: MapPart | null): string | null {
-    if (mapPart?.sha) {
-        return `map shows ${mapPart.sha}`
-    }
     if (mapPart?.activity) {
         const label = mapPart.activity.toLowerCase()
         return mapPart.percent === null ? label : `${label} ${mapPart.percent} percent`

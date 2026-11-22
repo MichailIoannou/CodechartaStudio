@@ -73,14 +73,15 @@ describe("WorkspaceStatusComponent", () => {
         expect(screen.queryByTestId("workspace-status-trigger")).toBeNull()
     })
 
-    it("should show the branch, the commit in the map and the uncommitted changes", async () => {
+    it("should show the branch and the uncommitted changes, with the commit in the map only in the title", async () => {
         // Arrange & Act
         await renderStatus()
 
         // Assert
         expect(screen.getByTestId("workspace-status-branch").textContent).toBe("main")
-        expect(screen.getByTestId("workspace-status-map").textContent?.trim()).toBe("@ 9f8e7d6")
-        expect(trigger().getAttribute("aria-label")).toBe("Branch main, map shows 9f8e7d6")
+        expect(screen.queryByTestId("workspace-status-map")).toBeNull()
+        expect(trigger().getAttribute("aria-label")).toBe("Branch main")
+        expect(trigger().title).toContain("Map shows 9f8e7d6 Release 2.4.0")
         expect(trigger().title).toContain("Branch main, 2 to pull, 3 uncommitted")
         expect(trigger().querySelector("[title='3 uncommitted changes']")).not.toBeNull()
     })
@@ -98,7 +99,7 @@ describe("WorkspaceStatusComponent", () => {
         expect(screen.queryByTestId("workspace-status-map")).toBeNull()
         expect(screen.getByTestId("workspace-status-icon")).toBeTruthy()
         expect(trigger().className).toContain("w-[3.25rem]")
-        expect(trigger().getAttribute("aria-label")).toBe("Branch main, map shows 9f8e7d6")
+        expect(trigger().getAttribute("aria-label")).toBe("Branch main")
     })
 
     it("should show analysis progress as its fill and percent", async () => {

@@ -102,7 +102,7 @@ describe("workspaceTrigger", () => {
         })
     })
 
-    it("should show the branch, its counts and the commit in the map while idle", () => {
+    it("should show the branch and its counts while idle, with the commit in the map only in the title", () => {
         // Act
         const view = workspaceTrigger(input())
 
@@ -111,7 +111,7 @@ describe("workspaceTrigger", () => {
             icon: "fa-solid fa-code-branch",
             isSpinning: false,
             branch: "feature/invoice-rounding",
-            mapPart: { sha: "9f8e7d6" },
+            mapPart: null,
             badge: null,
             fill: "none",
             ahead: 2,
@@ -123,7 +123,7 @@ describe("workspaceTrigger", () => {
             "Branch feature/invoice-rounding, 2 to push, 1 to pull, 3 uncommitted",
             "Map shows 9f8e7d6 Release 2.4.0"
         ])
-        expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, map shows 9f8e7d6")
+        expect(view.ariaLabel).toBe("Branch feature/invoice-rounding")
     })
 
     it("should show a determinate analysis with its percent and an indeterminate one as a sweep", () => {
@@ -199,7 +199,7 @@ describe("workspaceTrigger", () => {
         expect(imported).toMatchObject({ icon: "fa-solid fa-file-import", mapPart: { text: "imported · analysis time unknown" } })
         expect(imported.title).toContain("Imported snapshot — analysis time unknown\nFile date: 10 Nov 2026, ")
         expect(imported.title).toContain("\nImported 12 Nov 2026")
-        expect(boundView).toMatchObject({ mapPart: { sha: "9999999" }, badge: { text: "imported", tone: "ghost" } })
+        expect(boundView).toMatchObject({ mapPart: null, badge: { text: "imported", tone: "ghost" } })
     })
 
     it("should flag an analysis of uncommitted changes", () => {

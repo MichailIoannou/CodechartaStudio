@@ -60,9 +60,7 @@
                 }
                 @if (status.mapPart; as mapPart) {
                     <span class="flex min-w-0 max-w-full shrink-0 items-center text-base-content/70 xl:max-w-[70%]" data-testid="workspace-status-map">
-                        @if (mapPart.sha) {
-                            <span class="truncate">&#64; <span class="font-mono">{{ mapPart.sha }}</span></span>
-                        } @else if (mapPart.activity && mapPart.percent !== null) {
+                        @if (mapPart.activity && mapPart.percent !== null) {
                             <span class="truncate">{{ mapPart.activity }} ·</span>
                             <span class="inline-block w-[4.5ch] shrink-0 text-right tabular-nums">{{ mapPart.percent }} %</span>
                         } @else if (mapPart.activity) {

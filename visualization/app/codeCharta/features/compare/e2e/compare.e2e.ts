@@ -208,7 +208,7 @@ test.describe("Compare", () => {
 
         // Assert
         await expect(compare.chip()).toHaveCount(0)
-        await expect(page.getByTestId("workspace-status-trigger")).toContainText("a1b2c3d")
+        await expect(page.getByTestId("workspace-status-trigger")).toHaveAttribute("title", /Map shows a1b2c3d/)
         await expect(page.locator("cc-sidebar-explorer")).not.toContainText("sample1OnlyLeaf.scss")
     })
 
