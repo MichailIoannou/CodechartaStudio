@@ -125,10 +125,11 @@ export class CompareService {
         const { base, head } = this.store.state()
         const baseFile = base && this.readStore.fileWithChecksum(base.checksum)
         const headFile = head && this.readStore.fileWithChecksum(head.checksum)
-        this.changedFiles.clearFilter()
         if (this.store.isActive() && baseFile && headFile) {
             this.writeStore.showAlone(headFile, [baseFile.fileMeta.fileName])
         }
+        // After the head is shown alone, where the renames no longer reach the map: cleared before, they would rebuild the delta once more.
+        this.changedFiles.clear()
         this.latestTicket += 1
         this.store.reset()
     }
@@ -141,7 +142,7 @@ export class CompareService {
     }
 
     private beginResolving(changeRequest: ComparedChangeRequest | null = null): number {
-        this.changedFiles.clearFilter()
+        this.changedFiles.clear()
         this.store.set({ ...IDLE_COMPARISON, phase: "resolving", changeRequest })
         return ++this.latestTicket
     }

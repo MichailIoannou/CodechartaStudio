@@ -60,6 +60,12 @@ export interface FileState {
     selectedAs: FileSelectionState
 }
 
+/** A file git reports as renamed between the two compared maps, as node paths. */
+export interface FileRename {
+    from: string
+    to: string
+}
+
 export interface Settings {
     fileSettings: FileSettings
     preferences: Preferences
@@ -142,6 +148,7 @@ export interface CcState {
     mapState: MapState
     sharedView: SharedView
     files: FileState[]
+    fileRenames: FileRename[]
     isLoadingFile: boolean
     currentFilesAreSampleFiles: boolean
 }

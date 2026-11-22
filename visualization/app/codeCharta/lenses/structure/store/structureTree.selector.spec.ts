@@ -1,7 +1,8 @@
+import { hierarchy } from "d3-hierarchy"
 import packageJson from "../../../../../package.json"
-import { NodeType } from "../../../model/codeCharta.model"
+import { CCFile, CcState, NodeType } from "../../../model/codeCharta.model"
 import { FileSelectionState, FileState } from "../../../model/files/files"
-import { _getUndecoratedAccumulatedData } from "./structureTree.selector"
+import { _getUndecoratedAccumulatedData, structureTreeSelector } from "./structureTree.selector"
 
 describe("structureTreeSelector", () => {
     describe("_getUndecoratedAccumulatedData", () => {
@@ -101,7 +102,19 @@ describe("structureTreeSelector", () => {
             expect(first.file.map.children[0].path).toBe("/root1/child")
         })
 
-        function fileStateNamed(fileName: string, selectedAs: FileSelectionState, mapName = "root"): FileState {
+        it("should compare a renamed file with its old path", () => {
+            // Arrange
+            const reference = fileStateNamed("reference", FileSelectionState.Reference, "root", "old.ts")
+            const comparison = fileStateNamed("comparison", FileSelectionState.Comparison, "root", "new.ts")
+
+            // Act
+            const accumulatedData = _getUndecoratedAccumulatedData([reference, comparison], [{ from: "/root/old.ts", to: "/root/new.ts" }])
+
+            // Assert
+            expect(pathsOf(accumulatedData)).toEqual(["/root", "/root/new.ts"])
+        })
+
+        function fileStateNamed(fileName: string, selectedAs: FileSelectionState, mapName = "root", childName = "child"): FileState {
             return {
                 selectedAs,
                 file: {
@@ -119,9 +132,9 @@ describe("structureTreeSelector", () => {
                         attributes: { rloc: 170 },
                         children: [
                             {
-                                name: "child",
+                                name: childName,
                                 type: NodeType.FILE,
-                                path: `/${mapName}/child`,
+                                path: `/${mapName}/${childName}`,
                                 attributes: { rloc: 170 }
                             }
                         ]
@@ -130,4 +143,47 @@ describe("structureTreeSelector", () => {
             } as unknown as FileState
         }
     })
+
+    it("should recompute the delta when the renames arrive", () => {
+        // Arrange
+        const renames = [{ from: "/root/old.ts", to: "/root/new.ts" }]
+        const files = [
+            deltaSide("reference", FileSelectionState.Reference, "old.ts"),
+            deltaSide("comparison", FileSelectionState.Comparison, "new.ts")
+        ]
+        const before = { files, fileRenames: [] } as unknown as CcState
+        const after = { files, fileRenames: renames } as unknown as CcState
+
+        // Act
+        const deltaBefore = structureTreeSelector(before)
+        const deltaAfter = structureTreeSelector(after)
+
+        // Assert
+        expect(pathsOf(deltaBefore)).toEqual(["/root", "/root/new.ts", "/root/old.ts"])
+        expect(pathsOf(deltaAfter)).toEqual(["/root", "/root/new.ts"])
+    })
+
+    function deltaSide(fileName: string, selectedAs: FileSelectionState, childName: string): FileState {
+        return {
+            selectedAs,
+            file: {
+                fileMeta: { fileName, fileChecksum: `md5-${fileName}`, projectName: "Sample Project", exportedFileSize: 1 },
+                settings: { fileSettings: {} },
+                map: {
+                    name: "root",
+                    type: NodeType.FOLDER,
+                    path: "/root",
+                    attributes: {},
+                    children: [{ name: childName, type: NodeType.FILE, path: `/root/${childName}`, attributes: { rloc: 10 } }]
+                }
+            }
+        } as unknown as FileState
+    }
+
+    function pathsOf(ccFile: CCFile): string[] {
+        return hierarchy(ccFile.map)
+            .descendants()
+            .map(({ data }) => data.path)
+            .sort()
+    }
 })
