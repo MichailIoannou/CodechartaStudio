@@ -39,6 +39,13 @@ export interface NoticeBadge {
 
 type NearestResolution = Extract<SnapshotResolution, { kind: "nearest" }>
 
+/** The chip of a snapshot analysed from a working tree with uncommitted changes. */
+export const UNCOMMITTED_ANALYSIS_CHIP: NoticeBadge = { text: "uncommitted", tone: "warning" }
+
+export function uncommittedAnalysisPhrase(shortCommit: string | null): string {
+    return shortCommit ? `an analysis of uncommitted changes on ${shortCommit}` : "an analysis of uncommitted changes"
+}
+
 const OTHER_PROFILE = "Analysed with a different profile."
 const IMPORTED = "(imported, analysis time unknown)"
 

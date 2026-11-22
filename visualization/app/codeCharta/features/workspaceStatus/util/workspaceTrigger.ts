@@ -6,7 +6,7 @@ import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResoluti
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import type { RunningGitOperation } from "../../gitHistory/facade"
 import { branchLabel, counted, fileDate, longDate, shortDate } from "../../projects/facade"
-import { isUnboundImport, progressPercent, targetName } from "../../snapshots/facade"
+import { isUnboundImport, progressPercent, targetName, UNCOMMITTED_ANALYSIS_CHIP, uncommittedAnalysisPhrase } from "../../snapshots/facade"
 
 /** How far the snapshot in the map is from what the user asked for, as a badge and as words for the title. */
 export interface Staleness {
@@ -73,7 +73,11 @@ type BadgeTone = "error" | "warning" | "ghost"
 export interface TriggerBadge {
     text: string
     tone: BadgeTone
+    /** What the badge means, for its `title` and the trigger's `aria-label`. */
+    hint: string
 }
+
+type BadgeLook = Omit<TriggerBadge, "hint">
 
 type FillKind = "none" | "determinate" | "indeterminate" | "finished" | "failed"
 
@@ -113,7 +117,9 @@ export function workspaceTrigger(input: TriggerInput): TriggerView {
         behind: status?.upstream?.behind ?? 0,
         uncommitted: status ? uncommittedOf(status) : 0,
         title: titleOf(input, status),
-        ariaLabel: [branch ? `Branch ${branch}` : input.folder.label, mapAriaOf(input, mapPart), badge?.text].filter(Boolean).join(", ")
+        ariaLabel: [branch ? `Branch ${branch}` : input.folder.label, mapAriaOf(input, mapPart), badge && lowerFirst(badge.hint)]
+            .filter(Boolean)
+            .join(", ")
     }
 }
 
@@ -174,21 +180,25 @@ function textPart(text: string): MapPart {
 
 function badgeOf(input: TriggerInput): TriggerBadge | null {
     if (input.outcome === "failed") {
-        return { text: "failed", tone: "error" }
+        return { text: "failed", tone: "error", hint: "The analysis failed; the menu has its log" }
     }
     if (input.gitActivity && input.activeJob) {
-        return { text: "+1", tone: "ghost" }
+        return { text: "+1", tone: "ghost", hint: "Another analysis runs as well" }
     }
     if (input.staleness) {
         return input.staleness.badge
     }
     if (input.shown?.dirty) {
-        return { text: "dirty", tone: "warning" }
+        return { ...UNCOMMITTED_ANALYSIS_CHIP, hint: `Map is ${uncommittedAnalysisPhrase(input.shown.shortCommit)}` }
     }
     if (input.shown?.source === "imported" && !isUnboundImport(input.shown)) {
-        return { text: "imported", tone: "ghost" }
+        return { text: "imported", tone: "ghost", hint: "Map is imported; its analysis time is unknown" }
     }
-    return input.hasSnapshots || input.activeJob ? null : { text: "not analysed", tone: "ghost" }
+    return input.hasSnapshots || input.activeJob ? null : { text: "not analysed", tone: "ghost", hint: "This folder has no analysis yet" }
+}
+
+function lowerFirst(text: string): string {
+    return text.charAt(0).toLowerCase() + text.slice(1)
 }
 
 function fillOf(input: TriggerInput): FillKind {
@@ -243,7 +253,8 @@ function mapLine(input: TriggerInput): string {
         return `Imported snapshot — analysis time unknown${fileDateLine}\nImported ${longDate(shown.createdAt)}`
     }
     const commit = shown.shortCommit ? `${shown.shortCommit} ${shown.subject ?? ""}`.trim() : `snapshot from ${shortDate(shown.createdAt)}`
-    return input.staleness ? `Map shows ${commit}, ${input.staleness.phrase}` : `Map shows ${commit}`
+    const uncommitted = shown.dirty ? " with uncommitted changes" : ""
+    return input.staleness ? `Map shows ${commit}${uncommitted}, ${input.staleness.phrase}` : `Map shows ${commit}${uncommitted}`
 }
 
 function gitActivityLine(activity: GitActivity | null): string | null {
@@ -279,11 +290,12 @@ function uncommittedOf(status: GitStatus): number {
 }
 
 /** `wanted` names what the user asked for in a sentence: a short SHA or "the current checkout". */
-export function stalenessOf(resolution: SnapshotResolution | null, badge: TriggerBadge | null, wanted: string): Staleness | null {
+export function stalenessOf(resolution: SnapshotResolution | null, badge: BadgeLook | null, wanted: string): Staleness | null {
     if (!badge || !(resolution?.kind === "nearest" || resolution?.kind === "exact")) {
         return null
     }
-    return { badge, phrase: resolution.kind === "exact" ? "analysed with a different profile" : distancePhrase(resolution, wanted) }
+    const phrase = resolution.kind === "exact" ? "analysed with a different profile" : distancePhrase(resolution, wanted)
+    return { badge: { ...badge, hint: `Map is ${phrase}` }, phrase }
 }
 
 function distancePhrase({ relation, behind, ahead }: Extract<SnapshotResolution, { kind: "nearest" }>, wanted: string): string {

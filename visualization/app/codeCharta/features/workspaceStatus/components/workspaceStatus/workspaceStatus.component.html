@@ -42,7 +42,7 @@
                         class="absolute -right-1 -top-1 size-2 rounded-full ring-2 ring-base-100"
                         data-testid="workspace-status-badge-dot"
                         [class]="badgeDotClasses[badge.tone]"
-                        [title]="badge.text"
+                        [title]="badge.hint"
                     ></span>
                 }
             </span>
@@ -94,7 +94,7 @@
                         [class.badge-error]="badge.tone === 'error'"
                         [class.badge-warning]="badge.tone === 'warning'"
                         [class.badge-ghost]="badge.tone === 'ghost'"
-                        [title]="badge.text"
+                        [title]="badge.hint"
                         ><span class="truncate">{{ badge.text }}</span></span
                     >
                 }
@@ -153,6 +153,7 @@
                                 [class.badge-error]="badge.tone === 'error'"
                                 [class.badge-warning]="badge.tone === 'warning'"
                                 [class.badge-ghost]="badge.tone === 'ghost'"
+                                [title]="badge.hint"
                                 >{{ badge.text }}</span
                             >
                         }

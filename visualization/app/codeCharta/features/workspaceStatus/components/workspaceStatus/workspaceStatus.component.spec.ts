@@ -137,7 +137,7 @@ describe("WorkspaceStatusComponent", () => {
 
         // Assert
         const dot = screen.getByTestId("workspace-status-badge-dot")
-        expect(dot.title).toBe("not analysed")
+        expect(dot.title).toBe("This folder has no analysis yet")
         expect(dot.classList).toContain("bg-base-content/50")
         expect(screen.queryByTestId("workspace-status-badge")).toBeNull()
     })
@@ -288,6 +288,23 @@ describe("WorkspaceStatusComponent", () => {
             { projectId: "p-billing", folderId: "f-api", target: { kind: "workingTree" }, force: false }
         ])
         expect(within(menu).queryByTestId("workspace-status-analyse")).toBeNull()
+    })
+
+    it("should explain the badge of an analysis of uncommitted changes, also as a dot", async () => {
+        // Arrange
+        const fixture = await renderStatus({ snapshots: [{ ...SHOWN, dirty: true, target: "workingTree" }] })
+        const badge = screen.getByTestId("workspace-status-badge")
+        const badgeTitle = badge.title
+        const badgeText = badge.textContent
+
+        // Act
+        fixture.componentRef.setInput("iconOnly", true)
+        await settle()
+
+        // Assert
+        expect(badgeText).toBe("uncommitted")
+        expect(badgeTitle).toBe("Map is an analysis of uncommitted changes on 9f8e7d6")
+        expect(screen.getByTestId("workspace-status-badge-dot").title).toBe(badgeTitle)
     })
 
     it("should show the preflight problems of an analysis it started", async () => {

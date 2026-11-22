@@ -95,7 +95,7 @@ describe("workspaceTrigger", () => {
                 fillPercent: 45
             })
             expect(view.title).toContain("Fetching — Receiving objects: 45%")
-            expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, fetching 45 percent, +1")
+            expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, fetching 45 percent, another analysis runs as well")
             expect(sweeping).toMatchObject({ fill: "indeterminate", fillPercent: null })
             expect(sweeping.title).toContain("Fetching…")
             expect(sweeping.ariaLabel).toBe("Branch feature/invoice-rounding, fetching")
@@ -202,12 +202,41 @@ describe("workspaceTrigger", () => {
         expect(boundView).toMatchObject({ mapPart: null, badge: { text: "imported", tone: "ghost" } })
     })
 
-    it("should flag an analysis of uncommitted changes", () => {
+    it("should flag an analysis of uncommitted changes and explain it", () => {
         // Act
         const view = workspaceTrigger(input({ shown: { ...SHOWN, dirty: true, target: "workingTree" } }))
+        const withoutCommit = workspaceTrigger(input({ shown: { ...SHOWN, shortCommit: null, dirty: true, target: "workingTree" } }))
 
         // Assert
-        expect(view.badge).toEqual({ text: "dirty", tone: "warning" })
+        expect(view.badge).toEqual({
+            text: "uncommitted",
+            tone: "warning",
+            hint: "Map is an analysis of uncommitted changes on 9f8e7d6"
+        })
+        expect(view.title).toContain("Map shows 9f8e7d6 Release 2.4.0 with uncommitted changes")
+        expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, map is an analysis of uncommitted changes on 9f8e7d6")
+        expect(withoutCommit.badge?.hint).toBe("Map is an analysis of uncommitted changes")
+    })
+
+    it("should explain every badge", () => {
+        // Arrange
+        const pulling = { label: "Pulling", icon: "fa-solid fa-arrow-down", percent: null, message: null }
+
+        // Act
+        const hints = [
+            workspaceTrigger(input({ outcome: "failed" })),
+            workspaceTrigger(input({ gitActivity: pulling, activeJob: aJob("job-1", { state: "running" }) })),
+            workspaceTrigger(input({ shown: { ...SHOWN, source: "imported", commit: "9".repeat(40) } })),
+            workspaceTrigger(input({ shown: null, hasSnapshots: false }))
+        ].map(view => view.badge?.hint)
+
+        // Assert
+        expect(hints).toEqual([
+            "The analysis failed; the menu has its log",
+            "Another analysis runs as well",
+            "Map is imported; its analysis time is unknown",
+            "This folder has no analysis yet"
+        ])
     })
 
     it("should show the folder while git is loading or cannot answer and while the core is offline", () => {
@@ -238,8 +267,9 @@ describe("workspaceTrigger", () => {
         const view = workspaceTrigger(input({ staleness, shown: { ...SHOWN, dirty: true } }))
 
         // Assert
-        expect(view.badge).toEqual({ text: "stale by 4", tone: "warning" })
-        expect(view.title).toContain("Map shows 9f8e7d6 Release 2.4.0, 4 commits behind the current checkout")
+        expect(view.badge).toEqual({ text: "stale by 4", tone: "warning", hint: "Map is 4 commits behind the current checkout" })
+        expect(view.title).toContain("Map shows 9f8e7d6 Release 2.4.0 with uncommitted changes, 4 commits behind the current checkout")
+        expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, map is 4 commits behind the current checkout")
     })
 
     it("should word each distance and a different profile", () => {
