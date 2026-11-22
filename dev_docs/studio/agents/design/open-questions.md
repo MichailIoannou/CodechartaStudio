@@ -483,3 +483,14 @@ answer that differs means the named file is changed, nothing else.
   5. While dragging the window narrower, the 200 ms width transition can put a nav bar trigger up to about
      8 px under the view tabs until it settles. OK, or narrow instantly and animate only widening?
   6. W1's `aria-label` no longer says "map shows <sha>" (still in the title and dropdown). Bring it back?
+
+- **O15 (2026-11-22). Follow-ups from centring the bars on the window** (`progress/02-bar-window-centre.md`,
+  built with the reading given).
+  1. The domain and dependency bars use the same shell, so they are window-centred too and capped at the
+     same room, but they have no compact form: with one panel open at 1280 px their room is 616 px (was
+     942 px), and below 30rem they can still reach under a panel. Acceptable, or do they need their own
+     narrow-room behaviour?
+  2. With the explorer open at 320 px, the full metrics bar needs a window of about 1470 px with the sample
+     map, so a 1280–1440 px window shows the compact bar with only the explorer open. Intended?
+  3. The room keeps the 6 px island gap between the bar and each panel, so it is 12 px less than T4's
+     formula. Write that into T4?
