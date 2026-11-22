@@ -406,3 +406,12 @@ answer that differs means the named file is changed, nothing else.
      switch "Use CodeCharta's title bar" off (it lives in the shell's file, not the store)? The Linux
      right-click menu is opened by the page, because the shell's `system-context-menu` point is offset by
      the window shadow on Linux.
+  3. Projects and snapshots (`progress/projects-snapshots-followups.md`): P12's missing-folder alert sits
+     in a small modal (there is no file to show), not in the full-screen source view — or should the source
+     view open with only the alert? A working-tree analysis made on an older HEAD shows "not at <its sha>"
+     — intended wording?
+  4. Rename-aware delta (`progress/06-m6-rename-aware-delta-plan.md`, owner decision: option 1, "changed"
+     colour): a folder whose only file was renamed away stays as an empty removed folder — hide it? After
+     Swap the renamed file is drawn at its old (base) path, because the delta shows the comparison side's
+     paths — acceptable? A renamed file without metric changes looks unchanged on the map; only the Changes
+     list and the inspector line name the rename — enough?

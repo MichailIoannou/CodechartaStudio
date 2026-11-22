@@ -102,7 +102,7 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 06-M3 Missing snapshots and staleness | UI (no core tasks) | merged into `feature/studio-stack` with 06-M2; **web e2e pending** (paused) | — | feature/studio-06-m2m3 | 96232878b |
 | 06-M4 Changed files | core + UI | done on `feature/studio-next` | — | feature/studio-06-m4m5-ui | c9e21dd84 (merged da931a47d) |
 | 06-M5 PRs and merge requests | core + UI | core tasks 1, 4 and UI tasks 5–7 (number entry, C7 states) done on `feature/studio-next`; tasks 2, 3, 8 (listing) blocked | tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner) | feature/studio-06-m4m5-ui | merged da931a47d |
-| 06-M6 Polish and stretch | core + UI | done on `feature/studio-next` (tasks 1–5; task 6 is a plan waiting for an owner decision) | task 6: owner | feature/studio-06-m6 | 47f671da9 (merged f10ec41fc) |
+| 06-M6 Polish and stretch | core + UI | done on `feature/studio-next` (tasks 1–6; task 6 rename-aware delta, owner option 1) | — | feature/studio-06-m6 | 47f671da9 (merged f10ec41fc) |
 
 The core/UI split of mixed milestones is provisional; it is confirmed against the plan text when
 the milestone is started.
@@ -442,6 +442,11 @@ None open.
 Design questions are in `design/open-questions.md`.
 
 ## Session log
+
+- 2026-11-22: gates at 70801aae9 green (quality gate 0 errors, npm test 813/813 (6642), build, test:electron,
+  e2e:desktop 20/20, web e2e 228/228). Merged the projects/snapshots follow-ups (P12 re-link from the source
+  view, state line, S4/S8 wording) and the rename-aware delta (06-M6 task 6, transient `fileRenames` slice,
+  only `DeltaGenerator` does the arithmetic). Questions added to O12 (items 3, 4). O11 tweaks agent running.
 
 - 2026-11-22: merged the panels follow-ups (dependency view gives way, inspector strip with a dot, D2 offline
   focus) and the window controls (D6/D7: "Use CodeCharta's title bar", Breeze buttons on Linux,
