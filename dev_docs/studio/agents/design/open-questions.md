@@ -494,3 +494,22 @@ answer that differs means the named file is changed, nothing else.
      map, so a 1280–1440 px window shows the compact bar with only the explorer open. Intended?
   3. The room keeps the 6 px island gap between the bar and each panel, so it is 12 px less than T4's
      formula. Write that into T4?
+
+- **O16 (2026-11-22). Follow-ups from the stale notice for a moved checkout** (owner report: no stale notice
+  after switching and pulling, and an unexplained "dirty" tag; `progress/stale-notice-dirty-badge.md`, built
+  with the reading given).
+  1. The spec says a restored project shows no notice unless the target has none, and a switch or pull leaves
+     a non-checkout target unchanged. Built to the owner's expectation instead: a shown snapshot away from HEAD
+     gets the W1 distance badge and title ("Map is 4 commits behind the current checkout"), plus the S2 notice
+     ("No analysis of the current checkout — showing …, stale by N commits.", "Analyse current checkout")
+     while HEAD has no analysis. Should a snapshot explicitly opened from S4 also get the notice, or only the
+     badge?
+  2. When HEAD has its own analysis but the map shows an older snapshot, only the badge shows. Should the
+     notice offer "Show current checkout" there?
+  3. The W1 badge reads "uncommitted" instead of the plan's `dirty` chip (matches S4's flag and "words over
+     codes"). Every W1 badge now has a hint as its title and in the aria-label: "Map is 4 commits behind the
+     current checkout", "Map is an analysis of uncommitted changes on a1b2c3d", "This folder has no analysis
+     yet", "Map is imported; its analysis time is unknown", "The analysis failed; the menu has its log",
+     "Another analysis runs as well". Confirm the wording?
+  4. This distance comes from git, not from the snapshot resolution, so a snapshot of another profile is not
+     marked "· profile" here. Acceptable?
