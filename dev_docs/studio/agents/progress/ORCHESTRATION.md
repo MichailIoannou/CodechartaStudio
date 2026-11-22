@@ -443,6 +443,15 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-22, **paused by the owner** after this round. Merged the O11 tweaks. Final gates at fe460f811, all
+  green: format, quality gate 0 errors (46 warnings), npm test 815/815 (6662), lint, tsc, cargo fmt/clippy and
+  tests with and without features (870 / 866), contract drift, test:electron, build, e2e:desktop 20/20, web
+  e2e 231/231. No agents running. Open for the owner/designer: O12 (strip button side, view-switcher vs chip
+  z-order, window-control button hiding/left placement and reset, P12 modal, rename-delta edge cases);
+  owner items: gh/glab-based PR listing (06-M5 tasks 2, 3, 8), Windows/macOS checks (spikes, window controls),
+  stash (needs core support). The six stacked PR branches are fixed by the separate CI session;
+  `feature/studio-next` holds all their fixes and becomes the next PR(s) on top of the stack.
+
 - 2026-11-22: gates at 70801aae9 green (quality gate 0 errors, npm test 813/813 (6642), build, test:electron,
   e2e:desktop 20/20, web e2e 228/228). Merged the projects/snapshots follow-ups (P12 re-link from the source
   view, state line, S4/S8 wording) and the rename-aware delta (06-M6 task 6, transient `fileRenames` slice,
