@@ -33,7 +33,10 @@ p { margin: 0 0 10px; color: var(--mute-ink); max-width: 84ch; }
 .nstart { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; height: 48px; }
 .nend { display: flex; justify-content: flex-end; }
 .logo { flex-shrink: 0; display: flex; align-items: center; padding: 0 8px; }
-.logo img { width: 44px; height: 32px; display: block; }
+.logo svg { width: 44px; height: 32px; display: block; }
+#mapp { overflow-x: auto; border-radius: 10px; }
+.lrow { cursor: pointer; }
+.lrow:hover:not(.sel) { background: var(--b200); }
 .ndiv { flex-shrink: 0; width: 1px; height: 24px; background: var(--b300); margin: 0 4px; }
 .chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; white-space: nowrap; min-width: 0; transition: max-width .2s ease-out; }
 .chip:hover { background: var(--b200); }
@@ -125,7 +128,7 @@ p { margin: 0 0 10px; color: var(--mute-ink); max-width: 84ch; }
 <div class="app" id="navapp"><div class="viewport" id="navvp"><div class="navwin" id="navwin">
   <div class="nav">
     <div class="nstart" id="nstart">
-      <a class="logo" title="CodeCharta website"><img src="../../../../../visualization/public/codeCharta/assets/codecharta_logo.svg" alt="CodeCharta"></a>
+      <a class="logo" title="CodeCharta website"><svg aria-label="CodeCharta" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 740"><defs><style>.cls-1{isolation:isolate;}.cls-2{opacity:0.14;mix-blend-mode:multiply;}.cls-3{fill:#55a8e4;}.cls-4{fill:#4588b9;}.cls-5{fill:#76c4fd;}.cls-6{fill:#2f99e8;}.cls-7{fill:#2478b6;}.cls-8{fill:#1b9cfc;}.cls-9{fill:#2782c6;}.cls-10{fill:#32a6fc;}.cls-11{fill:#43a2e9;}.cls-12{fill:#398ac7;}.cls-13{fill:#49b0fd;}.cls-14{fill:#4a93c7;}.cls-15{fill:#5fbafd;}</style></defs><g class="cls-1"><g id="cc_logo"><g id="logo"><g class="cls-1"><polygon class="cls-3" points="978.73 379.09 978.6 425.33 878.64 483.42 878.77 437.18 978.73 379.09"/><polygon class="cls-4" points="878.77 437.18 878.64 483.42 778.03 425.33 778.16 379.09 878.77 437.18"/><polygon class="cls-5" points="978.73 379.09 878.77 437.18 778.16 379.09 878.11 321 978.73 379.09"/></g><g class="cls-1"><polygon class="cls-6" points="747.13 173.04 746.8 288.65 646.84 346.74 647.16 231.13 747.13 173.04"/><polygon class="cls-7" points="647.16 231.13 646.84 346.74 546.22 288.65 546.55 173.04 647.16 231.13"/><polygon class="cls-8" points="747.13 173.04 647.16 231.13 546.55 173.04 646.51 114.95 747.13 173.04"/></g><g class="cls-1"><polygon class="cls-6" points="624.12 259.93 623.83 360.13 523.87 418.22 524.16 318.02 624.12 259.93"/><polygon class="cls-9" points="524.16 318.02 523.87 418.22 423.26 360.13 423.54 259.93 524.16 318.02"/><polygon class="cls-10" points="624.12 259.93 524.16 318.02 423.54 259.93 523.5 201.84 624.12 259.93"/></g><g class="cls-1"><polygon class="cls-11" points="739.91 349.58 739.69 426.65 639.73 484.74 639.94 407.67 739.91 349.58"/><polygon class="cls-12" points="639.94 407.67 639.73 484.74 539.11 426.65 539.33 349.58 639.94 407.67"/><polygon class="cls-13" points="739.91 349.58 639.94 407.67 539.33 349.58 639.29 291.49 739.91 349.58"/></g><g class="cls-1"><polygon class="cls-3" points="858.27 433.76 858.1 495.42 758.14 553.51 758.32 491.85 858.27 433.76"/><polygon class="cls-14" points="758.32 491.85 758.14 553.51 657.52 495.42 657.7 433.76 758.32 491.85"/><polygon class="cls-15" points="858.27 433.76 758.32 491.85 657.7 433.76 757.65 375.67 858.27 433.76"/></g><g class="cls-1"><polygon class="cls-3" points="592.66 475.37 592.53 521.62 492.57 579.71 492.7 533.46 592.66 475.37"/><polygon class="cls-4" points="492.7 533.46 492.57 579.71 391.95 521.62 392.09 475.37 492.7 533.46"/><polygon class="cls-5" points="592.66 475.37 492.7 533.46 392.09 475.37 492.04 417.28 592.66 475.37"/></g><g class="cls-1"><polygon class="cls-6" points="361.06 269.32 360.73 384.93 260.76 443.02 261.09 327.41 361.06 269.32"/><polygon class="cls-7" points="261.09 327.41 260.76 443.02 160.15 384.94 160.48 269.32 261.09 327.41"/><polygon class="cls-8" points="361.06 269.32 261.09 327.41 160.48 269.32 260.44 211.23 361.06 269.32"/></g><g class="cls-1"><polygon class="cls-6" points="238.04 356.21 237.76 456.41 137.8 514.5 138.08 414.3 238.04 356.21"/><polygon class="cls-9" points="138.08 414.3 137.8 514.5 37.18 456.41 37.47 356.21 138.08 414.3"/><polygon class="cls-10" points="238.04 356.21 138.08 414.3 37.47 356.21 137.43 298.12 238.04 356.21"/></g><g class="cls-1"><polygon class="cls-11" points="353.83 445.86 353.62 522.93 253.65 581.02 253.87 503.95 353.83 445.86"/><polygon class="cls-12" points="253.87 503.95 253.65 581.02 153.04 522.93 153.26 445.86 253.87 503.95"/><polygon class="cls-13" points="353.83 445.86 253.87 503.95 153.26 445.86 253.22 387.77 353.83 445.86"/></g><g class="cls-1"><polygon class="cls-3" points="472.2 530.05 472.02 591.71 372.07 649.79 372.24 588.13 472.2 530.05"/><polygon class="cls-14" points="372.24 588.13 372.07 649.79 271.45 591.7 271.63 530.04 372.24 588.13"/><polygon class="cls-15" points="472.2 530.05 372.24 588.13 271.63 530.04 371.58 471.96 472.2 530.05"/></g></g></g></g></svg></a>
       <span class="ndiv"></span>
       <span class="chip" id="proj" title="Project 'CodeChartaStudio', working folder 'codechartastudio'"><i class="fa-solid fa-layer-group"></i><span class="t">codechartastudio</span><i class="fa-solid fa-caret-down caret"></i></span>
       <span class="chip" id="branch" title="Branch docs/studio-plans, map shows ad536f668"><i class="fa-solid fa-code-branch"></i><span class="t">docs/studio-plans</span><span class="cnt"><i class="fa-solid fa-arrow-up"></i>5</span><span class="dot" title="1 uncommitted change"></span><span class="badge">dirty</span><i class="fa-solid fa-caret-down caret"></i></span>
@@ -142,6 +145,7 @@ p { margin: 0 0 10px; color: var(--mute-ink); max-width: 84ch; }
   <label>Free map width <input type="range" id="mw" min="180" max="1000" value="1000"></label>
   <span id="mwv"></span> <span class="stage-label" id="mstage"></span>
   <button id="play">Play 1000 → 300 → 1000</button>
+  <label>Layout <select id="layoutsel"><option value="0">Squarified TreeMap</option><option value="1">StreetMap</option><option value="2">TreeMapStreet</option><option value="3">Sunburst</option><option value="4">Radial TreeMap</option></select></label>
 </div>
 <div class="app" id="mapp">
   <div class="mstage" id="mstagebox">
@@ -176,9 +180,13 @@ const I = { area: svg('area'), height: svg('height'), color: '<i class="fa-solid
 const TOOLS = ['fa-compass', 'fa-lightbulb', 'fa-camera', 'fa-list'];
 const k = (key, html) => `<span data-k="${key}" style="display:inline-grid;place-items:center">${html}</span>`;
 
+const LAYOUTS = [['layout', 'Squarified TreeMap'], ['street', 'StreetMap'], ['treemapstreet', 'TreeMapStreet'], ['sunburst', 'Sunburst'], ['radial', 'Radial TreeMap']];
+let currentLayout = 0;
+function layoutGlyph() { return svg(LAYOUTS[currentLayout][0]); }
+function layoutTip() { return `Layout · ${LAYOUTS[currentLayout][1]}`; }
 function fullHtml() {
   const card = (key, label, name, meta) => `<div class="card"><div class="lr"><span class="lbl">${label}</span><span class="sb" title="${label} settings">${k(key, I[key])}</span></div><div class="nm">${name}</div><div class="mt">${meta}</div></div>`;
-  return `<div class="card layout"><div class="lr"><span class="lbl">Layout</span></div><div class="nm" title="Layout · Squarified TreeMap"><span class="lbtn">${k('layout', I.layout)}<i class="fa-solid fa-caret-down"></i></span></div><div class="mt">&nbsp;</div></div>
+  return `<div class="card layout"><div class="lr"><span class="lbl">Layout</span></div><div class="nm" title="${layoutTip()}"><span class="lbtn" data-layout-glyph>${k('layout', layoutGlyph())}<i class="fa-solid fa-caret-down"></i></span></div><div class="mt">&nbsp;</div></div>
   <span class="div"></span>${card('area', 'Area', 'rloc', 'Σ 408,534')}${card('height', 'Height', 'sonar_complexity', 'Σ 48,431')}
   <span class="linkf on">${k('link', I.link)}</span>${card('color', 'Color', 'sonar_complexity', 'Σ 48,431')}${card('edges', 'Edges', 'avgCommits', '870 / 912')}
   <span class="div"></span><div class="card ls"><div class="lr"><span class="lbl">Labels</span><span class="sb">${k('labels', I.labels)}</span></div><div class="lr"><span class="lbl">Scenarios</span><span class="sb">${k('scenarios', I.scenarios)}</span></div><div class="nm">7 scenarios</div></div>
@@ -186,7 +194,7 @@ function fullHtml() {
 }
 function compactHtml() {
   const b = (key, c, r) => `<span class="ib" style="grid-column:${c};grid-row:${r}">${k(key, I[key])}</span>`;
-  return `<div class="grp"><span class="ib tall">${k('layout', I.layout)}<i class="fa-solid fa-caret-down"></i></span></div><span class="div"></span>
+  return `<div class="grp"><span class="ib tall" title="${layoutTip()}" data-layout-glyph>${k('layout', layoutGlyph())}<i class="fa-solid fa-caret-down"></i></span></div><span class="div"></span>
   <div class="grp">${b('area', 1, 1)}${b('edges', 1, 2)}${b('height', 2, 1)}${b('color', 2, 2)}<span class="linkc on" style="grid-column:3">${k('link', I.link)}</span></div><span class="div"></span>
   <div class="grp">${b('labels', 1, 1)}${b('scenarios', 1, 2)}</div><span class="div"></span>
   <div class="tools">${TOOLS.map((t, n) => `<span class="ib">${k(`t${n}`, `<i class="fa-solid ${t}"></i>`)}</span>`).join('')}</div>`;
@@ -262,7 +270,10 @@ function measureMinFull() {
 }
 function layoutStage(freeW) {
   const box = document.getElementById('mstagebox');
-  const side = Math.max(60, (box.clientWidth - freeW - 32) / 2);
+  const outer = document.getElementById('mapp').clientWidth;
+  const side = Math.max(120, (outer - freeW - 32) / 2);
+  box.style.width = `${freeW + 2 * side + 32}px`;
+  document.getElementById('mapp').scrollLeft = (freeW + 2 * side + 32 - outer) / 2;
   document.getElementById('sl').style.width = `${side}px`; document.getElementById('sr').style.width = `${side}px`;
   const free = document.getElementById('free'); free.style.left = `${side + 16}px`; free.style.right = `${side + 16}px`;
   document.getElementById('freelabel').textContent = `${Math.round(free.clientWidth)} px free`;
@@ -318,11 +329,20 @@ function still(freeW, cap, compactForm) {
   const html = `<div class="fr"><div class="app"><div class="mstage" style="height:120px"><div class="free" style="left:0;right:0;padding-bottom:20px"><div class="shell ${compactForm ? 'compact' : ''}" style="max-width:${freeW}px"><div class="form full">${fullHtml()}</div><div class="form compact">${compactHtml()}</div></div></div></div></div><div class="cap">${cap}</div></div>`;
   return html;
 }
+function selectLayout(index) {
+  currentLayout = index;
+  document.getElementById('layoutsel').value = String(index);
+  for (const holder of document.querySelectorAll('[data-layout-glyph]')) {
+    holder.querySelector('[data-k="layout"]').innerHTML = layoutGlyph();
+    (holder.closest('.nm') ?? holder).title = layoutTip();
+  }
+  for (const row of document.querySelectorAll('.lrow')) { row.classList.toggle('sel', +row.dataset.index === index); }
+}
 function layoutPicker() {
-  const rows = [['layout', 'Squarified TreeMap'], ['street', 'StreetMap'], ['treemapstreet', 'TreeMapStreet'], ['sunburst', 'Sunburst'], ['radial', 'Radial TreeMap']];
-  const list = rows.map(([key, name], n) => `<div class="lrow${n === 0 ? ' sel' : ''}"><span class="lg">${svg(key)}</span>${name}</div>`).join('');
+  const rows = LAYOUTS;
+  const list = rows.map(([key, name], n) => `<div class="lrow${n === currentLayout ? ' sel' : ''}" data-index="${n}" role="button" tabindex="0"><span class="lg">${svg(key)}</span>${name}</div>`).join('');
   const glyphs = rows.map(([key, name]) => `<div class="gl"><span class="lg big">${svg(key)}</span><span>${name}</span></div>`).join('');
-  return `<div class="fr"><div class="app"><div class="mstage" style="height:auto;padding:16px;display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap"><div class="picker">${list}</div><div class="glyphs">${glyphs}</div></div></div><div class="cap">Layout cell: always its glyph and a caret, the name in the tooltip ("Layout · Squarified TreeMap"). The picker lists every layout with its glyph; the five glyphs are the existing <code>cc-layout-glyph</code> ones.</div></div>`;
+  return `<div class="fr"><div class="app"><div class="mstage" style="height:auto;padding:16px;display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap"><div class="picker">${list}</div><div class="glyphs">${glyphs}</div></div></div><div class="cap">Layout cell: always its glyph and a caret, the name in the tooltip ("Layout · Squarified TreeMap"). The picker lists every layout with its glyph; click one and every bar on this page switches to its glyph. The five glyphs are the existing <code>cc-layout-glyph</code> ones.</div></div>`;
 }
 function initStills() {
   const s = document.getElementById('stills');
@@ -330,7 +350,9 @@ function initStills() {
     still(minFull - 10, `compact bar (below ${minFull} px), same 74 px height`, true) + still(236, '236 px free (900 px window, both panels open)', true);
   for (const form of s.querySelectorAll('.form.full')) { setCardMinimums(form); }
   s.insertAdjacentHTML('beforeend', layoutPicker());
+  for (const row of s.querySelectorAll('.lrow')) { row.addEventListener('click', () => selectLayout(+row.dataset.index)); }
 }
+document.getElementById('layoutsel').addEventListener('change', event => selectLayout(+event.target.value));
 document.fonts.ready.then(() => { fitNav(); measureMinFull(); fitBar(); initStills(); });
 window.addEventListener('resize', () => { fitNav(); fitBar(); });
 </script>
