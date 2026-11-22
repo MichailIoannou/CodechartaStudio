@@ -114,7 +114,7 @@ core/crates/codecharta-core/src/git/
   failure.rs             classify(subcommand, exit, stdout, stderr) -> GitErrorCode
   error.rs               GitResult<T>, constructors for GitError, conversion from runner errors
   revisions.rs           CommitSha, FullRefName, validate_new_branch_name, validate_repo_path
-  nul.rs                 split_nul_fields, chunk_records
+  nul_separated.rs       split_nul_fields, chunk_records
   parse/{repository,status,status_entries,refs,remotes,log,changed_files,stash,progress}.rs
   parse/testdata/*.txt   captured outputs (include_bytes!)
   fingerprint.rs         fingerprint_of(refs, head) (sha2)
@@ -701,7 +701,7 @@ M1–M6 are read-only and ship alone; M7–M12 add the workflow, each shippable 
 1. **Reconcile and fixtures.** Read plans 01 and 03 as implemented; record real names in section 9. Build `core/crates/codecharta-core/tests/support/git_fixture.rs` (`tempfile`): `TempRepo::new()` (the existing fixture, extended) runs git with `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` = an empty file, `GIT_CONFIG_NOSYSTEM=1`, `HOME`/`USERPROFILE` = the temp dir, `GIT_AUTHOR_NAME=Ada Author`, `GIT_AUTHOR_EMAIL=ada@example.test`, `GIT_COMMITTER_NAME=Carl Committer`, `GIT_COMMITTER_EMAIL=carl@example.test`, `GIT_AUTHOR_DATE` = `GIT_COMMITTER_DATE` = `@<1700000000 + 60·n> +0000`, `-c init.defaultBranch=main -c commit.gpgsign=false -c core.autocrlf=false`. API: `commit(msg, files)`, `write_file`, `branch`, `checkout`, `merge(names, msg)` (`--no-ff`), `tag(name, annotated)`, `with_bare_origin()` (a bare repository added as `origin` by path, `push -u`), `clone_of_origin()` (second working clone for "remote moved" scenarios), `linear_history(n)` (via `git fast-import`), `path()`, `env()`. (No `FolderResolver` fake: the service takes a resolved `GitFolder`, see section 9.) Record outputs of every section 4.5 command into `src/git/parse/testdata/` and correct section 4.5 if git differs. Spike (findings in the progress file): with git 2.31 (portable or container) confirm `--end-of-options` on `switch`, `branch`, `push`, `rev-parse`, and `rev-parse --path-format=absolute`; set git's minimum version in plan 01's tools check.
    - Tests: should_create_identical_shas_on_every_run; should_not_read_the_user_git_configuration; should_fail_commit_without_identity_when_use_config_only_is_set; plan 01 tools: should_report_git_below_minimum_as_too_old.
    - Commit: `test(core): add deterministic git fixture repositories`
-2. **Contract and helpers.** `codecharta-core-api/src/git.rs` (read types only; mutating types arrive with their milestone), `nul.rs`, `revisions.rs`, `cache.rs`; regenerate TS types.
+2. **Contract and helpers.** `codecharta-core-api/src/git.rs` (read types only; mutating types arrive with their milestone), `nul_separated.rs`, `revisions.rs`, `cache.rs`; regenerate TS types.
    - Tests: should_split_nul_fields_and_drop_trailing_empty; should_reject_record_count_not_multiple; should_accept_40_and_64_hex_shas_and_reject_upper_case_short_and_dash; should_reject_ref_names_with_control_chars_leading_dash_or_without_refs_prefix; should_evict_least_recently_used; should_serialize_error_codes_as_stable_camel_case_strings.
    - Commit: `feat(core): add git contract types and argument validation`
 3. **Runner and failures.** `command.rs`, `runner.rs`, `failure.rs`, `error.rs` (process runner faked).

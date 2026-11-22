@@ -4,7 +4,7 @@ use codecharta_core_api::methods::git::{ChangeTotals, GitChangedFile, GitFileCha
 
 use crate::error::CoreResult;
 use crate::git::error::parse_failed;
-use crate::git::nul::split_nul_fields;
+use crate::git::nul_separated::split_nul_fields;
 
 /// Both lists come from `diff-tree` with these options plus `--name-status` or `--numstat`.
 pub const DIFF_TREE_ARGS: [&str; 6] = [

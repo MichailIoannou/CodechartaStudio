@@ -3,7 +3,7 @@ use codecharta_core_api::methods::projects::GitRemote;
 use crate::error::CoreResult;
 use crate::folders::inspector::strip_credentials;
 use crate::git::error::parse_failed;
-use crate::git::nul::split_nul_fields;
+use crate::git::nul_separated::split_nul_fields;
 
 pub const REMOTE_URLS_ARGS: [&str; 4] = ["config", "-z", "--get-regexp", r"^remote\..*\.url$"];
 /// `config --get-regexp` exits 1 when nothing matches.

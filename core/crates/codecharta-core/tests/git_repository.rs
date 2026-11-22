@@ -3,6 +3,7 @@ mod support;
 use std::path::Path;
 
 use codecharta_core::CoreResult;
+use codecharta_core::git::locator::{PathStyle, normalise_repository_id};
 use codecharta_core::git::{GitFolder, GitService};
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::methods::git::GitRepositoryInfo;
@@ -58,7 +59,9 @@ async fn should_give_two_folders_of_one_repository_the_same_id() {
 
     // Assert
     assert_eq!(root.repository_id, inner.repository_id);
-    assert_eq!(root.repository_id, canonical(&repo.path().join(".git")));
+    let expected_id =
+        normalise_repository_id(&canonical(&repo.path().join(".git")), PathStyle::current());
+    assert_eq!(root.repository_id, expected_id);
     assert_eq!(root.folder_prefix, "");
 }
 

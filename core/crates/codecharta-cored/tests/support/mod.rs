@@ -123,9 +123,13 @@ impl ServingCore {
     }
 
     pub fn receive(&self) -> Value {
+        self.receive_within(ANSWER_TIMEOUT)
+    }
+
+    pub fn receive_within(&self, timeout: Duration) -> Value {
         let line = self
             .stdout_lines
-            .recv_timeout(ANSWER_TIMEOUT)
+            .recv_timeout(timeout)
             .expect("the core answers in time");
         serde_json::from_str(&line).expect("the core writes JSON")
     }

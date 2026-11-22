@@ -12,7 +12,9 @@ use tokio_util::sync::CancellationToken;
 
 use support::git_fixture::AUTHOR_NAME;
 use support::git_operations::{OperationsHarness, code_of, context, detail_of, project_folder};
-use support::{RecordingGit, TempRepo, wait_until_executable};
+#[cfg(unix)]
+use support::wait_until_executable;
+use support::{RecordingGit, TempRepo};
 
 const FAILING_HOOK: &str = "#!/bin/sh\necho 'lint: trailing space in a.txt'\nexit 1\n";
 const PRE_COMMIT: &str = "pre-commit";
@@ -62,20 +64,21 @@ fn install_hook(repo: &TempRepo, name: &str, script: &str) {
     fs::create_dir_all(hook.parent().expect("hooks have a folder"))
         .expect("the hooks folder can be created");
     fs::write(&hook, script).expect("the hook can be written");
-    make_executable(&hook);
-    wait_until_executable(&hook);
+    make_runnable(&hook);
 }
 
 #[cfg(unix)]
-fn make_executable(file: &Path) {
+fn make_runnable(file: &Path) {
     use std::os::unix::fs::PermissionsExt;
     fs::set_permissions(file, fs::Permissions::from_mode(EXECUTABLE_MODE))
         .expect("the hook can be made executable");
+    wait_until_executable(file);
 }
 
-/// git for Windows runs a hook through its own shell, whatever the file's permissions.
+/// git for Windows runs a hook through its own shell, whatever the file's permissions, and Windows
+/// cannot start the script directly, so there is nothing to wait for.
 #[cfg(not(unix))]
-fn make_executable(_file: &Path) {}
+fn make_runnable(_file: &Path) {}
 
 fn message_of_head(repo: &TempRepo) -> String {
     repo.git(&["log", "-1", "--format=%B"])
