@@ -73,6 +73,23 @@ answer that differs means the named file is changed, nothing else.
     of map would stay free; a window resize collapses the inspector first. Nothing changes above about
     1150 px. *Alternatives:* (a) leave it as a known limit, or (b) let the bar sit above the inspector
     and cover it. Applied in `02-themes.md` T4 "Too little room".
+    - *Answer (owner, 2026-11-22):* a compact icon-only metrics bar (one dedicated icon per element:
+      layout, area, height, color, edges, labels, scenarios, each with a help text on hover) replaces
+      the automatic collapsing of the side panels. Both panels stay open and the bar shrinks to icons
+      when too little map space is free (designer must change `02-themes.md` T4 "Too little room" and
+      design the compact bar's icons, breakpoint and hover texts; implementer must remove the panel
+      give-way behaviour built in 02-panels-give-way).
+    - *Applied (designer, 2026-11-22):* `02-themes.md` T4 "Too little room" and the new section "T4
+      compact bar": below 30rem of free map (back at 32rem) the bar becomes two rows of 28 px icon
+      buttons, 231 px wide, which fits 900 px with both panels open. Icons picked by the owner: area
+      footprint tile, height building with an up arrow (new glyphs), color `fa-palette`, edges
+      `fa-circle-nodes`, scenarios `fa-regular fa-bookmark`, labels `fa-solid fa-tags`, layout its
+      current glyph. Owner follow-up (2026-11-22): the full bar shows the same icons on each card's
+      settings button instead of the cog, and Labels uses the standard tags icon. Scenarios shows its
+      bookmark in place of its ＋; it opens the menu with "Open saved scenarios" and "Save current state
+      as scenario". The tooltip and `aria-label` text is "<cell> · <metric> ·
+      <meta>". The give-way removal includes the collapsed inspector strip and its selection dot, which
+      existed only for it. Mock-up `mockups/compact-metrics-bar.html`.
 
 13. **Linux window buttons: Breeze look only?** (O10) *Default:* the buttons CodeCharta draws on Linux
     always have KDE Breeze's shape (thin chevrons, diamond, cross, round highlight, red close) in the
@@ -80,9 +97,19 @@ answer that differs means the named file is changed, nothing else.
     `button-layout`). Other KDE decoration themes (Oxygen, Aurorae themes) and GNOME's Adwaita buttons
     are not imitated. *Alternatives:* (a) read the colours of the system's window decoration from KDE's
     `kdeglobals`; (b) a GNOME look on GNOME. Applied in `01-desktop-tools.md` D7.
+    - *Answer (owner, 2026-11-22):* alternative (b): on KDE keep the Breeze look; on GNOME draw GNOME
+      (Adwaita-style) buttons (designer must change `01-desktop-tools.md` D7: add the GNOME look with
+      shape, colours, light/dark, button order from `button-layout` and how the shell detects the
+      desktop; implementer must build both looks; mock-up `mockups/window-controls.html` needs the
+      GNOME variant).
 14. **"Use CodeCharta's title bar" off by default?** (O10) *Default:* off, so every Linux window manager
     keeps its native frame; *alternative:* on for Windows and macOS, where the system still draws the
     buttons, off on Linux. Applied in `01-desktop-tools.md` D6.
+    - *Answer (owner, 2026-11-22):* off everywhere, on every platform; the default stands.
+15. **Compact form for the domain and dependency bars?** (question 12) *Default:* only the metrics bar
+    gets the compact icon form; the domain bar and the dependency bar keep their behaviour, because
+    their cells are few and narrower. *Alternative:* give them the same compact form with their own
+    icons. Applied in `02-themes.md` "T4 compact bar", "Other bars".
 
 ## Area 01 — desktop tools
 
