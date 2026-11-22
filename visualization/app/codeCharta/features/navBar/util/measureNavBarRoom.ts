@@ -26,11 +26,14 @@ export function measureNavBarRoom(start: HTMLElement, current: NavBarFitState): 
     }
 }
 
+/** Whole pixels, rounded down from the exact width, so the last trigger never reaches a fraction of a pixel under the view tabs. */
 function availableWidth(start: HTMLElement, gap: number, isFitted: (child: Element) => boolean): number {
     const style = getComputedStyle(start)
-    const content = start.clientWidth - cssPixels(style.paddingLeft) - cssPixels(style.paddingRight)
+    const frame =
+        cssPixels(style.paddingLeft) + cssPixels(style.paddingRight) + cssPixels(style.borderLeftWidth) + cssPixels(style.borderRightWidth)
+    const content = start.getBoundingClientRect().width - frame
     const others = Array.from(start.children).filter(child => !isFitted(child) && child.getClientRects().length > 0)
-    return content - sum(others.map(child => child.getBoundingClientRect().width + gap))
+    return Math.floor(content - sum(others.map(child => child.getBoundingClientRect().width + gap)))
 }
 
 function projectWidths(project: HTMLElement, isIconOnly: boolean): ProjectMenuWidths {
@@ -45,7 +48,7 @@ function projectWidths(project: HTMLElement, isIconOnly: boolean): ProjectMenuWi
     return {
         chrome,
         iconOnly: chrome - innerGap,
-        label: Math.ceil(measureTextWidth(text, label)),
+        label: naturalTextWidth(label),
         shortestLabel: Math.ceil(measureShortenedTextWidth(text, SHORTEST_PROJECT_LABEL_CHARACTERS, label))
     }
 }
@@ -58,15 +61,30 @@ function slotWidths(slot: HTMLElement, isCompact: boolean): MapSlotWidths {
     return contentSlotWidths(slot, isCompact)
 }
 
-/** A slot sized by its labels, which keep their minimum width; its icons drop out in the compact form. */
+/** What a slot sized by its labels measured in its full form, for the decisions taken while it shows its compact form. */
+const fullFormWidths = new WeakMap<Element, Pick<MapSlotWidths, "full" | "narrowest">>()
+
+/**
+ * A slot sized by its labels, which keep their minimum width; its compact form leaves out its icons and may shorten
+ * its labels further, so while it shows that form the widths last measured in its full form decide the step.
+ */
 function contentSlotWidths(slot: HTMLElement, isCompact: boolean): MapSlotWidths {
     const labels = Array.from(slot.querySelectorAll<HTMLElement>(LABEL_SELECTOR))
     const iconsWidth = sum(Array.from(slot.querySelectorAll<HTMLElement>(ICON_SELECTOR), icon => fixedIconWidth(icon) + innerGapOf(icon)))
-    const shownLabels = sum(labels.map(label => label.getBoundingClientRect().width))
-    const chrome = slot.getBoundingClientRect().width - shownLabels + (isCompact ? iconsWidth : 0)
-    const naturalLabels = sum(labels.map(label => Math.ceil(measureTextWidth(label.textContent?.trim() ?? "", label))))
+    const chrome = slot.getBoundingClientRect().width - sum(labels.map(label => label.getBoundingClientRect().width))
     const shortestLabels = sum(labels.map(label => cssPixels(getComputedStyle(label).minWidth)))
-    return { full: chrome + naturalLabels, narrowest: chrome + shortestLabels, compact: chrome - iconsWidth + shortestLabels }
+    const naturalLabels = sum(labels.map(naturalTextWidth))
+    if (isCompact) {
+        const estimated = { full: chrome + iconsWidth + naturalLabels, narrowest: chrome + iconsWidth + shortestLabels }
+        return { ...(fullFormWidths.get(slot) ?? estimated), compact: chrome + shortestLabels }
+    }
+    const widths = { full: chrome + naturalLabels, narrowest: chrome + shortestLabels }
+    fullFormWidths.set(slot, widths)
+    return { ...widths, compact: chrome - iconsWidth + shortestLabels }
+}
+
+function naturalTextWidth(element: HTMLElement): number {
+    return Math.ceil(measureTextWidth(element.textContent?.trim() ?? "", element))
 }
 
 function fixedIconWidth(icon: HTMLElement): number {

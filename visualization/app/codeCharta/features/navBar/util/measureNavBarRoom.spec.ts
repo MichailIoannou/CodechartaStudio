@@ -21,9 +21,8 @@ function element(tag: string, attributes: Record<string, string> = {}, text = ""
 }
 
 function navbarStart(width: number, ...children: HTMLElement[]): HTMLElement {
-    const start = element("div")
+    const start = sized(element("div"), width)
     start.style.columnGap = `${GAP}px`
-    Object.defineProperty(start, "clientWidth", { value: width })
     start.append(...children)
     document.body.appendChild(start)
     return start
@@ -132,5 +131,23 @@ describe("measureNavBarRoom", () => {
         // Assert
         expect(full).toEqual({ full: 100 + 2 * 4 * CHARACTER_WIDTH, narrowest: 100 + 80, compact: 100 - iconsWidth + 80 })
         expect(compact).toEqual(full)
+    })
+
+    it("should keep deciding by the full form's widths while the slot shows its compact form with shorter labels", () => {
+        // Arrange
+        const chip = comparisonChip(260, [80, 80], 0)
+        const start = navbarStart(800, projectMenu(150, 90), chip)
+        const full = measureNavBarRoom(start, NATURAL_FIT)?.slot
+        chip.getBoundingClientRect = () => ({ width: 160 }) as DOMRect
+        for (const label of chip.querySelectorAll<HTMLElement>("[data-fit-label]")) {
+            label.style.minWidth = "32px"
+            label.getBoundingClientRect = () => ({ width: 32 }) as DOMRect
+        }
+
+        // Act
+        const compact = measureNavBarRoom(start, { ...NATURAL_FIT, isSlotCompact: true })?.slot
+
+        // Assert
+        expect(compact).toEqual({ full: full?.full, narrowest: full?.narrowest, compact: 160 - 64 + 64 })
     })
 })

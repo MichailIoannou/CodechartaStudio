@@ -28,6 +28,8 @@ export class ComparisonChipComponent {
     /** Set by the nav bar fit when the room gets short; otherwise the chip is as wide as its labels. */
     readonly width = input<number | null>(null)
     readonly labelsOnly = input(false)
+    /** The labels-only form is the last step before the chip would reach under the view tabs, so its labels may get shorter. */
+    protected readonly labelMinWidth = computed(() => (this.labelsOnly() ? "min-w-8" : "min-w-10"))
     readonly isMenuOpen = signal(false)
     readonly isNoDifferences = this.store.isShowingNoDifferences
     readonly base = computed(() => {

@@ -2,7 +2,8 @@
     <button
         #trigger
         type="button"
-        class="btn btn-sm btn-outline border-base-300 min-w-0 flex-nowrap gap-1.5 px-3 font-normal transition-[width] duration-200 ease-out motion-reduce:transition-none"
+        class="btn btn-sm btn-outline border-base-300 min-w-0 flex-nowrap font-normal transition-[width] duration-200 ease-out motion-reduce:transition-none"
+        [class]="labelsOnly() ? 'gap-1 px-2' : 'gap-1.5 px-3'"
         aria-haspopup="dialog"
         data-testid="comparison-trigger"
         [style.width.px]="width()"
@@ -15,20 +16,19 @@
             <i class="fa-solid fa-equals fa-fw shrink-0 text-base-content/60"></i>
             <span class="min-w-10 flex-auto truncate text-left" data-fit-label data-testid="comparison-no-differences">No metric differences</span>
         } @else {
-            <i class="fa-solid fa-code-compare fa-fw shrink-0" [class.hidden]="labelsOnly()" data-fit-icon data-testid="comparison-icon"></i>
-            <span class="min-w-10 flex-auto truncate text-left" data-fit-label data-testid="comparison-base-label">{{ base()?.buttonLabel }}</span>
+            <span class="shrink-0" [class.hidden]="labelsOnly()" data-fit-icon data-testid="comparison-icon"
+                ><i class="fa-solid fa-code-compare fa-fw"></i
+            ></span>
+            <span class="flex-auto truncate text-left" [class]="labelMinWidth()" data-fit-label data-testid="comparison-base-label">{{ base()?.buttonLabel }}</span>
             <i class="fa-solid fa-arrow-right shrink-0 text-xs text-base-content/60"></i>
-            <span class="min-w-10 flex-auto truncate text-left" data-fit-label data-testid="comparison-head-label">{{ head()?.buttonLabel }}</span>
+            <span class="flex-auto truncate text-left" [class]="labelMinWidth()" data-fit-label data-testid="comparison-head-label">{{ head()?.buttonLabel }}</span>
             @if (isStale()) {
                 <span class="size-2 shrink-0 rounded-full bg-warning" title="A side is stale" data-testid="comparison-stale-dot"></span>
             }
             @if (changeRequest()) {
-                <i
-                    class="fa-solid fa-code-pull-request fa-fw shrink-0"
-                    [class.hidden]="labelsOnly()"
-                    data-fit-icon
-                    data-testid="comparison-pull-request-icon"
-                ></i>
+                <span class="shrink-0" [class.hidden]="labelsOnly()" data-fit-icon data-testid="comparison-pull-request-icon"
+                    ><i class="fa-solid fa-code-pull-request fa-fw"></i
+                ></span>
             }
         }
         <i class="fa-solid fa-caret-down shrink-0"></i>

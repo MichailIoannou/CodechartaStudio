@@ -111,7 +111,7 @@ describe("ComparisonChipComponent", () => {
         expect(screen.getByTestId("comparison-base-label").classList).toContain("min-w-10")
     })
 
-    it("should leave out the compare and pull request icons in its labels-only form", async () => {
+    it("should leave out the compare and pull request icons and let its labels get shorter in its labels-only form", async () => {
         // Arrange
         const fixture = await renderChip()
         TestBed.inject(CompareStore).update({
@@ -128,6 +128,8 @@ describe("ComparisonChipComponent", () => {
         // Assert
         expect(wereShown).toBe(true)
         expect(icons().every(icon => icon.classList.contains("hidden"))).toBe(true)
+        expect(screen.getByTestId("comparison-head-label").classList).toContain("min-w-8")
+        expect(trigger().classList).toContain("px-2")
     })
 
     it("should mark a stale side with a dot in the button and say in the details how stale each side is", async () => {
