@@ -54,7 +54,7 @@ The nav bar is shared by plans 02–06. This is the single, final order; area fi
 ```
 desktop, project open, map shown
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [logo] │ [▣ billing / billing-api ▾] [⎇ feature/x  @ 9f8e7d6  stale by 4 ▾]   Metric Domain Dependencies History            Settings │
+│ [logo] │ [▣ billing-api ▾] [⎇ feature/x ↑2 ● stale by 4 ▾]                Metric Domain Dependencies History            Settings │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
   start: logo, divider, project menu (03 P1), map slot = workspace status (05 W1) or comparison chip (06)
   centre: view switcher (+ History tab, 04)
@@ -66,8 +66,9 @@ desktop, project open, map shown
 Owner decisions OD1/OD2 (`owner-decisions.md`): the project menu chooses project and working folder;
 the workspace status element W1 carries branch, map status, analyses and git activity with a progress
 fill, replacing the map selector, the branch chip and the analyses indicator. The daisyUI `navbar`
-gives `navbar-start` and `navbar-end` half of the space beside the centred view switcher each (≈ 485
-px per half at 1280 px, ≈ 90 px of it for logo and divider), which holds exactly these two triggers.
+gives `navbar-start` and `navbar-end` half of the space beside the centred view switcher each (≈ 477
+px per half at 1280 px, ≈ 60 px of it for logo and divider); the two triggers use all of the start
+half (owner, 2026-11-22), see "Narrow window" below.
 
 Map slot, first match wins:
 
@@ -83,21 +84,35 @@ Map slot, first match wins:
 
 Web build left side stays exactly: logo, divider, `cc-nav-bar-folder-button`, map/delta selector.
 
-**Narrow window.** Supported down to 1024 px wide (the Electron window minimum is set by plan 01; if
-none is set, this design assumes 1024). Budget of the left half (window minus about 310 px of view
-tabs, halved, minus the logo), widths capped by breakpoint, each step a Tailwind class on the element,
-never JavaScript measuring:
+**Narrow window** (owner, 2026-11-22; replaces the fixed widths per breakpoint). The project menu (P1)
+and W1 are sized by their content and use all of `navbar-start`, up to the view tabs, which stay
+centred and never shrink. When they don't fit, one thing at a time gives way, in this order:
 
-| Window | Left budget | Project menu trigger | Workspace status trigger (W1) |
-|---|---|---|---|
-| ≥ 1536 (`2xl`) | ≈ 520 px | "project / folder", `max-w-52` | fixed `w-[22rem]`: icon, branch with ↑↓ counts, `@ sha` or activity, badge |
-| 1280–1535 (`xl`) | ≈ 395 px | folder only, `max-w-28` | fixed `w-[17.5rem]`: icon, branch, `@ sha` or activity, badge |
-| 1024–1279 | ≈ 265 px | folder only, `max-w-24` | fixed `w-40`: icon, `@ sha` or activity, badge as icon (branch in `title`) |
+| Step | What changes | Example |
+|---|---|---|
+| 0 | everything at its natural width | `[▣ codechartastudio ▾] [⎇ docs/studio-plans ↑5 ● dirty ▾]` |
+| 1 | the project menu's folder name shortens with "…", down to 6 characters | `[▣ codecha… ▾]` |
+| 2 | the project menu shows only its icon and caret | `[▣ ▾]` |
+| 3 | W1 drops its ↑↓ counts (and an activity word, keeping the percentage) | `[⎇ docs/studio-plans ● dirty ▾]` |
+| 4 | W1's branch name shortens with "…", down to 6 characters | `[⎇ docs/st… ● dirty ▾]` |
+| 5 | W1 shows only its icon (the badge as a `size-2` dot on it) and caret | `[⎇• ▾]` |
 
-- `navbar-start` and `navbar-end` keep their halves and get `min-w-0 overflow-hidden`; their children
-  `min-w-0`, so a trigger shortens its text with "…" instead of running under `navbar-center`; the view
-  switcher never shrinks.
+- **Mechanism:** a small `NavBarFit` service in `features/navBar` watches the width of `navbar-start`
+  with a `ResizeObserver` and measures each trigger's parts (natural text widths, counts, badge) when
+  their text changes. It picks the first step that fits and gives the shortening text an explicit
+  `max-width` (steps 1 and 4) or sets the trigger's icon-only form (steps 2 and 5). Both triggers
+  get `shrink-0` so the browser never squeezes them on its own. A width change runs `transition-[max-width]
+  duration-200 ease-out`; with reduced motion it's instant.
+- **Comparison:** during a project comparison the comparison chip (06 C2) takes W1's place in
+  steps 3–5: its labels shorten, then it shows its labels-only form.
+- **Web build:** the folder button and the map selector keep today's behaviour.
 - Text inside every trigger is `truncate`; the full text is always in `title`.
+- **Logo:** `cc-nav-bar-logo` and its link are `shrink-0`, the image a fixed `h-8 w-11` (the logo
+  is 1024 × 740), so it keeps its size at every window width; today `h-8 w-auto` in a shrinking flex
+  item makes it smaller as the window narrows. It hides only next to the macOS buttons below 1280 px
+  (01 D7).
+
+Mock-up: `mockups/nav-and-bar-fit.html` (drag the window width).
 
 **Toasts (owner decision OD8).** All toasts stack at the top right of the window, directly below the
 nav bar: `features/shared/components/toast/toast.component.html` keeps `toast toast-top toast-end

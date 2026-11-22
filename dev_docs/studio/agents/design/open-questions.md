@@ -110,6 +110,13 @@ answer that differs means the named file is changed, nothing else.
     gets the compact icon form; the domain bar and the dependency bar keep their behaviour, because
     their cells are few and narrower. *Alternative:* give them the same compact form with their own
     icons. Applied in `02-themes.md` "T4 compact bar", "Other bars".
+16. **W1's width now follows its content** (owner request 2026-11-22: drop `@ <sha>` from the branch
+    chip and make it smaller, which changes OD2a's fixed width). *Default:* W1 is as wide as its idle
+    content (branch, counts, dirty dot, badge) within the nav bar fit, and the width changes only when
+    the window or panels resize or the branch or badge changes, animated over 200 ms. Activity never
+    changes it: the activity text takes the counts' place and the branch name shortens. *Alternative:*
+    keep OD2a's fixed width per window size, only narrower now that the commit is gone. Applied in
+    `05-snapshots.md` W1 and `00-design-principles.md` §3 "Narrow window".
 
 ## Area 01 — desktop tools
 

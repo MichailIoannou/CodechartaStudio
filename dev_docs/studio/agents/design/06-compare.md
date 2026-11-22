@@ -81,11 +81,11 @@ noDifferences, nav bar:   [≡ No metric differences ▾]  (dropdown adds "12 fi
   bg-warning` dot when a side is stale; `fa-code-pull-request` for a PR comparison; `fa-caret-down`.
   `title`: "Base: main (9f8e7d6) · Head: feature/x (a1b2c3d)" plus the folder of each side when the
   sides come from different folders ("… in billing-fork").
-- **Width** (left nav budget from principles §3, minus the project menu, W1's icon-only form and gaps):
-  `w-72` at ≥ 1536 px, `w-56` at 1280–1535, `w-32` at 1024–1279 (labels only: the compare and PR icons drop out, both are in the dropdown). At 1024–1279 the project menu trigger
-  also shrinks to its icon during a comparison (folder name in `title`), because 265 px cannot hold
-  the folder name, W1's icon and two labels. The chip never pushes the view tabs and never wraps to a
-  second row.
+- **Width** (owner, 2026-11-22): sized by its content within the nav bar fit (principles §3, "Narrow
+  window"); it takes W1's place in steps 3–5: first the project menu goes icon-only, then the chip's
+  labels shorten (each keeps `min-w-10`), then it shows its labels-only form (the compare and PR icons
+  drop out, both are in the dropdown). The chip never pushes the view tabs and never wraps to a second
+  row.
 - **Dropdown** (map-selector content classes, `w-[28rem] p-2`, `aria-label` "Comparison"):
   - header `text-xs uppercase tracking-wide text-base-content/60` "Comparing", base mode at the right
     as plain text "since the merge base" / "tip vs tip" with its explanation as `title` ("Changes on

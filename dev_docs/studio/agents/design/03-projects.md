@@ -31,15 +31,15 @@ Store location ("Change…", "Use default") is designed in area 01 (desktop tool
 Owner decision OD1: a project groups folders, and the user works in one of them at a time, the
 **working folder**. This menu is where both are chosen.
 
-**Trigger.** `btn btn-ghost btn-sm justify-between min-w-0` (widths per principles §3):
-`fa-solid fa-layer-group`, project name `text-base-content/60`, a `/` separator, working-folder label
-`font-medium`, `fa fa-caret-down`. Both names `truncate`, the folder name keeps priority (the project
-name shrinks first: `shrink` on it, `shrink-0` up to `max-w-32` on the folder). Below 1280 px only the
-folder label shows. `title`: "Project 'billing', working folder 'billing-api' (C:\work\billing-api) —
+**Trigger.** `btn btn-ghost btn-sm shrink-0` sized by its content (principles §3, "Narrow window"):
+`fa-solid fa-layer-group`, the working-folder label `font-medium truncate`, `fa fa-caret-down`. The
+project name is not in the trigger (owner, 2026-11-22); it heads the dropdown and is in the `title`.
+The project menu is the first thing to give way when the nav bar is short: its label shortens, then
+it shows only the icon and caret. `title`: "Project 'billing', working folder 'billing-api' (C:\work\billing-api) —
 switch folder or project". No project: "No project" in `text-base-content/60`.
 
 ```
-[▣ billing / billing-api ▾]
+[▣ billing-api ▾]
 ┌──────────────────────────────────────────────────────────┐
 │ BILLING                                [ⓘ Overview]     │  current project header + overview link
 │ ● billing-api     primary  ⎇ main          C:\work\…     │  working folder: filled dot, bg-primary/20
@@ -389,7 +389,8 @@ fixed).
   'billing'." Primary button becomes "Show existing snapshot".
 - Primary: "Open" / "Import" (`btn btn-primary`), `loading` while `openFile` runs. Error: `alert
   alert-error text-sm` above the footer, dialog stays. Success: closes; the target folder becomes the working
-  folder and the snapshot is shown (W1 then reads "imported · analysis time unknown" or "@ a1b2c3d").
+  folder and the snapshot is shown (W1 then reads "imported · analysis time unknown", or shows the
+  badge-ghost "imported" when bound).
 
 **States.** Very large file: size shown as is; the loading overlay of the views shows while bytes
 stream. Long paths: `break-all` in the target sentence. Picked file vanished before confirm: error
@@ -434,7 +435,7 @@ Everywhere an imported snapshot appears, the analysis time is unknown and says s
 | Place | Text |
 |---|---|
 | P8 file line | "Imported snapshot — analysis time unknown" |
-| W1 trigger (unbound) | "imported · analysis time unknown" (bound: "@ a1b2c3d" + badge-ghost "imported") |
+| W1 trigger (unbound) | "imported · analysis time unknown" (bound: badge-ghost "imported"; the commit is in the dropdown) |
 | W1 `title` | "Imported snapshot — analysis time unknown\nFile date: <date>\nImported <date>" |
 | snapshot lists (area 05) | analysed-at column "unknown (imported <date>)" |
 | sort tooltip of lists | "Imported snapshots are sorted by the time they were imported." |

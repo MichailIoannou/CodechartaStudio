@@ -159,10 +159,14 @@ Studio (dark, one rounded rectangle, nothing protrudes):
   `btn-active`. The drawer still slides in from the right.
 - **Variants keep their cells**: radial layout (Folders cell, no Height, no link button), delta mode
   (Color shows "Settings" with the delta colour popover), no edges (no Edges cell).
-- **States**: disabled cell `opacity-50 cursor-default`; narrow window (the bar is
-  `max-w-[min(95vw,1200px)]`): metric names truncate first, then the layout name shows only its glyph,
-  then the tools grid becomes `grid-cols-1`; the bar never scrolls or wraps. Below 30rem of free map
-  the compact bar takes over (T4 compact bar).
+- **States**: disabled cell `opacity-50 cursor-default`.
+- **Narrow map** (owner, 2026-11-22: no clipped labels, no jumps): the full bar shortens only text,
+  continuously: metric names, meta values and the layout name truncate with "…". Labels, icons, the
+  link button and the tools never shrink: each card's `min-width` is its label row (label + icon
+  button + padding, measured once and set inline; the name and meta are `min-w-0 truncate`). The
+  layout name no longer drops to glyph-only and the tools grid stays 2 × 2, because both steps
+  changed the bar's width or height in a jump. When the full bar can't get narrower without cutting a
+  label, the compact bar takes over (T4 compact bar). The bar never scrolls or wraps.
 - **Keyboard**: unchanged order (layout, area, height, link, color, edges, labels, scenarios, tools);
   every icon-only button has `title` = `aria-label`.
 - **Domain bar** (`features/domainBar`) and **dependency bar** use the same shell and get the same
@@ -171,8 +175,9 @@ Studio (dark, one rounded rectangle, nothing protrudes):
 ## T4 compact bar (owner answer to question 12)
 
 When the map between the open side panels is too narrow for the full bar, the bar shows one icon
-button per cell instead of its cards. The buttons open the same popovers as the cards. Mock-up:
-`mockups/compact-metrics-bar.html`.
+button per cell instead of its cards. The buttons open the same popovers as the cards. Mock-ups:
+`mockups/compact-metrics-bar.html` (states, variants) and `mockups/nav-and-bar-fit.html` (drag the
+free width or press Play to see the switch).
 
 ```
 full bar, 1400 px window (unchanged):
@@ -181,7 +186,7 @@ full bar, 1400 px window (unchanged):
 │ ▦ Squarif… │ rloc       │ sonar_complexity│  │ sonar_complexity│ avgCommits │ SCENARIOS ＋ │ 📷 ☰ │
 ╰─────────────────────────────────────────────────────────────────────────────────────────────╯
 
-compact bar, 900 px window, both panels open (236 px free, bar 231 px):
+compact bar, 900 px window, both panels open (236 px free, bar 235 px):
 ╭──────────────────────────────╮
 │ ▦ │ ⬖  ⬆▢ ┐│ 🏷 │ ⌖  💡 │
 │ ▾ │ ⊛  🎨 ┘│ 🔖 │ 📷 ☰ │
@@ -190,14 +195,31 @@ compact bar, 900 px window, both panels open (236 px free, bar 231 px):
 ```
 
 - **When:** the compact bar takes over when the free map width (the width the bar shell already
-  computes from the panel insets, `FREE_WIDTH`) is below **30rem**, the narrowest the full bar can
-  get (it already shrinks names, the layout name and the tools grid down to that width). It returns
-  to the full bar at **32rem** or more, so dragging a panel edge near the limit doesn't make it
-  flicker. No animation; the bar stays centred between the panels (O7). Measured on every panel
-  open/close/resize and window resize, like the insets today.
-- **Shell:** the same `ccBarShell` (`rounded-2xl`, `p-1.5`, same z-index), with cell groups
-  separated by the same `cc-bar-divider`. Inside, each group is a `grid grid-rows-2 grid-flow-col
-  gap-0.5`; the buttons are placed with explicit `col-start`/`row-start`, so DOM and tab order stay
+  computes from the panel insets, `FREE_WIDTH`) is less than the **full bar's minimum**: the sum of
+  the card minimums plus link, tools, dividers and padding (641 px with the sample map; it depends on
+  which cells show). It returns to the full bar when the free width is **32 px more** than that, so
+  dragging a panel edge near the limit doesn't make it flicker. The minimum is measured again when
+  the cells change (layout, delta mode, edges); the free width on every panel open, close or resize
+  and window resize, like the insets today. The bar stays centred between the panels (O7).
+- **Same height** (owner, 2026-11-22): both forms are **74 px** tall (the shell's content box
+  `h-[4.625rem]` in both). The compact groups are centred vertically: rows of 28 px with a 6 px gap
+  (`gap-y-1.5`), so nothing above or below the bar moves when it switches.
+- **Switching animation** (240 ms, `cubic-bezier(.2,.8,.2,1)`), done with the Web Animations API in
+  the metrics bar component:
+  1. Before the swap, record each cell icon's position (layout, area, height, link, color, edges,
+     labels, scenarios, each tool: the same icons exist in both forms) and the shell's width.
+  2. Swap the form, and lay a copy of the old form over the shell (`absolute inset-0
+     pointer-events-none`, its icons hidden) that fades out in 85 ms.
+  3. Animate the shell's `width` from the old to the new width. The shell stays centred, so the new
+     icons' final positions are known at once: animate each from its old position (`translate`) to
+     its new one (FLIP).
+  4. The new form's text (labels, names, meta, carets) fades in, from 40 % of the time on.
+  - A switch that starts while one runs finishes the running one first. With `prefers-reduced-motion`
+    the swap is instant.
+- **Shell:** the same `ccBarShell` (`rounded-2xl`, same z-index, 74 px tall), with cell groups
+  separated by the same `cc-bar-divider` and no extra gap between items in the compact form (the
+  dividers' margins space the groups). Inside, each group is a `grid grid-rows-2 grid-flow-col
+  gap-x-0.5 gap-y-1.5`; the buttons are placed with explicit `col-start`/`row-start`, so DOM and tab order stay
   as today: layout, area, height, link, color, edges, labels, scenarios, tools.
 - **Buttons:** `btn btn-ghost btn-square size-7 min-h-0 rounded-lg` (28 px), icon 16 px
   (`size-4` for the SVG glyphs, `text-[15px]` for Font Awesome), `text-base-content/80`, hover
@@ -221,10 +243,10 @@ compact bar, 900 px window, both panels open (236 px free, bar 231 px):
   - **No edge metric:** the Edges slot stays empty, so the other icons don't move between files.
   - **Delta mode:** the Color button opens the delta colour popover directly.
 - **Width:** 28 (layout) + 76 (metrics) + 28 (labels/scenarios) + 58 (tools) + 3 dividers × 9 +
-  padding and border 14 = **231 px**, which fits the 236 px left at 900 px with both panels at their
-  default 320 px. If the map is narrower still (panels widened, or Unfocus showing), the compact bar
-  keeps its own width as the smallest the bar gets and reaches under a panel's edge, as the full bar
-  does at its 30rem floor today.
+  padding and border 14 ≈ **235 px** (measured in the mock-up), which fits the 236 px left at 900 px
+  with both panels at their default 320 px. If the map is narrower still (panels widened, or Unfocus
+  showing), the compact bar keeps its own width as the smallest the bar gets and reaches under a
+  panel's edge.
 
 ### Icons
 
