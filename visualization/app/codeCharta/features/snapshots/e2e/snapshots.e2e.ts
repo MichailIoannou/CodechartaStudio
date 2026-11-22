@@ -134,6 +134,68 @@ test.describe("Snapshots", () => {
         await expect(snapshots.workspaceStatus()).toContainText("stale by 3")
     })
 
+    test("should say how far a restored analysis is from a moved checkout and offer to analyse the checkout", async ({ page }) => {
+        // Arrange
+        const snapshots = new SnapshotsPageObject(page)
+        const restored = anAnalysisOfDay(1)
+        await standInForTheDesktopBridge(page, {
+            projects: [{ ...BILLING, view: { workingFolderId: "f-api", shownSnapshotIdByFolder: { "f-api": "s-1" } } }],
+            activeProjectId: "p-billing",
+            snapshots: [restored],
+            snapshotMaps: { "s-1": SAMPLE1, [WORKING_TREE_SNAPSHOT_ID]: SAMPLE1 },
+            git: {
+                "f-api": { status: { ...STATUS_AT_HEAD, head: { ...STATUS_AT_HEAD.head, commit: "4".repeat(40) } }, commits: MAIN_COMMITS }
+            }
+        })
+        await goto(page)
+        await expect(snapshots.notice()).toContainText(
+            "No analysis of the current checkout — showing 1111111 (Commit 1), stale by 3 commits."
+        )
+        await expect(snapshots.workspaceStatusBadge()).toHaveText("stale by 3")
+        await expect(snapshots.workspaceStatusBadge()).toHaveAttribute("title", "Map is 3 commits behind the current checkout")
+        await expect(snapshots.workspaceStatus()).toHaveAttribute(
+            "title",
+            /Map shows 1111111 Commit 1, 3 commits behind the current checkout/
+        )
+
+        // Act
+        await snapshots.analyseFromTheNotice()
+        await expect(snapshots.notice()).toContainText("Analysing the working tree…")
+        await snapshots.completeJob(FIRST_JOB_ID)
+
+        // Assert
+        await expect(page.getByText("Showing the analysis of the working tree")).toBeVisible()
+        await expect(snapshots.notice()).toHaveCount(0)
+        await expect(snapshots.workspaceStatus()).not.toContainText("stale by 3")
+    })
+
+    test("should explain the badge of an analysis of uncommitted changes", async ({ page }) => {
+        // Arrange
+        const snapshots = new SnapshotsPageObject(page)
+        const uncommitted = aSnapshot("p-billing", "f-api", "s-dirty", {
+            commit: HEAD_SHA,
+            shortCommit: "a1b2c3d",
+            subject: "Round invoices",
+            target: "workingTree",
+            dirty: true
+        })
+        await standInForTheDesktopBridge(page, {
+            projects: [{ ...BILLING, view: { workingFolderId: "f-api", shownSnapshotIdByFolder: { "f-api": "s-dirty" } } }],
+            activeProjectId: "p-billing",
+            snapshots: [uncommitted],
+            snapshotMaps: { "s-dirty": SAMPLE1 },
+            gitStatuses: { "f-api": STATUS_AT_HEAD }
+        })
+
+        // Act
+        await goto(page)
+
+        // Assert
+        await expect(snapshots.workspaceStatusBadge()).toHaveText("uncommitted")
+        await expect(snapshots.workspaceStatusBadge()).toHaveAttribute("title", "Map is an analysis of uncommitted changes on a1b2c3d")
+        await expect(snapshots.notice()).toHaveCount(0)
+    })
+
     test("should analyse the last commits of the current branch in one batch and cancel it", async ({ page }) => {
         // Arrange
         const snapshots = new SnapshotsPageObject(page)
