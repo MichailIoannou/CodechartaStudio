@@ -1,6 +1,6 @@
 ---
 name: Fast explorer re-open and a thicker map base
-state: progress
+state: complete
 version: 1
 ---
 
@@ -31,10 +31,13 @@ slab that grows downward, as the owner's user-script does.
 
 ## Steps
 
-- [ ] Complete Task 1: Explorer re-open
-- [ ] Complete Task 2: Thicker map base
-- [ ] Complete Task 3: Changelog and checks
+- [x] Complete Task 1: Explorer re-open
+- [x] Complete Task 2: Thicker map base
+- [x] Complete Task 3: Changelog and checks
 
 ## Notes
 
 - Before: 3 builds (fe460f811, ed5d9c48b, current) all ~0.37 s for 1,270 rows and ~2.7 s for 10,070 rows.
+- After: ~0.04 s for 1,270 rows, ~0.19 s for 10,070 rows. Chrome restyled every row on a class change on the
+  host or the content and on a sibling being inserted, so hiding uses inline styles and stable wrappers.
+- The base depth is 48 map units like the owner's script; on large maps (which lay out much wider) it reads thin.
