@@ -443,6 +443,7 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-22: development resumed for the designer's compact metrics bar (02-themes T4 "Cell icon instead of the cog" and "T4 compact bar", owner answer to question 12, question 15 default); designer commits merged (0d8a370ca); agent on `feature/studio-compact-metrics-bar`, which also removes the 02-panels-give-way behaviour.
 - 2026-11-22, **paused by the owner** after this round. Merged the O11 tweaks. Final gates at fe460f811, all
   green: format, quality gate 0 errors (46 warnings), npm test 815/815 (6662), lint, tsc, cargo fmt/clippy and
   tests with and without features (870 / 866), contract drift, test:electron, build, e2e:desktop 20/20, web
