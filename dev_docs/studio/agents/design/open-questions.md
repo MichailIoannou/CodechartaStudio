@@ -442,3 +442,20 @@ answer that differs means the named file is changed, nothing else.
      Swap the renamed file is drawn at its old (base) path, because the delta shows the comparison side's
      paths — acceptable? A renamed file without metric changes looks unchanged on the map; only the Changes
      list and the inspector line name the rename — enough?
+
+- **O13 (2026-11-22). Follow-ups from the compact metrics bar** (`progress/02-compact-metrics-bar.md`,
+  built with the reading given). O12 item 1's strip question no longer applies: the collapsed inspector
+  strip is removed with the give-way.
+  1. Height: the full bar is about 96 px tall in the app, the compact bar 72 px (two 28 px rows), so
+     switching moves the bar's top edge by about 24 px, against "so the map does not jump". Make the
+     compact rows taller?
+  2. Linked Height and Color: the full bar disables the Color metric chooser while linked but keeps its
+     settings button. The compact Color button therefore opens Color settings directly while linked
+     (disabling it would leave the colour settings unreachable). Acceptable?
+  3. View tools in the compact bar keep their native `title` tooltip, not the daisyUI one, because
+     `cc-bar-tool` is shared with the domain and dependency bars that stay unchanged. Give them the
+     daisyUI tooltip in the compact bar only?
+  4. Scenarios tooltip: built as "Scenarios · 7 available" (the spec's example), while the card reads
+     "7 scenarios available". Which wording?
+  5. With both panels open in a 1600 px window the full bar's "AREA" label truncates to "A…" (it did before
+     this change too). Wanted, or should labels keep priority over metric names?
