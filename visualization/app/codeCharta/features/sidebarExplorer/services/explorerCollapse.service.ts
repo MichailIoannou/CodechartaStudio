@@ -12,11 +12,6 @@ export class ExplorerCollapseService {
         this.persist()
     }
 
-    collapse() {
-        this.isCollapsed.set(true)
-        this.persist()
-    }
-
     expand() {
         this.isCollapsed.set(false)
         this.persist()

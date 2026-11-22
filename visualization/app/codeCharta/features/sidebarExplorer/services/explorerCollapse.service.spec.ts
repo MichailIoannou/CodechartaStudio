@@ -35,15 +35,6 @@ describe("ExplorerCollapseService", () => {
         expect(service.isCollapsed()).toBe(false)
     })
 
-    it("should collapse when asked to and stay collapsed when asked again", () => {
-        // Act
-        service.collapse()
-        service.collapse()
-
-        // Assert
-        expect(service.isCollapsed()).toBe(true)
-    })
-
     it("should restore the collapsed state in a later session", () => {
         // Arrange
         service.toggle()

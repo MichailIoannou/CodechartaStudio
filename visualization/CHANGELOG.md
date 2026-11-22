@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **No menu bar**: the desktop app on Windows and Linux no longer shows the File, Edit, View and Window menu bar above the app.
 - **One desktop window**: starting the desktop app a second time brings the running window to the front instead of opening another one.
 - **Refreshed metrics bar**: the bar under the map is one rounded panel that holds the layout picker, the metric controls, the view tools and a Legend button, with nothing sticking out of it.
-- **Bars beside the side panels**: the bar under the map, the word cloud or the dependency graph centres in the space the open explorer and inspector leave free, and beside a map or dependency graph too narrow for both, opening one of them collapses the other to a strip that marks a selection you have not looked at yet, so the bar's controls stay within reach.
+- **Bars beside the side panels**: the bar under the map, the word cloud or the dependency graph centres in the space the open explorer and inspector leave free.
 - **Blended file extension bar**: neighbouring colours in the file extension bar fade into each other instead of meeting at a hard edge with a white gap.
 - **Messages below the nav bar**: messages appear at the top right just below the nav bar instead of covering Settings.
 

@@ -1,16 +1,7 @@
-@if (isCollapsed()) {
-    <cc-collapsed-inspector-strip
-        [name]="selectedNode()?.name ?? ''"
-        [path]="selectedNode()?.path ?? ''"
-        [hasUnseenSelection]="hasUnseenSelection()"
-        (expand)="expand()"
-    ></cc-collapsed-inspector-strip>
-} @else {
-    <cc-inspector-resize-handle></cc-inspector-resize-handle>
-    <cc-inspector-header></cc-inspector-header>
-    <cc-inspector-metric-mapping></cc-inspector-metric-mapping>
-    <div class="min-h-0 flex-1 overflow-y-auto">
-        <cc-inspector-metrics-list></cc-inspector-metrics-list>
-        <cc-inspector-clusters></cc-inspector-clusters>
-    </div>
-}
+<cc-inspector-resize-handle></cc-inspector-resize-handle>
+<cc-inspector-header></cc-inspector-header>
+<cc-inspector-metric-mapping></cc-inspector-metric-mapping>
+<div class="min-h-0 flex-1 overflow-y-auto">
+    <cc-inspector-metrics-list></cc-inspector-metrics-list>
+    <cc-inspector-clusters></cc-inspector-clusters>
+</div>

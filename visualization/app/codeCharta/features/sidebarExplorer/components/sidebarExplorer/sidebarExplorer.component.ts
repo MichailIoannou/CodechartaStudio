@@ -1,11 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, inject, viewChild } from "@angular/core"
-import {
-    COLLAPSED_STRIP_WIDTH_PX,
-    ColumnResizeHandleDirective,
-    PANEL_ISLAND_MARGIN_PX,
-    publishBarInset,
-    registerSidePanel
-} from "../../../shared/facade"
+import { ColumnResizeHandleDirective, PANEL_ISLAND_MARGIN_PX, publishBarInset } from "../../../shared/facade"
 import { EXPLORER_CAPABILITIES } from "../../explorerCapabilities"
 import { EXPLORER_METRIC_RULES } from "../../explorerMetricRules.port"
 import { ExplorerCollapseService } from "../../services/explorerCollapse.service"
@@ -19,6 +13,8 @@ import { ExplorerSortControlComponent } from "../explorerSortControl/explorerSor
 import { ExplorerTreeComponent } from "../explorerTree/explorerTree.component"
 import { MetricRuleEditorComponent } from "../metricRuleEditor/metricRuleEditor.component"
 import { RulesPopoverComponent } from "../rulesPopover/rulesPopover.component"
+
+export const COLLAPSED_STRIP_WIDTH_PX = 300
 
 @Component({
     selector: "cc-sidebar-explorer",
@@ -61,17 +57,10 @@ export class SidebarExplorerComponent {
     readonly showsListTools = this.modeService.showsListTools
     readonly width = this.widthService.width
     readonly displayWidth = computed(() => (this.isCollapsed() ? COLLAPSED_STRIP_WIDTH_PX : this.width()))
-    private readonly coveredWidthPx = computed(() => (this.isCollapsed() ? 0 : this.width() + PANEL_ISLAND_MARGIN_PX))
 
     constructor() {
         effect(() => this.scrollHostService.register(this.scrollHost()?.nativeElement ?? null))
-        publishBarInset("left", () => `${this.coveredWidthPx()}px`)
-        registerSidePanel({
-            side: "left",
-            isOpen: computed(() => !this.isCollapsed()),
-            coveredWidthPx: this.coveredWidthPx,
-            collapse: () => this.collapseService.collapse()
-        })
+        publishBarInset("left", () => (this.isCollapsed() ? "0px" : `${this.width() + PANEL_ISLAND_MARGIN_PX}px`))
     }
 
     toggle() {
