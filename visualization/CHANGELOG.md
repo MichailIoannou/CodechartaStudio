@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 - **Bars beside the side panels**: the bar under the map, the word cloud or the dependency graph centres in the space the open explorer and inspector leave free, and where too little of the map stays free for the full bar under the map, it slides into a compact bar of icons of the same height that opens the same settings.
 - **Blended file extension bar**: neighbouring colours in the file extension bar fade into each other instead of meeting at a hard edge with a white gap.
 - **Messages below the nav bar**: messages appear at the top right just below the nav bar instead of covering Settings.
+- **Thicker map base**: in the treemap layout the map stands on a thick base, which stays in view when the camera centres the map.
 
 ### Fixed 🐞
 

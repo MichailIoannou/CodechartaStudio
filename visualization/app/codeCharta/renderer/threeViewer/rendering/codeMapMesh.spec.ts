@@ -1,8 +1,10 @@
-import { InstancedBufferAttribute, InstancedMesh, ShaderMaterial } from "three"
-import { STATE, TEST_NODE_ROOT, TEST_NODES } from "../../../mocks/dataMocks"
-import { CcState, Node } from "../../../model/codeCharta.model"
+import { InstancedBufferAttribute, InstancedMesh, PerspectiveCamera, ShaderMaterial } from "three"
+import { STATE, TEST_NODE_LEAF, TEST_NODE_ROOT, TEST_NODES } from "../../../mocks/dataMocks"
+import { CcState, LayoutAlgorithm, Node } from "../../../model/codeCharta.model"
+import { treeMapSize } from "../algorithm/treeMapLayout/treeMapHelper"
 import { CodeMapBuilding } from "./codeMapBuilding"
 import { CodeMapMesh } from "./codeMapMesh"
+import { MAP_BASE_DEPTH } from "./mapBase"
 
 describe("codeMapMesh", () => {
     const testNodes: Node[] = [TEST_NODE_ROOT] // no need for 2 files
@@ -375,6 +377,83 @@ describe("codeMapMesh", () => {
                 expect(colorAttr.getY(i)).toBe(firstG)
                 expect(colorAttr.getZ(i)).toBe(firstB)
             }
+        })
+    })
+    describe("map base", () => {
+        const rootFloor: Node = { ...TEST_NODE_ROOT, isLeaf: false, depth: 0, x0: 0, y0: 0, z0: 0, width: 100, length: 100, height: 2 }
+        const building: Node = { ...TEST_NODE_LEAF, x0: 10, y0: 10, z0: 2, width: 5, length: 5, height: 20 }
+        const stateWithLayout = (layoutAlgorithm: LayoutAlgorithm): CcState => ({
+            ...STATE,
+            mapState: { ...STATE.mapState, layoutAlgorithm }
+        })
+        const mapOffset = treeMapSize
+        const baseDepthOf = (mesh: CodeMapMesh) => (mesh.getThreeMesh().material as ShaderMaterial).uniforms.mapBaseDepth.value
+
+        it("should let the root floor reach below the ground by the base depth in the treemap layout", () => {
+            // Arrange & Act
+            const mesh = new CodeMapMesh([rootFloor, building], stateWithLayout(LayoutAlgorithm.SquarifiedTreeMap), false)
+
+            // Assert
+            expect(baseDepthOf(mesh)).toBe(MAP_BASE_DEPTH)
+        })
+
+        it("should keep the street layouts on the ground, where streets and houses stand as well", () => {
+            // Arrange & Act
+            const streetMesh = new CodeMapMesh([rootFloor, building], stateWithLayout(LayoutAlgorithm.StreetMap), false)
+            const hybridMesh = new CodeMapMesh([rootFloor, building], stateWithLayout(LayoutAlgorithm.TreeMapStreet), false)
+
+            // Assert
+            expect(baseDepthOf(streetMesh)).toBe(0)
+            expect(baseDepthOf(hybridMesh)).toBe(0)
+        })
+
+        it("should follow a layout switch that reuses the buffers", () => {
+            // Arrange
+            const mesh = new CodeMapMesh([rootFloor, building], stateWithLayout(LayoutAlgorithm.SquarifiedTreeMap), false)
+
+            // Act
+            mesh.updateBuildings([rootFloor, building], stateWithLayout(LayoutAlgorithm.StreetMap), false)
+
+            // Assert
+            expect(baseDepthOf(mesh)).toBe(0)
+            expect(mesh.getThreeMesh().boundingBox.min.y).toBe(0)
+        })
+
+        it("should include the base in its bounding box so fitting the camera keeps the base in view", () => {
+            // Arrange & Act
+            const mesh = new CodeMapMesh([rootFloor, building], stateWithLayout(LayoutAlgorithm.SquarifiedTreeMap), false)
+
+            // Assert
+            expect(mesh.getThreeMesh().boundingBox.min.y).toBe(-MAP_BASE_DEPTH)
+            expect(mesh.getThreeMesh().boundingBox.max.y).toBe(22)
+        })
+
+        it("should pick the root floor when the pointer is on the base below the ground", () => {
+            // Arrange
+            const mesh = new CodeMapMesh([rootFloor, building], stateWithLayout(LayoutAlgorithm.SquarifiedTreeMap), false)
+            mesh.setScale({ x: 1, y: 1, z: 1 })
+            const camera = new PerspectiveCamera(45, 1, 1, 10_000)
+            camera.position.set(-mapOffset + 50, -MAP_BASE_DEPTH / 2, 1000)
+            camera.lookAt(-mapOffset + 50, -MAP_BASE_DEPTH / 2, 0)
+            camera.updateMatrixWorld()
+
+            // Act
+            const picked = mesh.checkMouseRayMeshIntersection({ x: 0, y: 0 }, camera)
+
+            // Assert
+            expect(picked?.node.path).toBe(rootFloor.path)
+        })
+
+        it("should leave the exported geometry without the base, since a 3D print adds a base plate of its own", () => {
+            // Arrange
+            const mesh = new CodeMapMesh([rootFloor, building], stateWithLayout(LayoutAlgorithm.SquarifiedTreeMap), false)
+
+            // Act
+            const positions = mesh.toExportMesh().geometry.getAttribute("position")
+
+            // Assert
+            const lowestY = Math.min(...Array.from({ length: positions.count }, (_, index) => positions.getY(index)))
+            expect(lowestY).toBe(0)
         })
     })
 })

@@ -5,6 +5,7 @@ import { CodeMapBuilding } from "./codeMapBuilding"
 import { buildExportMesh } from "./codeMapExportMesh"
 import { CodeMapGeometricDescription } from "./codeMapGeometricDescription"
 import { GeometryGenerator } from "./geometryGenerator"
+import { GROUND_LEVEL_TOLERANCE, isOnGround, mapBaseDepthFor } from "./mapBase"
 import { CodeMapShaderStrings } from "./shaders/loaders/codeMapShaderStrings"
 
 export interface MousePos {
@@ -48,6 +49,7 @@ export class CodeMapMesh {
         this.mapGeomDesc = buildResult.desc
         this.nodes = nodes
 
+        this.applyMapBase(state)
         this.initDeltaColorsOnMesh(state)
     }
 
@@ -89,8 +91,20 @@ export class CodeMapMesh {
     updateBuildings(nodes: Node[], state: CcState, isDeltaState: boolean) {
         this.geomGen.update(nodes, this.threeMesh, this.mapGeomDesc, state, isDeltaState)
         this.nodes = nodes
+        this.applyMapBase(state)
         this.forgetHighlightCache()
         this.initDeltaColorsOnMesh(state)
+    }
+
+    private applyMapBase(state: CcState) {
+        const depth = mapBaseDepthFor(state.mapState.layoutAlgorithm)
+        this.material.uniforms.mapBaseDepth.value = depth
+        this.mapGeomDesc.setMapBaseDepth(depth)
+        this.threeMesh.computeBoundingBox()
+        const boundingBox = this.threeMesh.boundingBox
+        if (!boundingBox.isEmpty() && isOnGround(boundingBox.min.y)) {
+            boundingBox.min.y -= depth
+        }
     }
 
     private forgetHighlightCache() {
@@ -372,7 +386,7 @@ export class CodeMapMesh {
     }
 
     private initMaterial() {
-        const uniforms = UniformsUtils.merge([UniformsLib["lights"]])
+        const uniforms = UniformsUtils.merge([UniformsLib["lights"], { mapBaseDepth: { value: 0 } }])
 
         const shaderCode = new CodeMapShaderStrings()
 
@@ -381,6 +395,7 @@ export class CodeMapMesh {
             fragmentShader: shaderCode.fragmentShaderCode,
             lights: true,
             uniforms,
+            defines: { GROUND_LEVEL_TOLERANCE: String(GROUND_LEVEL_TOLERANCE) },
             // GPUs that honour lowp/mediump (radeonsi, RADV) compute positions in 16-bit floats, where the
             // depth error grows with the camera distance until floors cut through buildings.
             precision: "highp"
