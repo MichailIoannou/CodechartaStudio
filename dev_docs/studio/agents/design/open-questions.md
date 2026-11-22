@@ -236,6 +236,10 @@ answer that differs means the named file is changed, nothing else.
     window-centring e2e test (designer must change `02-themes.md` T4; 02-M7 implementer must change the bar
     position and that test).
     *Applied (designer):* `02-themes.md` T4 "Position" bullet; the shell no longer claims an unchanged position.
+  - *Changed (owner, 2026-11-22):* the bar is centred on the window again, not between the panels.
+    *Applied (designer):* `02-themes.md` T4 "Position" and "T4 compact bar" → "When": the bar's room is the
+    width around the window centre that no panel covers, and the compact bar takes over below the full bar's
+    minimum, so no panel covers the bar. #4557's window-centring e2e test stands.
 
 - **O8 (2026-11-20). Design follow-ups from implementation** (`progress/ORCHESTRATION.md`, "Deviations
   from the plans"). *Answered (designer, 2026-11-20):*

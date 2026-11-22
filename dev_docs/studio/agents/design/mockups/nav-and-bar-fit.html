@@ -64,6 +64,8 @@ p { margin: 0 0 10px; color: var(--mute-ink); max-width: 84ch; }
 .side.l { left: 8px; } .side.r { right: 8px; }
 .free { position: absolute; top: 0; bottom: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 22px; }
 .freeguide { position: absolute; left: 0; right: 0; bottom: 8px; height: 0; border-top: 1px dashed color-mix(in oklab, var(--mute) 60%, transparent); }
+.wcentre { position: absolute; top: 0; bottom: 0; left: 50%; border-left: 1px dashed color-mix(in oklab, var(--primary) 55%, transparent); }
+.wcentre span { position: absolute; top: 10px; left: 6px; color: var(--mute); font-size: 11px; white-space: nowrap; }
 .freeguide span { position: absolute; left: 50%; transform: translate(-50%, -50%); background: var(--backdrop); color: var(--mute); font-size: 11px; padding: 0 6px; }
 .shell { position: relative; display: flex; align-items: stretch; height: 74px; box-sizing: border-box; padding: 0 6px; background: var(--b100); border: 1px solid var(--b300); border-radius: 16px; box-shadow: 0 10px 15px -3px #0005; max-width: 100%; overflow: hidden; flex-shrink: 1; }
 .form { display: flex; align-items: stretch; min-width: 0; }
@@ -145,11 +147,12 @@ p { margin: 0 0 10px; color: var(--mute-ink); max-width: 84ch; }
   <label>Free map width <input type="range" id="mw" min="180" max="1000" value="1000"></label>
   <span id="mwv"></span> <span class="stage-label" id="mstage"></span>
   <button id="play">Play 1000 → 300 → 1000</button>
+  <label><input type="checkbox" id="inspoff"> Inspector collapsed</label>
   <label>Layout <select id="layoutsel"><option value="0">Squarified TreeMap</option><option value="1">StreetMap</option><option value="2">TreeMapStreet</option><option value="3">Sunburst</option><option value="4">Radial TreeMap</option></select></label>
 </div>
 <div class="app" id="mapp">
   <div class="mstage" id="mstagebox">
-    <div class="side l" id="sl"></div><div class="side r" id="sr"></div>
+    <div class="side l" id="sl"></div><div class="side r" id="sr"></div><div class="wcentre"><span>window centre</span></div>
     <div class="free" id="free"><div class="freeguide"><span id="freelabel"></span></div>
       <div class="shell" id="shell">
         <div class="form full" id="full"></div>
@@ -158,7 +161,7 @@ p { margin: 0 0 10px; color: var(--mute-ink); max-width: 84ch; }
     </div>
   </div>
 </div>
-<p class="note">The full bar has two stages and no steps: names shorten with "…" continuously, but never below 12 characters ("complexity" always fits), and labels and icons always stay whole. Layout is always its glyph. When the full bar can't get narrower without cutting a name below 12 characters or a label, the compact bar takes over (it switches back once there is 32 px more room than that). Both forms are 74 px tall, so nothing above the bar moves. The switch takes 240 ms: the bar's width animates, each icon flies from its card to its slot, and the text fades. With reduced motion it switches instantly.</p>
+<p class="note">The bar is centred on the window, not on the free map: with the inspector collapsed it stays where it is, and the room it may use is the width around the window centre that neither panel covers (twice the distance from the centre to the nearer panel). The full bar has two stages and no steps: names shorten with "…" continuously, but never below 12 characters ("complexity" always fits), and labels and icons always stay whole. Layout is always its glyph. When the full bar can't get narrower without cutting a name below 12 characters or a label, the compact bar takes over (it switches back once there is 32 px more room than that). Both forms are 74 px tall, so nothing above the bar moves. The switch takes 240 ms: the bar's width animates, each icon flies from its card to its slot, and the text fades. With reduced motion it switches instantly.</p>
 
 <h2>3 · Stills</h2>
 <div class="frames" id="stills"></div>
@@ -274,9 +277,11 @@ function layoutStage(freeW) {
   const side = Math.max(120, (outer - freeW - 32) / 2);
   box.style.width = `${freeW + 2 * side + 32}px`;
   document.getElementById('mapp').scrollLeft = (freeW + 2 * side + 32 - outer) / 2;
-  document.getElementById('sl').style.width = `${side}px`; document.getElementById('sr').style.width = `${side}px`;
+  const inspectorCollapsed = document.getElementById('inspoff').checked;
+  document.getElementById('sl').style.width = `${side}px`; document.getElementById('sr').style.width = inspectorCollapsed ? '0' : `${side}px`;
   const free = document.getElementById('free'); free.style.left = `${side + 16}px`; free.style.right = `${side + 16}px`;
-  document.getElementById('freelabel').textContent = `${Math.round(free.clientWidth)} px free`;
+  const mapFree = inspectorCollapsed ? Math.round(free.clientWidth + side + 8) : Math.round(free.clientWidth);
+  document.getElementById('freelabel').textContent = inspectorCollapsed ? `${Math.round(free.clientWidth)} px room around the window centre (${mapFree} px of map free)` : `${Math.round(free.clientWidth)} px free, centred on the window`;
   return free.clientWidth;
 }
 function iconRects() { const m = {}; for (const e of shell.querySelectorAll('[data-k]')) { if (e.offsetParent) { m[e.dataset.k] = e.getBoundingClientRect(); } } return m; }
@@ -318,6 +323,7 @@ function fitBar() {
   document.getElementById('mstage').textContent = c ? `compact (full needs ${minFull} px, back at ${minFull + HYST})` : (freeW < naturalFull ? `full, names shortening (natural ${naturalFull} px)` : 'full, everything readable');
 }
 mw.addEventListener('input', fitBar);
+document.getElementById('inspoff').addEventListener('change', fitBar);
 document.getElementById('play').addEventListener('click', () => {
   const seq = []; for (let v = 1000; v >= 300; v -= 6) { seq.push(v); } for (let v = 300; v <= 1000; v += 6) { seq.push(v); }
   let n = 0; const tick = () => { if (n >= seq.length) { return; } mw.value = seq[n++]; fitBar(); setTimeout(tick, 22); }; tick();

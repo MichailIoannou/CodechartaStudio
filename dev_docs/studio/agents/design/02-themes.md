@@ -116,9 +116,13 @@ Studio (dark, one rounded rectangle, nothing protrudes):
 - **Shell** (`ccBarShell`, unchanged z-index): `rounded-2xl border border-base-300
   bg-base-100 shadow-lg p-1.5 gap-1 items-stretch`. Sections are separated by `w-px bg-base-300 my-2`
   dividers, not by borders on the cards.
-- **Position** (owner answer O7, option A): the bar is centred in the free map area between the open
-  explorer and the open inspector, not on the window, so the wider bar is never covered by a panel.
-  Collapsed panels give their width back. The legend drawer opens above the bar (O6).
+- **Position** (owner, 2026-11-22, replacing O7 option A): the bar is centred on the **window**, as
+  upstream PR #4557 has it, not on the free map between the panels. Its room is the width around the
+  window centre that no open panel covers: twice the distance from the window centre to the nearer
+  panel edge (with both panels at their default 320 px, the same as the free map). A collapsed or
+  narrower panel on one side doesn't move the bar or give it more room. The bar is never covered by a
+  panel: with less room than the full bar needs it becomes the compact bar (below). The legend drawer
+  opens above the bar (O6).
 - **Too little room: compact bar** (owner answer to question 12, replacing the side panels that gave
   way). Both side panels stay open; when the full bar does not fit, it becomes a **compact bar** of icon
   buttons in two rows, about as tall as the full bar, so the map does not jump. Section "T4 compact bar"
@@ -178,7 +182,7 @@ Studio (dark, one rounded rectangle, nothing protrudes):
 
 ## T4 compact bar (owner answer to question 12)
 
-When the map between the open side panels is too narrow for the full bar, the bar shows one icon
+When the room around the window centre between the open side panels is too narrow for the full bar, the bar shows one icon
 button per cell instead of its cards. The buttons open the same popovers as the cards. Mock-ups:
 `mockups/compact-metrics-bar.html` (states, variants) and `mockups/nav-and-bar-fit.html` (drag the
 free width or press Play to see the switch).
@@ -198,13 +202,14 @@ compact bar, 900 px window, both panels open (236 px free, bar 235 px):
   Layout | Area Height ⛓ / Edges Color | Labels / Scenarios | view tools
 ```
 
-- **When:** the compact bar takes over when the free map width (the width the bar shell already
-  computes from the panel insets, `FREE_WIDTH`) is less than the **full bar's minimum**: the sum of
+- **When:** the compact bar takes over when the bar's room (centred on the window, see "Position":
+  `2 × min(window centre − left inset, window width − right inset − window centre)`, from the panel
+  insets the shell already tracks) is less than the **full bar's minimum**: the sum of
   the card minimums plus link, tools, dividers and padding (732 px with the sample map; it depends on
-  which cells show). It returns to the full bar when the free width is **32 px more** than that, so
+  which cells show). It returns to the full bar when the room is **32 px more** than that, so
   dragging a panel edge near the limit doesn't make it flicker. The minimum is measured again when
-  the cells change (layout, delta mode, edges); the free width on every panel open, close or resize
-  and window resize, like the insets today. The bar stays centred between the panels (O7).
+  the cells change (layout, delta mode, edges); the room on every panel open, close or resize
+  and window resize, like the insets today. The bar stays centred on the window.
 - **Same height** (owner, 2026-11-22): both forms are **74 px** tall (the shell's content box
   `h-[4.625rem]` in both). The compact groups are centred vertically: rows of 28 px with a 6 px gap
   (`gap-y-1.5`), so nothing above or below the bar moves when it switches.
