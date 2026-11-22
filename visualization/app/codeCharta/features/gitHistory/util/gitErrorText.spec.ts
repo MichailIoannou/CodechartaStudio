@@ -195,19 +195,21 @@ describe("gitErrorText", () => {
         expect(sentence).toBe("Git did not commit: some files still have conflicts. Resolve them in your editor, stage them, then commit.")
     })
 
-    it("should count the conflicted files of a pull and a merge and keep the stash of a pop", () => {
+    it("should count the conflicted files of a pull and a merge, name the History and keep the stash of a pop", () => {
         // Arrange & Act
         const sentences = [
             gitErrorSentence(anError("CONFLICTS"), { operation: "pull", conflictedFiles: 2 }),
+            gitErrorSentence(anError("CONFLICTS"), { operation: "pull", conflictedFiles: 2, inProgress: "rebase" }),
             gitErrorSentence(anError("CONFLICTS"), { operation: "merge", conflictedFiles: 1 }),
             gitErrorSentence(anError("CONFLICTS"), { operation: "stashPop", conflictedFiles: 3 })
         ]
 
         // Assert
         expect(sentences).toEqual([
-            "Git stopped on conflicts in 2 files. The notice above the list says how to finish or abort.",
-            "Git stopped on conflicts in 1 file. The notice above the list says how to finish or abort.",
-            "Git stopped on conflicts in 3 files. The notice above the list says how to finish or abort. The stash was kept."
+            "Git stopped on conflicts in 2 files. Finish or abort the merge in the History.",
+            "Git stopped on conflicts in 2 files. Finish or abort the rebase in the History.",
+            "Git stopped on conflicts in 1 file. Finish or abort the merge in the History.",
+            "Git stopped on conflicts in 3 files. Finish or abort the merge in the History. The stash was kept."
         ])
     })
 
@@ -270,7 +272,7 @@ describe("gitErrorText", () => {
 
     it("should name the follow-up each sync failure offers", () => {
         // Arrange & Act
-        const followUps = (["PUSH_REJECTED", "STALE_PUSH_LEASE", "NO_UPSTREAM", "INDEX_LOCKED"] as const).map(code =>
+        const followUps = (["PUSH_REJECTED", "STALE_PUSH_LEASE", "NO_UPSTREAM", "CONFLICTS", "INDEX_LOCKED"] as const).map(code =>
             gitErrorFollowUp(anError(code))
         )
 
@@ -279,6 +281,7 @@ describe("gitErrorText", () => {
             { kind: "pull", label: "Pull" },
             { kind: "fetch", label: "Fetch" },
             { kind: "publish", label: "Publish branch" },
+            { kind: "openHistory", label: "Open History" },
             null
         ])
     })

@@ -1,0 +1,39 @@
+<div class="flex flex-col gap-1">
+    <div class="flex flex-wrap items-center gap-2">
+        <label class="text-sm text-base-content/60" for="compare-folder">{{ folders.isAcrossFolders() ? "Base folder" : "Folder" }}</label>
+        <select id="compare-folder" class="select select-sm w-48" data-testid="compare-folder" (change)="folders.folderId.set($any($event.target).value)">
+            @for (folder of folders.gitFolders(); track folder.id) {
+                <option [value]="folder.id" [selected]="folder.id === folders.folderId()">{{ folder.label }}</option>
+            }
+        </select>
+        <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+                type="checkbox"
+                class="checkbox checkbox-sm"
+                data-testid="compare-across-folders"
+                [checked]="folders.isAcrossFolders()"
+                (change)="folders.isAcrossFolders.set($any($event.target).checked)"
+            />
+            Compare with another folder
+        </label>
+        @if (folders.headFolder(); as headFolder) {
+            <label class="text-sm text-base-content/60" for="compare-head-folder">Head folder</label>
+            <select
+                id="compare-head-folder"
+                class="select select-sm w-48"
+                data-testid="compare-head-folder"
+                (change)="folders.chosenHeadFolderId.set($any($event.target).value)"
+            >
+                @for (folder of folders.otherGitFolders(); track folder.id) {
+                    <option [value]="folder.id" [selected]="folder.id === headFolder.id">{{ folder.label }}</option>
+                }
+            </select>
+        }
+    </div>
+    @if (folders.isAcrossFolders()) {
+        <p class="m-0 text-xs text-base-content/60" data-testid="compare-across-folders-limits">
+            Paths are matched as they are. A fork with a different layout shows files as removed and added. Without a clone that has both commits
+            the comparison is tip vs tip and lists metric changes only.
+        </p>
+    }
+</div>

@@ -185,7 +185,27 @@ describe("SyncButtonComponent", () => {
             expect(titleWithRemote).toBe("Publish 'main' to origin and track it")
             expect(publish).toHaveBeenCalledTimes(1)
             expect(main().disabled).toBe(true)
-            expect(main().title).toBe("This repository has no remote")
+            expect(main().title).toBe("This repository has no remote.")
+        })
+
+        it("should fetch and refuse pull and push with the reason while a merge is unfinished", async () => {
+            // Arrange
+            const behind = anUpstream("origin/main", { behind: 2 })
+            await renderButton(seedWith({ status: aStatusOn("main", { upstream: behind, operationInProgress: "merge" }) }, behind))
+
+            // Act
+            await userEvent.click(screen.getByTestId("sync-button-caret"))
+            const items = Array.from(screen.getByTestId("sync-menu").querySelectorAll("button"))
+
+            // Assert
+            expect(main().textContent).toContain("Fetch")
+            expect(main().disabled).toBe(false)
+            const refused = items.filter(item => item.getAttribute("aria-disabled") === "true")
+            expect(refused.map(item => [item.textContent?.trim(), item.title])).toEqual([
+                ["Pull", "Finish or abort the merge first."],
+                ["Push", "Finish or abort the merge first."],
+                ["Force Push (with Lease)…", "Finish or abort the merge first."]
+            ])
         })
 
         it("should read Pulling… and cancel the pull while it runs", async () => {

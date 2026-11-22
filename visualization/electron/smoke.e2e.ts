@@ -82,6 +82,17 @@ test("should open one window that boots the app", async () => {
     await expect(page.locator("cc-code-charta")).toBeAttached()
 })
 
+test("should show no menu bar outside macOS", async () => {
+    // Arrange
+    await bootedWindow()
+
+    // Act
+    const hasApplicationMenu = await desktopApp.evaluate(({ Menu }) => Menu.getApplicationMenu() !== null)
+
+    // Assert
+    expect(hasApplicationMenu).toBe(process.platform === "darwin")
+})
+
 test("should keep Node out of the page", async () => {
     // Arrange
     const page = await bootedWindow()

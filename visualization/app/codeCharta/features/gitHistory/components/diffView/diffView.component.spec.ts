@@ -168,4 +168,20 @@ describe("DiffViewComponent", () => {
         // Assert
         expect(screen.getByTestId("copy-command").textContent.trim()).toBe('git diff --cached -- "src/big file.ts"')
     })
+
+    it.each([
+        ["Linux and macOS", "Mozilla/5.0 (X11; Linux x86_64)", "git diff --no-index -- /dev/null notes.md"],
+        ["Windows", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "git diff --no-index -- NUL notes.md"]
+    ])("should compare an untracked file that is too large with the empty file of %s", async (_system, userAgent, command) => {
+        // Arrange
+        jest.spyOn(navigator, "userAgent", "get").mockReturnValue(userAgent)
+        const untracked: GitWorkingTreeEntry = { ...APP, path: "notes.md", kind: "untracked" }
+        const failures = { "git.diffFile": anErrorPayload("OUTPUT_TOO_LARGE") }
+
+        // Act
+        await renderDiff(seedWith(null, { changes: [untracked], failures }), "untracked:notes.md")
+
+        // Assert
+        expect(screen.getByTestId("copy-command").textContent.trim()).toBe(command)
+    })
 })

@@ -59,6 +59,7 @@ export class ChangesExplorerComponent implements OnDestroy {
     readonly activeDescendant = computed(() => (this.activeIndex() >= 0 ? `changes-row-${this.activeIndex()}` : null))
     readonly changeBadgeOf = changeBadgeOf
     readonly signedNumber = signedNumber
+    readonly areDeltaColorsInverted = this.readStore.areDeltaColorsInverted
 
     constructor() {
         effect(() => {

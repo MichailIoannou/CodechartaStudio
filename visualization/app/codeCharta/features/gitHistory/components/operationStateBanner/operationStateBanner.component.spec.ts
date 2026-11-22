@@ -56,6 +56,17 @@ describe("OperationStateBannerComponent", () => {
         expect(statusReads()).toBeGreaterThan(readsBefore)
     })
 
+    it("should put its actions on their own line under the text", async () => {
+        // Arrange & Act
+        await renderBanner(MERGING)
+
+        // Assert
+        const actions = screen.getByTestId("history-operation-actions")
+        expect(screen.getByTestId("history-operation-notice").className).toContain("flex-col")
+        expect(actions.previousElementSibling).toBe(screen.getByTestId("history-operation-notice-text"))
+        expect(actions.contains(screen.getByTestId("history-operation-abort"))).toBe(true)
+    })
+
     it("should offer no abort for an operation finished in a terminal", async () => {
         // Arrange & Act
         await renderBanner(aStatusOn("main", { operationInProgress: "cherryPick" }))

@@ -10,13 +10,14 @@ import { ToastService } from "../../shared/facade"
 import type { GitError, GitResult } from "../model/gitError"
 import { readyValueOf } from "../model/loadState"
 import { abortConfirmation, Divergence, forcePushConfirmation, publishResult, pullChoice, pullResult, pushResult } from "../util/effectText"
-import { forcePushReasonOf, publishRemoteOf, pullReasonOf, pushReasonOf, remoteOfUpstream } from "../util/syncState"
+import { blockingReasonOf, forcePushReasonOf, publishReasonOf, publishRemoteOf, pushReasonOf, remoteOfUpstream } from "../util/syncState"
 import { BranchActionsService } from "./branchActions.service"
 import { GitApiService } from "./gitApi.service"
 import { GitConfirmationService } from "./gitConfirmation.service"
 import { GitFailureReport, GitFollowUpHandlers } from "./gitFailureReport.service"
 import { GitOperationKind, GitOperationService } from "./gitOperation.service"
 import { GitRepositoryService } from "./gitRepository.service"
+import { HistoryNavigation } from "./historyNavigation.service"
 
 type PushTarget = Pick<GitPushParams, "remote" | "setUpstream" | "forceWithLeaseExpected">
 
@@ -30,15 +31,17 @@ export class SyncActionsService {
     private readonly toast = inject(ToastService)
     private readonly failures = inject(GitFailureReport)
     private readonly branchActions = inject(BranchActionsService)
+    private readonly history = inject(HistoryNavigation)
     private readonly refs = computed(() => readyValueOf(this.repository.refs()))
 
     readonly currentBranch = computed(() => this.refs()?.localBranches.find(branch => branch.isCurrent) ?? null)
     readonly remotes = computed(() => this.refs()?.remotes ?? [])
+    readonly inProgress = computed(() => readyValueOf(this.repository.status())?.operationInProgress ?? null)
 
     /** Fast-forward only; diverged branches ask how to combine them first, as does a refused fast-forward. */
     async pull(): Promise<void> {
         const upstream = this.currentBranch()?.upstream
-        if (pullReasonOf(this.currentBranch()) || !upstream) {
+        if (blockingReasonOf(this.currentBranch(), this.inProgress()) || !upstream) {
             return
         }
         if (isDiverged(upstream)) {
@@ -54,7 +57,7 @@ export class SyncActionsService {
     async push(branch = this.currentBranch()): Promise<void> {
         const upstream = branch?.upstream
         const remote = upstream ? remoteOfUpstream(upstream, this.remotes()) : null
-        if (pushReasonOf(branch) || !remote) {
+        if (pushReasonOf(branch, this.inProgress()) || !remote) {
             return
         }
         if (await this.sendPush(branch, { remote, setUpstream: false, forceWithLeaseExpected: null })) {
@@ -64,7 +67,7 @@ export class SyncActionsService {
 
     async publish(branch = this.currentBranch()): Promise<void> {
         const remote = publishRemoteOf(this.remotes())
-        if (!branch || !remote) {
+        if (!branch || !remote || publishReasonOf(this.remotes(), this.inProgress())) {
             return
         }
         if (await this.sendPush(branch, { remote, setUpstream: true, forceWithLeaseExpected: null })) {
@@ -76,7 +79,7 @@ export class SyncActionsService {
     async forcePush(branch = this.currentBranch()): Promise<void> {
         const upstream = branch?.upstream
         const remoteBranch = this.refs()?.remoteBranches.find(candidate => candidate.refName === upstream?.refName)
-        if (forcePushReasonOf(branch) || !remoteBranch) {
+        if (forcePushReasonOf(branch, this.inProgress()) || !remoteBranch) {
             return
         }
         const effect = {
@@ -146,11 +149,22 @@ export class SyncActionsService {
         return answer.ok ? (answer.value.distances[0]?.onlyInTarget ?? fallback) : fallback
     }
 
+    /** The History's merge or rebase notice already says how to go on from conflicts, so only elsewhere a toast does. */
     private async reportPullFailure(error: GitError): Promise<void> {
-        const conflictedFiles = error.code === "CONFLICTS" ? (await this.freshStatus())?.counts.conflicted : undefined
+        if (error.code === "CONFLICTS" && this.history.isShown()) {
+            return
+        }
+        const stopped = error.code === "CONFLICTS" ? await this.freshStatus() : null
         const branch = this.currentBranch()
         const remote = branch?.upstream ? remoteOfUpstream(branch.upstream, this.remotes()) : null
-        this.failures.report(error, { operation: "pull", conflictedFiles, branch: branch?.name, remote }, this.followUps())
+        const context = {
+            operation: "pull" as const,
+            conflictedFiles: stopped?.counts.conflicted,
+            inProgress: stopped?.operationInProgress,
+            branch: branch?.name,
+            remote
+        }
+        this.failures.report(error, context, this.followUps())
     }
 
     private async sendPush(branch: GitLocalBranch, target: PushTarget): Promise<boolean> {
@@ -167,7 +181,8 @@ export class SyncActionsService {
         return {
             pull: () => void this.pull(),
             fetch: () => void this.branchActions.fetch(false),
-            publish: () => void this.publish()
+            publish: () => void this.publish(),
+            openHistory: () => void this.history.open()
         }
     }
 

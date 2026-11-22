@@ -1,7 +1,9 @@
 import type { GitLocalBranch } from "../../../model/coreApi/GitLocalBranch"
 import type { GitRemote } from "../../../model/coreApi/GitRemote"
 import type { GitUpstream } from "../../../model/coreApi/GitUpstream"
+import type { OperationInProgress } from "../../../model/coreApi/OperationInProgress"
 import { counted } from "../../../util/wording"
+import { OPERATION_NAMES } from "./operationNames"
 
 export type SyncActionKind = "fetch" | "publish" | "pull" | "push"
 
@@ -21,13 +23,16 @@ export interface SyncContext {
     /** The checked-out local branch; null while HEAD is detached. */
     branch: GitLocalBranch | null
     remotes: readonly GitRemote[]
+    /** What git is in the middle of; pull, push and publish wait until it is finished or aborted. */
+    inProgress?: OperationInProgress | null
 }
 
 const PREFERRED_REMOTE = "origin"
-const DETACHED = "HEAD is detached: switch to a branch first"
-const NO_REMOTE = "This repository has no remote"
+const DETACHED = "HEAD is detached: switch to a branch first."
+const NO_REMOTE = "This repository has no remote."
+const NOTHING_TO_PULL = "Nothing to pull: the remote has no new commits. Use Push."
 const NOTHING_TO_PUSH = "Nothing to push"
-const NOTHING_TO_REPLACE = "The remote has no commits that your branch lacks — use Push"
+const NOTHING_TO_REPLACE = "Nothing on the remote would be replaced."
 const REMOTE_REF_PREFIX = "refs/remotes/"
 
 const FETCH: SyncAction = {
@@ -41,9 +46,9 @@ const FETCH: SyncAction = {
 }
 
 /** First match wins, as the table of design H5 orders the branch states. */
-export function mainSyncAction({ branch, remotes }: SyncContext): SyncAction {
+export function mainSyncAction({ branch, remotes, inProgress = null }: SyncContext): SyncAction {
     const upstream = branch?.upstream ?? null
-    if (!branch) {
+    if (!branch || inProgress) {
         return FETCH
     }
     if (!upstream) {
@@ -72,15 +77,17 @@ export interface SyncMenuItem {
 }
 
 /** Design H5's caret menu; Publish Branch only without upstream, the branch items only on a branch. */
-export function syncMenuItems({ branch, remotes }: SyncContext): SyncMenuItem[] {
+export function syncMenuItems({ branch, remotes, inProgress = null }: SyncContext): SyncMenuItem[] {
     const isUnpublished = branch !== null && !branch.upstream
     const items: (SyncMenuItem | null)[] = [
         menuItem("fetch", "Fetch", "fa-solid fa-rotate", FETCH.title),
         menuItem("fetchPrune", "Fetch and Remove Deleted Branches", "fa-solid fa-rotate"),
-        menuItem("pull", "Pull", "fa-solid fa-arrow-down", "", pullReasonOf(branch)),
-        menuItem("push", "Push", "fa-solid fa-arrow-up", "", pushReasonOf(branch)),
-        isUnpublished ? menuItem("publish", "Publish Branch", "fa-solid fa-cloud-arrow-up", "", publishReasonOf(remotes)) : null,
-        menuItem("forcePush", "Force Push (with Lease)…", "fa-solid fa-arrow-up", "", forcePushReasonOf(branch)),
+        menuItem("pull", "Pull", "fa-solid fa-arrow-down", "", pullReasonOf(branch, inProgress)),
+        menuItem("push", "Push", "fa-solid fa-arrow-up", "", pushReasonOf(branch, inProgress)),
+        isUnpublished
+            ? menuItem("publish", "Publish Branch", "fa-solid fa-cloud-arrow-up", "", publishReasonOf(remotes, inProgress))
+            : null,
+        menuItem("forcePush", "Force Push (with Lease)…", "fa-solid fa-arrow-up", "", forcePushReasonOf(branch, inProgress)),
         branch ? menuItem("setUpstream", "Set Upstream…", "fa-solid fa-link") : null
     ]
     return items.filter(item => item !== null)
@@ -90,20 +97,20 @@ function menuItem(action: SyncMenuAction, label: string, icon: string, hint = ""
     return { action, label, icon, hint, disabledReason }
 }
 
-export function pullReasonOf(branch: GitLocalBranch | null): string | null {
-    return trackingReasonOf(branch)
+export function pullReasonOf(branch: GitLocalBranch | null, inProgress: OperationInProgress | null = null): string | null {
+    return blockingReasonOf(branch, inProgress) ?? ((branch?.upstream?.behind ?? 0) > 0 ? null : NOTHING_TO_PULL)
 }
 
-export function pushReasonOf(branch: GitLocalBranch | null): string | null {
-    return trackingReasonOf(branch) ?? ((branch?.upstream?.ahead ?? 0) > 0 ? null : NOTHING_TO_PUSH)
+export function pushReasonOf(branch: GitLocalBranch | null, inProgress: OperationInProgress | null = null): string | null {
+    return blockingReasonOf(branch, inProgress) ?? ((branch?.upstream?.ahead ?? 0) > 0 ? null : NOTHING_TO_PUSH)
 }
 
-export function forcePushReasonOf(branch: GitLocalBranch | null): string | null {
-    return trackingReasonOf(branch) ?? ((branch?.upstream?.behind ?? 0) > 0 ? null : NOTHING_TO_REPLACE)
+export function forcePushReasonOf(branch: GitLocalBranch | null, inProgress: OperationInProgress | null = null): string | null {
+    return blockingReasonOf(branch, inProgress) ?? ((branch?.upstream?.behind ?? 0) > 0 ? null : NOTHING_TO_REPLACE)
 }
 
-export function publishReasonOf(remotes: readonly GitRemote[]): string | null {
-    return publishRemoteOf(remotes) ? null : NO_REMOTE
+export function publishReasonOf(remotes: readonly GitRemote[], inProgress: OperationInProgress | null = null): string | null {
+    return unfinishedReasonOf(inProgress) ?? (publishRemoteOf(remotes) ? null : NO_REMOTE)
 }
 
 /** Where a branch without upstream is published: origin when it exists, else the first remote. */
@@ -116,6 +123,15 @@ export function remoteOfUpstream(upstream: GitUpstream, remotes: readonly GitRem
     const branchPath = upstream.refName.slice(REMOTE_REF_PREFIX.length)
     const matching = remotes.filter(remote => branchPath.startsWith(`${remote.name}/`))
     return matching.reduce<string | null>((longest, remote) => (remote.name.length > (longest?.length ?? 0) ? remote.name : longest), null)
+}
+
+/** Why no pull, push or force push can run at all; "nothing to pull" may come from counts an older fetch left. */
+export function blockingReasonOf(branch: GitLocalBranch | null, inProgress: OperationInProgress | null = null): string | null {
+    return unfinishedReasonOf(inProgress) ?? trackingReasonOf(branch)
+}
+
+function unfinishedReasonOf(inProgress: OperationInProgress | null): string | null {
+    return inProgress ? `Finish or abort the ${OPERATION_NAMES[inProgress]} first.` : null
 }
 
 function trackingReasonOf(branch: GitLocalBranch | null): string | null {

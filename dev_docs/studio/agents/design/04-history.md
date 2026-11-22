@@ -142,10 +142,12 @@ running:         [ ◌ Pulling 45 % | ■ ]     progress fill as W1; caret becom
   choice (H15).
 - **During a merge or rebase** (`operationInProgress`): Pull, Push, Publish and Force Push are disabled
   with title "Finish or abort the merge first." (rebase: "…the rebase…"); the main part shows Fetch,
-  which stays allowed (O9.6).
+  which stays allowed (O9.6). The same rule holds in every place that offers these actions, the
+  branch context menu (H10) included (O11.1).
 - **Other disabled reasons** (wording approved, O9.6): detached HEAD "HEAD is detached: switch to a
-  branch first."; no remote "This repository has no remote."; Pull with nothing to pull "Nothing to
-  pull: the remote has no new commits. Use Push."; Force Push when nothing on the remote would be
+  branch first."; no remote "This repository has no remote."; Pull stays **enabled** at "nothing behind",
+  because the counts come from the last fetch and the remote may have moved since: git then answers
+  and the toast says "Already up to date" (O11.1, replaces the earlier "Nothing to pull" reason); Force Push when nothing on the remote would be
   replaced "Nothing on the remote would be replaced." Pushing a non-current branch without upstream
   is offered as **Publish 'x'** instead of a disabled Push.
 - **Running** (any mutating operation of this repository): **no spinner and no progress fill here**

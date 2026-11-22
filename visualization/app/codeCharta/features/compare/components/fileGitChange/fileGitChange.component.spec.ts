@@ -55,15 +55,15 @@ describe("FileGitChangeComponent", () => {
         await renderWith(GIT_LIST, "/root/big/MyClass.ts")
 
         // Assert
-        expect(wordsOf(screen.getByTestId("inspector-git-change"))).toBe("renamed from old/MyClass.ts")
+        expect(wordsOf(screen.getByTestId("inspector-git-change"))).toBe("renamed renamed from old/MyClass.ts")
     })
 
-    it("should name the change of a modified file", async () => {
+    it("should name the change of a modified file by its badge alone", async () => {
         // Act
         await renderWith(GIT_LIST, "/root/small/SmallClass.ts")
 
         // Assert
-        expect(wordsOf(screen.getByTestId("inspector-git-change"))).toBe("modified in git")
+        expect(wordsOf(screen.getByTestId("inspector-git-change"))).toBe("modified")
     })
 
     it("should say nothing for a file git did not change or without a git list", async () => {

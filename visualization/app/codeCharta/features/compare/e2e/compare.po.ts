@@ -11,6 +11,31 @@ export class ComparePageObject {
         return this.page.getByTestId("comparison-chip")
     }
 
+    chipButton() {
+        return this.page.getByTestId("comparison-trigger")
+    }
+
+    async openTheChipDetails() {
+        await this.chipButton().click()
+        await this.chipDetails().waitFor({ state: "visible" })
+    }
+
+    chipDetails() {
+        return this.page.getByTestId("comparison-details")
+    }
+
+    staleDot() {
+        return this.page.getByTestId("comparison-stale-dot")
+    }
+
+    projectMenuLabel() {
+        return this.page.getByTestId("project-switcher-label")
+    }
+
+    viewSwitcher() {
+        return this.page.getByTestId("view-switcher-metrics")
+    }
+
     async openTheLegend() {
         await this.page.getByTestId("legend-panel-button").click()
     }
@@ -97,9 +122,13 @@ export class ComparePageObject {
         return this.page.getByTestId("comparison-pull-request")
     }
 
+    leaveButton() {
+        return this.page.getByTestId("comparison-leave")
+    }
+
     async leave() {
-        await this.page.getByTestId("comparison-actions").click()
-        await this.page.getByTestId("comparison-leave").click()
+        await this.openTheChipDetails()
+        await this.leaveButton().click()
     }
 
     async openTheChangesMode() {

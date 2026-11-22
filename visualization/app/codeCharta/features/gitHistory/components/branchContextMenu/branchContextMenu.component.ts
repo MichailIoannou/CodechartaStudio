@@ -39,7 +39,7 @@ export class BranchContextMenuComponent {
     /** True when the tree should take the focus back. */
     readonly closed = output<boolean>()
 
-    readonly items = computed(() => branchMenuItems(this.target().ref, this.operations.isBusy()))
+    readonly items = computed(() => branchMenuItems(this.target().ref, this.operations.isBusy(), this.sync.remotes()))
     readonly contributedTarget = computed(() => contributedTargetOf(this.target().ref, this.repository.activeRepository()))
     /** Other features' items (plan 06: the compare entries), after the History's own. */
     readonly contributed = computed(() => {
@@ -109,6 +109,9 @@ export class BranchContextMenuComponent {
                 break
             case "push":
                 void this.sync.push(branch)
+                break
+            case "publish":
+                void this.sync.publish(branch)
                 break
             case "forcePush":
                 void this.sync.forcePush(branch)

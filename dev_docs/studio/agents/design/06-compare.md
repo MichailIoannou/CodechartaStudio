@@ -95,9 +95,10 @@ noDifferences, nav bar:   [≡ No metric differences ▾]  (dropdown adds "12 fi
     (`badge badge-soft badge-xs` "analysed" / `badge-warning` "stale by 2" with "showing 3c4d5e6"
     in `text-xs`), `btn btn-ghost btn-xs` "Change…" (opens C3 prefilled);
   - **Swap base and head** (`btn btn-ghost btn-xs`, today's `fa fa-arrows-h`, today's title "Switch
-    reference and comparison file");
+    reference and comparison file"); the dropdown stays open so the swapped rows are visible (O11.2);
   - PR line (PR comparisons): `fa-code-pull-request` "#123" + title `truncate` +
-    `fa-arrow-up-right-from-square`, link to `changeRequest.url` (`target="_blank"`);
+    `fa-arrow-up-right-from-square`, link to `changeRequest.url` (`target="_blank"`); without a
+    title (no listing) "Pull request #7" (O11.2);
   - footer: "Copy as text" (toast "Copied main...feature/x") and "Leave compare" (`fa-xmark`).
 - Keyboard: as the map selector (Enter / Space / ArrowDown open, Escape closes and refocuses). The
   button has `aria-haspopup="dialog"`.
@@ -334,13 +335,14 @@ Files changed in git                                      text-xs text-base-cont
 
 During a project comparison the inspector shows, under the node's badges, the file's git change as
 the worded change badge of area 04 H9 ("modified", "added", …); for a rename the badge plus
-`text-xs text-base-content/60` "renamed from <old path>" (`truncate`, full path in `title`). Files git
+`text-xs text-base-content/60` "from <old path>" (the word "renamed" only once, in the badge, O11.2) (`truncate`, full path in `title`). Files git
 did not change show no line. (The built "in git" text is dropped: the badge already says it.)
 
 ## C11 Remove fetched pull requests (O9.8)
 
-Folder menu item "Remove fetched pull requests" (`fa-broom`), only when such refs exist. No
-confirmation (they can be fetched again). Result toast (success) "Removed 4 fetched pull requests.";
+Folder menu item "Remove fetched pull requests" (`fa-broom`), offered for every git folder: a count
+in the core is not worth a protocol method (O11.2). No confirmation (they can be fetched again).
+Nothing to remove: toast (info) "'billing-api' has no fetched pull requests." Result toast (success) "Removed 4 fetched pull requests.";
 failure: error toast with Details.
 
 ## C9 Legend caption

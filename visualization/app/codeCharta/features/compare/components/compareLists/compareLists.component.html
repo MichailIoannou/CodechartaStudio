@@ -1,0 +1,56 @@
+<div class="flex flex-col gap-2" data-testid="compare-lists">
+    <fieldset class="join flex" aria-label="Lists">
+        @if (hasChangeRequestSegment()) {
+            <button
+                type="button"
+                class="btn btn-sm join-item flex-1 font-normal normal-case"
+                data-testid="compare-list-change-requests"
+                [class.btn-active]="shownList() === 'changeRequests'"
+                [attr.aria-pressed]="shownList() === 'changeRequests'"
+                (click)="chooseList('changeRequests')"
+            >
+                <span class="text-xs">{{ changeRequestSegmentLabel() }}</span>
+            </button>
+        }
+        <button
+            type="button"
+            class="btn btn-sm join-item flex-1 font-normal normal-case"
+            data-testid="compare-list-recent"
+            [class.btn-active]="shownList() === 'recent'"
+            [attr.aria-pressed]="shownList() === 'recent'"
+            (click)="chooseList('recent')"
+        >
+            <span class="text-xs">Recent</span>
+        </button>
+    </fieldset>
+    @if (shownList() === "changeRequests" && folders.repo(); as repo) {
+        <cc-change-request-list
+            [folder]="repo"
+            [panel]="pullRequestPanel()"
+            [defaultBranch]="folders.defaultBranch()"
+            (openDesktopTools)="openDesktopTools.emit()"
+            (started)="started.emit()"
+        />
+    } @else {
+        <ul class="m-0 flex max-h-48 list-none flex-col gap-0.5 overflow-y-auto p-0" data-testid="compare-recent">
+            @for (row of recentComparisons(); track row.range + row.recent.folderId) {
+                <li>
+                    <button
+                        type="button"
+                        class="flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-left text-sm hover:bg-base-200"
+                        data-testid="compare-recent-row"
+                        (click)="recentPicked.emit(row.recent)"
+                    >
+                        <span class="min-w-0 truncate font-mono">{{ row.range }}</span>
+                        @if (row.folderLabel) {
+                            <span class="min-w-0 truncate text-xs text-base-content/60">{{ row.folderLabel }}</span>
+                        }
+                        <span class="ml-auto shrink-0 text-xs text-base-content/60" [title]="row.comparedAtTitle">{{ row.age }}</span>
+                    </button>
+                </li>
+            } @empty {
+                <li class="px-3 py-1.5 text-sm text-base-content/60">No comparisons yet.</li>
+            }
+        </ul>
+    }
+</div>
