@@ -6,7 +6,7 @@ import { measureFullBarMinimum } from "./fullBarMinimum"
 
 /** A gap above the full bar's minimum, so dragging a panel edge near it does not make the bar flicker. */
 const FULL_AGAIN_ABOVE_MINIMUM_PX = 32
-/** What, besides the free width, can change the full bar's minimum: its cells, their names, a tool appearing. */
+/** What, besides the room, can change the full bar's minimum: its cells, their names, a tool appearing. */
 const WATCHED_CHANGES: MutationObserverInit = {
     subtree: true,
     childList: true,
@@ -14,8 +14,8 @@ const WATCHED_CHANGES: MutationObserverInit = {
     attributeFilter: ["class", "data-revealed"]
 }
 
-export function isCompactAtFreeWidth(freeWidthPx: number, fullMinimumPx: number, wasCompact: boolean): boolean {
-    return freeWidthPx < fullMinimumPx + (wasCompact ? FULL_AGAIN_ABOVE_MINIMUM_PX : 0)
+export function isCompactInRoom(roomPx: number, fullMinimumPx: number, wasCompact: boolean): boolean {
+    return roomPx < fullMinimumPx + (wasCompact ? FULL_AGAIN_ABOVE_MINIMUM_PX : 0)
 }
 
 /** Tells a bar whether the map left free between the side panels is narrower than its full form can get. */
@@ -34,16 +34,16 @@ export class CompactBarDirective {
     constructor() {
         const destroyRef = inject(DestroyRef)
         afterNextRender(() => {
-            const stopObserving = this.observeFreeWidth()
+            const stopObserving = this.observeRoom()
             destroyRef.onDestroy(stopObserving)
         })
     }
 
-    private observeFreeWidth(): () => void {
+    private observeRoom(): () => void {
         if (typeof ResizeObserver === "undefined") {
             return () => {}
         }
-        const probe = createFreeWidthProbe()
+        const probe = createRoomProbe()
         this.host.appendChild(probe)
         const updateNow = () => this.update(probe.clientWidth)
         let frame = 0
@@ -66,15 +66,15 @@ export class CompactBarDirective {
     }
 
     /** A bar kept alive in a background view measures nothing; it keeps its form until it is shown again. */
-    private update(freeWidthPx: number) {
-        if (freeWidthPx === 0) {
+    private update(roomPx: number) {
+        if (roomPx === 0) {
             return
         }
         const wasCompact = this.compact()
         if (!wasCompact) {
             this.fullMinimumPx = measureFullBarMinimum(this.host)
         }
-        const isCompact = isCompactAtFreeWidth(freeWidthPx, this.fullMinimumPx, wasCompact)
+        const isCompact = isCompactInRoom(roomPx, this.fullMinimumPx, wasCompact)
         if (isCompact !== wasCompact) {
             this.switchTo(isCompact)
         }
@@ -90,10 +90,10 @@ export class CompactBarDirective {
 }
 
 /** Spans exactly the free map between the panels, without a transition, so its width follows every panel change at once. */
-function createFreeWidthProbe(): HTMLElement {
+function createRoomProbe(): HTMLElement {
     const probe = document.createElement("div")
     probe.setAttribute("aria-hidden", "true")
-    probe.dataset.testid = "bar-free-width-probe"
+    probe.dataset.testid = "bar-room-probe"
     Object.assign(probe.style, {
         position: "fixed",
         left: INSET_LEFT,

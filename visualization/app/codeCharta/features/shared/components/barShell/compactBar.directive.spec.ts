@@ -1,7 +1,7 @@
 import { Component, inject, signal } from "@angular/core"
 import { render } from "@testing-library/angular"
 import { reportResize, resizeObserverDisconnect, stubElementSize, stubResizeObserver } from "../../../../util/testUtils/domStubs"
-import { CompactBarDirective, isCompactAtFreeWidth } from "./compactBar.directive"
+import { CompactBarDirective, isCompactInRoom } from "./compactBar.directive"
 
 @Component({
     selector: "cc-test-bar",
@@ -17,10 +17,10 @@ class TestBarComponent {
 const FULL_BAR_MINIMUM_PX = 500
 const HYSTERESIS_PX = 32
 
-describe("isCompactAtFreeWidth", () => {
+describe("isCompactInRoom", () => {
     it("should turn compact below the full bar's minimum", () => {
         // Act
-        const isCompact = isCompactAtFreeWidth(FULL_BAR_MINIMUM_PX - 1, FULL_BAR_MINIMUM_PX, false)
+        const isCompact = isCompactInRoom(FULL_BAR_MINIMUM_PX - 1, FULL_BAR_MINIMUM_PX, false)
 
         // Assert
         expect(isCompact).toBe(true)
@@ -28,7 +28,7 @@ describe("isCompactAtFreeWidth", () => {
 
     it("should stay full at exactly the full bar's minimum", () => {
         // Act
-        const isCompact = isCompactAtFreeWidth(FULL_BAR_MINIMUM_PX, FULL_BAR_MINIMUM_PX, false)
+        const isCompact = isCompactInRoom(FULL_BAR_MINIMUM_PX, FULL_BAR_MINIMUM_PX, false)
 
         // Assert
         expect(isCompact).toBe(false)
@@ -36,7 +36,7 @@ describe("isCompactAtFreeWidth", () => {
 
     it("should stay compact until 32 px more than the minimum are free", () => {
         // Act
-        const isCompact = isCompactAtFreeWidth(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX - 1, FULL_BAR_MINIMUM_PX, true)
+        const isCompact = isCompactInRoom(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX - 1, FULL_BAR_MINIMUM_PX, true)
 
         // Assert
         expect(isCompact).toBe(true)
@@ -44,7 +44,7 @@ describe("isCompactAtFreeWidth", () => {
 
     it("should return to the full bar at 32 px more than the minimum", () => {
         // Act
-        const isCompact = isCompactAtFreeWidth(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX, FULL_BAR_MINIMUM_PX, true)
+        const isCompact = isCompactInRoom(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX, FULL_BAR_MINIMUM_PX, true)
 
         // Assert
         expect(isCompact).toBe(false)
@@ -52,7 +52,7 @@ describe("isCompactAtFreeWidth", () => {
 })
 
 describe("CompactBarDirective", () => {
-    let freeWidthPx = 1000
+    let roomPx = 1000
     let restoreElementSize: () => void
     let frames: FrameRequestCallback[]
 
@@ -65,8 +65,8 @@ describe("CompactBarDirective", () => {
     beforeEach(() => {
         stubResizeObserver()
         resizeObserverDisconnect.mockClear()
-        freeWidthPx = 1000
-        restoreElementSize = stubElementSize(() => ({ width: freeWidthPx, height: 0 }))
+        roomPx = 1000
+        restoreElementSize = stubElementSize(() => ({ width: roomPx, height: 0 }))
         jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
             return { width: Number.parseFloat(this.style.width) || 0 } as DOMRect
         })
@@ -85,8 +85,8 @@ describe("CompactBarDirective", () => {
         return { fixture, bar, compactBar: fixture.componentInstance.compactBar }
     }
 
-    async function resizeFreeMapTo(width: number, fixture: { detectChanges(): void }) {
-        freeWidthPx = width
+    async function resizeRoomTo(width: number, fixture: { detectChanges(): void }) {
+        roomPx = width
         reportResize()
         fixture.detectChanges()
     }
@@ -96,7 +96,7 @@ describe("CompactBarDirective", () => {
         const { bar } = await renderBar()
 
         // Assert
-        const probe = bar.querySelector<HTMLElement>("[data-testid='bar-free-width-probe']")
+        const probe = bar.querySelector<HTMLElement>("[data-testid='bar-room-probe']")
         expect(probe.style.position).toBe("fixed")
         expect(probe.style.left).toBe("var(--cc-bar-inset-left, 0px)")
         expect(probe.style.right).toBe("var(--cc-bar-inset-right, 0px)")
@@ -109,7 +109,7 @@ describe("CompactBarDirective", () => {
         const { fixture, bar, compactBar } = await renderBar()
 
         // Act
-        await resizeFreeMapTo(FULL_BAR_MINIMUM_PX - 1, fixture)
+        await resizeRoomTo(FULL_BAR_MINIMUM_PX - 1, fixture)
 
         // Assert
         expect(compactBar.isCompact()).toBe(true)
@@ -119,12 +119,12 @@ describe("CompactBarDirective", () => {
     it("should keep the compact bar until 32 px more than the full bar's minimum are free again", async () => {
         // Arrange
         const { fixture, bar, compactBar } = await renderBar()
-        await resizeFreeMapTo(400, fixture)
+        await resizeRoomTo(400, fixture)
 
         // Act
-        await resizeFreeMapTo(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX - 1, fixture)
+        await resizeRoomTo(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX - 1, fixture)
         const isCompactBelowThreshold = compactBar.isCompact()
-        await resizeFreeMapTo(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX, fixture)
+        await resizeRoomTo(FULL_BAR_MINIMUM_PX + HYSTERESIS_PX, fixture)
 
         // Assert
         expect(isCompactBelowThreshold).toBe(true)
@@ -135,7 +135,7 @@ describe("CompactBarDirective", () => {
     it("should measure its minimum again when its cells change", async () => {
         // Arrange
         const { fixture, compactBar } = await renderBar()
-        await resizeFreeMapTo(600, fixture)
+        await resizeRoomTo(600, fixture)
         const wasCompact = compactBar.isCompact()
 
         // Act
@@ -153,10 +153,10 @@ describe("CompactBarDirective", () => {
     it("should keep its form while its view is not on screen", async () => {
         // Arrange
         const { fixture, compactBar } = await renderBar()
-        await resizeFreeMapTo(400, fixture)
+        await resizeRoomTo(400, fixture)
 
         // Act
-        await resizeFreeMapTo(0, fixture)
+        await resizeRoomTo(0, fixture)
 
         // Assert
         expect(compactBar.isCompact()).toBe(true)
@@ -171,6 +171,6 @@ describe("CompactBarDirective", () => {
 
         // Assert
         expect(resizeObserverDisconnect).toHaveBeenCalledTimes(1)
-        expect(bar.querySelector("[data-testid='bar-free-width-probe']")).toBeNull()
+        expect(bar.querySelector("[data-testid='bar-room-probe']")).toBeNull()
     })
 })
