@@ -158,6 +158,15 @@ describe("CommitListComponent", () => {
         expect(screen.getAllByTestId("graph-head-ring")).toHaveLength(1)
     })
 
+    it("should keep the graph column wide enough for its header when there is one lane", async () => {
+        // Arrange & Act
+        await renderList(seedOf([RELEASE, START]))
+
+        // Assert
+        const columns = screen.getByTestId("commit-list-header").style.gridTemplateColumns
+        expect(columns.split(" ")[0]).toBe("52px")
+    })
+
     it("should show one label and the rest as a count in a narrow pane", async () => {
         // Arrange
         sizeViewport({ width: 500, height: 280 })
@@ -314,6 +323,9 @@ describe("CommitListComponent", () => {
         // Assert
         expect(commitSelected).toBe(START.sha)
         expect(rowClass).toContain("bg-primary/20")
+        expect(["outline", "outline-1", "-outline-offset-1", "outline-primary/60"].every(name => rowClass.split(" ").includes(name))).toBe(
+            true
+        )
         expect(selection.selection()?.items).toEqual([{ kind: "workingTree", status: dirty }])
         expect(screen.getByTestId("commit-row-working-tree").getAttribute("aria-selected")).toBe("true")
     })

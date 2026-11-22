@@ -10,7 +10,13 @@ import { defaultState } from "../../../../stores/rootStore/state.manager"
 import { Export3DMapDialogComponent, Export3DMapDialogStore } from "../../../3dPrint/facade"
 import { CompareFacade } from "../../../compare/facade"
 import { ProjectSwitcherComponent, ProjectsFacade } from "../../../projects/facade"
-import { SnapshotsDialogComponent, SnapshotsDialogService } from "../../../snapshots/facade"
+import {
+    BatchAnalysisDialogComponent,
+    BatchAnalysisDialogService,
+    SnapshotsDialogComponent,
+    SnapshotsDialogService
+} from "../../../snapshots/facade"
+import { WindowControlsService } from "../../../windowControls/facade"
 import { WorkspaceStatusComponent } from "../../../workspaceStatus/facade"
 import { UploadFilesService } from "../../services/uploadFiles.service"
 import { NavBarComponent } from "./navBar.component"
@@ -21,7 +27,9 @@ class Export3DMapDialogStubComponent {
 }
 
 @Component({ selector: "cc-project-switcher", template: "" })
-class ProjectSwitcherStubComponent {}
+class ProjectSwitcherStubComponent {
+    readonly isIconOnlyBelowXl = input(false)
+}
 
 @Component({ selector: "cc-workspace-status", template: "" })
 class WorkspaceStatusStubComponent {
@@ -30,6 +38,9 @@ class WorkspaceStatusStubComponent {
 
 @Component({ selector: "cc-snapshots-dialog", template: "" })
 class SnapshotsDialogStubComponent {}
+
+@Component({ selector: "cc-batch-analysis-dialog", template: "" })
+class BatchAnalysisDialogStubComponent {}
 
 describe("NavBarComponent", () => {
     const providersFor = (isDeltaState: boolean) => [
@@ -146,8 +157,17 @@ describe("NavBarComponent", () => {
 
         beforeEach(() => {
             TestBed.overrideComponent(NavBarComponent, {
-                remove: { imports: [ProjectSwitcherComponent, WorkspaceStatusComponent, SnapshotsDialogComponent] },
-                add: { imports: [ProjectSwitcherStubComponent, WorkspaceStatusStubComponent, SnapshotsDialogStubComponent] }
+                remove: {
+                    imports: [ProjectSwitcherComponent, WorkspaceStatusComponent, SnapshotsDialogComponent, BatchAnalysisDialogComponent]
+                },
+                add: {
+                    imports: [
+                        ProjectSwitcherStubComponent,
+                        WorkspaceStatusStubComponent,
+                        SnapshotsDialogStubComponent,
+                        BatchAnalysisDialogStubComponent
+                    ]
+                }
             })
         })
 
@@ -202,6 +222,26 @@ describe("NavBarComponent", () => {
             expect(container.querySelectorAll("cc-snapshots-dialog").length).toBe(1)
         })
 
+        it("should host the batch analysis dialog while it has a folder", async () => {
+            // Arrange
+            const request = signal<{ folder: object } | null>(null)
+            const { container, fixture } = await render(NavBarComponent, {
+                providers: [
+                    ...desktopProvidersFor({ hasActiveProject: true }),
+                    { provide: BatchAnalysisDialogService, useValue: { current: request } }
+                ]
+            })
+            const closedCount = container.querySelectorAll("cc-batch-analysis-dialog").length
+
+            // Act
+            request.set({ folder: { projectId: "p-1", folderId: "f-1" } })
+            fixture.detectChanges()
+
+            // Assert
+            expect(closedCount).toBe(0)
+            expect(container.querySelectorAll("cc-batch-analysis-dialog").length).toBe(1)
+        })
+
         it("should hide the view switcher while no map is loaded", async () => {
             // Arrange & Act
             const { container } = await render(NavBarComponent, { providers: desktopProvidersFor() })
@@ -235,6 +275,27 @@ describe("NavBarComponent", () => {
             expect(container.querySelectorAll("cc-delta-selector").length).toBe(0)
         })
 
+        it("should shrink the project menu to its icon below 1280 px only during a comparison", async () => {
+            // Arrange
+            const isComparing = signal(false)
+            const { fixture } = await render(NavBarComponent, {
+                providers: [
+                    ...desktopProvidersFor({ hasFiles: true, hasActiveProject: true }),
+                    { provide: CompareFacade, useValue: { isComparing } }
+                ]
+            })
+            const switcher = () => fixture.debugElement.query(element => element.name === "cc-project-switcher").componentInstance
+            const whileNotComparing = switcher().isIconOnlyBelowXl()
+
+            // Act
+            isComparing.set(true)
+            fixture.detectChanges()
+
+            // Assert
+            expect(whileNotComparing).toBe(false)
+            expect(switcher().isIconOnlyBelowXl()).toBe(true)
+        })
+
         it("should show the delta selector for uploaded files", async () => {
             // Arrange & Act
             const { container } = await render(NavBarComponent, { providers: providersFor(true) })
@@ -254,6 +315,97 @@ describe("NavBarComponent", () => {
             // Assert
             expect(container.querySelectorAll("cc-delta-selector").length).toBe(1)
             expect(container.querySelectorAll("cc-workspace-status").length).toBe(0)
+        })
+    })
+    describe("with CodeCharta's title bar", () => {
+        const windowControlsFor = (platform: "linux" | "darwin" | "win32") => ({
+            provide: WindowControlsService,
+            useValue: {
+                state: signal({ platform, buttonOrder: ["minimize", "maximize", "close"], isMaximized: false, isFocused: true }),
+                menuAnchor: signal(null),
+                openMenu: jest.fn(),
+                usesAppTitleBar: signal(true),
+                drawsOwnButtons: signal(platform === "linux"),
+                reservesTrafficLights: signal(platform === "darwin"),
+                reservesCaptionButtons: signal(platform === "win32")
+            }
+        })
+
+        it("should move the window from its background and end with the window buttons on Linux", async () => {
+            // Arrange & Act
+            const { container } = await render(NavBarComponent, { providers: [...providersFor(false), windowControlsFor("linux")] })
+
+            // Assert
+            const navbar = container.querySelector(".navbar")
+            const trailing = [...container.querySelectorAll(".navbar-end > *")].map(element => element.tagName.toLowerCase())
+            expect(navbar.classList).toContain("cc-window-drag")
+            expect(trailing).toEqual(["cc-settings-button", "div", "cc-window-controls"])
+            expect(container.querySelector(".navbar-end > div").classList).toContain("cc-window-drag-area")
+        })
+
+        it("should open the window menu on a right-click on its empty space on Linux, but not on its controls", async () => {
+            // Arrange
+            const windowControls = windowControlsFor("linux")
+            const { container } = await render(NavBarComponent, { providers: [...providersFor(false), windowControls] })
+            const rightClickOn = (element: Element) => {
+                const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 640, clientY: 20 })
+                element.dispatchEvent(event)
+                return event.defaultPrevented
+            }
+
+            // Act
+            const isPreventedOnBackground = rightClickOn(container.querySelector(".navbar-end"))
+            const isPreventedOnSettings = rightClickOn(container.querySelector("cc-settings-button"))
+
+            // Assert
+            expect(isPreventedOnBackground).toBe(true)
+            expect(isPreventedOnSettings).toBe(false)
+            expect(windowControls.useValue.openMenu).toHaveBeenCalledTimes(1)
+            expect(windowControls.useValue.openMenu).toHaveBeenCalledWith({ x: 640, y: 20 })
+        })
+
+        it("should leave the right-click to the system on macOS and Windows", async () => {
+            // Arrange
+            const windowControls = windowControlsFor("win32")
+            const { container } = await render(NavBarComponent, { providers: [...providersFor(false), windowControls] })
+
+            // Act
+            container.querySelector(".navbar-end").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }))
+
+            // Assert
+            expect(windowControls.useValue.openMenu).not.toHaveBeenCalled()
+        })
+
+        it("should leave 80 px for the traffic lights and hide the logo below 1280 px on macOS", async () => {
+            // Arrange & Act
+            const { container } = await render(NavBarComponent, { providers: [...providersFor(false), windowControlsFor("darwin")] })
+
+            // Assert
+            const inset = container.querySelector("[data-testid='traffic-lights-inset']")
+            expect(inset.classList).toContain("w-20")
+            expect(container.querySelector(".navbar-start").firstElementChild).toBe(inset)
+            expect(container.querySelector("cc-nav-bar-logo").classList).toContain("max-xl:hidden")
+            expect(container.querySelector("cc-window-controls")).toBeNull()
+        })
+
+        it("should end where Windows draws its caption buttons", async () => {
+            // Arrange & Act
+            const { container } = await render(NavBarComponent, { providers: [...providersFor(false), windowControlsFor("win32")] })
+
+            // Assert
+            const navbar: HTMLElement = container.querySelector(".navbar")
+            expect(navbar.getAttribute("style")).toContain("titlebar-area-width")
+            expect(container.querySelector("cc-nav-bar-logo").classList).not.toContain("max-xl:hidden")
+            expect(container.querySelector("cc-window-controls")).toBeNull()
+        })
+
+        it("should keep the system's title bar look while the setting is off", async () => {
+            // Arrange & Act
+            const { container } = await render(NavBarComponent, { providers: providersFor(false) })
+
+            // Assert
+            expect(container.querySelector(".navbar").classList).not.toContain("cc-window-drag")
+            expect(container.querySelector("cc-window-controls")).toBeNull()
         })
     })
 })

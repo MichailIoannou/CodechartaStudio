@@ -1,0 +1,74 @@
+<div class="flex flex-col gap-2" data-testid="change-requests">
+    @if (panel().kind === "checking") {
+        <ul class="m-0 flex list-none flex-col gap-0.5 p-0" aria-busy="true" aria-label="Checking the hosting site" data-testid="change-requests-checking">
+            @for (row of skeletonRows; track row) {
+                <li class="flex items-center gap-3 px-3 py-1.5">
+                    <div class="skeleton h-3 w-10"></div>
+                    <div class="skeleton h-3 flex-1"></div>
+                    <div class="skeleton h-3 w-24"></div>
+                </li>
+            }
+        </ul>
+    }
+    @if (unknownHost(); as host) {
+        <div class="flex flex-wrap items-center gap-2 px-3 text-sm" data-testid="change-requests-unknown-host">
+            <span>{{ unknownHostText(host) }}</span>
+            <button type="button" class="btn btn-sm" data-testid="change-requests-treat-as-github" (click)="treatHostAs(host, 'github')">
+                GitHub Enterprise
+            </button>
+            <button type="button" class="btn btn-sm" data-testid="change-requests-treat-as-gitlab" (click)="treatHostAs(host, 'gitlab')">
+                GitLab
+            </button>
+        </div>
+    }
+    @if (panel().kind === "notInstalled" && wording(); as wording) {
+        <div class="flex flex-wrap items-center gap-2 px-3 text-sm" data-testid="change-requests-not-installed">
+            <span
+                >{{ wording.notInstalled }} <a class="link" target="_blank" rel="noopener" [href]="wording.cliUrl">{{ wording.cliSite }}</a></span
+            >
+            <button type="button" class="btn btn-sm" data-testid="change-requests-open-tools" (click)="openDesktopTools.emit()">
+                Open desktop tools
+            </button>
+        </div>
+    }
+    @if (panel().kind === "numberEntry" && wording(); as wording) {
+        <p class="m-0 px-3 text-sm" data-testid="change-requests-not-listed">{{ wording.notListed }}</p>
+    }
+    @if (problemLine(); as line) {
+        <div class="flex items-center gap-2 px-3" data-testid="change-requests-problem">
+            <span class="min-w-0 flex-1 font-mono text-xs">{{ line }}</span>
+            <button type="button" class="btn btn-ghost btn-xs btn-square" title="Refresh pull requests" aria-label="Refresh pull requests" (click)="refresh()">
+                <i class="fa-solid fa-rotate"></i>
+            </button>
+        </div>
+    }
+
+    @if (hosting(); as hosting) {
+        <div class="flex flex-wrap items-center gap-2 border-t border-base-300 px-3 pt-2 text-sm" data-testid="change-requests-number-entry">
+            <label class="text-base-content/60" for="change-request-number">{{ numberEntryLabel() }}</label>
+            <input
+                id="change-request-number"
+                type="text"
+                inputmode="numeric"
+                class="input input-bordered input-sm w-24 font-mono"
+                data-testid="change-requests-number"
+                [placeholder]="placeholderOf(hosting.provider)"
+                [value]="number()"
+                (input)="number.set($any($event.target).value)"
+                (keydown.enter)="open()"
+            />
+            <label class="text-base-content/60" for="change-request-base">base</label>
+            <select
+                id="change-request-base"
+                class="select select-sm w-40"
+                data-testid="change-requests-base"
+                (change)="baseBranch.set($any($event.target).value)"
+            >
+                @for (name of branchNames(); track name) {
+                    <option [value]="name" [selected]="name === baseBranch()">{{ name }}</option>
+                }
+            </select>
+            <button type="button" class="btn btn-sm" data-testid="change-requests-open" [disabled]="!canOpen()" (click)="open()">Open</button>
+        </div>
+    }
+</div>

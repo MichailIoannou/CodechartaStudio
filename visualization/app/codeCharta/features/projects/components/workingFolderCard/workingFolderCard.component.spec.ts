@@ -1,15 +1,30 @@
+import type { Provider } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
-import { screen } from "@testing-library/angular"
+import { screen, within } from "@testing-library/angular"
+import userEvent from "@testing-library/user-event"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
-import { GitRepositoryService } from "../../../gitHistory/facade"
+import { GitRepositoryService, WORKING_FOLDER_SOURCE } from "../../../gitHistory/facade"
+import { aLocalBranch, anUpstream, aRefs, aRepositoryInfo } from "../../../gitHistory/services/gitApi.mocks"
+import { GitConfirmationService } from "../../../gitHistory/services/gitConfirmation.service"
 import { aFolder, aGitStatus, aProject } from "../../projects.mocks"
-import { settle, setUpProjects } from "../../projectsTestBed.mocks"
+import { ProjectsTestBed, settle, setUpProjects } from "../../projectsTestBed.mocks"
+import { ProjectsFacade } from "../../services/projectsFacade"
 import { WorkingFolderCardComponent } from "./workingFolderCard.component"
 
 describe("WorkingFolderCardComponent", () => {
-    async function renderCard(folder: ProjectFolder, seed: FakeDesktopSeed = {}, { fetchStatus = true } = {}) {
-        await setUpProjects({ projects: [aProject("p-1", [folder])], activeProjectId: "p-1", ...seed })
+    let testBed: ProjectsTestBed
+
+    function bridgeRequests(method: string) {
+        return testBed.bridge.calls.filter(call => call.name === "request" && call.args[0] === method).map(call => call.args[1])
+    }
+
+    async function renderCard(
+        folder: ProjectFolder,
+        seed: FakeDesktopSeed = {},
+        { fetchStatus = true, providers = [] as Provider[] } = {}
+    ) {
+        testBed = await setUpProjects({ projects: [aProject("p-1", [folder])], activeProjectId: "p-1", ...seed }, { providers })
         if (fetchStatus) {
             await TestBed.inject(GitRepositoryService).refreshFolders([{ projectId: "p-1", folderId: folder.id }])
         }
@@ -28,6 +43,28 @@ describe("WorkingFolderCardComponent", () => {
         // Assert
         expect(screen.getByText("Plain folder — no git history.")).toBeTruthy()
         expect(screen.queryByTestId("working-folder-git")).toBeNull()
+    })
+
+    it("should open the History of a git folder", async () => {
+        // Arrange
+        await renderCard(aFolder("f-api"))
+
+        // Act
+        await userEvent.click(screen.getByTestId("working-folder-open-history"))
+
+        // Assert
+        expect(testBed.router.navigateByUrl).toHaveBeenLastCalledWith("/history")
+    })
+
+    it.each([
+        ["plain", aFolder("f-out", { kind: "plain" })],
+        ["missing", aFolder("f-gone", { status: "missing" })]
+    ])("should offer no History for a %s folder", async (_kind, folder) => {
+        // Arrange & Act
+        await renderCard(folder)
+
+        // Assert
+        expect(screen.queryByTestId("working-folder-open-history")).toBeNull()
     })
 
     it("should warn about a missing folder", async () => {
@@ -72,5 +109,33 @@ describe("WorkingFolderCardComponent", () => {
         expect(git).toContain("detached at a1b2c3d")
         expect(git).toContain("no upstream")
         expect(screen.getByText("merge in progress — 2 conflicts").classList.contains("text-warning")).toBe(true)
+    })
+
+    it("should push with the sync button next to the upstream and then read in sync", async () => {
+        // Arrange
+        const upstream = anUpstream("origin/main", { ahead: 1 })
+        const refs = aRefs({
+            localBranches: [aLocalBranch("main", { isCurrent: true, upstream })],
+            remotes: [{ name: "origin", url: "https://example.com/acme/billing-api.git" }]
+        })
+        await renderCard(
+            aFolder("f-api"),
+            { git: { "f-api": { info: aRepositoryInfo(), status: aGitStatus("main", { upstream }), refs } } },
+            { providers: [{ provide: WORKING_FOLDER_SOURCE, useExisting: ProjectsFacade }] }
+        )
+        jest.spyOn(TestBed.inject(GitConfirmationService), "ask").mockResolvedValue(true)
+        const main = within(screen.getByTestId("working-folder-upstream")).getByTestId("sync-button-main")
+        const title = main.title
+
+        // Act
+        await userEvent.click(main)
+        await settle()
+
+        // Assert
+        expect(title).toBe("Push 1 commit to origin/main")
+        expect(screen.getByTestId("working-folder-upstream").textContent).toContain("in sync")
+        expect(bridgeRequests("git.push")).toEqual([
+            expect.objectContaining({ repo: { projectId: "p-1", folderId: "f-api" }, remote: "origin" })
+        ])
     })
 })

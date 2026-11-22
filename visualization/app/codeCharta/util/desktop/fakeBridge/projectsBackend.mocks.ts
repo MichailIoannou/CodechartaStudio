@@ -6,7 +6,8 @@ export function fakeProjectsBackend(kit: FakeBridgeKit): FakeBackend {
     const { store, succeed, refuse, nextId, now } = kit
     Object.assign(store, {
         projects: JSON.parse(JSON.stringify(kit.seed.projects ?? [])),
-        activeProjectId: kit.seed.activeProjectId ?? null
+        activeProjectId: kit.seed.activeProjectId ?? null,
+        sourceFiles: { ...kit.seed.sourceFiles }
     })
 
     function withCounts(project: Project): Project {
@@ -116,6 +117,11 @@ export function fakeProjectsBackend(kit: FakeBridgeKit): FakeBackend {
         return answer.ok ? succeed(null) : answer
     }
 
+    function readSourceFile(params: FakeRequestParams) {
+        const key = `${params.folderId}/${params.relativePath}`
+        return succeed(Object.hasOwn(store.sourceFiles, key) ? { bytes: new TextEncoder().encode(store.sourceFiles[key]) } : null)
+    }
+
     function answerNull() {
         return succeed(null)
     }
@@ -136,7 +142,7 @@ export function fakeProjectsBackend(kit: FakeBridgeKit): FakeBackend {
         "projects.getActive": getActive,
         "projects.setActive": setActive,
         "projects.setView": setView,
-        "projects.readSourceFile": answerNull,
+        "projects.readSourceFile": readSourceFile,
         "projects.revealFolder": answerNull
     }
 }

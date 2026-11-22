@@ -1,8 +1,8 @@
 import { createSelector } from "@ngrx/store"
 import { CCFile } from "../../../model/codeCharta.model"
-import { FileState } from "../../../model/files/files"
+import { FileRename, FileState } from "../../../model/files/files"
 import { isDeltaState, isPartialState } from "../../../model/files/files.helper"
-import { visibleFileStatesSelector } from "../../../stores/fileStore/fileStore.facade"
+import { renamesOfTheDeltaSelector, visibleFileStatesSelector } from "../../../stores/fileStore/fileStore.facade"
 import { AggregationGenerator } from "../../../util/aggregationGenerator"
 import { clone } from "../../../util/clone"
 import { getDeltaFile } from "../../../util/getDeltaFile"
@@ -12,7 +12,7 @@ import { getDeltaFile } from "../../../util/getDeltaFile"
  * Only the delta path needs one, because `DeltaGenerator` writes into the nodes it walks — and what this
  * memoized selector returns must never be mutated.
  */
-export const _getUndecoratedAccumulatedData = (fileStates: FileState[]): CCFile | undefined => {
+export const _getUndecoratedAccumulatedData = (fileStates: FileState[], renames: readonly FileRename[] = []): CCFile | undefined => {
     if (isPartialState(fileStates)) {
         return AggregationGenerator.calculateAggregationFile(fileStates)
     }
@@ -24,7 +24,7 @@ export const _getUndecoratedAccumulatedData = (fileStates: FileState[]): CCFile 
     if (comparison && reference.file.map.name !== comparison.file.map.name) {
         return AggregationGenerator.calculateAggregationFile(fileStates)
     }
-    return getDeltaFile(clone(fileStates))
+    return getDeltaFile(clone(fileStates), renames)
 }
 
 // Dropped before the deep clone, not after: nothing downstream reads these, and they can hold millions
@@ -40,6 +40,6 @@ const withoutLensDataTheTreeNeverReads = (fileState: FileState): FileState => ({
     }
 })
 
-export const structureTreeSelector = createSelector(visibleFileStatesSelector, fileStates =>
-    _getUndecoratedAccumulatedData(fileStates.map(withoutLensDataTheTreeNeverReads))
+export const structureTreeSelector = createSelector(visibleFileStatesSelector, renamesOfTheDeltaSelector, (fileStates, renames) =>
+    _getUndecoratedAccumulatedData(fileStates.map(withoutLensDataTheTreeNeverReads), renames)
 )

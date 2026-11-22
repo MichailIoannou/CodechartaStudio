@@ -16,10 +16,10 @@ export class CopyToClipboardService {
         this.copied.set(false)
     }
 
-    async copy(text: string): Promise<void> {
+    async copy(text: string, feedbackMs = CopyToClipboardService.FEEDBACK_MS): Promise<void> {
         await navigator.clipboard.writeText(text)
         this.copied.set(true)
         clearTimeout(this.resetTimeout)
-        this.resetTimeout = setTimeout(() => this.copied.set(false), CopyToClipboardService.FEEDBACK_MS)
+        this.resetTimeout = setTimeout(() => this.copied.set(false), feedbackMs)
     }
 }

@@ -355,6 +355,18 @@ describe("IndexedDBWriter", () => {
             expect(result.state.domainLensSource).not.toHaveProperty("words")
         })
 
+        it("should leave the renames of the shown comparison out of the record, as the comparison is never restored", async () => {
+            // Arrange
+            const stateDuringAComparison = { ...defaultState, fileRenames: [{ from: "/root/old.ts", to: "/root/new.ts" }] }
+
+            // Act
+            await writeCcState(stateDuringAComparison)
+
+            // Assert
+            const result = await stubReadCcState()
+            expect(result.state).not.toHaveProperty("fileRenames")
+        })
+
         it("should commit the write with strict durability so a confirmed save survives a storage-process crash", async () => {
             // Arrange
             const transactionSpy = jest.spyOn(IDBDatabase.prototype, "transaction")

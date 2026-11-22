@@ -1,4 +1,9 @@
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
 import { render } from "@testing-library/angular"
+import type { ThemeDefinition } from "../../../../model/theme.model"
+import { contrastRatio } from "../../../../util/theme/contrast"
+import { THEMES } from "../../../../util/theme/themes"
 import { GraphRow } from "../../util/graphLayout"
 import { MAX_DRAWN_LANES } from "../../util/graphRowGeometry"
 import { CommitGraphCellComponent, laneColorClass } from "./commitGraphCell.component"
@@ -17,7 +22,7 @@ describe("CommitGraphCellComponent", () => {
         // Assert
         const path = container.querySelector("path") as SVGPathElement
         expect(path.getAttribute("d")).toBe("M24 0 L24 28")
-        expect(path.getAttribute("class")).toBe("text-accent")
+        expect(path.getAttribute("class")).toBe("text-(--cc-lane-3)")
         expect(path.getAttribute("stroke")).toBe("currentColor")
         expect(path.getAttribute("stroke-dasharray")).toBeNull()
     })
@@ -40,7 +45,7 @@ describe("CommitGraphCellComponent", () => {
         const dot = container.querySelector("circle") as SVGCircleElement
         expect(dot.getAttribute("cx")).toBe("24")
         expect(dot.getAttribute("fill")).toBe("currentColor")
-        expect(dot.getAttribute("class")).toBe("text-info")
+        expect(dot.getAttribute("class")).toBe("text-(--cc-lane-4)")
     })
 
     it("should draw HEAD as a ring with a second outer ring", async () => {
@@ -49,7 +54,7 @@ describe("CommitGraphCellComponent", () => {
 
         // Assert
         expect(container.querySelectorAll("circle")).toHaveLength(2)
-        expect(getByTestId("graph-head-ring").getAttribute("class")).toBe("fill-base-100 text-primary")
+        expect(getByTestId("graph-head-ring").getAttribute("class")).toBe("fill-base-100 text-(--cc-lane-1)")
     })
 
     it("should draw the uncommitted changes as a dashed hollow circle with a dashed line", async () => {
@@ -79,12 +84,56 @@ describe("CommitGraphCellComponent", () => {
     })
 })
 
+const STYLESHEET_PATH = resolve(__dirname, "../../../../../tailwind.css")
+const FLAT_RULE = /([^{}]+)\{([^{}]*)\}/g
+const LANE_VARIABLE = /--cc-lane-(\d): ([^;]+);/g
+const LANE_COUNT = 8
+const MIN_LANE_CONTRAST = 3
+
+/** The lane colours a theme ends up with, in rule order, `var(--color-primary)` read from the theme's chrome. */
+function laneColorsOf(theme: ThemeDefinition): string[] {
+    const stylesheet = readFileSync(STYLESHEET_PATH, "utf8")
+    const lanes: string[] = []
+    for (const [, selector, body] of stylesheet.matchAll(FLAT_RULE)) {
+        if (selector.includes(`[data-theme="${theme.id}"]`)) {
+            for (const [, lane, value] of body.matchAll(LANE_VARIABLE)) {
+                lanes[Number(lane) - 1] = value.trim() === "var(--color-primary)" ? theme.chrome.primary : value.trim()
+            }
+        }
+    }
+    return lanes
+}
+
 describe("laneColorClass", () => {
-    it("should cycle through the eight lane colours with the muted text colour last", () => {
+    it("should cycle through the eight lane variables of the theme", () => {
         // Act
         const classes = Array.from({ length: 9 }, (_, color) => laneColorClass(color))
 
         // Assert
-        expect(classes.slice(7)).toEqual(["text-base-content/60", "text-primary"])
+        expect(classes).toEqual([...Array.from({ length: LANE_COUNT }, (_, lane) => `text-(--cc-lane-${lane + 1})`), "text-(--cc-lane-1)"])
+    })
+
+    it.each(
+        THEMES.filter(theme => theme.colorScheme === "light").map(theme => [theme.id, theme] as const)
+    )("should give the light theme %s eight lane colours readable at 3:1 on its surface", (_id, theme) => {
+        // Act
+        const lanes = laneColorsOf(theme)
+
+        // Assert
+        expect(lanes.filter(Boolean)).toHaveLength(LANE_COUNT)
+        for (const lane of lanes) {
+            expect(contrastRatio(lane, theme.chrome.base100)).toBeGreaterThanOrEqual(MIN_LANE_CONTRAST)
+        }
+    })
+
+    it("should start the lanes of VS Light and Rider Day with their own primary", () => {
+        // Arrange
+        const ownPrimaryThemes = THEMES.filter(theme => theme.id === "vs-light" || theme.id === "rider-day")
+
+        // Act
+        const firstLanes = ownPrimaryThemes.map(theme => laneColorsOf(theme)[0])
+
+        // Assert
+        expect(firstLanes).toEqual(ownPrimaryThemes.map(theme => theme.chrome.primary))
     })
 })

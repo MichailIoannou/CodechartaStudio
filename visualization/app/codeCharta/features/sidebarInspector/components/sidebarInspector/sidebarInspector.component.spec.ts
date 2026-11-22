@@ -1,3 +1,4 @@
+import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { MockStore, provideMockStore } from "@ngrx/store/testing"
 import { render, screen, waitFor } from "@testing-library/angular"
@@ -8,9 +9,12 @@ import { selectedNodeSelector } from "../../../../renderer/renderModel/selectedN
 import { ThreeRendererService, ThreeSceneService } from "../../../../renderer/threeViewer/threeViewer.facade"
 import { isDeltaStateSelector } from "../../../../stores/fileStore/store/isDeltaState.selector"
 import { defaultMapColors, mapColorsSelector } from "../../../../stores/mapState/mapState.read.facade"
+import { selectedNodePathSelector } from "../../../../stores/sharedView/sharedView.read.facade"
+import { COLLAPSED_STRIP_WIDTH_PX, registerSidePanel, SidePanelRoom } from "../../../shared/facade"
 import { inspectorClusterSectionsSelector } from "../../selectors/inspectorClusterSections.selector"
 import { inspectorMappingBlocksSelector, MappingBlock } from "../../selectors/inspectorMappingBlocks.selector"
 import { inspectorMetricRowsSelector, MetricRow } from "../../selectors/inspectorMetricRows.selector"
+import { InspectorVisibilityService } from "../../services/inspectorVisibility.service"
 import { SidebarInspectorComponent } from "./sidebarInspector.component"
 
 const node = { name: "invoice.ts", path: "/root/services/billing/invoice.ts", attributes: { unary: 1 } } as unknown as CodeMapNode
@@ -37,7 +41,8 @@ describe("SidebarInspectorComponent", () => {
                         { selector: mapColorsSelector, value: defaultMapColors },
                         { selector: inspectorMappingBlocksSelector, value: mappingBlocks },
                         { selector: inspectorMetricRowsSelector, value: metricRows },
-                        { selector: inspectorClusterSectionsSelector, value: [] }
+                        { selector: inspectorClusterSectionsSelector, value: [] },
+                        { selector: selectedNodePathSelector, value: null }
                     ]
                 }),
                 { provide: ThreeSceneService, useValue: { clearSelection } },
@@ -110,5 +115,116 @@ describe("SidebarInspectorComponent", () => {
         // Assert
         expect(clearSelection).toHaveBeenCalled()
         await waitFor(() => expect((fixture.nativeElement as HTMLElement).classList.contains("translate-x-full")).toBe(true))
+    })
+
+    describe("collapsed", () => {
+        async function renderCollapsed() {
+            const rendered = await render(SidebarInspectorComponent)
+            selectBuilding()
+            TestBed.inject(InspectorVisibilityService).collapse()
+            rendered.detectChanges()
+            return rendered
+        }
+
+        it("should shrink to a strip with the selected name and a button that expands it", async () => {
+            // Act
+            await renderCollapsed()
+
+            // Assert
+            expect(screen.getByTestId("inspector-collapsed-name").textContent).toContain("invoice.ts")
+            expect(screen.getByRole("button", { name: "Show inspector" })).not.toBe(null)
+            expect(screen.queryByText("Metrics")).toBe(null)
+        })
+
+        it("should be as wide as the explorer's collapsed strip", async () => {
+            // Act
+            const { fixture } = await renderCollapsed()
+
+            // Assert
+            expect((fixture.nativeElement as HTMLElement).style.width).toBe(`${COLLAPSED_STRIP_WIDTH_PX}px`)
+        })
+
+        it("should mark the strip when another building is selected while it is collapsed", async () => {
+            // Arrange
+            const { detectChanges } = await renderCollapsed()
+            const mockStore = TestBed.inject(MockStore)
+
+            // Act
+            mockStore.overrideSelector(selectedNodeSelector, { ...node, name: "order.ts", path: "/root/order.ts" })
+            mockStore.refreshState()
+            detectChanges()
+
+            // Assert
+            expect(screen.getByTestId("inspector-collapsed-name").textContent).toContain("order.ts")
+            expect(screen.getByRole("button", { name: "Show inspector — selection changed" })).not.toBe(null)
+            expect(screen.queryByText("Metrics")).toBe(null)
+        })
+
+        it("should give the floating bars their room back", async () => {
+            // Act
+            await renderCollapsed()
+
+            // Assert
+            expect(document.documentElement.style.getPropertyValue("--cc-bar-inset-right")).toBe("0px")
+        })
+
+        it("should show the whole inspector again for the same building when expanded", async () => {
+            // Arrange
+            await renderCollapsed()
+
+            // Act
+            await userEvent.click(screen.getByRole("button", { name: "Show inspector" }))
+
+            // Assert
+            expect(screen.getByText("Metrics")).not.toBe(null)
+            expect(screen.getByTestId("inspector-node-name").textContent).toContain("invoice.ts")
+        })
+    })
+
+    describe("in a view that keeps room for the floating bars", () => {
+        const originalWidth = window.innerWidth
+        const explorer = { side: "left" as const, isOpen: signal(true), coveredWidthPx: signal(326), collapse: jest.fn() }
+
+        beforeEach(() => {
+            Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 })
+            explorer.isOpen.set(true)
+            explorer.collapse.mockClear()
+            TestBed.configureTestingModule({ providers: [SidePanelRoom] })
+        })
+
+        afterEach(() => Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth }))
+
+        async function renderBesideExplorer() {
+            const rendered = await render(SidebarInspectorComponent)
+            TestBed.runInInjectionContext(() => registerSidePanel(explorer))
+            return rendered
+        }
+
+        it("should collapse the explorer when a selection opens it with too little map left", async () => {
+            // Arrange
+            const { detectChanges } = await renderBesideExplorer()
+
+            // Act
+            selectBuilding()
+            detectChanges()
+
+            // Assert
+            expect(explorer.collapse).toHaveBeenCalledTimes(1)
+        })
+
+        it("should collapse itself when the explorer opens beside it with too little map left", async () => {
+            // Arrange
+            explorer.isOpen.set(false)
+            const { detectChanges } = await renderBesideExplorer()
+            selectBuilding()
+            detectChanges()
+
+            // Act
+            explorer.isOpen.set(true)
+            detectChanges()
+
+            // Assert
+            expect(TestBed.inject(InspectorVisibilityService).isCollapsed()).toBe(true)
+        })
     })
 })

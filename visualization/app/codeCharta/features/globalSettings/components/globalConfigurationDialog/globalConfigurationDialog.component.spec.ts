@@ -1,5 +1,6 @@
 import { HttpClient } from "@angular/common/http"
 import { ComponentFixture, TestBed } from "@angular/core/testing"
+import { By } from "@angular/platform-browser"
 import { State } from "@ngrx/store"
 import { provideMockStore } from "@ngrx/store/testing"
 import { LoadFileService } from "../../../../stores/fileStore/fileStore.facade"
@@ -8,6 +9,7 @@ import { defaultPreferences } from "../../../../stores/preferences/preferences.r
 import { defaultSharedView } from "../../../../stores/sharedView/sharedView.read.facade"
 import { createFakeDesktopBridge } from "../../../../util/desktop/desktopBridge.mocks"
 import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
+import { DesktopToolsPanelComponent } from "../../../desktopTools/facade"
 import { GlobalSettingsWriteStore } from "../../stores/globalSettings.write.store"
 import { GlobalConfigurationDialogComponent } from "./globalConfigurationDialog.component"
 
@@ -149,6 +151,55 @@ describe("GlobalConfigurationDialogComponent", () => {
 
             // Assert
             expect(panel).toBeNull()
+        })
+
+        it("should show the window section right after the desktop tools, and only on the desktop", () => {
+            // Act
+            const desktopPanel = panelOfAFreshDialog(createFakeDesktopBridge())
+            TestBed.resetTestingModule()
+            configureDialog(null)
+            const webDialog = TestBed.createComponent(GlobalConfigurationDialogComponent)
+            webDialog.detectChanges()
+
+            // Assert
+            expect(desktopPanel.nextElementSibling.tagName).toBe("CC-WINDOW-TITLE-BAR-SETTING")
+            expect(webDialog.nativeElement.querySelector("cc-window-title-bar-setting")).toBeNull()
+        })
+
+        function aFreshDesktopDialog() {
+            TestBed.resetTestingModule()
+            configureDialog(createFakeDesktopBridge())
+            const freshFixture = TestBed.createComponent(GlobalConfigurationDialogComponent)
+            freshFixture.detectChanges()
+            freshFixture.componentInstance.dialogElement().nativeElement.showModal = jest.fn()
+            const panel: DesktopToolsPanelComponent = freshFixture.debugElement.query(
+                By.directive(DesktopToolsPanelComponent)
+            ).componentInstance
+            const reveal = jest.spyOn(panel, "reveal").mockImplementation(() => {})
+            return { dialog: freshFixture.componentInstance, reveal }
+        }
+
+        it("should open at the desktop tools with the failing tool when opened for it", () => {
+            // Arrange
+            const { dialog, reveal } = aFreshDesktopDialog()
+
+            // Act
+            dialog.open({ section: "desktopTools", tool: "git" })
+
+            // Assert
+            expect(dialog.dialogElement().nativeElement.showModal).toHaveBeenCalled()
+            expect(reveal).toHaveBeenCalledWith("git")
+        })
+
+        it("should open at its top when opened without a section", () => {
+            // Arrange
+            const { dialog, reveal } = aFreshDesktopDialog()
+
+            // Act
+            dialog.open()
+
+            // Assert
+            expect(reveal).not.toHaveBeenCalled()
         })
 
         it("should show desktop tools in the desktop app", () => {

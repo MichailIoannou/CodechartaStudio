@@ -48,6 +48,18 @@ describe("SourceViewerComponent", () => {
         const statusBar = screen.getByRole("contentinfo", { hidden: true })
         expect([...statusBar.children].map(part => part.textContent.trim())).toEqual(["Kotlin", "1 line", "16 B", "UTF-8"])
         expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled()
+        expect(screen.queryByTestId("source-viewer-state-note")).toBeNull()
+    })
+
+    it("should say under the header when the file differs from the state the map shows", async () => {
+        // Arrange
+        const stateNote = "This is the file as it is in the folder now, not at a1b2c3d."
+
+        // Act
+        await openViewer({ ...aFile("val answer = 42\n"), stateNote })
+
+        // Assert
+        expect(screen.getByTestId("source-viewer-state-note").textContent.trim()).toBe(stateNote)
     })
 
     describe("history entry", () => {

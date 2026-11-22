@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from "@angular/core"
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from "@angular/core"
 import { LocalFolderDescription, LocalSourceService } from "../../services/localSource.service"
 
 @Component({
@@ -11,7 +11,7 @@ export class MapLocalFolderComponent {
 
     readonly mapFileName = input.required<string>()
 
-    readonly isAvailable = this.localSource.isAvailable
+    readonly isAvailable = computed(() => this.localSource.canChooseFolderFor(this.mapFileName()))
     readonly folder = signal<LocalFolderDescription | null>(null)
 
     constructor() {

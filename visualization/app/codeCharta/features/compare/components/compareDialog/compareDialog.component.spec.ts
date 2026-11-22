@@ -1,4 +1,4 @@
-import { signal } from "@angular/core"
+import { Provider, signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { StoreModule } from "@ngrx/store"
 import { render, screen } from "@testing-library/angular"
@@ -6,10 +6,20 @@ import userEvent from "@testing-library/user-event"
 import { appReducers, setStateMiddleware } from "../../../../stores/rootStore/store"
 import { createFakeDesktopBridge } from "../../../../util/desktop/desktopBridge.mocks"
 import { DESKTOP_BRIDGE } from "../../../../util/desktop/desktopBridge.token"
+import { GlobalConfigurationOpener } from "../../../globalSettings/facade"
 import { ProjectsFacade } from "../../../projects/facade"
-import { aFolder, aProject } from "../../../projects/projects.mocks"
-import type { CompareState } from "../../model/compare.model"
-import { aCommitSnapshot, aComparedCommit, aResolvedComparison, BASE_SHA, HEAD_SHA } from "../../ports/compareGateways.mocks"
+import { aFolder, aProject, aSnapshot } from "../../../projects/projects.mocks"
+import type { CompareState, SnapshotSummary } from "../../model/compare.model"
+import { HOSTING_GATEWAY } from "../../ports/compareGateways"
+import {
+    aCommitSnapshot,
+    aComparedCommit,
+    aResolvedComparison,
+    BASE_SHA,
+    FakeHostingGateway,
+    HEAD_SHA
+} from "../../ports/compareGateways.mocks"
+import { ChangeRequestService } from "../../services/changeRequest.service"
 import { CompareService } from "../../services/compare.service"
 import { CompareStore } from "../../stores/compare.store"
 import { CompareHostComponent } from "../compareHost/compareHost.component"
@@ -38,9 +48,12 @@ describe("CompareDialogComponent", () => {
 
     beforeEach(() => {
         localStorage.clear()
+        snapshotsByFolder = {}
     })
 
-    async function renderDialog(prefill = {}, state: Partial<CompareState> = {}) {
+    let snapshotsByFolder: Record<string, SnapshotSummary[]> = {}
+
+    async function renderDialog(prefill = {}, state: Partial<CompareState> = {}, project = BILLING, extraProviders: Provider[] = []) {
         service = { compareSides: jest.fn().mockResolvedValue(undefined), continueWithShownSnapshots: jest.fn(), cancel: jest.fn() }
         const bridge = createFakeDesktopBridge({ git: { "f-api": { refs: REFS }, "f-fork": { refs: REFS } } })
         HTMLDialogElement.prototype.showModal = jest.fn()
@@ -52,7 +65,16 @@ describe("CompareDialogComponent", () => {
             providers: [
                 { provide: CompareService, useValue: service },
                 { provide: DESKTOP_BRIDGE, useValue: bridge },
-                { provide: ProjectsFacade, useValue: { activeProject: signal(BILLING), workingFolder: signal(BILLING.folders[1]) } }
+                {
+                    provide: ProjectsFacade,
+                    useValue: {
+                        activeProject: signal(project),
+                        workingFolder: signal(project.folders[1]),
+                        snapshotsByFolder: signal(snapshotsByFolder),
+                        refreshFolderSnapshots: jest.fn().mockResolvedValue(undefined)
+                    }
+                },
+                ...extraProviders
             ]
         })
         store = TestBed.inject(CompareStore)
@@ -87,6 +109,95 @@ describe("CompareDialogComponent", () => {
         expect(service.compareSides).toHaveBeenCalledWith(
             { ref: { projectId: "p-billing", folderId: "f-fork" }, label: "billing-fork" },
             { base: "main", head: "a1b2", baseMode: "mergeBase", unresolved: ["a1b2"] }
+        )
+    })
+
+    it("should compare the head of another folder of the project and state the limits", async () => {
+        // Arrange
+        await renderDialog()
+
+        // Act
+        await userEvent.click(screen.getByTestId("compare-across-folders"))
+        await settle()
+        await userEvent.type(input("compare-base"), "main")
+        await userEvent.type(input("compare-head"), "feature/x")
+        await settle()
+        await userEvent.click(screen.getByTestId("compare-submit"))
+
+        // Assert
+        expect(screen.getByTestId("compare-across-folders-limits").textContent).toContain("Paths are matched as they are.")
+        expect((screen.getByTestId("compare-head-folder") as HTMLSelectElement).value).toBe("f-api")
+        expect(service.compareSides).toHaveBeenCalledWith(
+            { ref: { projectId: "p-billing", folderId: "f-fork" }, label: "billing-fork" },
+            {
+                base: "main",
+                head: "feature/x",
+                baseMode: "mergeBase",
+                unresolved: [],
+                headFolder: { ref: { projectId: "p-billing", folderId: "f-api" }, label: "billing-api" }
+            }
+        )
+    })
+
+    it("should place the other-folder checkbox right after the folder select", async () => {
+        // Act
+        await renderDialog()
+
+        // Assert
+        const checkboxLabel = screen.getByTestId("compare-across-folders").closest("label")
+        expect(screen.getByTestId("compare-folder").nextElementSibling).toBe(checkboxLabel)
+        expect(checkboxLabel?.className).not.toContain("ml-auto")
+    })
+
+    it("should keep the head folder of a recent comparison across two folders", async () => {
+        // Arrange
+        localStorage.setItem(
+            "codeChartaRecentComparisons",
+            JSON.stringify({
+                "p-billing": [
+                    { folderId: "f-api", headFolderId: "f-fork", base: "main", head: "main", baseMode: "tip", comparedAt: Date.now() }
+                ]
+            })
+        )
+        await renderDialog()
+
+        // Act
+        await userEvent.click(screen.getByTestId("compare-recent-row"))
+
+        // Assert
+        expect(screen.getByTestId("compare-recent-row").textContent).toContain("billing-api → billing-fork")
+        expect((screen.getByTestId("compare-across-folders") as HTMLInputElement).checked).toBe(true)
+        expect((screen.getByTestId("compare-head-folder") as HTMLSelectElement).value).toBe("f-fork")
+    })
+
+    it("should offer the folder's working-tree and imported snapshots and compare against the picked one", async () => {
+        // Arrange
+        snapshotsByFolder = {
+            "f-fork": [
+                aSnapshot("p-billing", "f-fork", "s-working-tree", { target: "workingTree", createdAt: "2026-11-04T09:12:00Z" }),
+                aSnapshot("p-billing", "f-fork", "s-imported", { source: "imported", originalFileName: "export-2024.cc.json" }),
+                aCommitSnapshot(BASE_SHA)
+            ]
+        }
+        await renderDialog()
+
+        // Act
+        await userEvent.type(input("compare-base"), "main")
+        await userEvent.click(input("compare-head"))
+        await settle()
+        const offered = screen.getAllByTestId("compare-head-option").map(option => option.textContent?.trim())
+        await userEvent.click(screen.getByText("export-2024.cc.json"))
+        await settle()
+        await userEvent.click(screen.getByTestId("compare-submit"))
+
+        // Assert
+        expect(offered).toEqual(
+            expect.arrayContaining([expect.stringContaining("Working tree (4 Nov"), expect.stringContaining("export-2024.cc.json")])
+        )
+        expect(screen.getByTestId("compare-head-resolved").textContent).toContain("analysed")
+        expect(service.compareSides).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ head: "export-2024.cc.json", headSnapshot: { kind: "imported", snapshotId: "s-imported" } })
         )
     })
 
@@ -299,5 +410,156 @@ describe("CompareDialogComponent", () => {
         const button = screen.getByTestId("compare-submit") as HTMLButtonElement
         expect(button.textContent?.trim()).toBe("Loading maps…")
         expect(button.disabled).toBe(true)
+    })
+
+    describe("pull requests", () => {
+        const GIT_FACTS = {
+            topLevel: "/work/f-fork",
+            isRepositoryRoot: true,
+            remotes: [{ name: "origin", fetchUrl: "https://github.com/mia/billing.git", pushUrl: null }],
+            defaultBranch: "main",
+            rootCommits: [],
+            isShallow: false,
+            detectedAt: "2026-11-20T00:00:00Z"
+        }
+        const WITH_REMOTE = aProject("p-billing", [
+            aFolder("f-api", { label: "billing-api" }),
+            aFolder("f-fork", { label: "billing-fork", role: "fork", git: GIT_FACTS as never })
+        ])
+        const GH_MISSING = {
+            checkedAt: "2026-11-20T00:00:00Z",
+            tools: [
+                {
+                    tool: "gh",
+                    isRequired: false,
+                    state: "missing",
+                    path: null,
+                    source: null,
+                    version: null,
+                    minimumVersion: null,
+                    problem: null
+                }
+            ],
+            canUseGit: true,
+            canAnalyse: true
+        }
+        const changeRequests = {
+            fetchHeadAndCompare: jest.fn(),
+            cancelFetch: jest.fn().mockResolvedValue(undefined),
+            baseBranchesOf: jest.fn()
+        }
+
+        function providersWith(hosting: FakeHostingGateway): Provider[] {
+            changeRequests.baseBranchesOf.mockResolvedValue(["main"])
+            return [
+                { provide: HOSTING_GATEWAY, useValue: hosting },
+                {
+                    provide: DESKTOP_BRIDGE,
+                    useValue: createFakeDesktopBridge({
+                        git: { "f-api": { refs: REFS }, "f-fork": { refs: REFS } },
+                        responses: { "tools.doctor": GH_MISSING }
+                    })
+                },
+                { provide: ChangeRequestService, useValue: changeRequests }
+            ]
+        }
+
+        it("should leave the segment out for a folder without a remote", async () => {
+            // Act
+            await renderDialog()
+
+            // Assert
+            expect(screen.queryByTestId("compare-list-change-requests")).toBeNull()
+            expect(screen.getByTestId("compare-recent")).toBeTruthy()
+        })
+
+        it("should show the segment first, with the install hint when gh is missing", async () => {
+            // Act
+            await renderDialog({}, {}, WITH_REMOTE, providersWith(new FakeHostingGateway()))
+
+            // Assert
+            expect(screen.getByTestId("compare-list-change-requests").textContent?.trim()).toBe("Pull requests")
+            expect(screen.getByTestId("change-requests-not-installed")).toBeTruthy()
+            expect(screen.getByTestId("change-requests-number-entry")).toBeTruthy()
+        })
+
+        it("should open the shared settings dialog at the desktop tools from the install hint", async () => {
+            // Arrange
+            const openGlobalConfiguration = jest.fn()
+            const opener = { provide: GlobalConfigurationOpener, useValue: { openGlobalConfiguration } }
+            await renderDialog({}, {}, WITH_REMOTE, [...providersWith(new FakeHostingGateway()), opener])
+
+            // Act
+            await userEvent.click(screen.getByTestId("change-requests-open-tools"))
+
+            // Assert
+            expect(openGlobalConfiguration).toHaveBeenCalledWith({ section: "desktopTools" })
+        })
+
+        it("should switch to the recent comparisons", async () => {
+            // Arrange
+            await renderDialog({}, {}, WITH_REMOTE, providersWith(new FakeHostingGateway()))
+
+            // Act
+            await userEvent.click(screen.getByTestId("compare-list-recent"))
+
+            // Assert
+            expect(screen.queryByTestId("change-requests")).toBeNull()
+            expect(screen.getByTestId("compare-recent")).toBeTruthy()
+        })
+
+        it("should leave the segment out when the core has no hosting support", async () => {
+            // Arrange
+            const hosting = new FakeHostingGateway()
+            hosting.answer = new Error("unknown method")
+
+            // Act
+            await renderDialog({}, {}, WITH_REMOTE, providersWith(hosting))
+
+            // Assert
+            expect(screen.queryByTestId("compare-list-change-requests")).toBeNull()
+        })
+
+        it("should offer to fetch a head that is not in the clone", async () => {
+            // Arrange
+            const changeRequest = {
+                folder: { projectId: "p-billing", folderId: "f-fork" },
+                provider: "github" as const,
+                number: 7,
+                remote: "origin",
+                baseRefName: "main",
+                url: null
+            }
+            await renderDialog({}, { phase: "headNotLocal", changeRequest }, WITH_REMOTE, providersWith(new FakeHostingGateway()))
+
+            // Act
+            await userEvent.click(screen.getByTestId("compare-fetch"))
+
+            // Assert
+            expect(screen.getByTestId("compare-fetch-head").textContent).toContain("The head of #7 is not in your clone yet.")
+            expect(screen.getByTestId("compare-fetch").textContent?.trim()).toBe("Fetch from 'origin'")
+            expect(screen.queryByTestId("compare-lists")).toBeNull()
+            expect(changeRequests.fetchHeadAndCompare).toHaveBeenCalled()
+        })
+
+        it("should cancel a running fetch", async () => {
+            // Arrange
+            const changeRequest = {
+                folder: { projectId: "p-billing", folderId: "f-fork" },
+                provider: "gitlab" as const,
+                number: 7,
+                remote: "upstream",
+                baseRefName: "main",
+                url: null
+            }
+            await renderDialog({}, { phase: "fetchingHead", changeRequest }, WITH_REMOTE, providersWith(new FakeHostingGateway()))
+
+            // Act
+            await userEvent.click(screen.getByTestId("compare-cancel-fetch"))
+
+            // Assert
+            expect(screen.getByTestId("compare-fetch-head").textContent).toContain("Fetching !7 from 'upstream'…")
+            expect(changeRequests.cancelFetch).toHaveBeenCalled()
+        })
     })
 })

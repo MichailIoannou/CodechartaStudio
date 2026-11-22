@@ -1,4 +1,5 @@
 import { CORE_PROTOCOL_VERSION } from "../../model/coreApi/coreApi"
+import type { SnapshotSummary } from "../../model/coreApi/SnapshotSummary"
 import { createFakeDesktopBridge, FakeDesktopBridge, FakeDesktopSeed, fakeDesktopBridgeSource } from "./desktopBridge.mocks"
 import {
     aFolder,
@@ -105,6 +106,25 @@ describe("createFakeDesktopBridge", () => {
         expect(folder).toBe("/projects/app")
         expect(file).toBeNull()
         expect(chosen).toEqual({ ok: true, value: null })
+    })
+
+    it("should follow the title bar setting and the maximize button in its window state", async () => {
+        // Arrange
+        const bridge = createFakeDesktopBridge({ windowState: { usesAppTitleBar: true } })
+        const announced: unknown[] = []
+        bridge.subscribe("shell.windowState", state => announced.push(state.isMaximized))
+
+        // Act
+        await bridge.setUseAppTitleBar(false)
+        await bridge.controlWindow("toggleMaximize")
+        const state = await bridge.windowState()
+
+        // Assert
+        expect(state).toEqual({
+            ok: true,
+            value: expect.objectContaining({ usesAppTitleBar: true, savedUseAppTitleBar: false, isMaximized: true })
+        })
+        expect(announced).toEqual([true])
     })
 
     it("should create and list a project", async () => {
@@ -612,6 +632,61 @@ describe("createFakeDesktopBridge", () => {
         })
     })
 
+    it("should plan a clean-up that keeps the newest, the shown, branch tips and imports, then prune it", async () => {
+        // Arrange
+        const project = aProject("p-1", [aFolder("f-1")])
+        project.view.shownSnapshotIdByFolder = { "f-1": "s-shown" }
+        const analysedAt = (snapshotId: string, finishedAt: string, overrides: Partial<SnapshotSummary> = {}): SnapshotSummary => ({
+            ...aSnapshot("p-1", "f-1", snapshotId, finishedAt),
+            source: "analysed",
+            target: "commit",
+            finishedAt,
+            ...overrides
+        })
+        const snapshots = [
+            analysedAt("s-newest", "2026-11-05T00:00:00Z"),
+            analysedAt("s-old", "2026-11-04T00:00:00Z"),
+            analysedAt("s-shown", "2026-11-03T00:00:00Z"),
+            analysedAt("s-tip", "2026-11-02T00:00:00Z", { commit: "b".repeat(40) }),
+            analysedAt("s-tree", "2026-11-01T00:00:00Z", { target: "workingTree" }),
+            aSnapshot("p-1", "f-1", "s-imported", NOW)
+        ]
+        const main = {
+            refName: "refs/heads/main",
+            name: "main",
+            commit: "b".repeat(40),
+            isCurrent: true,
+            upstream: null,
+            checkedOutInOtherWorktree: null,
+            lastCommit: { subject: "Release", committedAt: 1 }
+        }
+        const refs = {
+            fingerprint: "1",
+            head: { kind: "branch" as const, name: "main", commit: main.commit },
+            localBranches: [main],
+            remoteBranches: [],
+            tags: [],
+            remotes: []
+        }
+        const bridge = createFakeDesktopBridge({ projects: [project], snapshots, git: { "f-1": { refs } } })
+        const changed = jest.fn()
+        bridge.subscribe("snapshots.changed", changed)
+        const policy = { keepNewestCommitSnapshots: 1, keepNewestWorkingTreeSnapshots: 0, keepBranchTipsAndTags: true }
+
+        // Act
+        const plan = await answerValue(bridge, "snapshots.planPrune", { projectId: "p-1", folderId: "f-1", policy })
+        const snapshotIds = plan.delete.map(snapshot => snapshot.ref.snapshotId)
+        const pruned = await answerValue(bridge, "snapshots.prune", { projectId: "p-1", folderId: "f-1", snapshotIds, permanently: false })
+        const { snapshots: remaining } = await answerValue(bridge, "snapshots.list", { projectId: "p-1", folderId: "f-1" })
+
+        // Assert
+        expect(snapshotIds).toEqual(["s-old", "s-tree"])
+        expect(plan).toMatchObject({ keep: 3, freedBytes: 20 })
+        expect(pruned).toEqual({ deleted: 2, freedBytes: 20 })
+        expect(remaining.map(snapshot => snapshot.ref.snapshotId).sort()).toEqual(["s-imported", "s-newest", "s-shown", "s-tip"])
+        expect(changed).toHaveBeenCalledWith({ projectId: "p-1", folderId: "f-1" })
+    })
+
     it("should read a seeded map in chunks", async () => {
         // Arrange
         const ref = { projectId: "p-1", folderId: "f-1", snapshotId: "s-1" }
@@ -663,6 +738,20 @@ describe("createFakeDesktopBridge", () => {
             { ok: true, value: null },
             { ok: true, value: null }
         ])
+    })
+
+    it("should read the seeded source files of a folder and find no other file", async () => {
+        // Arrange
+        const bridge = createFakeDesktopBridge({ sourceFiles: { "f-1/src/app.ts": "export const app = 1" } })
+        const folderRef = { projectId: "p-1", folderId: "f-1" }
+
+        // Act
+        const seeded = await answerValue(bridge, "projects.readSourceFile", { ...folderRef, relativePath: "src/app.ts" })
+        const other = await answerValue(bridge, "projects.readSourceFile", { ...folderRef, relativePath: "src/other.ts" })
+
+        // Assert
+        expect(new TextDecoder().decode((seeded as { bytes: Uint8Array }).bytes)).toBe("export const app = 1")
+        expect(other).toBeNull()
     })
 
     it("should deliver emitted events", () => {

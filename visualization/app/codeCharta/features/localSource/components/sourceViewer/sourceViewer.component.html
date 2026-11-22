@@ -46,6 +46,9 @@
                     </button>
                 </div>
             </header>
+            @if (shown.stateNote; as stateNote) {
+                <p class="shrink-0 border-b border-base-300 px-3 py-1 text-xs text-warning" data-testid="source-viewer-state-note">{{ stateNote }}</p>
+            }
 
             <div
                 #scroller

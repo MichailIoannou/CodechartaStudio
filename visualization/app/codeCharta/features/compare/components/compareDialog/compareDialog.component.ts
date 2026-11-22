@@ -8,39 +8,39 @@ import {
     inject,
     input,
     OnInit,
+    output,
     signal,
     untracked,
     viewChild
 } from "@angular/core"
-import { relativeTime } from "../../../../util/wording"
 import { RefPickerComponent, RefRange, RefResolution } from "../../../gitHistory/facade"
 import { ProjectsFacade } from "../../../projects/facade"
-import type { BaseMode, ComparePrefill, FolderRef } from "../../model/compare.model"
+import type { BaseMode, ComparePrefill } from "../../model/compare.model"
 import { BaseModeRepo } from "../../repos/baseMode.repo"
-import { RecentComparison, RecentComparisonsRepo } from "../../repos/recentComparisons.repo"
+import type { RecentComparison } from "../../repos/recentComparisons.repo"
+import { ChangeRequestService } from "../../services/changeRequest.service"
+import { changeRequestLabel } from "../../services/changeRequestText"
 import { CompareService } from "../../services/compare.service"
-import { errorSentence, rangeOf, refName, resolveOutcome } from "../../services/comparisonText"
+import { CompareFolderChoice } from "../../services/compareFolderChoice"
+import { errorSentence, refName, resolveOutcome } from "../../services/comparisonText"
+import { snapshotInputOf } from "../../services/snapshotSides"
+import type { TypedSides } from "../../services/typedSides"
 import { CompareStore } from "../../stores/compare.store"
+import { CompareFolderRowComponent } from "../compareFolderRow/compareFolderRow.component"
+import { CompareListsComponent } from "../compareLists/compareLists.component"
 import { ComparePreparationComponent } from "../comparePreparation/comparePreparation.component"
 
 const BUSY_PHASES: ReadonlySet<string> = new Set(["resolving", "loading"])
 const PREPARATION_PHASES: ReadonlySet<string> = new Set(["needsDecision", "analysing"])
 const FINISHED_PHASES: ReadonlySet<string> = new Set(["active", "noDifferences"])
-const MILLISECONDS_PER_SECOND = 1000
 const NAMED_REF_KINDS: ReadonlySet<string> = new Set(["branch", "remoteBranch", "tag"])
-
-interface RecentRow {
-    recent: RecentComparison
-    range: string
-    folderLabel: string | null
-    age: string
-    comparedAtTitle: string
-}
+const FETCH_PHASES: ReadonlySet<string> = new Set(["headNotLocal", "fetchingHead"])
 
 @Component({
     selector: "cc-compare-dialog",
     templateUrl: "./compareDialog.component.html",
-    imports: [RefPickerComponent, ComparePreparationComponent],
+    imports: [RefPickerComponent, ComparePreparationComponent, CompareFolderRowComponent, CompareListsComponent],
+    providers: [CompareFolderChoice],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CompareDialogComponent implements OnInit, AfterViewInit {
@@ -48,39 +48,28 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
     private readonly service = inject(CompareService)
     private readonly projects = inject(ProjectsFacade)
     private readonly baseModeRepo = inject(BaseModeRepo)
-    private readonly recentComparisonsRepo = inject(RecentComparisonsRepo)
+    private readonly changeRequests = inject(ChangeRequestService)
     private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
     private readonly basePicker = viewChild<RefPickerComponent>("basePicker")
     private readonly headPicker = viewChild<RefPickerComponent>("headPicker")
+    readonly folders = inject(CompareFolderChoice)
     readonly hasStartedHere = signal(false)
 
     readonly prefill = input.required<ComparePrefill>()
-    readonly folderId = signal("")
+    readonly openDesktopTools = output<void>()
     readonly base = signal("")
     readonly head = signal("")
     readonly baseResolution = signal<RefResolution | null>(null)
     readonly headResolution = signal<RefResolution | null>(null)
     readonly baseMode = signal<BaseMode>("mergeBase")
-    readonly recentComparisons = signal<RecentRow[]>([])
 
-    readonly gitFolders = computed(() => (this.projects.activeProject()?.folders ?? []).filter(folder => folder.kind === "git"))
-    readonly folder = computed(() => this.gitFolders().find(candidate => candidate.id === this.folderId()) ?? null)
-    readonly repo = computed<FolderRef | null>(
-        () => {
-            const projectId = this.projects.activeProject()?.id
-            const folderId = this.folder()?.id
-            return projectId && folderId ? { projectId, folderId } : null
-        },
-        { equal: (first, second) => first?.projectId === second?.projectId && first?.folderId === second?.folderId }
-    )
-    readonly defaultBranch = computed(() => this.folder()?.git?.defaultBranch ?? null)
     readonly showsBaseMode = computed(() => NAMED_REF_KINDS.has(this.baseResolution()?.kind ?? ""))
     readonly phase = computed(() => this.store.state().phase)
     readonly isBusy = computed(() => BUSY_PHASES.has(this.phase()))
     readonly isLoading = computed(() => this.phase() === "loading")
     readonly isPreparing = computed(() => PREPARATION_PHASES.has(this.phase()))
     readonly canCompare = computed(
-        () => Boolean(this.base().trim() && this.head().trim() && this.folderId()) && !this.isBusy() && this.phase() !== "analysing"
+        () => Boolean(this.base().trim() && this.head().trim() && this.folders.folderId()) && !this.isBusy() && this.phase() !== "analysing"
     )
     readonly outcome = computed(() => {
         const { phase, resolved } = this.store.state()
@@ -91,6 +80,14 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         return phase === "failed" && error ? errorSentence(error) : null
     })
     readonly canRetry = computed(() => this.store.state().error?.kind === "coreUnavailable")
+    readonly fetchPrompt = computed(() => {
+        const { phase, changeRequest } = this.store.state()
+        if (!(FETCH_PHASES.has(phase) && changeRequest)) {
+            return null
+        }
+        const label = changeRequestLabel(changeRequest.provider, changeRequest.number)
+        return { label, remote: changeRequest.remote, isFetching: phase === "fetchingHead" }
+    })
 
     constructor() {
         effect(() => {
@@ -98,20 +95,22 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
                 untracked(() => this.close())
             }
         })
+        effect(() => {
+            for (const folder of [this.folders.repo(), this.folders.headRepo()]) {
+                if (folder) {
+                    untracked(() => void this.projects.refreshFolderSnapshots(folder).catch(() => undefined))
+                }
+            }
+        })
     }
 
     ngOnInit(): void {
-        const { folder, base, head } = this.prefill()
+        const { folder, base, head, headFolder } = this.prefill()
         const resolved = this.store.state().resolved
-        const working = this.projects.workingFolder()
-        const folders = this.gitFolders()
-        const preferred = folder?.folderId ?? (working?.kind === "git" ? working.id : folders[0]?.id)
-        this.folderId.set(preferred ?? "")
+        this.folders.prefill(folder?.folderId, headFolder?.folderId)
         this.base.set(base ?? (resolved ? refName(resolved.base.requested) : ""))
         this.head.set(head ?? (resolved ? refName(resolved.head.requested) : ""))
-        const projectId = this.projects.activeProject()?.id ?? ""
-        this.baseMode.set(this.baseModeRepo.read(projectId))
-        this.recentComparisons.set(this.recentRowsOf(this.recentComparisonsRepo.read(projectId)))
+        this.baseMode.set(this.baseModeRepo.read(this.projects.activeProject()?.id ?? ""))
     }
 
     ngAfterViewInit(): void {
@@ -122,10 +121,6 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         focused?.focus()
     }
 
-    chooseFolder(folderId: string): void {
-        this.folderId.set(folderId)
-    }
-
     fillBoth(range: RefRange): void {
         this.base.set(range.base)
         this.head.set(range.head)
@@ -133,7 +128,8 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
     }
 
     useRecent(recent: RecentComparison): void {
-        this.folderId.set(recent.folderId)
+        this.folders.folderId.set(recent.folderId)
+        this.folders.chooseAcross(recent.headFolderId)
         this.base.set(recent.base)
         this.head.set(recent.head)
         this.chooseBaseMode(recent.baseMode)
@@ -151,17 +147,35 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
     }
 
     async compare(): Promise<void> {
-        const folder = this.folder()
-        const repo = this.repo()
+        const folder = this.folders.folder()
+        const repo = this.folders.repo()
         if (!(this.canCompare() && folder && repo)) {
             return
         }
         this.hasStartedHere.set(true)
         const unresolved = [this.base(), this.head()].filter((_, index) => [this.baseResolution(), this.headResolution()][index] === null)
+        const headFolder = this.folders.headFolder()
+        const headRepo = this.folders.headRepo()
         await this.service.compareSides(
             { ref: repo, label: folder.label },
-            { base: this.base(), head: this.head(), baseMode: this.showsBaseMode() ? this.baseMode() : "tip", unresolved }
+            {
+                base: this.base(),
+                head: this.head(),
+                baseMode: this.showsBaseMode() ? this.baseMode() : "tip",
+                unresolved,
+                ...(headFolder && headRepo ? { headFolder: { ref: headRepo, label: headFolder.label } } : {}),
+                ...this.pickedSnapshots()
+            }
         )
+    }
+
+    async fetchHead(): Promise<void> {
+        this.hasStartedHere.set(true)
+        await this.changeRequests.fetchHeadAndCompare()
+    }
+
+    async cancelFetch(): Promise<void> {
+        await this.changeRequests.cancelFetch()
     }
 
     async continueAfterOutcome(): Promise<void> {
@@ -173,21 +187,15 @@ export class CompareDialogComponent implements OnInit, AfterViewInit {
         this.dialog().nativeElement.close()
     }
 
-    private recentRowsOf(recents: RecentComparison[]): RecentRow[] {
-        const folders = this.gitFolders()
-        const isLabelled = folders.length > 1
-        return recents
-            .filter(recent => folders.some(folder => folder.id === recent.folderId))
-            .map(recent => ({
-                recent,
-                range: rangeOf(recent.base, recent.head, recent.baseMode),
-                folderLabel: isLabelled ? (folders.find(folder => folder.id === recent.folderId)?.label ?? null) : null,
-                age: relativeTime(recent.comparedAt / MILLISECONDS_PER_SECOND, Date.now()),
-                comparedAtTitle: new Date(recent.comparedAt).toLocaleString()
-            }))
+    /** Only the sides picked from the "Snapshots" group. */
+    private pickedSnapshots(): Pick<TypedSides, "baseSnapshot" | "headSnapshot"> {
+        const baseSnapshot = snapshotInputOf(this.baseResolution())
+        const headSnapshot = snapshotInputOf(this.headResolution())
+        return { ...(baseSnapshot ? { baseSnapshot } : {}), ...(headSnapshot ? { headSnapshot } : {}) }
     }
 
     private handleClosed(): void {
+        void this.changeRequests.cancelFetch()
         if (!FINISHED_PHASES.has(this.phase())) {
             this.service.cancel()
         }

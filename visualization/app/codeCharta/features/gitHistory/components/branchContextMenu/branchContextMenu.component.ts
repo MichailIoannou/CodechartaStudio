@@ -3,8 +3,11 @@ import type { GitLocalBranch } from "../../../../model/coreApi/GitLocalBranch"
 import type { GitRefs } from "../../../../model/coreApi/GitRefs"
 import type { GitRemoteBranch } from "../../../../model/coreApi/GitRemoteBranch"
 import { ContextMenuItemComponent, FloatingMenuAnchor, FloatingMenuComponent } from "../../../shared/facade"
+import { BRANCH_ACTIONS, BranchAction, BranchMenuTarget as ContributedMenuTarget } from "../../ports/branchActions.port"
 import { BranchActionsService } from "../../services/branchActions.service"
 import { GitOperationService } from "../../services/gitOperation.service"
+import { GitRepositoryService } from "../../services/gitRepository.service"
+import { SyncActionsService } from "../../services/syncActions.service"
 import { BranchMenuAction, BranchMenuItem, branchMenuItems } from "../../util/branchMenu"
 import type { BranchRef } from "../../util/branchTree"
 
@@ -25,15 +28,26 @@ const STEPS: Readonly<Record<string, number>> = { ArrowDown: 1, ArrowUp: -1 }
 })
 export class BranchContextMenuComponent {
     private readonly actions = inject(BranchActionsService)
+    private readonly sync = inject(SyncActionsService)
     private readonly operations = inject(GitOperationService)
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
     private readonly injector = inject(Injector)
+    private readonly repository = inject(GitRepositoryService)
+    private readonly contributedActions = inject(BRANCH_ACTIONS, { optional: true }) ?? []
 
     readonly target = input.required<BranchMenuTarget>()
     /** True when the tree should take the focus back. */
     readonly closed = output<boolean>()
 
-    readonly items = computed(() => branchMenuItems(this.target().ref, this.operations.isBusy()))
+    readonly items = computed(() =>
+        branchMenuItems(this.target().ref, this.operations.isBusy(), this.sync.remotes(), this.sync.inProgress())
+    )
+    readonly contributedTarget = computed(() => contributedTargetOf(this.target().ref, this.repository.activeRepository()))
+    /** Other features' items (plan 06: the compare entries), after the History's own. */
+    readonly contributed = computed(() => {
+        const target = this.contributedTarget()
+        return target ? this.contributedActions.filter(action => action.isOfferedFor(target)) : []
+    })
 
     focusFirstItemIfFromKeyboard() {
         if (this.target().isFromKeyboard) {
@@ -46,6 +60,11 @@ export class BranchContextMenuComponent {
         if (refs) {
             this.runAction(item.action, this.target().ref, refs)
         }
+        this.closed.emit(this.target().isFromKeyboard)
+    }
+
+    runContributed(action: BranchAction, target: ContributedMenuTarget) {
+        action.run(target)
         this.closed.emit(this.target().isFromKeyboard)
     }
 
@@ -90,6 +109,15 @@ export class BranchContextMenuComponent {
             case "setUpstream":
                 this.actions.openDialog({ kind: "setUpstream", branch })
                 break
+            case "push":
+                void this.sync.push(branch)
+                break
+            case "publish":
+                void this.sync.publish(branch)
+                break
+            case "forcePush":
+                void this.sync.forcePush(branch)
+                break
         }
     }
 
@@ -120,4 +148,8 @@ export class BranchContextMenuComponent {
     private enabledButtons(): HTMLButtonElement[] {
         return Array.from(this.hostElement.nativeElement.querySelectorAll<HTMLButtonElement>("button:not([disabled])"))
     }
+}
+
+function contributedTargetOf(ref: BranchRef, repo: ContributedMenuTarget["repo"] | null): ContributedMenuTarget | null {
+    return repo ? { repo, refName: ref.refName, name: ref.fullName, kind: ref.kind, isCurrent: ref.local?.isCurrent ?? false } : null
 }

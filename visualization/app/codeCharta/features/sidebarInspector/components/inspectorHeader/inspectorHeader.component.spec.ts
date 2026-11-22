@@ -7,6 +7,7 @@ import { CodeMapNode, NodeType } from "../../../../model/codeCharta.model"
 import { selectedNodeSelector } from "../../../../renderer/renderModel/selectedNode.selector"
 import { ThreeRendererService, ThreeSceneService } from "../../../../renderer/threeViewer/threeViewer.facade"
 import { isDeltaStateSelector } from "../../../../stores/fileStore/store/isDeltaState.selector"
+import { selectedNodePathSelector } from "../../../../stores/sharedView/sharedView.read.facade"
 import { InspectorVisibilityService } from "../../services/inspectorVisibility.service"
 import { InspectorHeaderComponent } from "./inspectorHeader.component"
 
@@ -42,7 +43,8 @@ describe("InspectorHeaderComponent", () => {
                 provideMockStore({
                     selectors: [
                         { selector: selectedNodeSelector, value: fileNode },
-                        { selector: isDeltaStateSelector, value: false }
+                        { selector: isDeltaStateSelector, value: false },
+                        { selector: selectedNodePathSelector, value: fileNode.path }
                     ]
                 }),
                 { provide: ThreeSceneService, useValue: { clearSelection: jest.fn() } },

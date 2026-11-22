@@ -1,7 +1,7 @@
-import { FileSelectionState, FileState } from "../model/files/files"
+import { FileRename, FileSelectionState, FileState } from "../model/files/files"
 import { DeltaGenerator } from "./deltaGenerator"
 
-export const getDeltaFile = (visibleFileStates: FileState[]) => {
+export const getDeltaFile = (visibleFileStates: FileState[], renames: readonly FileRename[] = []) => {
     if (visibleFileStates.length === 2) {
         let [reference, comparison] = visibleFileStates
         if (reference.selectedAs !== FileSelectionState.Reference) {
@@ -9,7 +9,7 @@ export const getDeltaFile = (visibleFileStates: FileState[]) => {
             comparison = reference
             reference = temporary
         }
-        return DeltaGenerator.getDeltaFile(reference.file, comparison.file)
+        return DeltaGenerator.getDeltaFile(reference.file, comparison.file, renames)
     }
 
     return visibleFileStates[0].file

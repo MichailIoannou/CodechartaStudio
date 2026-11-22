@@ -330,6 +330,11 @@ npm run test:electron               # when electron/ changed; plus `npm run buil
 
 # core/, when Rust changed; then `npm run contract` in visualization/ must leave `git status` clean
 cargo fmt --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+
+# repo root: the quality gate CI runs on each part with its .codecharta.yml (errors fail, warnings do not);
+# build ccsh once with `cd analysis && ./gradlew installDist`
+analysis/build/install/codecharta-analysis/bin/ccsh gate visualization --quiet   # when visualization/ changed
+analysis/build/install/codecharta-analysis/bin/ccsh gate analysis --quiet        # when analysis/ changed
 ```
 
 ### Pull Requests

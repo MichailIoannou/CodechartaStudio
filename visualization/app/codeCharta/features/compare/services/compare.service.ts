@@ -5,41 +5,28 @@ import { DesktopBridgeError } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
 import type {
     AnalysisJob,
-    BaseMode,
+    ComparedChangeRequest,
     CompareError,
     CompareIntent,
-    FolderRef,
     LoadedSide,
-    ResolvedComparison,
-    ResolvedSide
+    ResolvedComparison
 } from "../model/compare.model"
+import { IDLE_COMPARISON } from "../model/compare.model"
 import { ANALYSIS_GATEWAY, CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
 import { RecentComparisonsRepo } from "../repos/recentComparisons.repo"
 import { CompareReadStore } from "../stores/compare.read.store"
 import { CompareStore } from "../stores/compare.store"
 import { CompareWriteStore } from "../stores/compare.write.store"
+import { ChangedFilesService } from "./changedFiles.service"
+import { compareErrorOf, loadErrorOf, unreadable } from "./compareErrors"
 import { refName } from "./comparisonText"
-import { batchOutcome, missingSidesOf, pendingJobIds, queuedAnalysis, withFailures } from "./missingSides"
+import { batchOutcome, folderOfSide, missingSidesOf, pendingJobIds, queuedAnalysis, withFailures } from "./missingSides"
+import { needsDecision, ShownSide, shownSideOf } from "./shownSides"
+import { ComparedFolder, explicitIntent, TypedSides, typedSidesErrorOf } from "./typedSides"
 
 const METRIC_VIEW_TOAST = "Compare runs in the metric view — the domain and dependency views show a single map."
 const TREEMAP_TOAST = "Switched to the treemap layout — the radial layouts show a single map."
 const SINGLE_MAP_VIEWS: ReadonlySet<string> = new Set(["domain", "dependencies"])
-
-export interface ComparedFolder {
-    ref: FolderRef
-    label: string
-}
-
-export interface TypedSides {
-    base: string
-    head: string
-    baseMode: BaseMode
-    /** The sides no picker could name, base first: an unknown revision is blamed on the first of them. */
-    unresolved: string[]
-}
-
-/** The snapshot a side would show (its own, else its nearest) and how many commits that is away from it. */
-type ShownSide = Omit<LoadedSide, "checksum">
 
 /** Takes two points of a folder's history to the delta view: resolve, load both maps, select base and head. */
 @Injectable({ providedIn: "root" })
@@ -53,6 +40,7 @@ export class CompareService {
     private readonly toastService = inject(ToastService)
     private readonly recents = inject(RecentComparisonsRepo)
     private readonly analyses = inject(ANALYSIS_GATEWAY)
+    private readonly changedFiles = inject(ChangedFilesService)
     private latestTicket = 0
     private lastIntent: CompareIntent | null = null
 
@@ -75,12 +63,13 @@ export class CompareService {
         }
     }
 
-    async start(intent: CompareIntent): Promise<void> {
-        const ticket = this.beginResolving()
+    /** With the pull or merge request the intent names, so a head that is not local can be fetched. */
+    async start(intent: CompareIntent, changeRequest: ComparedChangeRequest | null = null): Promise<void> {
+        const ticket = this.beginResolving(changeRequest)
         try {
             await this.resolveAndShow(intent, ticket)
         } catch (error) {
-            this.fail(ticket, compareErrorOf(error))
+            this.failOrAskToFetch(ticket, error)
         }
     }
 
@@ -101,10 +90,9 @@ export class CompareService {
         const ticket = ++this.latestTicket
         this.snapshots.holdMap()
         try {
-            const folder = resolved.head.requested.folder
             const queued = await Promise.all(
                 missingSidesOf(resolved).map(async analysis =>
-                    queuedAnalysis(analysis, await this.analyses.enqueue(folder, analysis.commit))
+                    queuedAnalysis(analysis, await this.analyses.enqueue(folderOfSide(resolved, analysis), analysis.commit))
                 )
             )
             if (ticket === this.latestTicket) {
@@ -140,6 +128,8 @@ export class CompareService {
         if (this.store.isActive() && baseFile && headFile) {
             this.writeStore.showAlone(headFile, [baseFile.fileMeta.fileName])
         }
+        // After the head is shown alone, where the renames no longer reach the map: cleared before, they would rebuild the delta once more.
+        this.changedFiles.clear()
         this.latestTicket += 1
         this.store.reset()
     }
@@ -151,9 +141,19 @@ export class CompareService {
         }
     }
 
-    private beginResolving(): number {
-        this.store.set({ phase: "resolving", resolved: null, base: null, head: null, error: null, analyses: [] })
+    private beginResolving(changeRequest: ComparedChangeRequest | null = null): number {
+        this.changedFiles.clear()
+        this.store.set({ ...IDLE_COMPARISON, phase: "resolving", changeRequest })
         return ++this.latestTicket
+    }
+
+    private failOrAskToFetch(ticket: number, error: unknown): void {
+        const isHeadMissing = error instanceof DesktopBridgeError && error.code === "HEAD_NOT_LOCAL"
+        if (isHeadMissing && this.store.state().changeRequest && ticket === this.latestTicket) {
+            this.store.update({ phase: "headNotLocal" })
+            return
+        }
+        this.fail(ticket, compareErrorOf(error))
     }
 
     /** Once no analysis of the batch runs: resolves again, so the sides come from the store, and goes on from there. */
@@ -216,7 +216,7 @@ export class CompareService {
             return
         }
         if (load.head && !load.base) {
-            this.finishWithoutDifferences(base, head, load.head)
+            this.finishWithoutDifferences(base, head, load.head, ticket)
             return
         }
         if (!(load.base && load.head)) {
@@ -242,6 +242,7 @@ export class CompareService {
         this.showInMetricView()
         this.store.update({ phase: "active", base, head, error: null })
         this.rememberComparison()
+        this.loadChangedFiles(ticket)
     }
 
     private async showHeadAlone(base: ShownSide, head: ShownSide, ticket: number): Promise<void> {
@@ -253,24 +254,34 @@ export class CompareService {
             this.fail(ticket, unreadable(head))
             return
         }
-        this.finishWithoutDifferences(base, head, checksum)
+        this.finishWithoutDifferences(base, head, checksum, ticket)
     }
 
-    private finishWithoutDifferences(base: ShownSide, head: ShownSide, checksum: string): void {
+    private finishWithoutDifferences(base: ShownSide, head: ShownSide, checksum: string, ticket: number): void {
         this.showInMetricView()
         this.store.update({ phase: "noDifferences", base: { ...base, checksum }, head: { ...head, checksum }, error: null })
         this.rememberComparison()
+        this.loadChangedFiles(ticket)
     }
 
-    /** As the user named the sides: a merge-base comparison by the tip its base came from. */
+    private loadChangedFiles(ticket: number): void {
+        const { resolved } = this.store.state()
+        if (resolved) {
+            void this.changedFiles.load(resolved, () => ticket === this.latestTicket)
+        }
+    }
+
+    /** As the user named the sides: a merge-base comparison by the tip its base came from; a snapshot side has no name to type again. */
     private rememberComparison(): void {
         const { resolved } = this.store.state()
-        if (!resolved) {
+        if (!resolved || resolved.base.requested.kind !== "commit" || resolved.head.requested.kind !== "commit") {
             return
         }
         const base = resolved.baseTip ?? resolved.base.requested
+        const headFolderId = resolved.head.requested.folder.folderId
         this.recents.remember(base.folder.projectId, {
             folderId: base.folder.folderId,
+            ...(headFolderId === base.folder.folderId ? {} : { headFolderId }),
             base: refName(base),
             head: refName(resolved.head.requested),
             baseMode: resolved.baseMode,
@@ -294,45 +305,4 @@ export class CompareService {
             this.store.update({ phase: "failed", error })
         }
     }
-}
-
-function needsDecision({ base, head, preflight }: ResolvedComparison): boolean {
-    return (
-        base.status.status === "missing" || head.status.status === "missing" || preflight.sizeVerdict !== "ok" || preflight.profilesDiffer
-    )
-}
-
-function shownSideOf({ requested, status }: ResolvedSide): ShownSide | null {
-    if (status.status === "exact") {
-        return { requested, snapshot: status.snapshot, relation: null, staleBy: 0, behind: 0, ahead: 0 }
-    }
-    const { nearest } = status
-    return nearest ? { requested, ...nearest } : null
-}
-
-function unreadable(side: ShownSide): CompareError {
-    return { kind: "loadFailed", message: `the analysis of ${side.snapshot.shortCommit ?? side.requested.shortCommit} could not be read.` }
-}
-
-function loadErrorOf(error: unknown): CompareError {
-    const compareError = compareErrorOf(error)
-    return compareError.kind === "coreError" ? { kind: "loadFailed", message: compareError.message } : compareError
-}
-
-function explicitIntent(folder: FolderRef, { base, head, baseMode }: TypedSides): CompareIntent {
-    const side = (name: string) => ({ folder, rev: { kind: "rev" as const, name: name.trim() } })
-    return { kind: "explicit", base: side(base), head: side(head), baseMode }
-}
-
-function typedSidesErrorOf(error: unknown, folder: ComparedFolder, sides: TypedSides): CompareError {
-    const isUnknown = error instanceof DesktopBridgeError && (error.code === "UNKNOWN_REVISION" || error.code === "BAD_REQUEST")
-    const input = (sides.unresolved[0] ?? sides.base).trim()
-    return isUnknown ? { kind: "refNotFound", message: "", input, folderLabel: folder.label } : compareErrorOf(error)
-}
-
-function compareErrorOf(error: unknown): CompareError {
-    if (error instanceof DesktopBridgeError && error.code === "CORE_UNAVAILABLE") {
-        return { kind: "coreUnavailable", message: error.message }
-    }
-    return { kind: "coreError", message: (error as Error).message }
 }

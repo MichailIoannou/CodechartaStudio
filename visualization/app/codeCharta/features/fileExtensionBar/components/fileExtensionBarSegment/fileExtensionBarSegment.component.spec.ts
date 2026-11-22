@@ -63,7 +63,8 @@ describe("FileExtensionBarSegment", () => {
             hoveredFileExtensions: [],
             keptHighlightPaths: [],
             selectedNodePath: null,
-            rightClickedNodeData: null
+            rightClickedNodeData: null,
+            changedFilesFilter: null
         }
     }
     const mockItem: MetricDistribution = {

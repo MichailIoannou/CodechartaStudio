@@ -1,5 +1,7 @@
 export { LocalSourceActionsComponent } from "./components/localSourceActions/localSourceActions.component"
 export { MapLocalFolderComponent } from "./components/mapLocalFolder/mapLocalFolder.component"
 export { MapLocalFolderMenuComponent } from "./components/mapLocalFolderMenu/mapLocalFolderMenu.component"
+export type { LinkedSourceFolder, LinkedSourceFolders } from "./ports/linkedSourceFolders.port"
+export { LINKED_SOURCE_FOLDERS } from "./ports/linkedSourceFolders.port"
 export { canOpenFoldersHere } from "./services/fileSystemAccess"
 export { LocalSourceService } from "./services/localSource.service"

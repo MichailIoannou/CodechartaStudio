@@ -1,9 +1,10 @@
 import { Injectable, inject, signal } from "@angular/core"
-import { CodeMapNode } from "../../../model/codeCharta.model"
+import { CodeMapNode, FileMeta } from "../../../model/codeCharta.model"
 import { isPartialState } from "../../../model/files/files.helper"
 import { FileStoreReadWindow } from "../../../stores/fileStore/fileStore.facade"
 import { getTopLevelMapName } from "../../../util/nodePathHelper"
 import { ToastService } from "../../shared/facade"
+import { LINKED_SOURCE_FOLDERS, LinkedSourceFolder } from "../ports/linkedSourceFolders.port"
 import {
     canOpenFoldersHere,
     FolderAccessBlockedError,
@@ -21,13 +22,16 @@ const MIN_SHARE_OF_FITTING_SAMPLES = 0.5
 
 type FolderRefusal = { status: "cancelled" } | { status: "blocked" } | { status: "doesNotFitMap" }
 
+export type FolderUnavailable = { status: "folderUnavailable"; folderLabel: string; relink: (() => void) | null }
+
 export type FolderChoice = { status: "chosen"; folder: LocalSourceFolder } | FolderRefusal
 
 export type SourceLookup =
-    | { status: "found"; file: File; folder: LocalSourceFolder; relativePath: string }
+    | { status: "found"; file: File; folder: LocalSourceFolder; relativePath: string; stateNote: string | null }
     | { status: "notFound"; relativePath: string }
     /** Asking the browser for a folder needs a click of its own, so the caller explains first and then chooses. */
     | { status: "folderNeeded"; mapFileName: string; relativePath: string; missingFrom: string | null }
+    | FolderUnavailable
     | FolderRefusal
 
 export interface LocalFolderDescription {
@@ -45,15 +49,20 @@ const FORGETTING_FAILED_MESSAGE = "The local folder of a removed map could not b
 
 interface MapLocation {
     mapFileName: string
+    fileMeta: FileMeta
     map: CodeMapNode
     relativePath: string
 }
+
+type AvailableLinkedFolder = Extract<LinkedSourceFolder, { status: "available" }>
+type UnavailableLinkedFolder = Extract<LinkedSourceFolder, { status: "unavailable" }>
 
 @Injectable({ providedIn: "root" })
 export class LocalSourceService {
     private readonly fileStoreReadWindow = inject(FileStoreReadWindow)
     private readonly repository = inject(LocalSourceFoldersRepository)
     private readonly availability = inject(LocalSourceAvailability)
+    private readonly linkedFolders = inject(LINKED_SOURCE_FOLDERS)
     private readonly toast = inject(ToastService)
 
     private readonly changeCount = signal(0)
@@ -61,8 +70,15 @@ export class LocalSourceService {
     readonly isAvailable = this.availability.isAvailable
     readonly folderChanges = this.changeCount.asReadonly()
 
-    isMapRoot(nodePath: string): boolean {
-        return this.locate(nodePath)?.relativePath === ""
+    offersFolderSettings(nodePath: string): boolean {
+        const location = this.locate(nodePath)
+        return location?.relativePath === "" && this.canChooseFolderFor(location.mapFileName)
+    }
+
+    canChooseFolderFor(mapFileName: string): boolean {
+        const fileState = this.loadedFileStateOf(mapFileName)
+        const hasLinkedFolder = fileState !== undefined && this.linkedFolders.folderOf(fileState.file.fileMeta) !== null
+        return this.availability.canChooseFolders() && !hasLinkedFolder
     }
 
     async findSource(nodePath: string): Promise<SourceLookup> {
@@ -70,10 +86,18 @@ export class LocalSourceService {
         if (!location) {
             return { status: "notFound", relativePath: nodePath }
         }
+        const linkedFolder = this.linkedFolders.folderOf(location.fileMeta)
+        if (linkedFolder) {
+            return linkedFolder.status === "available" ? findInLinkedFolder(linkedFolder, location) : unavailable(linkedFolder)
+        }
+        return this.findInSavedFolder(location)
+    }
+
+    private async findInSavedFolder(location: MapLocation): Promise<SourceLookup> {
         const savedFolder = await this.readableSavedFolder(location.mapFileName)
         const file = savedFolder && (await findFile(savedFolder.directory, location.relativePath))
         if (file) {
-            return { status: "found", file, folder: savedFolder, relativePath: location.relativePath }
+            return { status: "found", file, folder: savedFolder, relativePath: location.relativePath, stateNote: null }
         }
         return {
             status: "folderNeeded",
@@ -94,10 +118,10 @@ export class LocalSourceService {
     }
 
     async chooseFolderForMap(mapFileName: string): Promise<FolderChoice> {
-        const fileState = this.fileStoreReadWindow
-            .getFiles()
-            .find(loadedFileState => loadedFileState.file.fileMeta.fileName === mapFileName)
-        return fileState ? this.chooseFolderFor({ mapFileName, map: fileState.file.map, relativePath: "" }) : { status: "cancelled" }
+        const fileState = this.loadedFileStateOf(mapFileName)
+        return fileState
+            ? this.chooseFolderFor({ mapFileName, fileMeta: fileState.file.fileMeta, map: fileState.file.map, relativePath: "" })
+            : { status: "cancelled" }
     }
 
     async describeFolder(mapFileName: string): Promise<LocalFolderDescription | null> {
@@ -118,12 +142,18 @@ export class LocalSourceService {
         }
     }
 
-    async editorTargetOf(nodePath: string): Promise<EditorTarget | null> {
+    async editorTargetOf(nodePath: string): Promise<EditorTarget | FolderUnavailable | null> {
         const location = this.locate(nodePath)
         if (!location) {
             return null
         }
         const { mapFileName, relativePath } = location
+        const linkedFolder = this.linkedFolders.folderOf(location.fileMeta)
+        if (linkedFolder) {
+            return linkedFolder.status === "available"
+                ? { mapFileName, relativePath, editorRootPath: linkedFolder.rootPath }
+                : unavailable(linkedFolder)
+        }
         const folder = await this.repository.find(mapFileName)
         return { mapFileName, relativePath, editorRootPath: folder?.editorRootPath ?? null }
     }
@@ -140,7 +170,7 @@ export class LocalSourceService {
         }
         const { relativePath } = location
         const file = await findFile(choice.folder.directory, relativePath)
-        return file ? { status: "found", file, folder: choice.folder, relativePath } : { status: "notFound", relativePath }
+        return file ? { status: "found", file, folder: choice.folder, relativePath, stateNote: null } : { status: "notFound", relativePath }
     }
 
     private async chooseFolderFor({ mapFileName, map }: MapLocation): Promise<FolderChoice> {
@@ -187,6 +217,10 @@ export class LocalSourceService {
         return folder?.directory && (await hasReadPermission(folder.directory)) ? folder : null
     }
 
+    private loadedFileStateOf(mapFileName: string) {
+        return this.fileStoreReadWindow.getFiles().find(loadedFileState => loadedFileState.file.fileMeta.fileName === mapFileName)
+    }
+
     private locate(nodePath: string): MapLocation | null {
         const visibleFileStates = this.fileStoreReadWindow.getVisibleFileStates()
         const areMultipleMapsVisible = visibleFileStates.length > 1 && isPartialState(visibleFileStates)
@@ -197,10 +231,24 @@ export class LocalSourceService {
         }
         return {
             mapFileName,
+            fileMeta: fileState.file.fileMeta,
             map: fileState.file.map,
             relativePath: relativePathOf(nodePath, areMultipleMapsVisible ? mapFileName : null)
         }
     }
+}
+
+async function findInLinkedFolder(folder: AvailableLinkedFolder, { mapFileName, relativePath }: MapLocation): Promise<SourceLookup> {
+    const file = await folder.readFile(relativePath)
+    if (!file) {
+        return { status: "notFound", relativePath }
+    }
+    const linkedFolder = { mapKey: mapFileName, directory: null, editorRootPath: folder.rootPath }
+    return { status: "found", file, folder: linkedFolder, relativePath, stateNote: folder.stateNote }
+}
+
+function unavailable({ label, relink }: UnavailableLinkedFolder): FolderUnavailable {
+    return { status: "folderUnavailable", folderLabel: label, relink }
 }
 
 async function fitsMap(directory: LocalDirectoryHandle, map: CodeMapNode): Promise<boolean> {

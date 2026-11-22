@@ -1,5 +1,13 @@
-import { ChangeDetectionStrategy, Component, inject } from "@angular/core"
-import { InspectorResizeHandleComponent, PANEL_ISLAND_MARGIN_PX, publishBarInset } from "../../../shared/facade"
+import { ChangeDetectionStrategy, Component, computed, inject } from "@angular/core"
+import {
+    COLLAPSED_STRIP_WIDTH_PX,
+    CollapsedInspectorStripComponent,
+    InspectorResizeHandleComponent,
+    InspectorWidthService,
+    PANEL_ISLAND_MARGIN_PX,
+    publishBarInset,
+    registerSidePanel
+} from "../../../shared/facade"
 import { InspectorVisibilityService } from "../../services/inspectorVisibility.service"
 import { InspectorClustersComponent } from "../inspectorClusters/inspectorClusters.component"
 import { InspectorHeaderComponent } from "../inspectorHeader/inspectorHeader.component"
@@ -11,6 +19,7 @@ import { InspectorMetricsListComponent } from "../inspectorMetricsList/inspector
     templateUrl: "./sidebarInspector.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        CollapsedInspectorStripComponent,
         InspectorClustersComponent,
         InspectorHeaderComponent,
         InspectorMetricMappingComponent,
@@ -22,17 +31,35 @@ import { InspectorMetricsListComponent } from "../inspectorMetricsList/inspector
         "[class.translate-x-full]": "!isVisible()",
         "[class.pointer-events-none]": "!isVisible()",
         "[attr.aria-hidden]": "!isVisible()",
+        "[style.width.px]": "isCollapsed() ? collapsedStripWidthPx : null",
         "[style.top]": "'var(--cc-bars-height, 49px)'",
         "[style.height]":
-            "'calc(100vh - var(--cc-bars-height, 49px) - var(--cc-file-extension-bar-height, 17px) - var(--cc-bottom-bar-height, 32px) - 0.75rem)'"
+            "isCollapsed() ? 'auto' : 'calc(100vh - var(--cc-bars-height, 49px) - var(--cc-file-extension-bar-height, 17px) - var(--cc-bottom-bar-height, 32px) - 0.75rem)'"
     }
 })
 export class SidebarInspectorComponent {
     private readonly visibilityService = inject(InspectorVisibilityService)
 
+    private readonly inspectorWidth = inject(InspectorWidthService).width
+
     readonly isVisible = this.visibilityService.isVisible
+    readonly isCollapsed = this.visibilityService.isCollapsed
+    readonly selectedNode = this.visibilityService.selectedNode
+    readonly hasUnseenSelection = this.visibilityService.hasUnseenSelection
+    readonly collapsedStripWidthPx = COLLAPSED_STRIP_WIDTH_PX
 
     constructor() {
-        publishBarInset("right", () => (this.isVisible() ? `calc(var(--cc-inspector-width) + ${PANEL_ISLAND_MARGIN_PX}px)` : "0px"))
+        const isExpanded = this.visibilityService.isExpanded
+        publishBarInset("right", () => (isExpanded() ? `calc(var(--cc-inspector-width) + ${PANEL_ISLAND_MARGIN_PX}px)` : "0px"))
+        registerSidePanel({
+            side: "right",
+            isOpen: isExpanded,
+            coveredWidthPx: computed(() => this.inspectorWidth() + PANEL_ISLAND_MARGIN_PX),
+            collapse: () => this.visibilityService.collapse()
+        })
+    }
+
+    expand() {
+        this.visibilityService.expand()
     }
 }

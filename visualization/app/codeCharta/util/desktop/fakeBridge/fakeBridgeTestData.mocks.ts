@@ -94,6 +94,10 @@ export function aSnapshot(projectId: string, folderId: string, snapshotId: strin
     }
 }
 
+export function aLogCommitOf(sha: string) {
+    return { sha, parents: [], authorName: "Mia", authorEmail: "mia@example.com", authoredAt: 1, committedAt: 1, subject: sha.slice(0, 7) }
+}
+
 export async function answerValue<Method extends BridgeMethod>(
     bridge: DesktopBridge,
     method: Method,

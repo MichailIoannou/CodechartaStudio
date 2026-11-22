@@ -1,91 +1,21 @@
 import type { CompareIntent } from "../../../model/coreApi/CompareIntent"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
-import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
-import type { FakeBackend, FakeBridgeKit, FakeRequestParams } from "./fakeBridgeKit"
+import type { RefInput } from "../../../model/coreApi/RefInput"
+import type { SideInput } from "../../../model/coreApi/SideInput"
+import type { FakeBackend, FakeBridgeKit, FakeComparedSide, FakeRequestParams } from "./fakeBridgeKit"
 
 /* istanbul ignore next */
 export function fakeCompareBackend(kit: FakeBridgeKit): FakeBackend {
-    const MEGABYTE = 1024 * 1024
-    const WARN_BYTES = 15 * MEGABYTE
-    const BLOCK_BYTES = 60 * MEGABYTE
-    const { store, succeed, refuse } = kit
-
-    function repositoryOf(folderId: string) {
-        return Object.hasOwn(store.git, folderId) ? store.git[folderId] : undefined
-    }
-
-    function commitsOf(folderId: string) {
-        return repositoryOf(folderId)?.commits ?? []
-    }
-
-    function namedRefsOf(folderId: string) {
-        const refs = repositoryOf(folderId)?.refs
-        return [...(refs?.tags ?? []), ...(refs?.localBranches ?? []), ...(refs?.remoteBranches ?? [])]
-    }
-
-    function commitAtRevision(folderId: string, revision: string) {
-        if (revision === "HEAD") {
-            const repository = repositoryOf(folderId)
-            return repository?.status?.head.commit ?? repository?.refs?.head.commit ?? revision
-        }
-        return namedRefsOf(folderId).find(ref => ref.refName === revision)?.commit ?? revision
-    }
-
-    function labelOfRevision(revision: string, sha: string) {
-        const prefixes = [
-            ["refs/heads/", "branch"],
-            ["refs/remotes/", "branch"],
-            ["refs/tags/", "tag"]
-        ]
-        const prefix = prefixes.find(([start]) => revision.startsWith(start))
-        return prefix ? { kind: prefix[1], name: revision.slice(prefix[0].length) } : { kind: "commit", name: sha.slice(0, 7) }
-    }
-
-    function reachedFrom(folderId: string, sha: string) {
-        return new Set(kit.git.reachableCommits(commitsOf(folderId), [sha]).map(commit => commit.sha))
-    }
-
-    function nearestOf(folder: FolderRef, sha: string) {
-        const reached = reachedFrom(folder.folderId, sha)
-        const snapshots = kit.snapshots.snapshotsOf(folder.projectId, folder.folderId)
-        const isAnalysedAncestor = (commitSha: string) =>
-            commitSha !== sha && reached.has(commitSha) && snapshots.some(candidate => candidate.commit === commitSha)
-        const ancestor = commitsOf(folder.folderId).find(commit => isAnalysedAncestor(commit.sha))
-        if (!ancestor) {
-            return null
-        }
-        const snapshot = snapshots.find(candidate => candidate.commit === ancestor.sha)
-        const fromAncestor = reachedFrom(folder.folderId, ancestor.sha)
-        const behind = [...reached].filter(reachedSha => !fromAncestor.has(reachedSha)).length
-        return { snapshot: JSON.parse(JSON.stringify(snapshot)), relation: "ancestor", staleBy: behind, behind, ahead: 0 }
-    }
-
-    function comparedSide(folder: FolderRef, revision: string) {
-        const sha = commitAtRevision(folder.folderId, revision)
-        const snapshot = kit.snapshots.snapshotsOf(folder.projectId, folder.folderId).find(candidate => candidate.commit === sha)
-        const requested = { folder, commit: sha, shortCommit: sha.slice(0, 7), label: labelOfRevision(revision, sha) }
-        const status = snapshot
-            ? { status: "exact", snapshot: JSON.parse(JSON.stringify(snapshot)) }
-            : { status: "missing", nearest: nearestOf(folder, sha) }
-        return { requested, status }
-    }
+    const { succeed, refuse } = kit
+    const { repositoryOf, commitsOf, commitAtRevision, reachedFrom, comparedSide, revisionOfTyped, sideOfInput, preflightOf } =
+        kit.compareSides
 
     function comparedFolder(intent: CompareIntent): FolderRef {
         return intent.kind === "explicit" ? intent.base.folder : intent.folder
     }
 
-    function isFullRevision(name: string) {
-        return name === "HEAD" || name.startsWith("refs/") || /^[0-9a-f]{40}$/.test(name)
-    }
-
-    function revisionOfTyped(folderId: string, name: string) {
-        if (isFullRevision(name)) {
-            return name
-        }
-        const named = namedRefsOf(folderId).find(ref => ref.name === name)
-        const isShaPrefix = /^[0-9a-f]{4,}$/i.test(name)
-        const byPrefix = commitsOf(folderId).filter(commit => isShaPrefix && commit.sha.startsWith(name.toLowerCase()))
-        return named?.refName ?? (byPrefix.length === 1 ? byPrefix[0].sha : null)
+    function typedRevisionOf(folderId: string, rev: RefInput) {
+        return rev.kind === "rev" ? revisionOfTyped(folderId, rev.name) : null
     }
 
     function branchTarget(folderId: string, branch: string, target: string | null) {
@@ -118,9 +48,9 @@ export function fakeCompareBackend(kit: FakeBridgeKit): FakeBackend {
             case "branch":
                 return [branchTarget(folderId, intent.branch, intent.target), intent.branch]
             case "explicit":
-                return [revisionOfTyped(folderId, intent.base.rev.name), revisionOfTyped(folderId, intent.head.rev.name)]
-            default:
-                return null
+                return [typedRevisionOf(folderId, intent.base.rev), typedRevisionOf(folderId, intent.head.rev)]
+            case "changeRequest":
+                return [`refs/heads/${intent.baseRefName}`, intent.headCommit]
         }
     }
 
@@ -132,33 +62,16 @@ export function fakeCompareBackend(kit: FakeBridgeKit): FakeBackend {
 
     function usesMergeBase(intent: CompareIntent, base: string) {
         const isNamedRef = base.startsWith("refs/")
-        return (intent.kind === "branch" || intent.kind === "explicit") && intent.baseMode === "mergeBase" && isNamedRef
-    }
-
-    function sizeVerdictOf(bytes: number) {
-        if (bytes > BLOCK_BYTES) {
-            return "block"
-        }
-        return bytes > WARN_BYTES ? "warn" : "ok"
-    }
-
-    function shownSnapshotOf(side: ReturnType<typeof comparedSide>): SnapshotSummary | null {
-        return side.status.status === "exact" ? (side.status.snapshot as SnapshotSummary) : (side.status.nearest?.snapshot ?? null)
-    }
-
-    function preflightOf(sides: ReturnType<typeof comparedSide>[]) {
-        const shown = sides.map(shownSnapshotOf)
-        const checksums = shown.map(snapshot => snapshot?.checksum ?? null)
-        const combinedBytes = shown.reduce((total, snapshot) => total + (snapshot?.mapBytes ?? 0), 0)
-        return {
-            identicalChecksums: checksums[0] !== null && checksums[0] === checksums[1],
-            profilesDiffer: false,
-            combinedBytes,
-            sizeVerdict: sizeVerdictOf(combinedBytes)
-        }
+        const isChangeRequest = intent.kind === "changeRequest"
+        return (
+            isChangeRequest || ((intent.kind === "branch" || intent.kind === "explicit") && intent.baseMode === "mergeBase" && isNamedRef)
+        )
     }
 
     function originOf(intent: CompareIntent, baseRevision: string) {
+        if (intent.kind === "changeRequest") {
+            return "pullRequest"
+        }
         return intent.kind === "branch" || (intent.kind === "explicit" && baseRevision.startsWith("refs/")) ? "branches" : "commits"
     }
 
@@ -168,6 +81,9 @@ export function fakeCompareBackend(kit: FakeBridgeKit): FakeBackend {
         const isTipTheMergeBase = mergeBase === commitAtRevision(folder.folderId, baseRevision)
         const base = comparedSide(folder, mergeBase && !isTipTheMergeBase ? mergeBase : baseRevision)
         const head = comparedSide(folder, headRevision)
+        if (intent.kind === "changeRequest") {
+            head.requested.label = { kind: "pullRequest", name: `#${intent.number}` }
+        }
         return {
             status: { kind: base.requested.commit === head.requested.commit ? "sameCommit" : "ready" },
             origin: originOf(intent, baseRevision),
@@ -179,11 +95,43 @@ export function fakeCompareBackend(kit: FakeBridgeKit): FakeBackend {
         }
     }
 
+    function isSideBySide(intent: CompareIntent) {
+        return (
+            intent.kind === "explicit" &&
+            (intent.base.folder.folderId !== intent.head.folder.folderId ||
+                intent.base.rev.kind !== "rev" ||
+                intent.head.rev.kind !== "rev")
+        )
+    }
+
+    /** Two folders, or a snapshot without a commit: each side on its own, tip vs tip. */
+    function resolveSideBySide(base: SideInput, head: SideInput) {
+        const sides = [sideOfInput(base), sideOfInput(head)]
+        if (sides.some(side => side === null)) {
+            return refuse("UNKNOWN_REVISION", "The revision is not in the repository.")
+        }
+        return succeed({
+            status: { kind: "ready" },
+            origin: base.folder.folderId === head.folder.folderId ? "commits" : "folders",
+            baseMode: "tip",
+            base: sides[0],
+            head: sides[1],
+            baseTip: null,
+            preflight: preflightOf(sides as FakeComparedSide[])
+        })
+    }
+
     function resolveComparison(params: FakeRequestParams) {
         const intent = params.intent as CompareIntent
+        if (intent.kind === "explicit" && isSideBySide(intent)) {
+            return resolveSideBySide(intent.base, intent.head)
+        }
         const revisions = comparedRevisions(intent, params.shownCommit ?? null)
         if (!revisions) {
             return refuse("UNKNOWN_REVISION", "The commit has no parent to compare with.")
+        }
+        if (intent.kind === "changeRequest" && revisions[1] === null) {
+            return refuse("HEAD_NOT_LOCAL", `The head of #${intent.number} is not in this clone.`)
         }
         if (revisions.some(revision => revision === null)) {
             return refuse("UNKNOWN_REVISION", "The revision is not in the repository.")

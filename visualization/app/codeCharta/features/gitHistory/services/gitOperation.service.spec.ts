@@ -87,6 +87,36 @@ describe("GitOperationService", () => {
         expect(service.isBusy()).toBe(false)
     })
 
+    it.each(["pull", "push"] as const)("should offer cancel for a %s, which talks to the remote", async kind => {
+        // Arrange
+        const { service, api } = await createService(seedWith({ slow: { "git.fetch": {} } }))
+
+        // Act
+        const running = service.run({ ...fetchWith(api), kind })
+        await settleGit()
+        const isCancellable = service.isCancellable()
+        service.cancel()
+        await running
+
+        // Assert
+        expect(isCancellable).toBe(true)
+    })
+
+    it("should offer no cancel for an abort, which stays on this computer", async () => {
+        // Arrange
+        const { service, api } = await createService(seedWith({ slow: { "git.fetch": {} } }))
+
+        // Act
+        const running = service.run({ ...fetchWith(api), kind: "abort" })
+        await settleGit()
+        const isCancellable = service.isCancellable()
+        service.cancel()
+        await running
+
+        // Assert
+        expect(isCancellable).toBe(false)
+    })
+
     it("should read the repository again after an operation, also after a failure", async () => {
         // Arrange
         const failure = { code: "NETWORK_UNAVAILABLE" as const, message: "git could not reach the remote.", details: {} }

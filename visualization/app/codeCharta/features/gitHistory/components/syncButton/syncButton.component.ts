@@ -1,18 +1,22 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core"
 import { ContextMenuItemComponent, FloatingMenuAnchor, FloatingMenuComponent } from "../../../shared/facade"
-import { readyValueOf } from "../../model/loadState"
 import { BranchActionsService } from "../../services/branchActions.service"
-import { GitOperationService } from "../../services/gitOperation.service"
-import { GitRepositoryService } from "../../services/gitRepository.service"
+import { GitOperationKind, GitOperationService } from "../../services/gitOperation.service"
+import { SyncActionsService } from "../../services/syncActions.service"
 import { WAITING_FOR_OPERATION } from "../../util/branchMenu"
+import { mainSyncAction, SyncActionKind, SyncMenuAction, SyncMenuItem, syncMenuItems } from "../../util/syncState"
 
-const FETCH_TITLE = "Fetch from all remotes"
-const FETCHING_TITLE = "Fetching — progress shows in the status at the top"
+/** How the main part reads while a sync operation runs, and what its Cancel button names. */
+const RUNNING: Partial<Record<GitOperationKind, { label: string; noun: string }>> = {
+    fetch: { label: "Fetching", noun: "fetch" },
+    pull: { label: "Pulling", noun: "pull" },
+    push: { label: "Pushing", noun: "push" }
+}
 
 /**
- * Design H5, as far as M8 goes: the main part fetches (Pull, Push and Publish arrive with M11), the caret lists the
- * fetch variants and Set Upstream…. While a fetch runs the main part reads "Fetching…" and the caret becomes Cancel;
- * the progress itself shows only in the workspace status.
+ * Design H5: the main part does what the branch needs now (Publish, Pull, Push or Fetch), the caret lists the rest.
+ * While a sync operation runs the main part reads "Pulling…" and the caret becomes Cancel; the progress itself shows
+ * only in the workspace status.
  */
 @Component({
     selector: "cc-sync-button",
@@ -21,28 +25,43 @@ const FETCHING_TITLE = "Fetching — progress shows in the status at the top"
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SyncButtonComponent {
-    private readonly actions = inject(BranchActionsService)
+    private readonly branchActions = inject(BranchActionsService)
+    private readonly sync = inject(SyncActionsService)
     private readonly operations = inject(GitOperationService)
-    private readonly repository = inject(GitRepositoryService)
+    private readonly context = computed(() => ({
+        branch: this.sync.currentBranch(),
+        remotes: this.sync.remotes(),
+        inProgress: this.sync.inProgress()
+    }))
 
     readonly menuAnchor = signal<FloatingMenuAnchor | null>(null)
     readonly isBusy = this.operations.isBusy
-    readonly isFetching = computed(() => this.operations.running()?.kind === "fetch")
-    readonly label = computed(() => (this.isFetching() ? "Fetching…" : "Fetch"))
-    readonly mainTitle = computed(() => {
-        if (this.isFetching()) {
-            return FETCHING_TITLE
-        }
-        return this.isBusy() ? WAITING_FOR_OPERATION : FETCH_TITLE
+    readonly action = computed(() => mainSyncAction(this.context()))
+    readonly menuItems = computed(() => syncMenuItems(this.context()))
+    readonly running = computed(() => {
+        const kind = this.operations.running()?.kind
+        return kind ? (RUNNING[kind] ?? null) : null
     })
-    readonly currentBranch = computed(() => {
-        const refs = readyValueOf(this.repository.refs())
-        return refs?.localBranches.find(branch => branch.isCurrent) ?? null
+    readonly label = computed(() => {
+        const running = this.running()
+        return running ? `${running.label}…` : this.action().label
+    })
+    readonly isMainDisabled = computed(() => this.isBusy() || this.action().disabledReason !== null)
+    readonly mainTitle = computed(() => {
+        const running = this.running()
+        if (running) {
+            return `${running.label} — progress shows in the status at the top`
+        }
+        return this.isBusy() ? WAITING_FOR_OPERATION : (this.action().disabledReason ?? this.action().title)
     })
 
-    fetch(prune = false) {
+    runMain() {
+        this.runAction(this.action().kind)
+    }
+
+    runMenuItem(item: SyncMenuItem) {
         this.menuAnchor.set(null)
-        void this.actions.fetch(prune)
+        this.runAction(item.action)
     }
 
     cancel() {
@@ -58,11 +77,17 @@ export class SyncButtonComponent {
         this.menuAnchor.set(null)
     }
 
-    setUpstream() {
-        const branch = this.currentBranch()
-        this.menuAnchor.set(null)
-        if (branch) {
-            this.actions.openDialog({ kind: "setUpstream", branch })
+    private runAction(action: SyncActionKind | SyncMenuAction) {
+        const branch = this.sync.currentBranch()
+        const runs: Record<SyncMenuAction, () => unknown> = {
+            fetch: () => this.branchActions.fetch(false),
+            fetchPrune: () => this.branchActions.fetch(true),
+            pull: () => this.sync.pull(),
+            push: () => this.sync.push(),
+            publish: () => this.sync.publish(),
+            forcePush: () => this.sync.forcePush(),
+            setUpstream: () => branch && this.branchActions.openDialog({ kind: "setUpstream", branch })
         }
+        void runs[action]()
     }
 }

@@ -102,9 +102,9 @@ export class NodeContextMenuComponent {
         )
     })
     readonly isFile = computed(() => this.menuNode()?.type === NodeType.FILE)
-    readonly isMapRoot = computed(() => {
+    readonly offersLocalFolderSettings = computed(() => {
         const node = this.menuNode()
-        return node !== null && this.localSourceActions().isMapRoot(node.path)
+        return node !== null && this.localSourceActions().offersFolderSettings(node.path)
     })
     readonly isShowInExplorerVisible = computed(() => this.rightClickedNodeData()?.origin !== "explorer")
     readonly isFocusOffered = computed(() => this.focusableNodes !== "none" && !this.isNodeFocused() && this.isFolder())

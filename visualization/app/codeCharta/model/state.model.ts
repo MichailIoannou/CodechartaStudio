@@ -1,6 +1,7 @@
 import { DependencyGraphSettings } from "./dependencyGraph.model"
 import {
     CCFile,
+    ChangedFilesFilter,
     ColorLabelOptions,
     ColorMode,
     ColorRange,
@@ -59,6 +60,12 @@ export interface FileState {
     selectedAs: FileSelectionState
 }
 
+/** A file git reports as renamed between the two compared maps, as node paths. */
+export interface FileRename {
+    from: string
+    to: string
+}
+
 export interface Settings {
     fileSettings: FileSettings
     preferences: Preferences
@@ -94,6 +101,7 @@ export interface SharedView {
     hoveredFileExtensions: string[]
     keptHighlightPaths: string[]
     selectedNodePath: string | null
+    changedFilesFilter: ChangedFilesFilter | null
     rightClickedNodeData: {
         nodeId: string
         xPositionOfRightClickEvent: number
@@ -140,6 +148,7 @@ export interface CcState {
     mapState: MapState
     sharedView: SharedView
     files: FileState[]
+    fileRenames: FileRename[]
     isLoadingFile: boolean
     currentFilesAreSampleFiles: boolean
 }

@@ -73,6 +73,22 @@ describe("CompareFacade", () => {
         localStorage.clear()
     })
 
+    it("should compare a commit of the folder with a working-tree snapshot tip vs tip", async () => {
+        // Arrange
+        const facade = createFacade()
+
+        // Act
+        await facade.compareWithSnapshot(FOLDER, "HEAD", { kind: "workingTree", snapshotId: "s-wt" })
+
+        // Assert
+        expect(service.start).toHaveBeenCalledWith({
+            kind: "explicit",
+            base: { folder: FOLDER, rev: { kind: "rev", name: "HEAD" } },
+            head: { folder: FOLDER, rev: { kind: "workingTree", snapshotId: "s-wt" } },
+            baseMode: "tip"
+        })
+    })
+
     it("should open the dialog when a comparison started from a menu needs a decision", async () => {
         // Arrange
         const facade = createFacade()

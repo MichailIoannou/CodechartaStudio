@@ -204,6 +204,21 @@ describe("ProjectsService", () => {
         expect(router.navigateByUrl).toHaveBeenCalledWith("/project")
     })
 
+    it("should stay on the current view when a folder chosen to stay there has no analysis", async () => {
+        // Arrange
+        const service = createService({ activeProjectId: "p-billing" })
+        await service.initialise()
+        router.navigateByUrl.mockClear()
+
+        // Act
+        await service.chooseFolder({ projectId: "p-dots", folderId: "f-dots", staysOnView: true })
+
+        // Assert
+        expect(service.workingFolder()?.label).toBe("dotfiles")
+        expect(loadFilesUseCase.unloadAllFiles).toHaveBeenCalled()
+        expect(router.navigateByUrl).not.toHaveBeenCalled()
+    })
+
     it("should switch to a folder of another project in one step", async () => {
         // Arrange
         const service = createService({ activeProjectId: "p-dots" })

@@ -1,9 +1,22 @@
 import { NgTemplateOutlet } from "@angular/common"
-import { ChangeDetectionStrategy, Component, computed, ElementRef, HostListener, inject, signal, viewChild } from "@angular/core"
+import {
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    ElementRef,
+    effect,
+    HostListener,
+    inject,
+    input,
+    signal,
+    untracked,
+    viewChild
+} from "@angular/core"
 import type { FolderRef } from "../../../../model/coreApi/FolderRef"
 import type { ProjectSummary } from "../../../../model/coreApi/ProjectSummary"
 import type { ProjectSummaryFolder } from "../../../../model/coreApi/ProjectSummaryFolder"
 import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
+import { FolderMenuRequestsService } from "../../services/folderMenuRequests.service"
 import { OpenFileService } from "../../services/openFile.service"
 import { ProjectsService } from "../../services/projects.service"
 import { branchLabel, counted } from "../../util/folderWording"
@@ -38,12 +51,15 @@ interface MenuProject {
 })
 export class ProjectSwitcherComponent {
     private readonly projects = inject(ProjectsService)
+    private readonly folderMenuRequests = inject(FolderMenuRequestsService)
     private readonly gitRepository = inject(GitRepositoryService)
     private readonly openFileService = inject(OpenFileService)
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef)
     private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>("trigger")
     private readonly menu = viewChild<ElementRef<HTMLElement>>("menu")
 
+    /** Below 1280 px the trigger shows only its icon, with the folder in its title (design C2: room for the comparison chip). */
+    readonly isIconOnlyBelowXl = input(false)
     readonly isOpen = signal(false)
     readonly expandedProjectIds = signal<ReadonlySet<string>>(new Set())
     readonly activeProject = this.projects.activeProject
@@ -74,6 +90,17 @@ export class ProjectSwitcherComponent {
     )
     readonly hasNoProjects = computed(() => this.projects.projects().length === 0 && !this.activeProject())
 
+    constructor() {
+        let answeredRequest = this.folderMenuRequests.latest()
+        effect(() => {
+            const request = this.folderMenuRequests.latest()
+            if (request !== answeredRequest) {
+                answeredRequest = request
+                untracked(() => this.openFocusingWorkingFolder())
+            }
+        })
+    }
+
     toggle() {
         if (this.isOpen()) {
             this.close()
@@ -84,10 +111,7 @@ export class ProjectSwitcherComponent {
 
     openWithKeyboard(event: Event) {
         event.preventDefault()
-        if (!this.isOpen()) {
-            this.open()
-        }
-        setTimeout(() => this.focusWorkingFolderOrFirstItem())
+        this.openFocusingWorkingFolder()
     }
 
     async chooseFolder(entry: MenuFolder) {
@@ -152,6 +176,13 @@ export class ProjectSwitcherComponent {
         if (this.isOpen() && !this.hostElement.nativeElement.contains(event.target as Node)) {
             this.close()
         }
+    }
+
+    private openFocusingWorkingFolder() {
+        if (!this.isOpen()) {
+            this.open()
+        }
+        setTimeout(() => this.focusWorkingFolderOrFirstItem())
     }
 
     private open() {

@@ -2,18 +2,11 @@
     <div class="modal-box flex max-w-3xl flex-col gap-4 overflow-visible">
         <h2 id="compare-dialog-title" class="text-xl font-bold">Compare</h2>
 
-        @if (gitFolders().length > 1) {
-            <div class="flex items-center gap-2">
-                <label class="text-sm text-base-content/60" for="compare-folder">Folder</label>
-                <select id="compare-folder" class="select select-sm w-48" data-testid="compare-folder" (change)="chooseFolder($any($event.target).value)">
-                    @for (folder of gitFolders(); track folder.id) {
-                        <option [value]="folder.id" [selected]="folder.id === folderId()">{{ folder.label }}</option>
-                    }
-                </select>
-            </div>
+        @if (folders.gitFolders().length > 1) {
+            <cc-compare-folder-row />
         }
 
-        @if (repo(); as repo) {
+        @if (folders.repo(); as repo) {
             <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2">
                 <div class="flex min-w-0 flex-col gap-1">
                     <span class="text-sm text-base-content/60">Base</span>
@@ -23,7 +16,8 @@
                         testId="compare-base"
                         [repo]="repo"
                         [text]="base()"
-                        [defaultBranch]="defaultBranch()"
+                        [defaultBranch]="folders.defaultBranch()"
+                        [snapshots]="folders.baseSnapshots()"
                         (textChange)="base.set($event)"
                         (rangePasted)="fillBoth($event)"
                         (resolvedChange)="baseResolution.set($event)"
@@ -45,9 +39,10 @@
                         #headPicker
                         label="Head"
                         testId="compare-head"
-                        [repo]="repo"
+                        [repo]="folders.headRepo() ?? repo"
                         [text]="head()"
-                        [defaultBranch]="defaultBranch()"
+                        [defaultBranch]="folders.headDefaultBranch()"
+                        [snapshots]="folders.headSnapshots()"
                         (textChange)="head.set($event)"
                         (rangePasted)="fillBoth($event)"
                         (resolvedChange)="headResolution.set($event)"
@@ -83,33 +78,23 @@
             </div>
         }
 
-        @if (!outcome() && !isPreparing()) {
-            <div class="flex flex-col gap-2" data-testid="compare-lists">
-                <fieldset class="join flex" aria-label="Lists">
-                    <button type="button" class="btn btn-sm join-item btn-active flex-1 font-normal normal-case" aria-pressed="true">
-                        <span class="text-xs">Recent</span>
-                    </button>
-                </fieldset>
-                <ul class="m-0 flex max-h-48 list-none flex-col gap-0.5 overflow-y-auto p-0" data-testid="compare-recent">
-                    @for (row of recentComparisons(); track row.range + row.recent.folderId) {
-                        <li>
-                            <button
-                                type="button"
-                                class="flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-left text-sm hover:bg-base-200"
-                                data-testid="compare-recent-row"
-                                (click)="useRecent(row.recent)"
-                            >
-                                <span class="min-w-0 truncate font-mono">{{ row.range }}</span>
-                                @if (row.folderLabel) {
-                                    <span class="min-w-0 truncate text-xs text-base-content/60">{{ row.folderLabel }}</span>
-                                }
-                                <span class="ml-auto shrink-0 text-xs text-base-content/60" [title]="row.comparedAtTitle">{{ row.age }}</span>
-                            </button>
-                        </li>
-                    } @empty {
-                        <li class="px-3 py-1.5 text-sm text-base-content/60">No comparisons yet.</li>
-                    }
-                </ul>
+        @if (!outcome() && !isPreparing() && !fetchPrompt()) {
+            <cc-compare-lists
+                (recentPicked)="useRecent($event)"
+                (openDesktopTools)="openDesktopTools.emit()"
+                (started)="hasStartedHere.set(true)"
+            />
+        }
+
+        @if (fetchPrompt(); as fetchPrompt) {
+            <div role="status" class="alert alert-info text-sm" data-testid="compare-fetch-head">
+                @if (fetchPrompt.isFetching) {
+                    <span>Fetching {{ fetchPrompt.label }} from '{{ fetchPrompt.remote }}'…</span>
+                    <button type="button" class="btn btn-sm" data-testid="compare-cancel-fetch" (click)="cancelFetch()">Cancel</button>
+                } @else {
+                    <span>The head of {{ fetchPrompt.label }} is not in your clone yet.</span>
+                    <button type="button" class="btn btn-sm" data-testid="compare-fetch" (click)="fetchHead()">Fetch from '{{ fetchPrompt.remote }}'</button>
+                }
             </div>
         }
 

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signa
 import { toSignal } from "@angular/core/rxjs-interop"
 import { NodeType } from "../../../../model/codeCharta.model"
 import { FileStoreReadWindow } from "../../../../stores/fileStore/fileStore.facade"
+import { FileGitChangeComponent } from "../../../compare/facade"
 import { InspectorVisibilityService } from "../../services/inspectorVisibility.service"
 import { SidebarInspectorReadStore } from "../../stores/sidebarInspector.read.store"
 import { getFileCount } from "../../util/getFileCount"
@@ -12,7 +13,7 @@ import { InspectorNodePathComponent } from "../inspectorNodePath/inspectorNodePa
     selector: "cc-inspector-header",
     templateUrl: "./inspectorHeader.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [InspectorNodePathComponent, InspectorNodeBadgesComponent],
+    imports: [InspectorNodePathComponent, InspectorNodeBadgesComponent, FileGitChangeComponent],
     host: { class: "block shrink-0 px-3 py-2" }
 })
 export class InspectorHeaderComponent {

@@ -92,7 +92,8 @@ export const transientSharedViewKeys = [
     "hoveredFileExtensions",
     "keptHighlightPaths",
     "selectedNodePath",
-    "rightClickedNodeData"
+    "rightClickedNodeData",
+    "changedFilesFilter"
 ] as const satisfies readonly (keyof SharedView)[]
 
 type TransientSharedViewKey = (typeof transientSharedViewKeys)[number]

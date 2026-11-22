@@ -11,6 +11,31 @@ export class ComparePageObject {
         return this.page.getByTestId("comparison-chip")
     }
 
+    chipButton() {
+        return this.page.getByTestId("comparison-trigger")
+    }
+
+    async openTheChipDetails() {
+        await this.chipButton().click()
+        await this.chipDetails().waitFor({ state: "visible" })
+    }
+
+    chipDetails() {
+        return this.page.getByTestId("comparison-details")
+    }
+
+    staleDot() {
+        return this.page.getByTestId("comparison-stale-dot")
+    }
+
+    projectMenuLabel() {
+        return this.page.getByTestId("project-switcher-label")
+    }
+
+    viewSwitcher() {
+        return this.page.getByTestId("view-switcher-metrics")
+    }
+
     async openTheLegend() {
         await this.page.getByTestId("legend-panel-button").click()
     }
@@ -39,6 +64,15 @@ export class ComparePageObject {
         await picker.click()
         await picker.fill(query)
         await this.page.getByTestId(`compare-${side}-list`).getByRole("option", { name: option }).click()
+    }
+
+    async compareWithAnotherFolder(headFolderLabel: string) {
+        await this.page.getByTestId("compare-across-folders").check()
+        await this.page.getByTestId("compare-head-folder").selectOption({ label: headFolderLabel })
+    }
+
+    chipSide(side: "base" | "head") {
+        return this.page.getByTestId(`comparison-${side}`)
     }
 
     async submit() {
@@ -70,8 +104,50 @@ export class ComparePageObject {
         await this.page.getByTestId("commit-context-menu").getByRole("button", { name: item }).click()
     }
 
+    async chooseFromTheBranchMenu(branchRow: Locator, item: string) {
+        await branchRow.click({ button: "right" })
+        await this.page.getByTestId("branch-context-menu").getByRole("button", { name: item }).click()
+    }
+
+    changeRequestsNotInstalled() {
+        return this.page.getByTestId("change-requests-not-installed")
+    }
+
+    async openPullRequestByNumber(number: string) {
+        await this.page.getByTestId("change-requests-number").fill(number)
+        await this.page.getByTestId("change-requests-open").click()
+    }
+
+    pullRequestBadge() {
+        return this.page.getByTestId("comparison-pull-request")
+    }
+
+    leaveButton() {
+        return this.page.getByTestId("comparison-leave")
+    }
+
     async leave() {
-        await this.page.getByTestId("comparison-actions").click()
-        await this.page.getByTestId("comparison-leave").click()
+        await this.openTheChipDetails()
+        await this.leaveButton().click()
+    }
+
+    async openTheChangesMode() {
+        await this.page.getByTestId("explorer-mode-changes").click()
+    }
+
+    changeRows() {
+        return this.page.getByTestId("changes-row")
+    }
+
+    changesSource() {
+        return this.page.getByTestId("changes-source")
+    }
+
+    async showOnlyChangedFiles() {
+        await this.page.getByTestId("changes-only-changed").click()
+    }
+
+    flattenedCount() {
+        return this.page.locator("cc-explorer-count-chip").filter({ hasText: "Flattened" })
     }
 }

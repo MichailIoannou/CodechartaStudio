@@ -5,6 +5,15 @@ orchestrator after every change of state. Another machine continues from this fi
 
 ## Branching
 
+- **Current (since 2026-11-20): `feature/studio-next`** (worktree `.claude/worktrees/studio-stack`),
+  branched from `feature/studio-analyses-compare`, the top of the six stacked branches the owner pushes
+  (`docs/studio-plans` → `feature/studio-desktop-foundation` → `feature/studio-themes` →
+  `feature/studio-projects` → `feature/studio-git-history` → `feature/studio-analyses-compare`; split from
+  `Claude-Work` at 97e2df043, identical content, every gate verified by the orchestrator per branch). New
+  milestones branch from `feature/studio-next` as `feature/studio-<plan>-<milestone>` and merge back into
+  it after verification; it becomes the next PR(s) on top of the stack. `feature/studio-integration` and
+  `feature/studio-stack` are history only. The notes below describe how the work got here.
+
 - `feature/studio-integration` (local, branched from `main` at `96a239f00`) collects this file and
   every verified milestone. It is never pushed or merged into `main` without the owner.
 - Each milestone runs on `feature/studio-<plan>-<milestone>` (e.g. `feature/studio-01-m1`), branched
@@ -37,6 +46,10 @@ UI descriptions.
 
 ## Milestones
 
+**2026-11-20:** every row below marked "merge pending", "verified, not merged" or "done on
+`feature/studio-stack`" is now in the six stacked branches (see Branching) and verified there; web e2e of
+04-M9/M10 and 06-M2/M3 passed on `feature/studio-analyses-compare` (195/195).
+
 State: todo · blocked · in progress · done. "UI" = needs its design area to be ready (all ready since 2026-11-18 22:40).
 
 | Milestone | Kind | State | Blocked on | Branch | Last verified commit |
@@ -62,34 +75,34 @@ State: todo · blocked · in progress · done. "UI" = needs its design area to b
 | 03-M4 Renderer load path | renderer | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m4 | ce4e78324 (merged into stack e041d661a) |
 | 03-M5 Projects UI | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m5 | 8c93d3f13 (merged into stack 10b8b4135) |
 | 03-M6 Import and store settings | UI + core | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-03-m6 | 0994d5f75 (merged into stack 1ebe30d2c) |
-| 03-M7 Local source and scenarios | UI | todo | 03-M6 | — | — |
+| 03-M7 Local source and scenarios | UI | done on `feature/studio-next` | — | feature/studio-03-m7 | b2fd355f3 (merged 113f918db) |
 | 04-M1 Core: fixtures, contract, runner, status, refs | core | verified, **merge pending** (contains 03-M2 + 03-M3; resolve add/add conflicts on progress files with the branch versions); fake-bridge seed todo | merge: as 03-M2; seed: 01-M4.1; git 2.31 spike: owner | feature/studio-04-m1 | 74c17fd76 (verified, not merged) |
 | 04-M2 Core: log, details, queries, changed files | core | verified, **merge pending** (contains 03-M2, 03-M3, 04-M1; resolve add/add progress-file conflicts with the branch versions) | merge: as 03-M2 | feature/studio-04-m2 | ab90aaac3 (verified, not merged) |
 | 04-M3 History view, branches pane (chip replaced by W1) | UI | done on `feature/studio-stack`; integration merge pending | integration merge: as 03-M2 | feature/studio-04-m3 | 5877e3661 (merged into stack 14881e68f, fix 5b2462566) |
 | 04-M4 Commit list with graph, filters, details | UI | done on `feature/studio-stack` (385adc20f; web e2e 176/176) | integration merge: as 03-M2 | feature/studio-04-m4 | 8642672fb |
 | 04-M5 Selection, keyboard, context menu, ports (+ 05-M4 task 5 badges) | UI | done on `feature/studio-stack` (1b38f5819; web e2e 177/177) | integration merge: as 03-M2 | feature/studio-04-m5 | 9e5c3d35c |
-| 04-M6 Read-only end-to-end and docs | UI | todo | 04-M5 | — | — |
+| 04-M6 Read-only end-to-end and docs (+ 04 design follow-ups O8.3) | UI | done on `feature/studio-next` | — | feature/studio-04-m6 | ccaa94c42 (merged 3e78ab5ef) |
 | 04-M7 Operation queue, progress, prompts | core + UI | core and task 5 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m7 | e6f9e6a9b (verified, not merged) |
 | 04-M8 Fetch and branches | core + UI | core and task 2 done on `feature/studio-stack` (1ec7c9496; web e2e 185/185) | integration merge: as 03-M2 | feature/studio-04-m8 | 3b4702f9d (verified, not merged) |
 | 04-M9 Changes and diff | core + UI | core and task 2 merged into `feature/studio-stack`; **web e2e pending** (paused) | — | feature/studio-04-m9 | e6b12bb6d (verified, not merged) |
 | 04-M10 Commit | core + UI | core and task 2 merged into `feature/studio-stack`; **web e2e pending** (paused) | — | feature/studio-04-m10 | a9b06d0fb (verified, not merged) |
-| 04-M11 Pull, push, abort | core + UI | core (task 1) verified, **merge pending** (top of the unmerged stack); task 2 todo | merge: as 03-M2; task 2 (UI): 04 History UI | feature/studio-04-m11 | ed2e4764c (verified, not merged) |
-| 04-M12 Workflow e2e, docs, stash | UI | todo | 04-M11 | — | — |
+| 04-M11 Pull, push, abort | core + UI | done on `feature/studio-next` (UI 116e4fedb) | — | feature/studio-04-m11-ui | merged e8e5bd3b0 |
+| 04-M12 Workflow e2e, docs, stash | UI | done on `feature/studio-next` without stash (core has none) | stash: core support | feature/studio-04-m11-ui | merged e8e5bd3b0 |
 | 05-M0 Spikes on a real Windows machine | spike | done (Linux); Windows items W1–W5 open for owner | owner hardware (W1–W5) | feature/studio-05-m0 | 071cfd98a |
 | 05-M1 Run one analysis from the core | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m1 | a6eff44c7 (verified, not merged) |
 | 05-M2 Snapshot records | core | verified, **merge pending** (top of the unmerged stack) | merge: as 03-M2 | feature/studio-05-m2 | 3eff64af5 (verified, not merged) |
 | 05-M3 Queue, preflight, RPC, CLI | core (+ fake bridge) | tasks 1–4 verified, **merge pending** (top of the unmerged stack); task 5 todo | merge: as 03-M2; task 5 (fake bridge): core stack merge | feature/studio-05-m3 | b3b7a6164 (verified, not merged) |
 | 05-M4 Analyse from the UI, browse snapshots | UI | done on `feature/studio-stack` (8747e752b; web e2e 175/175); history badges (task 5) after 04-M4 | integration merge: as 03-M2 | — | — |
 | 05-M5 Nearest snapshot and stale notice | core + UI | done on `feature/studio-stack` (UI web e2e 177/177) | integration merge: as 03-M2 | feature/studio-05-m5 | 52c6c9a88 (verified, not merged) |
-| 05-M6 Batches, retention, cleanup | core + UI | core tasks 1, 3 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: core stack merge; design O4 | feature/studio-05-m6 | 9acf7a56b (verified, not merged) |
-| 05-M7 E2E and docs | UI | todo | 05-M6 | — | — |
+| 05-M6 Batches, retention, cleanup | core + UI | done on `feature/studio-next` (UI with 05-M7) | — | feature/studio-05-m6-ui | 2ec7551bc (merged 7dd31b1e7) |
+| 05-M7 E2E and docs | UI | done on `feature/studio-next` (with 05-M6 UI) | — | feature/studio-05-m6-ui | 2ec7551bc (merged 7dd31b1e7) |
 | 06-M0 Spikes | spike | blocked | items 1–2: `gh`/`glab` not installed (owner); item 3: Windows; item 4: desktop build with projects (after 03 UI) | — | — |
 | 06-M1 Compare core: commit vs commit | core + UI | done on `feature/studio-stack` (renderer web e2e 180/180) | integration merge: as 03-M2 | feature/studio-06-m1 | 698643e98 (verified, not merged) |
-| 06-M2 Entry points (+ core tasks 1–2) | core + UI | merged into `feature/studio-stack` (417ef52b9, fix 8a409bed3); **web e2e pending** (paused); PR segment and branch-menu compare entries open | — | feature/studio-06-m2m3 | 96232878b |
+| 06-M2 Entry points (+ core tasks 1–2) | core + UI | done on `feature/studio-next` (open entries with 06-M4/M5 UI) | — | feature/studio-06-m4m5-ui | merged da931a47d |
 | 06-M3 Missing snapshots and staleness | UI (no core tasks) | merged into `feature/studio-stack` with 06-M2; **web e2e pending** (paused) | — | feature/studio-06-m2m3 | 96232878b |
-| 06-M4 Changed files | core + UI | core task 1 verified, **merge pending** (top of the unmerged stack); UI tasks todo | merge: as 03-M2; UI: 06-M3 | feature/studio-06-m4 | 919fb2972 (verified, not merged) |
-| 06-M5 PRs and merge requests | core + UI | core tasks 1, 4 verified, **merge pending** (top of the unmerged stack); tasks 2, 3, 8 blocked; UI todo | merge: as 03-M2; tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner); UI: core stack merge | feature/studio-06-m5 | fc5e4f3a1 (verified, not merged) |
-| 06-M6 Polish and stretch | UI | todo | 06-M5 | — | — |
+| 06-M4 Changed files | core + UI | done on `feature/studio-next` | — | feature/studio-06-m4m5-ui | c9e21dd84 (merged da931a47d) |
+| 06-M5 PRs and merge requests | core + UI | core tasks 1, 4 and UI tasks 5–7 (number entry, C7 states) done on `feature/studio-next`; tasks 2, 3, 8 (listing) blocked | tasks 2, 3, 8: 06-M0 fixtures (gh/glab, owner) | feature/studio-06-m4m5-ui | merged da931a47d |
+| 06-M6 Polish and stretch | core + UI | done on `feature/studio-next` (tasks 1–6; task 6 rename-aware delta, owner option 1) | — | feature/studio-06-m6 | 47f671da9 (merged f10ec41fc) |
 
 The core/UI split of mixed milestones is provisional; it is confirmed against the plan text when
 the milestone is started.
@@ -429,6 +442,82 @@ None open.
 Design questions are in `design/open-questions.md`.
 
 ## Session log
+
+- 2026-11-22, **paused by the owner** after this round. Merged the O11 tweaks. Final gates at fe460f811, all
+  green: format, quality gate 0 errors (46 warnings), npm test 815/815 (6662), lint, tsc, cargo fmt/clippy and
+  tests with and without features (870 / 866), contract drift, test:electron, build, e2e:desktop 20/20, web
+  e2e 231/231. No agents running. Open for the owner/designer: O12 (strip button side, view-switcher vs chip
+  z-order, window-control button hiding/left placement and reset, P12 modal, rename-delta edge cases);
+  owner items: gh/glab-based PR listing (06-M5 tasks 2, 3, 8), Windows/macOS checks (spikes, window controls),
+  stash (needs core support). The six stacked PR branches are fixed by the separate CI session;
+  `feature/studio-next` holds all their fixes and becomes the next PR(s) on top of the stack.
+
+- 2026-11-22: gates at 70801aae9 green (quality gate 0 errors, npm test 813/813 (6642), build, test:electron,
+  e2e:desktop 20/20, web e2e 228/228). Merged the projects/snapshots follow-ups (P12 re-link from the source
+  view, state line, S4/S8 wording) and the rename-aware delta (06-M6 task 6, transient `fileRenames` slice,
+  only `DeltaGenerator` does the arithmetic). Questions added to O12 (items 3, 4). O11 tweaks agent running.
+
+- 2026-11-22: merged the panels follow-ups (dependency view gives way, inspector strip with a dot, D2 offline
+  focus) and the window controls (D6/D7: "Use CodeCharta's title bar", Breeze buttons on Linux,
+  `titleBarOverlay` on Windows, `hiddenInset` on macOS; verified on KDE Wayland: shadow, edge resize,
+  double-click, right-click menu; Windows/macOS not checked). Agent-reported gates: quality gate 0 errors,
+  npm test 810 suites (6608), test:electron 116, e2e:desktop 20, web e2e 226. Designer questions as O12.
+  Projects/snapshots agent running; renames and O11 tweaks queued.
+
+- 2026-11-22: gates at 49a602cdc all green — quality gate 0 errors (first time), npm test 807/807 (6578),
+  cargo 870/866, contract, test:electron, build, e2e:desktop 19/19, web e2e 224/224. Designer delivered O10
+  (D6 setting, D7 window controls, `mockups/window-controls.html`) and answered O11; merged (18b8f88cd).
+  Window-controls agent started; panels agent resumed (merge next + the O11 z-order bug). Queued, one at a
+  time for CPU: projects/snapshots agent, renames agent, and the O11 history/compare tweaks (Pull stays
+  enabled, branch menu holds Push/Force/Publish during a merge, "renamed" once).
+
+- 2026-11-22: the machine rebooted (wiped `/tmp`: Playwright browsers, sample repo, scripts); Chromium 1243 now in
+  `~/.cache/ms-playwright`; sample repo rebuilt durably at `/home/mike/Programming/sample-shop` as project "Sample
+  Shop". Merged the stack's gate and CI fixes (fake bridge split, service splits, Windows store fix), the 3D map
+  depth fix (upstream bug: `lowp` shader precision on GPUs that honour it), the history and compare follow-ups,
+  and removed the default Electron menu bar. Owner asked to lighten CPU: panels, projects/snapshots and renames
+  agents paused; gates now run one at a time. Owner request O10 (hide native window decorations, own window
+  controls) waits for design ("designer first"); O11 holds the latest follow-up questions.
+
+- 2026-11-21: merged the CI fixes of the stack (smoke tests with software WebGL, Windows path in a core test,
+  gate config for `*.test.js`; gates at f391e393a all green incl. cargo 870/866, web e2e 220/220), the
+  SonarCloud skip without token, and the designer's answers to O9 (ad536f668 on `docs/studio-plans`). The owner
+  added the quality gate (`ccsh gate visualization`, as CI runs it) to the checks in `CLAUDE.md`; it fails on
+  `feature/studio-next` with 14 errors in 13 files. Started six agents: rename-aware delta (06-M6 task 6, owner
+  approved option 1, renamed files keep the "changed" colour); fake bridge split; compare gate + C2 revision 2
+  and O9.5/O9.8; history gate + O9.2/O9.6/O9.7; projects/snapshots gate + O9.3/O9.4; panels/charts gate + O9.1.
+
+- 2026-11-21: merged 06-M6. Gates at f10ec41fc: cargo fmt, clippy and tests with and without features
+  (870 / 866), contract drift, format, lint, tsc, npm test 802/802 (6544 tests), build, test:electron,
+  e2e:desktop 18/18, web e2e 220/220. Designer questions added to O9 (item 8). Owner decision needed:
+  rename-aware delta plan (`progress/06-m6-rename-aware-delta-plan.md`). No agents running.
+
+- 2026-11-21: merged the H5 sync-button placements (workspace status, project overview; git dialogs hosted
+  once in the app shell). Gates at b0372ec10: format, lint, tsc, npm test 798/798 (6509 tests), build,
+  test:electron, e2e:desktop 18/18, web e2e 218/218. Designer questions added to O9 (item 7). The owner pushed
+  the six stacked branches; their CI failures (desktop smoke timing, core tests on macOS and Windows) are
+  fixed in a separate session, whose fixes `feature/studio-next` must take before it becomes a PR. 06-M6 running.
+
+- 2026-11-21: merged 06-M4/M5 UI (+ 06-M2 open entries, C2) with an orchestrator fix: compare opens the desktop
+  tools through the shared `GlobalConfigurationOpener` instead of a second dialog (7ff85ace5 and its test update); then
+  04-M11 UI + 04-M12. Gates at e8e5bd3b0: format, lint, tsc, npm test 797/797 (6504 tests), build,
+  test:electron, e2e:desktop 18/18, web e2e 215/215. Designer questions added to O9 (items 5, 6). Started
+  06-M6 and the H5 sync-button placements (workspace status, project overview).
+
+- 2026-11-20: merged 03-M7 (gates at 1153cdf13: format, lint, tsc, npm test 768/768, build, test:electron
+  80/80, e2e:desktop 16/16, web e2e 196/196), then 02 side panels give way + 01 D2 deep link, 04-M6 + 04
+  follow-ups and 05-M6 UI + 05-M7 (conflicts in the History view, its e2e, the desktop smoke test and the
+  changelog resolved by keeping both sides). Gates at 7dd31b1e7: format, lint, tsc, npm test 778/778
+  (6312 tests), build, test:electron, e2e:desktop 18/18, web e2e 207/207. Designer questions logged as O9.
+  04-M11 UI + 04-M12 started from `feature/studio-04-m6`; 06-M4/M5 UI still running.
+
+- 2026-11-20: owner resumed development. Six stacked branches built from `Claude-Work` and verified per
+  branch by the orchestrator (format, lint, tsc, npm test, cargo fmt/clippy/test with and without
+  features, contract drift, test:electron, build, e2e:desktop, web e2e:ci; only failure: main's
+  `urlExtractor.spec.ts` on Node 26 on `docs/studio-plans`, fixed in the next branch). Created
+  `feature/studio-next`. Started five UI agents in parallel: 04-M6 + 04 design follow-ups; 05-M6 UI + 05-M7;
+  06-M4/M5 UI + 06-M2 open entries + compare follow-ups; 02 T4 "side panels give way" + 01 D2 deep link;
+  03-M7. 04-M11 UI waits for the 04 follow-ups (same files).
 
 - 2026-11-19, **paused by the owner**: 04-M9/M10 renderer and 06-M2/M3 merged into `feature/studio-stack`;
   gates on the final stack (8a409bed3): cargo fmt/clippy/test with and without features 853/857, contract drift,

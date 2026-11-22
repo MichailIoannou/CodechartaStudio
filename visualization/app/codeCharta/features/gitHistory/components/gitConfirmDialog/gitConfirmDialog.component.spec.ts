@@ -2,7 +2,7 @@ import { TestBed } from "@angular/core/testing"
 import { render, screen } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import { GitConfirmationService } from "../../services/gitConfirmation.service"
-import { deleteRemoteConfirmation, HOOKS_NOTICE } from "../../util/effectText"
+import { deleteRemoteConfirmation, HOOKS_NOTICE, pullChoice } from "../../util/effectText"
 import { GitConfirmDialogComponent } from "./gitConfirmDialog.component"
 
 describe("GitConfirmDialogComponent", () => {
@@ -82,5 +82,71 @@ describe("GitConfirmDialogComponent", () => {
         // Assert
         expect(await answer).toBe(false)
         expect(await second).toBe(true)
+    })
+
+    describe("choices", () => {
+        const choice = pullChoice({ branch: "main", upstream: "origin/main", ahead: 2, behind: 3 })
+
+        async function choose() {
+            const rendered = await render(GitConfirmDialogComponent)
+            const answer = TestBed.inject(GitConfirmationService).choose(choice)
+            rendered.fixture.detectChanges()
+            await rendered.fixture.whenStable()
+            await new Promise(resolve => setTimeout(resolve))
+            return { answer, dialog: screen.getByTestId("git-confirm-dialog") as HTMLDialogElement }
+        }
+
+        it("should offer Cancel and every option without a default, with the focus on Cancel", async () => {
+            // Arrange & Act
+            await choose()
+            const buttons = screen.getAllByRole("button").filter(button => button.closest(".modal-action"))
+
+            // Assert
+            expect(screen.getByText("Branches Have Diverged")).toBeTruthy()
+            expect(screen.getByTestId("git-confirm-text").textContent).toContain("(2 local, 3 remote commits)")
+            expect(buttons.map(button => button.textContent?.trim())).toEqual(["Cancel", "Merge", "Rebase my commits"])
+            expect(buttons.some(button => button.classList.contains("btn-primary") || button.classList.contains("btn-error"))).toBe(false)
+            expect(document.activeElement).toBe(buttons[0])
+        })
+
+        it("should answer the chosen option", async () => {
+            // Arrange
+            const { answer, dialog } = await choose()
+
+            // Act
+            await userEvent.click(screen.getByTestId("git-choice-rebase"))
+
+            // Assert
+            expect(await answer).toBe("rebase")
+            expect(dialog.open).toBe(false)
+        })
+
+        it("should answer nothing on Cancel, Escape or a yes meant for a confirmation", async () => {
+            // Arrange
+            const service = () => TestBed.inject(GitConfirmationService)
+            const { answer, dialog } = await choose()
+
+            // Act
+            await userEvent.click(screen.getByTestId("git-confirm-cancel"))
+            const escaped = service().choose(choice)
+            dialog.close()
+            const confirmed = service().choose(choice)
+            service().answer(true)
+
+            // Assert
+            expect([await answer, await escaped, await confirmed]).toEqual([null, null, null])
+        })
+
+        it("should ignore an option picked while a confirmation is asked", async () => {
+            // Arrange
+            const { answer } = await ask()
+
+            // Act
+            TestBed.inject(GitConfirmationService).pick("merge")
+            TestBed.inject(GitConfirmationService).answer(true)
+
+            // Assert
+            expect(await answer).toBe(true)
+        })
     })
 })

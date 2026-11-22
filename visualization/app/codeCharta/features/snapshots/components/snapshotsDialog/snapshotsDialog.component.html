@@ -18,13 +18,26 @@
                 <i class="fa-solid fa-play fa-fw"></i>
                 Analyse HEAD commit
             </button>
-            <label class="ml-auto flex items-center gap-2 text-sm text-base-content/60" for="snapshots-folder">Folder</label>
-            <select id="snapshots-folder" class="select select-sm w-40" data-testid="snapshots-folder" (change)="chooseFolder($any($event.target).value)">
-                <option [value]="allFolders" [selected]="folderFilter() === allFolders">All</option>
-                @for (folder of folders(); track folder.id) {
-                    <option [value]="folder.id" [selected]="folder.id === folderFilter()">{{ folder.label }}</option>
-                }
-            </select>
+            <button
+                type="button"
+                class="btn btn-sm"
+                data-testid="snapshots-analyse-several"
+                [disabled]="actionFolder()?.kind !== 'git'"
+                [title]="actionFolder()?.kind === 'git' ? '' : 'Not a git repository'"
+                (click)="analyseSeveral()"
+            >
+                <i class="fa-solid fa-layer-group fa-fw"></i>
+                Analyse several…
+            </button>
+            <div class="ml-auto flex items-center gap-2">
+                <label class="text-sm text-base-content/60" for="snapshots-folder">Folder</label>
+                <select id="snapshots-folder" class="select select-sm w-40" data-testid="snapshots-folder" (change)="chooseFolder($any($event.target).value)">
+                    <option [value]="allFolders" [selected]="folderFilter() === allFolders">All</option>
+                    @for (folder of folders(); track folder.id) {
+                        <option [value]="folder.id" [selected]="folder.id === folderFilter()">{{ folder.label }}</option>
+                    }
+                </select>
+            </div>
         </div>
 
         @if (problems(); as problems) {
@@ -72,6 +85,7 @@
                                     class="group col-span-full grid grid-cols-subgrid items-center rounded-md px-3 py-1 hover:bg-base-200 focus-within:bg-base-200 focus:outline-none"
                                     tabindex="0"
                                     data-testid="snapshots-row"
+                                    (keydown.delete)="deleteDialog.open(row.snapshot)"
                                 >
                                     <span class="flex min-w-0 gap-2">
                                         <span class="shrink-0" [class.font-mono]="row.snapshot.target !== 'workingTree'">{{ row.commitLabel }}</span>
@@ -126,6 +140,7 @@
                                 class="group col-span-full grid grid-cols-subgrid items-center rounded-md px-3 py-1 hover:bg-base-200 focus-within:bg-base-200 focus:outline-none"
                                 tabindex="0"
                                 data-testid="snapshots-unbound-row"
+                                (keydown.delete)="deleteDialog.open(row.snapshot)"
                             >
                                 <span class="truncate" [title]="row.commitLabel">{{ row.commitLabel }}</span>
                                 <span class="truncate text-base-content/60">imported {{ importedOn(row.snapshot) }}</span>
@@ -143,7 +158,20 @@
             }
         </div>
 
-        <div class="modal-action mt-0">
+        <div class="modal-action mt-0 items-center">
+            @if (usageBytes() !== null) {
+                <span class="mr-auto text-sm text-base-content/70" data-testid="snapshots-usage">This project's analyses use {{ byteSize(usageBytes() ?? 0) }}.</span>
+            }
+            <button
+                type="button"
+                class="btn btn-ghost"
+                data-testid="snapshots-cleanup"
+                [disabled]="!workingFolderLabel()"
+                [title]="'Clean up the analyses of ' + workingFolderLabel()"
+                (click)="cleanupDialog.open()"
+            >
+                Clean up…
+            </button>
             <button type="button" class="btn" data-testid="snapshots-close" (click)="close()">Close</button>
         </div>
     </div>
@@ -155,6 +183,17 @@
 <ng-template #rowActions let-row>
     <div class="col-span-full hidden justify-end gap-1 pt-1 group-hover:flex group-focus-within:flex">
         <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-open" (click)="openSnapshot(row)">Open</button>
+        @for (action of row.actions; track action.id) {
+            <button
+                type="button"
+                class="btn btn-ghost btn-xs"
+                data-testid="snapshots-action"
+                [title]="action.hoverHint"
+                (click)="runAction(action, row)"
+            >
+                {{ action.label }}
+            </button>
+        }
         @if (row.reanalyse) {
             <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-reanalyse" (click)="reanalyse(row)">Re-analyse</button>
             <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-show-log" (click)="logDialog.open({ kind: 'snapshot', snapshot: row.snapshot, folderLabel: row.folder.label })">
@@ -164,8 +203,20 @@
             <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-move" (click)="moveDialog.open(row.snapshot, 'move')">Move to folder…</button>
             <button type="button" class="btn btn-ghost btn-xs" data-testid="snapshots-bind" (click)="moveDialog.open(row.snapshot, 'bind')">Bind to commit…</button>
         }
+        <button
+            type="button"
+            class="btn btn-ghost btn-xs btn-square"
+            title="Delete"
+            aria-label="Delete"
+            data-testid="snapshots-delete"
+            (click)="deleteDialog.open(row.snapshot)"
+        >
+            <i class="fa-solid fa-trash"></i>
+        </button>
     </div>
 </ng-template>
 
 <cc-analysis-log-dialog #logDialog />
 <cc-move-snapshot-dialog #moveDialog />
+<cc-delete-snapshot-dialog #deleteDialog />
+<cc-cleanup-dialog #cleanupDialog />

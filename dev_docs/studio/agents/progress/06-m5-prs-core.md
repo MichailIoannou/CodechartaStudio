@@ -37,7 +37,7 @@ Gates with and without `--all-features`.
 - [ ] 2. gh (blocked)
 - [ ] 3. Cache and listing (blocked)
 - [x] 4. Fetch PR head and base choice
-- [ ] 5–7. Renderer (later)
+- [x] 5–7. Renderer, as far as the blocked tasks allow (`06-m4-m5-ui.md`)
 - [ ] 8. glab (blocked)
 
 ## Notes
@@ -132,3 +132,9 @@ debug info.
 - Task 8: same for `glab` (`iid`, `target_branch`, `diff_refs.base_sha`, `sha`, merge commit field per fixture);
   the private ref `refs/codecharta/mr/<n>` already exists.
 
+### 5–7. Renderer (partly done, 2026-11-20)
+Built on `feature/studio-06-m4m5-ui`; details in `06-m4-m5-ui.md` ("M5"). Done: `hostingGateway.adapter.ts`, the
+"Pull requests" segment with checking / unknown host (task 7 override) / NotInstalled + Open desktop tools / CLI
+problem / number entry, fetch-then-resolve, the C6 HeadNotLocal offer with Cancel, the chip's PR badge and link, copy
+with link. Waiting for tasks 2, 3, 8: the list rows and their filter/refresh/cache (`ChangeRequestsStore`),
+`NotAuthenticated`, PR rows in the ref picker, `CompareFacade.compareChangeRequest`, request titles.

@@ -1,8 +1,9 @@
-import { spawn } from "node:child_process"
+import { execFile, execFileSync, spawn } from "node:child_process"
 import { once } from "node:events"
-import { access, copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { access, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { promisify } from "node:util"
 import { _electron, ElectronApplication, expect, Page, test } from "@playwright/test"
 
 const BUNDLE_FOLDER = join(__dirname, "..", "dist", "bundler", "browser")
@@ -10,23 +11,32 @@ const BOOT_TIMEOUT_MS = 60_000
 const SECOND_INSTANCE_TIMEOUT_MS = 20_000
 const DOCTOR_TIMEOUT_MS = 60_000
 const TOOL_COUNT = 5
+const CORE_PROCESS_NAME = "codecharta-core"
 const SAMPLE_MAP = join(__dirname, "..", "app", "codeCharta", "assets", "sample1.cc.json")
 const MAP_CHUNK_BYTES = 16 * 1024 * 1024
 const GZIP_MAGIC_BYTES = [31, 139]
+const ANALYSIS_TIMEOUT_MS = 60_000
+const FAKE_CCSH = join(__dirname, "..", "..", "core", "target", "debug", `fake-ccsh${process.platform === "win32" ? ".exe" : ""}`)
+const GIT_IDENTITY = ["-c", "user.name=CodeCharta Test", "-c", "user.email=test@codecharta.invalid", "-c", "commit.gpgsign=false"]
 const BRIDGE_KEYS = [
     "cancel",
     "chooseStoreRoot",
     "chooseToolExecutable",
+    "controlWindow",
     "openDroppedFile",
     "pickFile",
     "pickFolder",
     "protocolVersion",
+    "reopenWindow",
     "request",
     "restartCore",
     "reveal",
     "setColorScheme",
+    "setTitleBarColors",
+    "setUseAppTitleBar",
     "setWindowBackground",
-    "subscribe"
+    "subscribe",
+    "windowState"
 ]
 
 // CI runners have no GPU, and Electron no longer falls back to software WebGL by itself: without this
@@ -47,6 +57,16 @@ async function launchDesktopApp(extraEnv: Record<string, string> = {}) {
 async function waitForBoot(page: Page) {
     await page.locator("cc-code-charta > *").first().waitFor({ state: "attached", timeout: BOOT_TIMEOUT_MS })
     await page.locator("#loading-gif-file").waitFor({ state: "hidden", timeout: BOOT_TIMEOUT_MS })
+}
+
+async function coreProcessIds() {
+    if (process.platform !== "linux") {
+        return "read from /proc on Linux only"
+    }
+    const shellPid = desktopApp.process().pid
+    const childPids = (await readFile(`/proc/${shellPid}/task/${shellPid}/children`, "utf8")).trim().split(" ")
+    const childNames = await Promise.all(childPids.map(pid => readFile(`/proc/${pid}/comm`, "utf8")))
+    return childPids.filter((_pid, index) => childNames[index].trim() === CORE_PROCESS_NAME).join(" ")
 }
 
 async function bootedWindow(extraEnv: Record<string, string> = {}) {
@@ -76,6 +96,43 @@ test("should open one window that boots the app", async () => {
     // Assert
     expect(desktopApp.windows()).toHaveLength(1)
     await expect(page.locator("cc-code-charta")).toBeAttached()
+})
+
+test("should show no menu bar outside macOS", async () => {
+    // Arrange
+    await bootedWindow()
+
+    // Act
+    const hasApplicationMenu = await desktopApp.evaluate(({ Menu }) => Menu.getApplicationMenu() !== null)
+
+    // Assert
+    expect(hasApplicationMenu).toBe(process.platform === "darwin")
+})
+
+test("should open the window with CodeCharta's title bar once the setting is saved and reopen it with the core running", async () => {
+    // Arrange
+    const firstPage = await bootedWindow()
+    const corePids = await coreProcessIds()
+    await firstPage.evaluate(() => (window as any).codeChartaDesktop.setUseAppTitleBar(true))
+
+    // Act
+    const reopened = desktopApp.waitForEvent("window")
+    // The page usually closes before the call can answer.
+    const reopenCall = firstPage.evaluate(() => (window as any).codeChartaDesktop.reopenWindow()).catch(() => null)
+    const page = await reopened
+    await reopenCall
+    await waitForBoot(page)
+    const state = await page.evaluate(() => (window as any).codeChartaDesktop.windowState())
+
+    // Assert
+    expect(desktopApp.windows()).toHaveLength(1)
+    expect(state.value).toMatchObject({ usesAppTitleBar: true, savedUseAppTitleBar: true })
+    expect(corePids).not.toBe("")
+    expect(await coreProcessIds()).toBe(corePids)
+    await expect(page.locator(".navbar.cc-window-drag")).toBeVisible()
+    if (process.platform === "linux") {
+        await expect(page.getByRole("button", { name: "Minimize" })).toBeVisible()
+    }
 })
 
 test("should keep Node out of the page", async () => {
@@ -398,4 +455,113 @@ test("should inspect a dropped cc.json file once the native confirmation is acce
     expect(await desktopApp.evaluate(() => (globalThis as any).confirmations)).toEqual([
         `Open 'sample1.cc.json' from '${join(userDataDir, "dropped")}'?`
     ])
+})
+
+const runFile = promisify(execFile)
+/** A narrow window starts the History with its side panes collapsed; this is the layout of a user who opened them. */
+const OPEN_BRANCHES_PANE = { isBranchesCollapsed: false }
+
+/** git with a configuration of its own, so the user's settings cannot change the fixture. */
+async function runGit(repository: string, args: string[]) {
+    const isolated = { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: join(userDataDir, "gitconfig") }
+    const identity = ["-c", "user.name=Mia Chen", "-c", "user.email=mia@example.com", "-c", "commit.gpgSign=false"]
+    await runFile("git", [...identity, ...args], { cwd: repository, env: isolated })
+}
+
+async function aFixtureRepository(repository: string) {
+    await mkdir(repository, { recursive: true })
+    await runGit(repository, ["init", "--quiet", "--initial-branch=main"])
+    await writeFile(join(repository, "app.ts"), "export {}\n")
+    await runGit(repository, ["add", "app.ts"])
+    await runGit(repository, ["commit", "--quiet", "-m", "Start the app"])
+    await runGit(repository, ["tag", "v1.0"])
+    await runGit(repository, ["branch", "feature/login"])
+}
+
+test("should list the branches of a fixture repository in the History", async () => {
+    // Arrange
+    const page = await bootedWindow()
+    const repository = join(userDataDir, "work", "billing-api")
+    await aFixtureRepository(repository)
+    await pickWithTheNativeDialog(repository)
+    await page.evaluate(async () => {
+        const bridge = (window as any).codeChartaDesktop
+        const picked = await bridge.request("projects.pickFolder", { title: "Add Folder" })
+        const folder = { pickToken: picked.value.pickToken, label: picked.value.suggestedLabel, role: "primary" }
+        const created = await bridge.request("projects.create", { name: "Billing", folders: [folder] })
+        await bridge.request("projects.setActive", { projectId: created.value.id })
+    })
+    await page.evaluate(layout => localStorage.setItem("codeChartaHistoryLayout", JSON.stringify(layout)), OPEN_BRANCHES_PANE)
+    await page.reload()
+    await waitForBoot(page)
+
+    // Act
+    await page.evaluate(() => {
+        location.hash = "#/history"
+    })
+    await page.locator('[data-row-id="tags"]').click()
+
+    // Assert
+    await expect(page.getByTestId("history-repository")).toHaveText("billing-api")
+    await expect(page.getByTestId("history-current-branch")).toContainText("main")
+    await expect(page.locator('[data-row-id="refs/heads/main"]')).toBeVisible()
+    await expect(page.locator('[data-row-id="refs/heads/feature/login"]')).toBeVisible()
+    await expect(page.locator('[data-row-id="refs/tags/v1.0"]')).toBeVisible()
+    await expect(page.getByTestId("commit-row")).toHaveText([/Start the app/])
+})
+
+async function gitRepositoryWithOneCommit(folder: string) {
+    await mkdir(join(folder, "src"), { recursive: true })
+    await writeFile(join(folder, "src", "app.ts"), "export const answer = 42\n")
+    const git = (...args: string[]) => execFileSync("git", [...GIT_IDENTITY, ...args], { cwd: folder, stdio: "ignore" })
+    git("init", "-q")
+    git("add", ".")
+    git("commit", "-q", "-m", "Start")
+}
+
+/** fake-ccsh answers like ccsh 2.4.0 and a JDK 25, and writes a map, so no real ccsh or Java is needed. */
+async function useFakeCcsh() {
+    const scenarioFile = join(userDataDir, "fake-ccsh-scenario.json")
+    await writeFile(scenarioFile, JSON.stringify({ write_map: true }))
+    await writeFile(
+        join(userDataDir, "core-settings.json"),
+        JSON.stringify({ schemaVersion: 1, toolPaths: { ccsh: FAKE_CCSH, java: FAKE_CCSH } })
+    )
+    return { FAKE_CCSH_SCENARIO: scenarioFile }
+}
+
+function finishedSnapshotId(page: Page): Promise<string | null> {
+    return page.evaluate(async () => {
+        const { value } = await (window as any).codeChartaDesktop.request("analysis.list", {})
+        return value.jobs.find((job: any) => job.state === "done")?.snapshotId ?? null
+    })
+}
+
+test("should create a snapshot folder in a temporary store", async () => {
+    // Arrange
+    const repository = join(userDataDir, "work", "demo")
+    await gitRepositoryWithOneCommit(repository)
+    const page = await bootedWindow(await useFakeCcsh())
+    await pickWithTheNativeDialog(repository)
+    const folderRef = await page.evaluate(async () => {
+        const bridge = (window as any).codeChartaDesktop
+        const picked = await bridge.request("projects.pickFolder", { title: "Add Folder" })
+        const folder = { pickToken: picked.value.pickToken, label: picked.value.suggestedLabel, role: "primary" }
+        const created = await bridge.request("projects.create", { name: "Demo", folders: [folder] })
+        await bridge.request("projects.setActive", { projectId: created.value.id })
+        return { projectId: created.value.id, folderId: created.value.folders[0].id }
+    })
+    await page.reload()
+    await waitForBoot(page)
+
+    // Act
+    await page.getByTestId("workspace-status-trigger").click()
+    await page.getByTestId("workspace-status-analyse").click()
+
+    // Assert
+    await expect.poll(() => finishedSnapshotId(page), { timeout: ANALYSIS_TIMEOUT_MS }).not.toBeNull()
+    const snapshotId = await finishedSnapshotId(page)
+    const snapshotFolder = join(userDataDir, "store", "projects", folderRef.projectId, "snapshots", folderRef.folderId, snapshotId ?? "")
+    await expect(access(join(snapshotFolder, "snapshot.json"))).resolves.toBeUndefined()
+    await expect(page.getByTestId("workspace-status-trigger")).not.toContainText("not analysed")
 })

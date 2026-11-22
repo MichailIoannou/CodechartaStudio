@@ -8,6 +8,7 @@ import { addFile, setStandard } from "../../../stores/fileStore/store/files.acti
 import { layoutAlgorithmSelector } from "../../../stores/mapState/mapState.read.facade"
 import { setLayoutAlgorithm } from "../../../stores/mapState/mapState.write.facade"
 import { appReducers, setStateMiddleware } from "../../../stores/rootStore/store"
+import { setChangedFilesFilter } from "../../../stores/sharedView/sharedView.write.facade"
 import { DesktopBridgeError } from "../../../util/desktop/desktopResult"
 import { ToastService } from "../../shared/facade"
 import { ANALYSIS_GATEWAY, CORE_GATEWAY, SNAPSHOT_GATEWAY } from "../ports/compareGateways"
@@ -20,6 +21,7 @@ import {
     FakeCoreGateway,
     FakeSnapshotGateway,
     FOLDER,
+    FORK,
     HEAD_SHA
 } from "../ports/compareGateways.mocks"
 import { RecentComparisonsRepo } from "../repos/recentComparisons.repo"
@@ -109,6 +111,32 @@ describe("CompareService", () => {
         })
         expect(compareStore.state().phase).toBe("active")
         expect(compareStore.isActive()).toBe(true)
+    })
+
+    it("should ask for the files git changed between the two commits once the comparison shows", async () => {
+        // Arrange
+        core.changedFilesAnswer = { source: "git", files: [{ change: "modified", path: "a.ts", previousPath: null }] }
+
+        // Act
+        await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
+        await Promise.resolve()
+
+        // Assert
+        expect(core.changedFilesRequests).toEqual([{ baseFolder: FOLDER, headFolder: FOLDER, base: BASE_SHA, head: HEAD_SHA }])
+        expect(compareStore.state().changedFiles).toEqual(core.changedFilesAnswer)
+    })
+
+    it("should treat a failed changed-files request as a list git cannot give", async () => {
+        // Arrange
+        core.changedFilesAnswer = new Error("git failed")
+
+        // Act
+        await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
+        await Promise.resolve()
+        await Promise.resolve()
+
+        // Assert
+        expect(compareStore.state().changedFiles).toEqual({ source: "unavailable", files: [] })
     })
 
     it("should remember a merge-base comparison by the tip its base came from", async () => {
@@ -533,6 +561,168 @@ describe("CompareService", () => {
         })
     })
 
+    describe("across two folders", () => {
+        const FORK_FOLDER = { ref: FORK, label: "billing-fork" }
+        const acrossFolders = (overrides = {}) =>
+            aResolvedComparison({
+                origin: "folders",
+                head: {
+                    requested: aComparedCommit(HEAD_SHA, { kind: "branch", name: "main" }, FORK),
+                    status: { status: "exact", snapshot: aCommitSnapshot(HEAD_SHA) }
+                },
+                ...overrides
+            })
+
+        it("should send the head side in its own folder", async () => {
+            // Arrange
+            core.resolution = acrossFolders()
+
+            // Act
+            await service.compareSides(COMPARED_FOLDER, {
+                base: "main",
+                head: "main",
+                baseMode: "mergeBase",
+                unresolved: [],
+                headFolder: FORK_FOLDER
+            })
+
+            // Assert
+            expect(core.intents).toEqual([
+                {
+                    kind: "explicit",
+                    base: { folder: FOLDER, rev: { kind: "rev", name: "main" } },
+                    head: { folder: FORK, rev: { kind: "rev", name: "main" } },
+                    baseMode: "mergeBase"
+                }
+            ])
+            expect(TestBed.inject(RecentComparisonsRepo).read(FOLDER.projectId)).toEqual([
+                expect.objectContaining({ folderId: FOLDER.folderId, headFolderId: FORK.folderId })
+            ])
+        })
+
+        it("should compare the same commit of two folders as identical", async () => {
+            // Arrange
+            core.resolution = acrossFolders({
+                head: {
+                    requested: aComparedCommit(BASE_SHA, { kind: "branch", name: "main" }, FORK),
+                    status: { status: "exact", snapshot: aCommitSnapshot(BASE_SHA) }
+                },
+                preflight: { identicalChecksums: true, profilesDiffer: false, combinedBytes: 10, sizeVerdict: "ok" }
+            })
+            snapshots.aloneChecksum = BASE_CHECKSUM
+            loadMapsOnLoad([aMap("billing-fork@9f8e7d6", BASE_CHECKSUM)])
+
+            // Act
+            await service.compareSides(COMPARED_FOLDER, {
+                base: "main",
+                head: "main",
+                baseMode: "tip",
+                unresolved: [],
+                headFolder: FORK_FOLDER
+            })
+
+            // Assert
+            expect(snapshots.calls).toEqual(["holdMap", "loadAlone s-9f8e7d6"])
+            expect(compareStore.state().phase).toBe("noDifferences")
+        })
+
+        it("should fall back to metric changes when no clone has both commits", async () => {
+            // Arrange
+            core.resolution = acrossFolders()
+            core.changedFilesAnswer = { source: "unavailable", files: [] }
+
+            // Act
+            await service.compareSides(COMPARED_FOLDER, {
+                base: "main",
+                head: "main",
+                baseMode: "tip",
+                unresolved: [],
+                headFolder: FORK_FOLDER
+            })
+            await Promise.resolve()
+
+            // Assert
+            expect(core.changedFilesRequests).toEqual([{ baseFolder: FOLDER, headFolder: FORK, base: BASE_SHA, head: HEAD_SHA }])
+            expect(compareStore.state().changedFiles).toEqual({ source: "unavailable", files: [] })
+        })
+
+        it("should analyse each missing side in its own folder", async () => {
+            // Arrange
+            const missing = { status: "missing", nearest: null } as const
+            core.resolution = acrossFolders({
+                base: { requested: aComparedCommit(BASE_SHA), status: missing },
+                head: { requested: aComparedCommit(BASE_SHA, { kind: "commit", name: "9f8e7d6" }, FORK), status: missing }
+            })
+            await service.compareSides(COMPARED_FOLDER, {
+                base: "main",
+                head: "main",
+                baseMode: "tip",
+                unresolved: [],
+                headFolder: FORK_FOLDER
+            })
+
+            // Act
+            await service.analyseMissing()
+
+            // Assert
+            expect(analyses.enqueued).toEqual([BASE_SHA, BASE_SHA])
+            expect(analyses.enqueuedIn).toEqual([FOLDER.folderId, FORK.folderId])
+        })
+
+        it("should blame an unknown head on the head folder", async () => {
+            // Arrange
+            core.resolution = new DesktopBridgeError({ code: "UNKNOWN_REVISION", message: "unknown" })
+
+            // Act
+            await service.compareSides(COMPARED_FOLDER, {
+                base: "main",
+                head: "nope",
+                baseMode: "tip",
+                unresolved: ["nope"],
+                headFolder: FORK_FOLDER
+            })
+
+            // Assert
+            expect(compareStore.state().error).toEqual({ kind: "refNotFound", message: "", input: "nope", folderLabel: "billing-fork" })
+        })
+    })
+
+    describe("against a snapshot without a commit", () => {
+        it("should send a picked snapshot as that snapshot and not remember the comparison", async () => {
+            // Arrange
+            const resolved = aResolvedComparison()
+            const workingTree = {
+                ...resolved.head.requested,
+                kind: "workingTree" as const,
+                commit: null,
+                shortCommit: null,
+                snapshotId: "s-wt"
+            }
+            core.resolution = { ...resolved, head: { ...resolved.head, requested: workingTree } }
+
+            // Act
+            await service.compareSides(COMPARED_FOLDER, {
+                base: "main",
+                head: "Working tree (4 Nov 09:12)",
+                baseMode: "tip",
+                unresolved: [],
+                headSnapshot: { kind: "workingTree", snapshotId: "s-wt" }
+            })
+
+            // Assert
+            expect(core.intents).toEqual([
+                {
+                    kind: "explicit",
+                    base: { folder: FOLDER, rev: { kind: "rev", name: "main" } },
+                    head: { folder: FOLDER, rev: { kind: "workingTree", snapshotId: "s-wt" } },
+                    baseMode: "tip"
+                }
+            ])
+            expect(compareStore.state().phase).toBe("active")
+            expect(TestBed.inject(RecentComparisonsRepo).read(FOLDER.projectId)).toEqual([])
+        })
+    })
+
     describe("swap and exit", () => {
         beforeEach(async () => {
             await service.start({ kind: "commits", folder: FOLDER, a: BASE_SHA, b: HEAD_SHA })
@@ -572,6 +762,17 @@ describe("CompareService", () => {
             // Assert
             expect(dispatched).toEqual(["SET_STANDARD", "REMOVE_FILES"])
             expect(selectionByChecksum()).toEqual({ [HEAD_CHECKSUM]: FileSelectionState.Partial })
+        })
+
+        it("should clear the filter when the comparison ends", () => {
+            // Arrange
+            store.dispatch(setChangedFilesFilter({ value: { source: "metrics" } }))
+
+            // Act
+            service.exit()
+
+            // Assert
+            expect(state.getValue().sharedView.changedFilesFilter).toBeNull()
         })
 
         it("should clear the comparison when leaving", () => {

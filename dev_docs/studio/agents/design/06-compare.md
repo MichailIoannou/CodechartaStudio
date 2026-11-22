@@ -9,7 +9,7 @@ selector stay as they are.
 | # | Element | Selector | Lives in | Modelled on |
 |---|---|---|---|---|
 | C1 | Entry points | existing Compare tab; History items; snapshot rows | mode bar, area 04, area 05 S4 | `cc-mode-toggle`, `cc-context-menu-item` |
-| C2 | Comparison chip | `cc-comparison-chip` | nav bar map slot | `cc-delta-selector` |
+| C2 | Comparison chip | `cc-comparison-chip` | nav bar map slot | W1 trigger + dropdown |
 | C3 | Compare dialog | `cc-compare-dialog` (host `cc-compare-host`) | hosted by the nav bar | `globalConfigurationDialog`, `explorerModeToggle` |
 | C4 | Ref picker | `cc-ref-picker` | inside C3 | explorer search bar + map-selector rows |
 | C5 | Preparation (missing analyses, size, profiles) | `cc-compare-preparation` | inside C3 | S6 problem list, S3 job rows |
@@ -17,6 +17,8 @@ selector stay as they are.
 | C7 | Pull / merge request list | `cc-change-request-list` | C3 tab | `scenarioListDialog` rows |
 | C8 | Changes explorer mode | `cc-changes-explorer` | explorer, mode "Changes" | `cc-cluster-explorer` |
 | C9 | Legend caption | `cc-comparison-legend-caption` | `legendDeltaColorsSection` top | legend text rows |
+| C10 | Inspector git line | inside the inspector | under the node badges | H9 change badge |
+| C11 | Remove fetched pull requests | folder menu item | folder menu (P1/P6) | `cc-context-menu-item` |
 
 ---
 
@@ -52,42 +54,54 @@ layout — the radial layouts show a single map."
 the icon-only form of the workspace status element (area 05 W1), which keeps showing activity and
 progress during a comparison.
 
+**Revision 2 (O9.5).** The first version put both sides, swap, stale and PR badges and a caret in the
+nav bar; implementation showed it does not fit beside the project menu and W1 even at 1920 px (the PR
+badge was cut off; at 1024 px only the base side fitted). The chip is now **one compact button** with
+a fixed width per breakpoint, and the details live in its dropdown, the same split W1 uses.
+
 ```
-[base  9f8e7d6 main ▾]  ⇄  [head  a1b2c3d feature/x]  stale by 2   #123 ↗   [▾]
-       └ caret menu on the right, not on each side
-noDifferences:
-[≡ No metric differences between 9f8e7d6 and a1b2c3d]  12 files changed in git   [▾]
+nav bar:   [⇄ main → feature/x  ●  ▾]                 ● = a side is stale (warning dot)
+dropdown:
+COMPARING                                         since the merge base
+Base   9f8e7d6  main               analysed                      [Change…]
+Head   a1b2c3d  feature/x          stale by 2 — showing 3c4d5e6  [Change…]
+                       [⇄ Swap base and head]
+Pull request  #123 Fix invoice rounding ↗                (only for a PR comparison)
+──────────────────────────────────────────────
+[Copy as text]                                   [✕ Leave compare]
+noDifferences, nav bar:   [≡ No metric differences ▾]  (dropdown adds "12 files changed in git")
 ```
 
-- Container `flex items-center gap-1 min-w-0`. Each side: `btn btn-ghost btn-sm min-w-0 max-w-48
-  font-normal` showing `text-xs text-base-content/60` "base" / "head", short SHA `font-mono`, label
-  (branch, tag, `#123`, "working tree", "imported 12 Nov" / "imported, date unknown") `truncate`.
-  Clicking a side opens C3 prefilled ("Change…").
-- Swap: `btn btn-ghost btn-sm btn-square` with today's `fa fa-arrows-h` and today's title "Switch
-  reference and comparison file", as in the delta selector.
-- Stale badge per side (`badge badge-warning badge-sm`) "stale by 2", `title` "No analysis for
-  a1b2c3d. Showing 9f8e7d6, 2 commits older." (descendant/diverged forms as area 05 W1).
-- PR badge: `badge badge-ghost badge-sm` `fa-code-pull-request` "#123" + `fa-arrow-up-right-from-square`;
-  link to `changeRequest.url` (`target="_blank"`), `title` = PR title.
-- Base mode, when the origin is branches/PR: `badge badge-ghost badge-xs` "since merge base" or "tip
-  vs tip", title explains: "Changes on 'feature/x' since it left 'main'" / "Everything that differs
-  between the two tips".
-- Caret menu (`btn btn-ghost btn-sm btn-square fa-caret-down`, `aria-label` "Comparison actions",
-  dropdown like the map selector): **Change…**, **Swap base and head**, **Copy as text** (toast "Copied
-  main...feature/x"), **Leave compare** (`fa-xmark`).
-- **Space priority** (implementation finding: at 1280 px the branch label truncated to nothing beside
-  the stale and base-mode badges). The branch label keeps at least `min-w-16` (about six characters
-  plus "…"); everything else gives way first, in this order:
-  1. the base-mode badge leaves the chip and becomes the first, non-clickable line of the caret menu
-     ("Since the merge base" / "Tip vs tip", with its explanation as `title`);
-  2. the "base"/"head" captions hide (the order base ⇄ head and the swap button still say which is
-     which; each side's `title` starts with "Base:" / "Head:");
-  3. each stale badge shortens to `fa-clock-rotate-left` + the number ("⟲ 2"), full text in `title`;
-  4. the PR badge shows only its icon.
-  Breakpoints: steps 1 and 2 below 1536 px (`2xl`), step 3 below 1280 px, step 4 below 1024 px. At
-  1536 px and above everything shows.
-- Keyboard: Tab order base, swap, head, badges, caret. The chip has `role="group"`
-  `aria-label="Comparison"`.
+- **Button**: `btn btn-sm btn-outline border-base-300 font-normal gap-1.5 min-w-0` with
+  `fa-code-compare fa-fw`, then base label, `fa-arrow-right text-xs text-base-content/60`, head label;
+  both labels `truncate` and share the width (`flex-1 min-w-0` each, so neither truncates to nothing:
+  each keeps `min-w-10`). Labels: branch, tag, `#123`, "working tree", "imported 12 Nov" (the date it
+  was imported into the store, not the file's modification date) / "imported, date unknown"; short SHA
+  when there is no name. Status marks after the labels, `shrink-0`: a `size-2 rounded-full
+  bg-warning` dot when a side is stale; `fa-code-pull-request` for a PR comparison; `fa-caret-down`.
+  `title`: "Base: main (9f8e7d6) · Head: feature/x (a1b2c3d)" plus the folder of each side when the
+  sides come from different folders ("… in billing-fork").
+- **Width** (left nav budget from principles §3, minus the project menu, W1's icon-only form and gaps):
+  `w-72` at ≥ 1536 px, `w-56` at 1280–1535, `w-32` at 1024–1279 (labels only: the compare and PR icons drop out, both are in the dropdown). At 1024–1279 the project menu trigger
+  also shrinks to its icon during a comparison (folder name in `title`), because 265 px cannot hold
+  the folder name, W1's icon and two labels. The chip never pushes the view tabs and never wraps to a
+  second row.
+- **Dropdown** (map-selector content classes, `w-[28rem] p-2`, `aria-label` "Comparison"):
+  - header `text-xs uppercase tracking-wide text-base-content/60` "Comparing", base mode at the right
+    as plain text "since the merge base" / "tip vs tip" with its explanation as `title` ("Changes on
+    'feature/x' since it left 'main'" / "Everything that differs between the two tips");
+  - one row per side, `grid grid-cols-[3rem_auto_minmax(0,1fr)_auto_auto]`: caption "Base" / "Head",
+    short SHA `font-mono`, label `truncate` (with " · billing-fork" when the folders differ), status
+    (`badge badge-soft badge-xs` "analysed" / `badge-warning` "stale by 2" with "showing 3c4d5e6"
+    in `text-xs`), `btn btn-ghost btn-xs` "Change…" (opens C3 prefilled);
+  - **Swap base and head** (`btn btn-ghost btn-xs`, today's `fa fa-arrows-h`, today's title "Switch
+    reference and comparison file"); the dropdown stays open so the swapped rows are visible (O11.2);
+  - PR line (PR comparisons): `fa-code-pull-request` "#123" + title `truncate` +
+    `fa-arrow-up-right-from-square`, link to `changeRequest.url` (`target="_blank"`); without a
+    title (no listing) "Pull request #7" (O11.2);
+  - footer: "Copy as text" (toast "Copied main...feature/x") and "Leave compare" (`fa-xmark`).
+- Keyboard: as the map selector (Enter / Space / ArrowDown open, Escape closes and refocuses). The
+  button has `aria-haspopup="dialog"`.
 
 **Data.** `CompareState` (`base`, `head`: `LoadedSide { shownCommit, staleBy, … }`, `resolved.origin`,
 `resolved.changeRequest`), `comparisonText.ts`, `CompareService.exit()`, `switchReferenceAndComparison`.
@@ -113,7 +127,8 @@ Native dialog, `modal-box max-w-3xl`, title "Compare".
 ```
 
 - **Folder** `select select-sm` of the project's git folders (hidden when there is one). "Compare with
-  another folder" (`checkbox checkbox-sm`) turns the row into "Base folder [▾] Head folder [▾]" and
+  another folder" (`checkbox checkbox-sm`) sits directly after the select, not at the row's right
+  end (as the mock-up, O9.8), and turns the row into "Base folder [▾] Head folder [▾]" and
   shows `text-xs text-base-content/60`: "Paths are matched as they are. A fork with a different
   layout shows files as removed and added. Without a clone that has both commits the comparison is
   tip vs tip and lists metric changes only."
@@ -126,7 +141,8 @@ Native dialog, `modal-box max-w-3xl`, title "Compare".
 - **Lists**: segmented control (`join`, explorer-mode pattern) **Pull requests** · **Recent**. The PR
   segment is absent for folders without a detected or overridden host *and* without a remote.
   Recent: rows "main...feature/x" (`font-mono`), label, relative age; click fills both pickers;
-  empty: "No comparisons yet."
+  empty: "No comparisons yet." Comparisons with a working-tree or imported side are not saved to
+  Recent: they cannot be repeated later (O9.8).
 - **Compare** `btn btn-primary`: disabled until both sides resolved ("Choose a base and a head");
   `loading` while `resolving` / `loading`. Pasting `a..b` or `a...b` into either picker fills both
   and sets the base mode (two dots = tip, three = merge base).
@@ -147,6 +163,7 @@ Native dialog, `modal-box max-w-3xl`, title "Compare".
 | `loadFailed` | "The analyses could not be loaded: <message>" |
 | `rootMismatch` | "The two analyses could not be aligned (different root folders). Showing the head alone." |
 | `tooLarge` | (C5 block text) |
+| same analysis on both sides | "Both sides are the same analysis — nothing to compare." (approved, O9.8) |
 | `bridgeUnavailable`, `coreUnavailable` | "The CodeCharta core is not running." + "Retry" |
 | hosting codes | as C7 empty states |
 
@@ -183,6 +200,8 @@ Combobox: `input input-bordered input-sm w-full font-mono` with `role="combobox"
 - Branches and tags filter client-side; commits search after 250 ms (hash prefix or subject, 50
   rows; "Searching commits…" `loading-dots` row while waiting); PRs from the cached list.
 - Empty query: current branch, default branch, the 5 most recent branches, then tags.
+- SNAPSHOTS group: the 3 newest working-tree analyses, each "Working tree (4 Nov 09:12)" with
+  "uncommitted changes on a1b2c3d" as subject; older ones are in the snapshots dialog (O9.8).
 - No hit: "No branch, tag or commit matches 'xyz'."
 - Keyboard: ↓/↑ move through options across groups, Enter picks, Escape closes the list (second
   Escape bubbles to the dialog), Tab moves on and keeps the typed text (resolved on Compare).
@@ -257,6 +276,10 @@ Open PR / MR by number  [ 123 ]  base [ main ▾ ]  [Open]        (only without 
 | `Ready`, no rows | "No open pull requests." (/ "No merged pull requests." / "No pull requests.") | — |
 | checking (first `hosting.status` not answered yet) | 5 skeleton rows | — |
 
+- **Hosting answers, listing not available** ("the core has hosting support" means `hosting.status`
+  answers for the folder; O9.5): the list area says `text-sm` "Pull requests cannot be listed here.
+  Enter a number to open one." above the number entry. Number-entry label: "Open pull request by
+  number" / GitLab "Open merge request by number" (approved).
 - **When the segment is shown at all.** The "Pull requests" segment appears only when the folder has a
   remote *and* the core can list hosting requests. A core without hosting support (the methods are
   missing) shows no segment and no placeholder — nothing that reads "coming soon". With hosting
@@ -297,7 +320,8 @@ Files changed in git                                      text-xs text-base-cont
   changed."
 - Rows 28 px, virtualised (`ListViewport`): worded change badge (as area 04 H9), file name, folder
   `text-xs text-base-content/60 truncate`, height-metric delta `tabular-nums` (`text-success` /
-  `text-error` per the delta colours' meaning), "Focus folder" `btn btn-ghost btn-xs btn-square
+  `text-error` per the delta colours' meaning, following the user's "invert delta colours" setting
+  like the map does, O9.5), "Focus folder" `btn btn-ghost btn-xs btn-square
   fa-crosshairs` (`aria-label` "Focus folder src/billing"). Click selects the building
   (`setSelectedNodePath`); the selected row uses the explorer's selected style.
 - Path without a node: `opacity-50`, `title` "Not part of the analysis", no click action.
@@ -306,6 +330,20 @@ Files changed in git                                      text-xs text-base-cont
 - 20 000 rows stay responsive (virtualised); the summary never lists more than counts.
 - Keyboard: rows `role="listbox"`, ↑/↓ move and select, Enter focuses the folder; handled keys stop
   propagation (principles §9).
+
+## C10 Inspector git line (O9.8)
+
+During a project comparison the inspector shows, under the node's badges, the file's git change as
+the worded change badge of area 04 H9 ("modified", "added", …); for a rename the badge plus
+`text-xs text-base-content/60` "from <old path>" (the word "renamed" only once, in the badge, O11.2) (`truncate`, full path in `title`). Files git
+did not change show no line. (The built "in git" text is dropped: the badge already says it.)
+
+## C11 Remove fetched pull requests (O9.8)
+
+Folder menu item "Remove fetched pull requests" (`fa-broom`), offered for every git folder: a count
+in the core is not worth a protocol method (O11.2). No confirmation (they can be fetched again).
+Nothing to remove: toast (info) "'billing-api' has no fetched pull requests." Result toast (success) "Removed 4 fetched pull requests.";
+failure: error toast with Details.
 
 ## C9 Legend caption
 

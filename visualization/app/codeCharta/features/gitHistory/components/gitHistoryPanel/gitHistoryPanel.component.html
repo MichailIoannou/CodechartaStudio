@@ -1,34 +1,45 @@
-<cc-history-toolbar />
+<div class="flex flex-col" data-testid="history-header" [ccToastOffset]="isShown()">
+    <cc-history-toolbar />
+    @if (!problemNotice()) {
+        <cc-operation-state-banner />
+        @if (isShallowNoticeShown()) {
+            <div role="status" class="alert alert-info mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="history-shallow-notice">
+                <span class="flex-1">Shallow clone: history is cut off, counts are lower bounds.</span>
+                <button type="button" class="btn btn-ghost btn-xs btn-square" title="Dismiss" aria-label="Dismiss" (click)="dismissShallowNotice()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        }
+        @if (isSlowHistoryNoticeShown()) {
+            <div role="alert" class="alert alert-warning mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="history-slow-notice">
+                <span class="flex-1"
+                    >The history took too long to load. Running <code class="font-mono">{{ commitGraphCommand }}</code> in the repository makes it
+                    faster.</span
+                >
+                <button
+                    type="button"
+                    class="btn btn-ghost btn-xs btn-square"
+                    title="Copy command"
+                    aria-label="Copy command"
+                    data-testid="history-slow-copy-command"
+                    (click)="copyCommitGraphCommand()"
+                >
+                    <i [class]="clipboard.copied() ? 'fa-solid fa-check' : 'fa-regular fa-copy'"></i>
+                </button>
+                <button type="button" class="btn btn-ghost btn-xs" (click)="retryHistory()">Retry</button>
+            </div>
+        }
+    }
+</div>
 @if (problemNotice(); as notice) {
-    <cc-git-problem-notice [notice]="notice" (relinkFolder)="relinkWorkingFolder()" (openDesktopTools)="openDesktopTools.emit()" />
+    <cc-git-problem-notice
+        [notice]="notice"
+        (relinkFolder)="relinkWorkingFolder()"
+        (openDesktopTools)="openDesktopTools.emit()"
+        (workInFolder)="workInFolder.emit($event)"
+        (chooseWorkingFolder)="chooseWorkingFolder.emit()"
+    />
 } @else {
-    @if (isShallowNoticeShown()) {
-        <div role="status" class="alert alert-info mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="history-shallow-notice">
-            <span class="flex-1">Shallow clone: history is cut off, counts are lower bounds.</span>
-            <button type="button" class="btn btn-ghost btn-xs btn-square" title="Dismiss" aria-label="Dismiss" (click)="dismissShallowNotice()">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-    }
-    @if (isSlowHistoryNoticeShown()) {
-        <div role="alert" class="alert alert-warning mx-2 mt-2 flex px-2 py-1 text-xs" data-testid="history-slow-notice">
-            <span class="flex-1"
-                >The history took too long to load. Running <code class="font-mono">{{ commitGraphCommand }}</code> in the repository makes it
-                faster.</span
-            >
-            <button
-                type="button"
-                class="btn btn-ghost btn-xs btn-square"
-                title="Copy command"
-                aria-label="Copy command"
-                data-testid="history-slow-copy-command"
-                (click)="copyCommitGraphCommand()"
-            >
-                <i [class]="clipboard.copied() ? 'fa-solid fa-check' : 'fa-regular fa-copy'"></i>
-            </button>
-            <button type="button" class="btn btn-ghost btn-xs" (click)="retryHistory()">Retry</button>
-        </div>
-    }
     @if (tab() === "log") {
         <div class="flex min-h-0 flex-1 gap-1.5 bg-base-200 p-1.5">
             @if (layout.isBranchesCollapsed()) {
@@ -148,5 +159,3 @@
         </div>
     }
 }
-<cc-branch-dialog />
-<cc-git-confirm-dialog />

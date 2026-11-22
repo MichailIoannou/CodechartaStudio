@@ -3,7 +3,15 @@ import { ChangeDetectionStrategy, Component, computed, ElementRef, effect, injec
 import { DependencyLeafEdge } from "../../../../model/codeCharta.model"
 import { EDGE_TYPE_LABELS } from "../../../../renderer/dependencyGraph/dependencyGraph.facade"
 import { CopyToClipboardService } from "../../../../util/copyToClipboard.service"
-import { InspectorResizeHandleComponent, PANEL_ISLAND_MARGIN_PX, publishBarInset } from "../../../shared/facade"
+import {
+    COLLAPSED_STRIP_WIDTH_PX,
+    CollapsedInspectorStripComponent,
+    InspectorResizeHandleComponent,
+    InspectorWidthService,
+    PANEL_ISLAND_MARGIN_PX,
+    publishBarInset,
+    registerSidePanel
+} from "../../../shared/facade"
 import { InspectorCycle } from "../../inspector/inspectorCycles"
 import {
     INSPECTOR_SECTION_TITLES,
@@ -13,6 +21,7 @@ import {
 } from "../../inspector/inspectorModel"
 import { InspectorReference } from "../../inspector/inspectorReferences"
 import { DependencyInspectorStore } from "../../stores/dependencyInspector.store"
+import { DependencyInspectorCollapseStore } from "../../stores/dependencyInspectorCollapse.store"
 import { DeclarationKindIconComponent } from "../declarationKindIcon/declarationKindIcon.component"
 import { LineStyleSampleComponent } from "../lineStyleSample/lineStyleSample.component"
 import { PointingDirective } from "../pointing/pointing.directive"
@@ -28,21 +37,35 @@ const REFERENCE_ICONS: Record<"folder" | "file", string> = { folder: "fa fa-fold
 @Component({
     selector: "cc-dependency-inspector",
     templateUrl: "./dependencyInspector.component.html",
-    imports: [NgTemplateOutlet, DeclarationKindIconComponent, InspectorResizeHandleComponent, LineStyleSampleComponent, PointingDirective],
+    imports: [
+        NgTemplateOutlet,
+        CollapsedInspectorStripComponent,
+        DeclarationKindIconComponent,
+        InspectorResizeHandleComponent,
+        LineStyleSampleComponent,
+        PointingDirective
+    ],
     providers: [CopyToClipboardService],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
         class: "absolute inset-y-1.5 right-1.5 flex w-[var(--cc-inspector-width)] max-w-[90vw] flex-col overflow-hidden rounded-[10px] bg-base-100 shadow-lg transition-transform duration-300 [&.translate-x-full]:translate-x-[calc(100%+0.75rem)]",
         "[class.translate-x-full]": "model() === null",
         "[class.pointer-events-none]": "model() === null",
-        "[attr.aria-hidden]": "model() === null"
+        "[attr.aria-hidden]": "model() === null",
+        "[style.bottom]": "isCollapsed() ? 'auto' : null",
+        "[style.width.px]": "isCollapsed() ? collapsedStripWidthPx : null"
     }
 })
 export class DependencyInspectorComponent {
     private readonly store = inject(DependencyInspectorStore)
+    private readonly collapseStore = inject(DependencyInspectorCollapseStore)
+    private readonly inspectorWidth = inject(InspectorWidthService).width
 
     protected readonly model = this.store.model
     protected readonly edgeColors = this.store.edgeColors
+    protected readonly isCollapsed = this.collapseStore.isCollapsed
+    protected readonly hasUnseenSelection = this.collapseStore.hasUnseenSelection
+    protected readonly collapsedStripWidthPx = COLLAPSED_STRIP_WIDTH_PX
 
     private readonly cyclesSection = viewChild<ElementRef<HTMLElement>>("cyclesSection")
     private readonly upwardSection = viewChild<ElementRef<HTMLElement>>("upwardSection")
@@ -54,7 +77,14 @@ export class DependencyInspectorComponent {
     readonly copied = this.clipboard.copied
 
     constructor() {
-        publishBarInset("right", () => (this.model() === null ? "0px" : `calc(var(--cc-inspector-width) + ${PANEL_ISLAND_MARGIN_PX}px)`))
+        const isExpanded = this.collapseStore.isExpanded
+        publishBarInset("right", () => (isExpanded() ? `calc(var(--cc-inspector-width) + ${PANEL_ISLAND_MARGIN_PX}px)` : "0px"))
+        registerSidePanel({
+            side: "right",
+            isOpen: isExpanded,
+            coveredWidthPx: computed(() => this.inspectorWidth() + PANEL_ISLAND_MARGIN_PX),
+            collapse: () => this.collapseStore.collapse()
+        })
         effect(() => {
             const request = this.store.sectionRequest()
             const badgeSections = { cycles: this.cyclesSection(), upward: this.upwardSection() }
@@ -121,6 +151,10 @@ export class DependencyInspectorComponent {
 
     protected showAllRows(): void {
         this.store.showAllRows()
+    }
+
+    protected expand(): void {
+        this.collapseStore.expand()
     }
 
     protected dismiss(): void {

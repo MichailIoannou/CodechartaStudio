@@ -6,6 +6,7 @@ import { BaseModeRepo } from "../repos/baseMode.repo"
 import { CompareStore } from "../stores/compare.store"
 import { CompareService } from "./compare.service"
 import { errorSentence } from "./comparisonText"
+import type { SnapshotSideInput } from "./snapshotSides"
 
 const PHASES_SHOWN_IN_THE_DIALOG: ReadonlySet<string> = new Set(["stopped", "needsDecision"])
 
@@ -43,6 +44,17 @@ export class CompareFacade {
         return this.startOutsideTheDialog({ kind: "branch", folder, branch, target: options.target ?? null, baseMode })
     }
 
+    /** `base` is a commit or `HEAD` of the folder, compared tip vs tip with a working-tree or imported snapshot of it. */
+    compareWithSnapshot(folder: FolderRef, base: string, snapshot: SnapshotSideInput): Promise<void> {
+        const intent: CompareIntent = {
+            kind: "explicit",
+            base: { folder, rev: { kind: "rev", name: base } },
+            head: { folder, rev: snapshot },
+            baseMode: "tip"
+        }
+        return this.startOutsideTheDialog(intent, folder)
+    }
+
     openDialog(prefill: ComparePrefill = {}): void {
         this.store.openDialog(prefill)
     }
@@ -56,16 +68,20 @@ export class CompareFacade {
     }
 
     /** A comparison started from a menu shows a decision or a stop in the dialog and an error as a toast. */
-    private async startOutsideTheDialog(intent: Extract<CompareIntent, { folder: FolderRef }>): Promise<void> {
+    private async startOutsideTheDialog(intent: CompareIntent, folder = intentFolderOf(intent)): Promise<void> {
         await this.service.start(intent)
         if (this.store.dialogPrefill() !== null) {
             return
         }
         const { phase, error } = this.store.state()
         if (PHASES_SHOWN_IN_THE_DIALOG.has(phase)) {
-            this.store.openDialog({ folder: intent.folder })
+            this.store.openDialog({ folder })
         } else if (error) {
             this.toastService.show(errorSentence(error), "error")
         }
     }
+}
+
+function intentFolderOf(intent: CompareIntent): FolderRef {
+    return intent.kind === "explicit" ? intent.base.folder : intent.folder
 }

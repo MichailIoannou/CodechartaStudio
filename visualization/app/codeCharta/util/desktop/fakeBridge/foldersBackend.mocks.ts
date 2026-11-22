@@ -81,6 +81,7 @@ export function fakeFoldersBackend(kit: FakeBridgeKit): FakeBackend {
                 makePrimary(project, folderIndex)
             }
             folder.role = params.role ?? folder.role
+            folder.hosting = params.hosting ?? folder.hosting
             return null
         })
     }

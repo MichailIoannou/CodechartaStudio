@@ -1,11 +1,16 @@
+import type { Provider } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { screen, within } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
 import type { GitStatus } from "../../../../model/coreApi/GitStatus"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
+import { WORKING_FOLDER_SOURCE } from "../../../gitHistory/facade"
+import { aLocalBranch, anUpstream, aRefs, aRepositoryInfo } from "../../../gitHistory/services/gitApi.mocks"
+import { GitConfirmationService } from "../../../gitHistory/services/gitConfirmation.service"
+import { ProjectsFacade } from "../../../projects/facade"
 import { aFolder, aProject, aSnapshot } from "../../../projects/projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../../projects/projectsTestBed.mocks"
-import { SnapshotsDialogService } from "../../../snapshots/facade"
+import { BatchAnalysisDialogService, SnapshotsDialogService } from "../../../snapshots/facade"
 import { aJob } from "../../../snapshots/snapshots.mocks"
 import { WorkspaceStatusComponent } from "./workspaceStatus.component"
 
@@ -21,20 +26,28 @@ const STATUS: GitStatus = {
     counts: { staged: 1, unstaged: 2, untracked: 0, conflicted: 0 },
     operationInProgress: null
 }
+const REFS = aRefs({
+    localBranches: [aLocalBranch("main", { isCurrent: true, upstream: anUpstream("origin/main", { behind: 2 }) })],
+    remotes: [{ name: "origin", url: "https://example.com/acme/billing-api.git" }]
+})
+const GIT_OF_THE_WORKING_FOLDER: Provider[] = [{ provide: WORKING_FOLDER_SOURCE, useExisting: ProjectsFacade }]
 const FAILURE = { code: "JAVA_TOO_OLD" as const, message: "Java 21 is too old.", hint: "CodeCharta needs Java 22 or newer." }
 
 describe("WorkspaceStatusComponent", () => {
     let testBed: ProjectsTestBed
 
-    async function renderStatus(seed: FakeDesktopSeed = {}) {
+    async function renderStatus(seed: FakeDesktopSeed = {}, providers: Provider[] = []) {
         HTMLDialogElement.prototype.showModal = jest.fn()
-        testBed = await setUpProjects({
-            projects: [BILLING],
-            activeProjectId: "p-billing",
-            snapshots: [SHOWN],
-            gitStatuses: { "f-api": STATUS },
-            ...seed
-        })
+        testBed = await setUpProjects(
+            {
+                projects: [BILLING],
+                activeProjectId: "p-billing",
+                snapshots: [SHOWN],
+                gitStatuses: { "f-api": STATUS },
+                ...seed
+            },
+            { providers }
+        )
         await testBed.projects.showWorkingFolder()
         const fixture = TestBed.createComponent(WorkspaceStatusComponent)
         fixture.autoDetectChanges()
@@ -269,6 +282,42 @@ describe("WorkspaceStatusComponent", () => {
         expect(screen.queryByTestId("workspace-status-menu")).toBeNull()
     })
 
+    it("should pull with the sync button of its git section", async () => {
+        // Arrange
+        await renderStatus({ git: { "f-api": { info: aRepositoryInfo(), refs: REFS } } }, GIT_OF_THE_WORKING_FOLDER)
+        jest.spyOn(TestBed.inject(GitConfirmationService), "ask").mockResolvedValue(true)
+        const menu = await openMenu()
+        const main = within(within(menu).getByTestId("workspace-status-sync")).getByTestId("sync-button-main")
+        const title = main.title
+
+        // Act
+        await userEvent.click(main)
+        await settle()
+
+        // Assert
+        expect(title).toBe("Pull 2 commits from origin/main (fast-forward only)")
+        expect(testBed.bridge.calls.filter(call => call.args[0] === "git.pull").map(call => call.args[1])).toEqual([
+            expect.objectContaining({ repo: { projectId: "p-billing", folderId: "f-api" }, mode: "ffOnly" })
+        ])
+    })
+
+    it("should keep its dropdown open while an action is chosen from the sync menu", async () => {
+        // Arrange
+        await renderStatus({ git: { "f-api": { info: aRepositoryInfo(), refs: REFS } } }, GIT_OF_THE_WORKING_FOLDER)
+        jest.spyOn(TestBed.inject(GitConfirmationService), "ask").mockResolvedValue(true)
+        const menu = await openMenu()
+
+        // Act
+        await userEvent.click(within(menu).getByTestId("sync-button-caret"))
+        await settle()
+        await userEvent.click(within(screen.getByTestId("sync-menu")).getByText("Fetch"))
+        await settle()
+
+        // Assert
+        expect(testBed.bridge.calls.some(call => call.args[0] === "git.fetch")).toBe(true)
+        expect(screen.getByTestId("workspace-status-menu")).toBeTruthy()
+    })
+
     it("should word a plain working folder", async () => {
         // Arrange
         await renderStatus({ projects: [{ ...BILLING, view: { workingFolderId: "f-out", shownSnapshotIdByFolder: {} } }], snapshots: [] })
@@ -328,6 +377,65 @@ describe("WorkspaceStatusComponent", () => {
         expect(afterEscape).toBeNull()
         expect(focusedAfterEscape).toBe(trigger())
         expect(screen.queryByTestId("workspace-status-menu")).toBeNull()
+    })
+
+    it("should open its activity when a batch was started, also while the starting click reaches the page", async () => {
+        // Arrange
+        await renderStatus({ analysisJobs: [aJob("job-1", { batchId: "batch-1" })] })
+
+        // Act
+        TestBed.inject(BatchAnalysisDialogService).announceStarted("batch-1")
+        document.body.click()
+        await settle()
+
+        // Assert
+        expect(within(screen.getByTestId("workspace-status-menu")).getByTestId("activity-batch")).toBeTruthy()
+    })
+
+    it("should keep its dropdown open behind a confirmation it opened", async () => {
+        // Arrange
+        await renderStatus()
+        await openMenu()
+        const dialog = document.createElement("dialog")
+        const answer = document.createElement("button")
+        dialog.appendChild(answer)
+        document.body.appendChild(dialog)
+
+        // Act
+        await userEvent.click(answer)
+        await userEvent.click(dialog)
+
+        // Assert
+        expect(screen.getByTestId("workspace-status-menu")).toBeTruthy()
+        dialog.remove()
+    })
+
+    it("should open the History next to its sync button", async () => {
+        // Arrange
+        await renderStatus({ git: { "f-api": { info: aRepositoryInfo(), refs: REFS } } }, GIT_OF_THE_WORKING_FOLDER)
+        const menu = await openMenu()
+
+        // Act
+        await userEvent.click(within(within(menu).getByTestId("workspace-status-sync")).getByTestId("workspace-status-open-history"))
+
+        // Assert
+        expect(testBed.router.navigateByUrl).toHaveBeenLastCalledWith("/history")
+        expect(screen.queryByTestId("workspace-status-menu")).toBeNull()
+    })
+
+    it("should say that a merge is unfinished and where to finish it", async () => {
+        // Arrange
+        const merging: GitStatus = { ...STATUS, operationInProgress: "merge", counts: { ...STATUS.counts, conflicted: 2 } }
+        await renderStatus({ gitStatuses: { "f-api": merging } })
+
+        // Act
+        const menu = await openMenu()
+
+        // Assert
+        expect(within(menu).getByTestId("workspace-status-operation").textContent?.trim()).toBe(
+            "Merging — 2 files have conflicts. Finish or abort it in the History."
+        )
+        expect(within(menu).queryByTestId("history-operation-abort")).toBeNull()
     })
 
     it("should go to the project overview", async () => {

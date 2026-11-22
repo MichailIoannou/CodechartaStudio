@@ -9,6 +9,7 @@ import { defaultMapState } from "../../../../stores/mapState/mapState.read.facad
 import { defaultPreferences } from "../../../../stores/preferences/preferences.read.facade"
 import { defaultSharedView } from "../../../../stores/sharedView/sharedView.read.facade"
 import { GlobalConfigurationDialogComponent } from "../../../globalSettings/components/globalConfigurationDialog/globalConfigurationDialog.component"
+import { GlobalConfigurationOpener } from "../../../globalSettings/facade"
 import { SettingsButtonComponent } from "./settingsButton.component"
 
 describe("SettingsButtonComponent", () => {
@@ -61,5 +62,24 @@ describe("SettingsButtonComponent", () => {
 
         // Assert
         expect(mockDialog.open).toHaveBeenCalledTimes(1)
+    })
+
+    it("should open the dialog at the place another feature asks for", () => {
+        // Act
+        TestBed.inject(GlobalConfigurationOpener).openGlobalConfiguration({ section: "desktopTools", tool: "git" })
+
+        // Assert
+        expect(mockDialog.open).toHaveBeenCalledWith({ section: "desktopTools", tool: "git" })
+    })
+
+    it("should stop opening the dialog once the button is gone", () => {
+        // Arrange
+        fixture.destroy()
+
+        // Act
+        TestBed.inject(GlobalConfigurationOpener).openGlobalConfiguration()
+
+        // Assert
+        expect(mockDialog.open).not.toHaveBeenCalled()
     })
 })

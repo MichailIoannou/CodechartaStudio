@@ -13,6 +13,8 @@ Desktop only.
 | D3 | Folders rows (data folder, store folder) | inside D1 | — | — |
 | D4 | Core state notice | inside D1 | — | cluster-explorer `alert` |
 | D5 | "Open desktop tools" deep link | used by areas 04, 05, 06 | opens the dialog scrolled to D1 | — |
+| D6 | Title bar setting (O10) | `cc-window-title-bar-setting` | Global Configuration dialog, after D1 | `cc-setting-toggle` |
+| D7 | Window controls (O10) | `cc-window-controls` | nav bar, end (Linux) / reserved space (Windows, macOS) | KDE Breeze, Windows 11, macOS |
 
 ## D1 Desktop tools section
 
@@ -94,7 +96,8 @@ Second line = purpose + problem:
   link opens the dialog but cannot reach the section yet). Until that entry exists the link opens the
   dialog at its top; it is never removed or relabelled. Target behaviour, once built: the dialog opens,
   D1 scrolls into view (`scrollIntoView({ block: "start" })` on the section, no animation), and the
-  failing tool's "Choose…" button gets focus; with no `tool`, focus goes to "Check again".
+  failing tool's "Choose…" button gets focus; with no `tool`, focus goes to "Check again". When that
+  button is disabled (core offline), focus goes to the section heading (`tabindex="-1"`) instead (O9.1).
 
 ## D3 Folder rows
 
@@ -148,6 +151,90 @@ reloads its data (projects, working folder, git status and refs, snapshots, jobs
 | starting | `alert alert-info text-sm` with `loading-spinner loading-xs` "Starting the CodeCharta core…" |
 | stopped / crashed / unavailable | `alert alert-error text-sm` "The CodeCharta core is not running. Projects, git and analyses are paused until it is back." + `btn btn-sm` "Restart core" |
 | restarting | as starting, "Restarting the CodeCharta core…" |
+
+## D6 Title bar setting (owner request O10)
+
+**Where.** Global Configuration dialog, desktop only, directly after D1, a section "Window" with one
+`cc-setting-toggle` row:
+
+```
+Window
+[ ] Use CodeCharta's title bar
+    One bar at the top: the window buttons move into CodeCharta's top bar.
+    Takes effect when CodeCharta restarts.                         [Restart now]
+```
+
+- Default **off** (the system title bar, as today): it is the safe choice on every Linux desktop and
+  window manager, and the owner asked for a setting, not a new default.
+- Stored in the shell's settings file (`readShellSettings`, next to `colorScheme`), because the window
+  is created with it: a live window cannot switch between framed and frameless.
+- After a change the helper line turns `text-warning` and "Restart now" (`btn btn-sm`) appears. It
+  closes and reopens the window; the core keeps running and the projects, map and view state come back
+  from the store and IndexedDB (no core restart, OD5). Without it the change applies at the next start.
+- The dialog shows the row on every desktop platform. Nothing in the web build.
+
+## D7 Window controls (owner request O10)
+
+With D6 on, the native title bar and frame are gone and the nav bar is the only bar. The default menu
+bar is already removed (macOS keeps its app and Edit menus in the system menu bar).
+
+**Per platform.** The system draws the buttons wherever it can, because only the system's own
+buttons behave exactly like the system's (snap layouts, accessibility, button order):
+
+| Platform | Window setup (shell) | Who draws the buttons | Where |
+|---|---|---|---|
+| macOS | `titleBarStyle: "hiddenInset"`, `trafficLightPosition: { x: 16, y: 16 }` (centred in the 48 px bar) | macOS (real traffic lights) | left; the nav bar starts with an 80 px empty drag area before the logo |
+| Windows | `titleBarStyle: "hidden"`, `titleBarOverlay: { color, symbolColor, height: 48 }` | Windows (real Windows 11 caption buttons, including the snap-layout flyout and the red close) | right; the nav bar ends `env(titlebar-area-width)` early |
+| Linux | `frame: false` | CodeCharta (`cc-window-controls`, Breeze look) | right end of the nav bar, after Settings |
+
+On Windows the overlay colours follow the theme: `color` = `base-100`, `symbolColor` =
+`base-content`, sent again through `setTitleBarOverlay` whenever the theme changes.
+
+**Linux buttons (KDE Breeze look).** Breeze is KDE Plasma's default decoration; the buttons are plain
+glyphs, no frames, with a round highlight under the pointer:
+
+```
+… Settings   ⌄   ⌃   ✕        restored
+… Settings   ⌄   ◇   ✕        maximized (restore glyph is Breeze's diamond)
+```
+
+- Order minimize, maximize/restore, close. Each `size-7` (28 px hit area), `gap-1`, `pr-1.5`; a
+  `w-3` drag gap separates them from Settings. Glyphs are inline SVG, 12 px, `stroke-width 1.5`,
+  `stroke="currentColor"`, round caps: chevron down, chevron up, diamond (a square rotated 45°),
+  cross.
+- Colours from the theme, so dark and light come for free: glyph `text-base-content/80`; hover a
+  22 px circle `bg-base-content/15`; pressed `bg-base-content/25`. Close: hover circle `#da4453`
+  (Breeze's red) with a white glyph, pressed `#b8323f`. Window not focused: glyphs
+  `text-base-content/45`, still clickable.
+- `aria-label` "Minimize", "Maximize" / "Restore", "Close"; `title` the same. Not in the Tab order
+  (`tabindex="-1"`), like native buttons; the system shortcuts keep working. A keyboard focus ring
+  still exists for screen-reader activation: `focus-visible:outline-2 outline-primary rounded-full`.
+- The window cannot be maximized (`isMaximizable()` false): the middle button is disabled,
+  `opacity-40`. Full screen (F11): the buttons hide; the nav bar stays.
+
+**Drag region (all platforms).** The nav bar's background moves the window
+(`-webkit-app-region: drag` on `<nav>`); every interactive element is `no-drag` (buttons, triggers,
+tabs, dropdown panels, inputs, the Linux buttons). The empty space between the groups is the drag
+area; at least the `w-3` gap before the window buttons and the macOS 80 px inset always stay free.
+Double-click on a drag area maximizes or restores (macOS: as the system's "double-click a window's
+title bar" setting says). Right-click: Windows shows its system menu (native); Linux shows a
+`cc-floating-menu` with Minimize, Maximize / Restore, Close; macOS nothing.
+
+**Space.** The right half of the nav bar holds only Settings, so on Windows (≈ 138 px of caption
+buttons) and Linux (≈ 100 px) nothing else moves, down to 1024 px. On macOS the 80 px inset comes out
+of the left half, which is already full: below 1280 px the logo and its divider hide while D6 is on
+(the traffic lights already mark the window), which gives back about 90 px. During full screen on
+macOS the traffic lights and the inset go away and the logo returns.
+
+**Out of scope.** Other KDE decoration themes (Oxygen, Aurorae themes) and GNOME's Adwaita buttons
+are not imitated: the Linux buttons always use the Breeze shape with the app's theme colours (owner
+question 13). The button order follows the system where it can be read — KDE `kwinrc`
+`[org.kde.kdecoration2] ButtonsOnRight` / `ButtonsOnLeft`, GNOME `org.gnome.desktop.wm.preferences
+button-layout` — and is minimize, maximize, close on the right otherwise.
+
+**For the implementer to verify** (not designable from here): frameless windows still resize from
+their edges and keep their shadow on KDE (X11 and Wayland) and GNOME Wayland; double-click on a drag
+region maximizes under Linux with `frame: false` (otherwise the shell handles the double-click).
 
 ## States of the whole section
 

@@ -1,7 +1,7 @@
 import { NgTemplateOutlet } from "@angular/common"
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from "@angular/core"
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from "@angular/core"
 import type { AnalysisJob } from "../../../../model/coreApi/AnalysisJob"
-import { durationText, ProjectsFacade } from "../../../projects/facade"
+import { counted, durationText, ProjectsFacade } from "../../../projects/facade"
 import {
     AnalysisJobsService,
     isPendingJob,
@@ -19,6 +19,22 @@ interface ActivityRow {
     otherFolderLabel: string | null
     percent: number | null
     duration: string | null
+}
+
+interface BatchGroup {
+    batchId: string
+    sentence: string
+    isPending: boolean
+    isExpanded: boolean
+    rows: ActivityRow[]
+    runningRows: ActivityRow[]
+}
+
+/** One line of the activity: a job on its own, or a batch with its jobs. */
+interface ActivityEntry {
+    key: string
+    row: ActivityRow | null
+    group: BatchGroup | null
 }
 
 @Component({
@@ -39,7 +55,8 @@ export class AnalysisActivityComponent {
         const rejected = this.view.rejectedRun()
         return rejected?.surface === "status" ? rejected.problems : null
     })
-    readonly rows = computed(() => this.jobs().map(job => this.rowOf(job)))
+    readonly expandedBatches = signal<ReadonlySet<string>>(new Set())
+    readonly entries = computed(() => this.entriesOf(this.jobs().map(job => this.rowOf(job))))
     readonly hasFinished = computed(() => this.jobs().some(job => !isPendingJob(job)))
 
     cancel(job: AnalysisJob) {
@@ -56,8 +73,53 @@ export class AnalysisActivityComponent {
         void this.view.retry(job)
     }
 
+    cancelBatch(batchId: string) {
+        void this.jobsService.cancelBatch(batchId).catch(error => this.projects.toastUnlessSilent(error, (error as Error).message))
+    }
+
+    toggleBatch(batchId: string) {
+        this.expandedBatches.update(expanded => {
+            const next = new Set(expanded)
+            if (!next.delete(batchId)) {
+                next.add(batchId)
+            }
+            return next
+        })
+    }
+
     clearFinished() {
         void this.jobsService.clearFinished().catch(error => this.projects.toastUnlessSilent(error, (error as Error).message))
+    }
+
+    /** Jobs in queue order; the jobs of a batch gather at the place of its first job. */
+    private entriesOf(rows: ActivityRow[]): ActivityEntry[] {
+        const rowsByBatch = new Map<string, ActivityRow[]>()
+        const entries: ActivityEntry[] = []
+        for (const row of rows) {
+            const { batchId } = row.job
+            if (!batchId) {
+                entries.push({ key: row.job.id, row, group: null })
+            } else if (rowsByBatch.has(batchId)) {
+                rowsByBatch.get(batchId)?.push(row)
+            } else {
+                rowsByBatch.set(batchId, [row])
+                entries.push({ key: batchId, row: null, group: null })
+            }
+        }
+        return entries.map(entry => (entry.row ? entry : { ...entry, group: this.groupOf(entry.key, rowsByBatch.get(entry.key) ?? []) }))
+    }
+
+    private groupOf(batchId: string, rows: ActivityRow[]): BatchGroup {
+        const label = this.jobsService.batchLabelOf(batchId) ?? counted(rows.length, "commit")
+        const doneCount = rows.filter(row => row.job.state === "done").length
+        return {
+            batchId,
+            sentence: `Batch: ${label} (${doneCount} of ${rows.length} done)`,
+            isPending: rows.some(row => isPendingJob(row.job)),
+            isExpanded: this.expandedBatches().has(batchId),
+            rows,
+            runningRows: rows.filter(row => row.job.state === "running")
+        }
     }
 
     private rowOf(job: AnalysisJob): ActivityRow {

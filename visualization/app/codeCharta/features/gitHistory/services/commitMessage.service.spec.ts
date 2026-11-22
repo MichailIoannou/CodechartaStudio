@@ -258,8 +258,8 @@ describe("CommitMessageService", () => {
 
         // Assert
         const [toast] = toasts()
-        expect(toast.text).toContain('git config --global user.name "Your Name"')
-        expect(toast.text).toContain('git config --global user.email "you@example.com"')
+        expect(toast.text).toBe("Git does not know who you are. Run these in a terminal, then commit again:")
+        expect(toast.commands).toEqual(['git config --global user.name "Your Name"', 'git config --global user.email "you@example.com"'])
         expect(toast.details).toBe(detail)
         expect(service.message().subject).toBe("Fix rounding")
     })

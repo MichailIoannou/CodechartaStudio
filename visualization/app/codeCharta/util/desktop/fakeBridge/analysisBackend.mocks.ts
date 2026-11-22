@@ -1,5 +1,6 @@
 import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
 import type { AnalysisTarget } from "../../../model/coreApi/AnalysisTarget"
+import type { BatchSelection } from "../../../model/coreApi/BatchSelection"
 import type { JobError } from "../../../model/coreApi/JobError"
 import type { JobProgress } from "../../../model/coreApi/JobProgress"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
@@ -7,6 +8,7 @@ import type { FakeBackend, FakeBridgeKit, FakeRequestParams } from "./fakeBridge
 
 /* istanbul ignore next */
 export function fakeAnalysisBackend(kit: FakeBridgeKit): FakeBackend {
+    const MAX_BATCH_JOBS = 200
     const { store, succeed, refuse, nextId, now, emit, seed } = kit
     Object.assign(store, { jobs: JSON.parse(JSON.stringify(seed.analysisJobs ?? [])), failedJobLogs: { ...seed.failedJobLogs } })
 
@@ -30,10 +32,10 @@ export function fakeAnalysisBackend(kit: FakeBridgeKit): FakeBackend {
         emit(event, { job: copyOf(job) })
     }
 
-    function newJob(params: FakeRequestParams, target: AnalysisTarget): AnalysisJob {
+    function newJob(params: FakeRequestParams, target: AnalysisTarget, batchId: string | null): AnalysisJob {
         return {
             id: nextId("job"),
-            batchId: null,
+            batchId,
             projectId: params.projectId ?? "",
             folderId: params.folderId ?? "",
             target,
@@ -55,10 +57,74 @@ export function fakeAnalysisBackend(kit: FakeBridgeKit): FakeBackend {
         if (queued) {
             return succeed({ status: "alreadyQueued", job: copyOf(queued) })
         }
-        const job = newJob(params, target)
+        const job = queueJob(params, target, null)
+        return succeed({ status: "queued", job: copyOf(job) })
+    }
+
+    function queueJob(params: FakeRequestParams, target: AnalysisTarget, batchId: string | null) {
+        const job = newJob(params, target, batchId)
         store.jobs.push(job)
         announceJob("analysis.queued", job)
-        return succeed({ status: "queued", job: copyOf(job) })
+        return job
+    }
+
+    function isAnalysedCommit(snapshot: SnapshotSummary) {
+        return snapshot.source === "analysed" && snapshot.target === "commit"
+    }
+
+    function batchShasOf(params: FakeRequestParams, selection: BatchSelection) {
+        const repository = store.git[params.folderId ?? ""]
+        if (selection.kind === "commits") {
+            return selection.shas
+        }
+        if (selection.kind === "tags") {
+            return [...new Set((repository?.refs?.tags ?? []).map(tag => tag.commit))]
+        }
+        const commits = (repository?.commits ?? []).map(commit => commit.sha)
+        const tipIndex = commits.indexOf(selection.tipSha)
+        return tipIndex === -1 ? [] : commits.slice(tipIndex, tipIndex + selection.count)
+    }
+
+    function estimatedDurationOf(analysed: SnapshotSummary[], count: number) {
+        const durations = analysed.map(snapshot => snapshot.durationMs).filter(duration => duration !== null)
+        const averageMs = durations.length > 0 ? durations.reduce((total, duration) => total + duration, 0) / durations.length : null
+        return averageMs === null ? null : Math.round(averageMs * count)
+    }
+
+    function enqueueBatch(params: FakeRequestParams) {
+        const selection = params.selection as BatchSelection
+        const count = selection.kind === "lastCommits" ? selection.count : 1
+        if (count < 1 || count > MAX_BATCH_JOBS) {
+            return refuse("BAD_REQUEST", `A batch holds 1 to ${MAX_BATCH_JOBS} commits.`)
+        }
+        const analysed = kit.snapshots.snapshotsOf(params.projectId ?? "", params.folderId).filter(isAnalysedCommit)
+        const analysedShas = new Set(analysed.map(snapshot => snapshot.commit))
+        const shas = batchShasOf(params, selection)
+        const notAnalysed = shas.filter(sha => !analysedShas.has(sha))
+        const toAnalyse = notAnalysed.slice(0, MAX_BATCH_JOBS)
+        const batchId = params.dryRun || toAnalyse.length === 0 ? null : nextId("batch")
+        const jobs = batchId ? toAnalyse.map(sha => queueJob(params, { kind: "commit", sha }, batchId)) : []
+        return succeed({
+            batchId,
+            toAnalyse,
+            alreadyAnalysed: shas.filter(sha => analysedShas.has(sha)),
+            leftOut: Math.max(0, notAnalysed.length - MAX_BATCH_JOBS),
+            jobs: copyOf(jobs),
+            estimatedDurationMs: estimatedDurationOf(analysed, toAnalyse.length),
+            problems: []
+        })
+    }
+
+    function cancelBatch(params: FakeRequestParams) {
+        const jobs = store.jobs.filter(job => job.batchId === params.batchId)
+        if (jobs.length === 0) {
+            return refuse("NOT_FOUND", `The fake desktop bridge has no batch ${String(params.batchId)}.`)
+        }
+        for (const job of jobs.filter(isPending)) {
+            Object.assign(job, { state: "cancelled", finishedAt: now })
+            announceJob("analysis.cancelled", job)
+        }
+        return succeed(null)
     }
 
     function cancelAnalysis(params: FakeRequestParams) {
@@ -165,6 +231,8 @@ export function fakeAnalysisBackend(kit: FakeBridgeKit): FakeBackend {
         "analysis.preflight": preflight,
         "analysis.enqueue": enqueueAnalysis,
         "analysis.cancel": cancelAnalysis,
+        "analysis.enqueueBatch": enqueueBatch,
+        "analysis.cancelBatch": cancelBatch,
         "analysis.list": listJobs,
         "analysis.clearFinished": clearFinishedAnalyses,
         "analysis.readLog": readFailedLog

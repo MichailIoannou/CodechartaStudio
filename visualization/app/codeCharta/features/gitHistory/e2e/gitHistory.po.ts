@@ -43,6 +43,10 @@ export class GitHistoryPageObject {
         return this.page.getByTestId("commit-details")
     }
 
+    commitContextMenu() {
+        return this.page.getByTestId("commit-context-menu")
+    }
+
     changedFiles() {
         return this.page.getByTestId("changed-file")
     }
@@ -59,8 +63,29 @@ export class GitHistoryPageObject {
         return this.page.getByTestId("sync-button-cancel")
     }
 
+    async chooseFromSyncMenu(action: string) {
+        await this.page.getByTestId("sync-button-caret").click()
+        await this.page.getByTestId(`sync-menu-${action}`).locator("button").click()
+    }
+
+    operationNotice() {
+        return this.page.getByTestId("history-operation-notice")
+    }
+
+    abortOperation() {
+        return this.page.getByTestId("history-operation-abort")
+    }
+
+    async choose(value: string) {
+        await this.page.getByTestId(`git-choice-${value}`).click()
+    }
+
     workspaceStatus() {
         return this.page.getByTestId("workspace-status-trigger")
+    }
+
+    workspaceStatusMenu() {
+        return this.page.getByTestId("workspace-status-menu")
     }
 
     confirmDialog() {

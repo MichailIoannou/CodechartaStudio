@@ -2,5 +2,17 @@
 import type { CommitSha } from "./CommitSha"
 import type { FolderRef } from "./FolderRef"
 import type { RefLabel } from "./RefLabel"
+import type { SideKind } from "./SideKind"
+import type { SnapshotId } from "./SnapshotId"
 
-export type ComparedCommit = { folder: FolderRef; commit: CommitSha; shortCommit: string; label: RefLabel }
+/**
+ * One side: a `commit` has its sha, a working-tree or imported snapshot its `snapshotId` instead.
+ */
+export type ComparedCommit = {
+    folder: FolderRef
+    kind: SideKind
+    commit: CommitSha | null
+    shortCommit: string | null
+    snapshotId: SnapshotId | null
+    label: RefLabel
+}

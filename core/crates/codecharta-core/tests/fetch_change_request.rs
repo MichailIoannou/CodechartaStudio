@@ -3,7 +3,7 @@ mod support;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use codecharta_core::hosting::fetch_change_request_head;
+use codecharta_core::hosting::{fetch_change_request_head, remove_fetched_refs};
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::methods::hosting::{FetchChangeRequestHeadParams, HostingProvider};
 use tokio_util::sync::CancellationToken;
@@ -170,6 +170,36 @@ async fn should_reject_a_remote_that_is_not_configured() {
         repo.try_git(&["rev-parse", "--verify", "--quiet", "refs/codecharta/pr/7"])
             .is_none()
     );
+}
+
+#[tokio::test]
+async fn should_remove_only_refs_under_the_private_namespace() {
+    // Arrange
+    let (repo, _) = repo_with_a_pull_request_on_its_origin();
+    for private_ref in ["refs/codecharta/pr/7", "refs/codecharta/mr/3"] {
+        repo.git(&["update-ref", private_ref, "HEAD"]);
+    }
+    repo.git(&["update-ref", "refs/codecharta-other/x", "HEAD"]);
+    let others_before = refs_except_private(&repo);
+    let (runner, harness) = (repo.runner(), OperationsHarness::default());
+    let service = harness.service(&runner, repo.data_dir());
+    let cancel = CancellationToken::new();
+    let folder = project_folder(repo.path());
+
+    // Act
+    let removed = remove_fetched_refs(&service, &folder, &context(&cancel))
+        .await
+        .unwrap();
+    let again = remove_fetched_refs(&service, &folder, &context(&cancel))
+        .await
+        .unwrap();
+
+    // Assert
+    assert_eq!(removed.removed, 2);
+    assert_eq!(again.removed, 0);
+    assert_eq!(repo.git(&["for-each-ref", "refs/codecharta/"]), "");
+    assert_eq!(refs_except_private(&repo), others_before);
+    assert!(others_before.contains("refs/codecharta-other/x"));
 }
 
 #[tokio::test]

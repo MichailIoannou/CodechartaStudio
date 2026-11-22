@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aGitStatus, aPickedImportFile, aProject, aSnapshot } from "../../projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../projectsTestBed.mocks"
+import { FolderMenuRequestsService } from "../../services/folderMenuRequests.service"
 import { ProjectSwitcherComponent } from "./projectSwitcher.component"
 
 const BILLING = aProject(
@@ -56,6 +57,22 @@ describe("ProjectSwitcherComponent", () => {
         expect(Array.from(trigger.querySelectorAll("span span"), span => span.textContent?.trim())).toEqual(["billing", "/", "billing-api"])
         expect(trigger.title).toBe("Project 'billing', working folder 'billing-api' (C:\\work\\billing-api) — switch folder or project")
         expect(trigger.getAttribute("aria-expanded")).toBe("false")
+    })
+
+    it("should show only its icon below 1280 px when asked to, keeping the folder in its title", async () => {
+        // Arrange
+        const fixture = await renderSwitcher()
+        const label = () => screen.getByTestId("project-switcher-label")
+        const labelClassBefore = label().className
+
+        // Act
+        fixture.componentRef.setInput("isIconOnlyBelowXl", true)
+        await settle()
+
+        // Assert
+        expect(labelClassBefore).not.toContain("max-xl:hidden")
+        expect(label().className).toContain("max-xl:hidden")
+        expect(screen.getByTestId("project-switcher-trigger").title).toContain("working folder 'billing-api'")
     })
 
     it("should list the folders of the project with the working folder checked and their branches", async () => {
@@ -195,6 +212,19 @@ describe("ProjectSwitcherComponent", () => {
         expect((focusedSecond as HTMLElement).dataset.testid).toBe("project-switcher-folder-billing-web")
         expect(screen.queryByTestId("project-switcher-menu")).toBeNull()
         expect(document.activeElement).toBe(trigger)
+    })
+
+    it("should open with the working folder focused when another view asks to choose the working folder", async () => {
+        // Arrange
+        await renderSwitcher()
+
+        // Act
+        TestBed.inject(FolderMenuRequestsService).request()
+        await settle()
+
+        // Assert
+        expect(screen.getByTestId("project-switcher-menu")).not.toBeNull()
+        expect((document.activeElement as HTMLElement).dataset.testid).toBe("project-switcher-folder-billing-api")
     })
 
     it("should expand and collapse a project with the arrow keys", async () => {

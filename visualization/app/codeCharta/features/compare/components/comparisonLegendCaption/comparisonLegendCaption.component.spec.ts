@@ -46,12 +46,59 @@ describe("ComparisonLegendCaptionComponent", () => {
                 checksum: TEST_FILE_DATA_JAVA.fileMeta.fileChecksum
             },
             error: null,
-            analyses: []
+            analyses: [],
+            changedFiles: null,
+            changeRequest: null
         })
 
         // Assert
         const caption = await screen.findByTestId("comparison-legend-caption")
         expect(caption.textContent?.replace(/\s+/g, " ")).toBe("Δ = head a1b2c3d − base 9f8e7d6")
+    })
+
+    it("should name a side without a commit by its label", async () => {
+        // Arrange
+        await renderCaption()
+        const requested = aComparedCommit(HEAD_SHA)
+
+        // Act
+        TestBed.inject(CompareStore).set({
+            phase: "active",
+            resolved: null,
+            base: {
+                requested: aComparedCommit(BASE_SHA),
+                snapshot: aCommitSnapshot(BASE_SHA),
+                relation: null,
+                staleBy: 0,
+                behind: 0,
+                ahead: 0,
+                checksum: TEST_FILE_DATA.fileMeta.fileChecksum
+            },
+            head: {
+                requested: {
+                    ...requested,
+                    kind: "workingTree",
+                    commit: null,
+                    shortCommit: null,
+                    snapshotId: "s-wt",
+                    label: { kind: "workingTree", name: "working tree" }
+                },
+                snapshot: aCommitSnapshot(HEAD_SHA),
+                relation: null,
+                staleBy: 0,
+                behind: 0,
+                ahead: 0,
+                checksum: TEST_FILE_DATA_JAVA.fileMeta.fileChecksum
+            },
+            error: null,
+            analyses: [],
+            changedFiles: null,
+            changeRequest: null
+        })
+
+        // Assert
+        const caption = await screen.findByTestId("comparison-legend-caption")
+        expect(caption.textContent?.replace(/\s+/g, " ")).toBe("Δ = head working tree − base 9f8e7d6")
     })
 
     it("should say nothing in the delta of uploaded maps", async () => {

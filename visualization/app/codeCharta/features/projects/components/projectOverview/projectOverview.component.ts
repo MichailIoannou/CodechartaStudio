@@ -7,6 +7,7 @@ import type { SnapshotSummary } from "../../../../model/coreApi/SnapshotSummary"
 import type { StoreProblemCode } from "../../../../model/coreApi/StoreProblemCode"
 import { StoreFolderService } from "../../../desktopTools/facade"
 import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
+import { FOLDER_ACTIONS, FolderAction } from "../../ports/folderActions.port"
 import { OpenFileService } from "../../services/openFile.service"
 import { ProjectFoldersService } from "../../services/projectFolders.service"
 import { ProjectsService } from "../../services/projects.service"
@@ -36,6 +37,7 @@ interface CommitRow {
 
 interface FolderRow {
     folder: ProjectFolder
+    actions: readonly FolderAction[]
     isWorking: boolean
     kindText: string
     analysesText: string
@@ -61,6 +63,7 @@ export class ProjectOverviewComponent {
     private readonly projectFolders = inject(ProjectFoldersService)
     private readonly openFileService = inject(OpenFileService)
     private readonly storeFolder = inject(StoreFolderService)
+    private readonly contributedFolderActions = inject(FOLDER_ACTIONS, { optional: true }) ?? []
     private lastRefreshAt = 0
 
     readonly now = signal(Date.now())
@@ -122,6 +125,14 @@ export class ProjectOverviewComponent {
         }
     }
 
+    runFolderAction(action: FolderAction, folder: ProjectFolder) {
+        const project = this.project()
+        if (project) {
+            ;(document.activeElement as HTMLElement | null)?.blur()
+            action.run({ projectId: project.id, folderId: folder.id }, folder.label)
+        }
+    }
+
     showSampleFiles() {
         this.projects.showSampleFiles()
     }
@@ -180,6 +191,7 @@ export class ProjectOverviewComponent {
             const allImported = snapshots.length > 0 && snapshots.every(snapshot => snapshot.source === "imported")
             return {
                 folder,
+                actions: this.contributedFolderActions.filter(action => action.isOfferedFor(folder)),
                 isWorking: folder.id === workingId,
                 kindText: this.kindText(project?.id ?? "", folder),
                 analysesText: allImported ? `${snapshots.length} imported` : counted(snapshots.length, "analysis", "analyses"),

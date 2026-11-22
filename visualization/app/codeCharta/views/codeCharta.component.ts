@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, OnInit, signal } from "@angular/core"
 import { RouterOutlet } from "@angular/router"
 import { ChangelogDialogComponent } from "../features/changelog/facade"
-import { CredentialPromptDialogComponent } from "../features/gitHistory/facade"
+import { CredentialPromptDialogComponent, GitDialogsComponent } from "../features/gitHistory/facade"
 import { NavBarComponent } from "../features/navBar/facade"
-import { FileDropOverlayComponent, ProjectsBootService } from "../features/projects/facade"
+import { FileDropOverlayComponent, FolderRelinkHostComponent, ProjectsBootService } from "../features/projects/facade"
 import { BootLoadingIndicatorComponent, ErrorDialogComponent, ToastComponent } from "../features/shared/facade"
 import { SnapshotNoticeComponent } from "../features/snapshots/facade"
 
@@ -18,8 +18,10 @@ import { SnapshotNoticeComponent } from "../features/snapshots/facade"
         RouterOutlet,
         BootLoadingIndicatorComponent,
         FileDropOverlayComponent,
+        FolderRelinkHostComponent,
         SnapshotNoticeComponent,
-        CredentialPromptDialogComponent
+        CredentialPromptDialogComponent,
+        GitDialogsComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })

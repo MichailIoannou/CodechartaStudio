@@ -3,6 +3,8 @@ import { join } from "node:path"
 import { gzipSync } from "node:zlib"
 import { expect, test } from "@playwright/test"
 import { goto, standInForTheDesktopBridge } from "../../../../playwright.helper"
+import { LocalSourcePageObject } from "../../localSource/e2e/localSource.po"
+import { ExplorerTreeLevelPageObject } from "../../sidebarExplorer/components/explorerTreeLevel/explorerTreeLevel.po"
 import { aFolder, aPickedFolder, aPickedImportFile, aProject, aSnapshot } from "../projects.mocks"
 import { ProjectsPageObject } from "./projects.po"
 
@@ -84,6 +86,39 @@ test.describe("Projects", () => {
         // Assert
         await expect(projects.switcherTrigger()).toContainText("Downloads")
         await expect(page.locator("cc-sidebar-explorer")).toContainText("sample1OnlyLeaf.scss")
+    })
+
+    test("should show a source file of a project map from its folder without asking for a folder", async ({ page }) => {
+        // Arrange
+        const localSource = new LocalSourcePageObject(page)
+        await standInForTheDesktopBridge(page, { ...SEED, sourceFiles: { "f-api/bigLeaf.ts": "export const big = 42" } })
+        await goto(page)
+
+        // Act
+        await new ExplorerTreeLevelPageObject(page).openContextMenu("/root/bigLeaf.ts")
+        await page.locator("#codemap-context-menu").getByText("Show Source").click()
+
+        // Assert
+        await expect(localSource.sourceDialog()).toContainText("export const big = 42")
+        await expect(localSource.folderDialog()).toHaveCount(0)
+    })
+
+    test("should offer to re-link a missing project folder when its source is asked for", async ({ page }) => {
+        // Arrange
+        const missingApi = aProject("p-billing", [aFolder("f-api", { label: "billing-api", status: "missing" })], { name: "billing" })
+        await standInForTheDesktopBridge(page, { ...SEED, projects: [missingApi, DOTFILES], pickedFolders: [aPickedFolder("billing-api")] })
+        await goto(page)
+        await new ExplorerTreeLevelPageObject(page).openContextMenu("/root/bigLeaf.ts")
+        await page.locator("#codemap-context-menu").getByText("Show Source").click()
+        const unavailable = page.getByTestId("local-source-unavailable-folder-dialog")
+        await expect(unavailable).toContainText("The folder 'billing-api' is not available, so its files cannot be opened.")
+
+        // Act
+        await unavailable.getByRole("button", { name: "Re-link folder…" }).click()
+
+        // Assert
+        await expect(unavailable).not.toBeVisible()
+        await expect(new LocalSourcePageObject(page).folderDialog()).toHaveCount(0)
     })
 
     test("should keep the upload button and no project menu without a bridge", async ({ page }) => {

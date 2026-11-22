@@ -1,13 +1,16 @@
-const { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } = require("electron")
-const { spawn } = require("node:child_process")
+const { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } = require("electron")
+const { execFile, spawn } = require("node:child_process")
 const fs = require("node:fs")
+const os = require("node:os")
 const path = require("node:path")
+const { promisify } = require("node:util")
 const contract = require("./coreMethods.generated.json")
 const { CoreClient } = require("./coreClient")
 const { createProjectsShell } = require("./projectsShell")
 const { createShellActions, readShellSettings, runAction } = require("./shellActions")
 const { createDropShell, createSnapshotsShell } = require("./snapshotsShell")
 const policy = require("./shellPolicy")
+const { createWindowShell, readLinuxButtonOrder } = require("./windowShell")
 
 const CHANNELS = {
     hello: "codecharta:hello",
@@ -32,6 +35,7 @@ let coreClient = null
 let trustedPage = null
 let isCoreStopped = false
 let composedMethods = {}
+let windowShell = null
 const operationsBySender = new Map()
 
 function applyUserDataOverride() {
@@ -171,6 +175,17 @@ function createActions() {
     })
 }
 
+function createWindowShellForApp() {
+    return createWindowShell({
+        fs,
+        dataDir: app.getPath("userData"),
+        platform: process.platform,
+        getWindow: () => mainWindow,
+        openWindow: createWindow,
+        loadButtonOrder: () => readLinuxButtonOrder({ fs, env: process.env, homeDir: os.homedir(), execFile: promisify(execFile) })
+    })
+}
+
 function createComposedMethods() {
     return { ...createProjectsShell(shellPorts()), ...createSnapshotsShell(shellPorts()) }
 }
@@ -206,6 +221,8 @@ function handleTrusted(channel, handler) {
 function registerIpcHandlers() {
     const { dialogActions, shellActions } = createActions()
     composedMethods = createComposedMethods()
+    windowShell = createWindowShellForApp()
+    const allShellActions = { ...shellActions, ...windowShell.windowActions }
     ipcMain.on(CHANNELS.hello, event => {
         const isTrustedSender = isTrusted(captureSender(event))
         event.returnValue = isTrustedSender ? { protocolVersion: contract.protocolVersion, coreState: coreClient.currentState() } : null
@@ -214,7 +231,7 @@ function registerIpcHandlers() {
     handleTrusted(CHANNELS.cancel, relayCancel)
     const allDialogActions = { ...dialogActions, ...createDropShell(shellPorts()) }
     handleTrusted(CHANNELS.dialog, (_sender, payload) => runAction(allDialogActions, payload))
-    handleTrusted(CHANNELS.shell, (_sender, payload) => runAction(shellActions, payload))
+    handleTrusted(CHANNELS.shell, (_sender, payload) => runAction(allShellActions, payload))
 }
 
 function guardNavigation(webContents) {
@@ -250,7 +267,7 @@ function cancelOperationsWhenThePageGoes(window) {
     })
 }
 
-function createWindow() {
+function createWindow(placement = WINDOW_SIZE) {
     const indexHtmlPath = path.join(__dirname, "index.html")
     trustedPage = policy.describeTrustedPage({
         isPackaged: app.isPackaged,
@@ -261,7 +278,8 @@ function createWindow() {
     const shellSettings = readShellSettings(fs, app.getPath("userData"))
     nativeTheme.themeSource = policy.isColorScheme(shellSettings.colorScheme) ? shellSettings.colorScheme : DEFAULT_COLOR_SCHEME
     mainWindow = new BrowserWindow({
-        ...WINDOW_SIZE,
+        ...placement,
+        ...windowShell.frameOptionsFor(shellSettings),
         icon: path.join(__dirname, "codeCharta/assets", WINDOW_ICON_FILE),
         backgroundColor: policy.isWindowBackgroundColor(shellSettings.windowBackgroundColor)
             ? shellSettings.windowBackgroundColor
@@ -276,11 +294,13 @@ function createWindow() {
     })
     guardNavigation(mainWindow.webContents)
     cancelOperationsWhenThePageGoes(mainWindow)
+    windowShell.watchWindow(mainWindow, sendToPage)
     if (trustedPage.kind === "devServer") {
         mainWindow.loadURL(trustedPage.origin)
     } else {
         mainWindow.loadFile(indexHtmlPath)
     }
+    return mainWindow
 }
 
 function focusMainWindow() {
@@ -302,6 +322,11 @@ function stopCoreBeforeQuit(event) {
     coreClient.stop().finally(() => app.quit())
 }
 
+function applyApplicationMenu() {
+    const template = policy.applicationMenuTemplate(process.platform)
+    Menu.setApplicationMenu(template ? Menu.buildFromTemplate(template) : null)
+}
+
 applyUserDataOverride()
 
 if (app.requestSingleInstanceLock()) {
@@ -309,6 +334,7 @@ if (app.requestSingleInstanceLock()) {
     app.enableSandbox()
     registerIpcHandlers()
     app.whenReady().then(() => {
+        applyApplicationMenu()
         startCore()
         createWindow()
         app.on("activate", () => {
@@ -318,9 +344,8 @@ if (app.requestSingleInstanceLock()) {
         })
     })
     app.on("before-quit", stopCoreBeforeQuit)
-    // Quit when all windows are closed, except on macOS, where apps stay active until Cmd + Q.
     app.on("window-all-closed", () => {
-        if (process.platform !== "darwin") {
+        if (windowShell.shouldQuitWhenAllClosed()) {
             app.quit()
         }
     })

@@ -1,3 +1,4 @@
+import type { Provider } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { screen, within } from "@testing-library/angular"
 import userEvent from "@testing-library/user-event"
@@ -5,6 +6,8 @@ import type { GitStatus } from "../../../../model/coreApi/GitStatus"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
 import { aFolder, aProject, aSnapshot } from "../../../projects/projects.mocks"
 import { ProjectsTestBed, settle, setUpProjects } from "../../../projects/projectsTestBed.mocks"
+import { SNAPSHOT_ACTIONS, SnapshotAction } from "../../ports/snapshotActions.port"
+import { BatchAnalysisDialogService } from "../../services/batchAnalysisDialog.service"
 import { SnapshotsDialogService } from "../../services/snapshotsDialog.service"
 import { COMMIT_SHA } from "../../snapshots.mocks"
 import { SnapshotsDialogComponent } from "./snapshotsDialog.component"
@@ -56,18 +59,25 @@ const HEAD: GitStatus = {
 describe("SnapshotsDialogComponent", () => {
     let testBed: ProjectsTestBed
 
-    async function openDialog(seed: FakeDesktopSeed = {}, beforeOpen: (bed: ProjectsTestBed) => void = () => undefined) {
+    async function openDialog(
+        seed: FakeDesktopSeed = {},
+        beforeOpen: (bed: ProjectsTestBed) => void = () => undefined,
+        providers: Provider[] = []
+    ) {
         HTMLDialogElement.prototype.showModal = jest.fn()
         HTMLDialogElement.prototype.close = jest.fn(function (this: HTMLDialogElement) {
             this.dispatchEvent(new Event("close"))
         })
-        testBed = await setUpProjects({
-            projects: [BILLING],
-            activeProjectId: "p-billing",
-            snapshots: [COMMIT, WORKING_TREE, BOUND_IMPORT, UNBOUND_IMPORT],
-            gitStatuses: { "f-api": HEAD },
-            ...seed
-        })
+        testBed = await setUpProjects(
+            {
+                projects: [BILLING],
+                activeProjectId: "p-billing",
+                snapshots: [COMMIT, WORKING_TREE, BOUND_IMPORT, UNBOUND_IMPORT],
+                gitStatuses: { "f-api": HEAD },
+                ...seed
+            },
+            { providers }
+        )
         await testBed.projects.showWorkingFolder()
         beforeOpen(testBed)
         TestBed.inject(SnapshotsDialogService).show()
@@ -142,6 +152,28 @@ describe("SnapshotsDialogComponent", () => {
         expect(screen.getByTestId("snapshots-folder-out").textContent).not.toContain("export-2024")
     })
 
+    it("should offer the actions other features add for a row and close before running one", async () => {
+        // Arrange
+        const run = jest.fn()
+        const action: SnapshotAction = {
+            id: "test.compare",
+            label: "Compare with working tree",
+            hoverHint: "Compare",
+            isOfferedFor: snapshot => snapshot.target === "commit",
+            run
+        }
+        await openDialog({}, () => undefined, [{ provide: SNAPSHOT_ACTIONS, multi: true, useValue: action }])
+        const [workingTreeRow, commitRow] = screen.getAllByTestId("snapshots-row")
+
+        // Act
+        await userEvent.click(within(commitRow).getByTestId("snapshots-action"))
+
+        // Assert
+        expect(within(workingTreeRow).queryByTestId("snapshots-action")).toBeNull()
+        expect(run).toHaveBeenCalledWith(expect.objectContaining({ ref: COMMIT.ref }))
+        expect(TestBed.inject(SnapshotsDialogService).isOpen()).toBe(false)
+    })
+
     it("should load a snapshot and close", async () => {
         // Arrange
         await openDialog()
@@ -189,6 +221,20 @@ describe("SnapshotsDialogComponent", () => {
         expect(head.disabled).toBe(true)
         expect(head.title).toBe("Not a git repository")
         expect(enqueued()).toEqual([{ projectId: "p-billing", folderId: "f-out", target: { kind: "workingTree" }, force: false }])
+    })
+
+    it("should open the batch dialog for the chosen git folder only", async () => {
+        // Arrange
+        await openDialog()
+
+        // Act
+        await userEvent.click(screen.getByTestId("snapshots-analyse-several"))
+        const request = TestBed.inject(BatchAnalysisDialogService).current()
+        await userEvent.selectOptions(screen.getByTestId("snapshots-folder"), "f-out")
+
+        // Assert
+        expect(request).toEqual({ folder: { projectId: "p-billing", folderId: "f-api" }, folderLabel: "billing-api", tipSha: null })
+        expect((screen.getByTestId("snapshots-analyse-several") as HTMLButtonElement).disabled).toBe(true)
     })
 
     it("should re-analyse a snapshot with force", async () => {
@@ -261,6 +307,77 @@ describe("SnapshotsDialogComponent", () => {
         expect(failure).toContain("store unreadable")
         expect(screen.queryByTestId("snapshots-folder-failure")).toBeNull()
         expect(screen.getAllByTestId("snapshots-row")).toHaveLength(1)
+    })
+
+    it("should ask before deleting and move the analysis to the recycle bin", async () => {
+        // Arrange
+        await openDialog()
+        const row = screen.getAllByTestId("snapshots-row")[1]
+
+        // Act
+        await userEvent.click(within(row).getByTestId("snapshots-delete"))
+        const question = screen.getByTestId("delete-snapshot-question").textContent
+        const deletesBeforeConfirm = testBed.requestsOf("snapshots.delete").length
+        await userEvent.click(screen.getByTestId("delete-snapshot-confirm"))
+        await settle()
+
+        // Assert
+        expect(question).toBe("Move the analysis of a1b2c3d (Fix invoice rounding) to the recycle bin?")
+        expect(deletesBeforeConfirm).toBe(0)
+        expect(testBed.requestsOf("snapshots.delete")).toEqual([{ ...COMMIT.ref, permanently: false }])
+        expect(screen.getAllByTestId("snapshots-row")).toHaveLength(2)
+    })
+
+    it("should open the delete confirmation with the Delete key on a focused row", async () => {
+        // Arrange
+        await openDialog()
+        await userEvent.selectOptions(screen.getByTestId("snapshots-folder"), "all")
+        screen.getByTestId("snapshots-unbound-row").focus()
+
+        // Act
+        await userEvent.keyboard("{Delete}")
+
+        // Assert
+        expect(screen.getByTestId("delete-snapshot-question").textContent).toBe(
+            "Move the imported snapshot 'export-2024.cc.json' to the recycle bin? It can only be restored from the recycle bin."
+        )
+        expect(testBed.requestsOf("snapshots.delete")).toEqual([])
+    })
+
+    it("should say how much space the analyses use and keep it current", async () => {
+        // Arrange
+        await openDialog()
+        const before = screen.getByTestId("snapshots-usage").textContent
+
+        // Act
+        testBed.bridge.emit("snapshots.changed", { projectId: "p-billing", folderId: "f-api" })
+        testBed.bridge.respondWith("snapshots.usage", { totalBytes: 61_200_000, folders: [] })
+        await settle()
+
+        // Assert
+        expect(before).toBe("This project's analyses use 4.1 kB.")
+        expect(screen.getByTestId("snapshots-usage").textContent).toBe("This project's analyses use 61.2 MB.")
+    })
+
+    it("should hide the store size it could not read", async () => {
+        // Arrange & Act
+        await openDialog({ failures: { "snapshots.usage": { code: "IO", message: "store unreadable", details: {} } } })
+
+        // Assert
+        expect(screen.queryByTestId("snapshots-usage")).toBeNull()
+    })
+
+    it("should open the clean-up of the working folder", async () => {
+        // Arrange
+        await openDialog()
+        const cleanup = screen.getByTestId("snapshots-cleanup")
+
+        // Act
+        await userEvent.click(cleanup)
+
+        // Assert
+        expect(cleanup.title).toBe("Clean up the analyses of billing-api")
+        expect(screen.getByTestId("cleanup-dialog").textContent).toContain("Clean Up Analyses — billing-api")
     })
 
     it("should close", async () => {

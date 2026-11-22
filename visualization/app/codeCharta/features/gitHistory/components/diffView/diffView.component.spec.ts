@@ -144,4 +144,44 @@ describe("DiffViewComponent", () => {
         rendered.detectChanges()
         expect(screen.getByTestId("diff-failure").textContent).toContain("Git did not answer in time.")
     })
+
+    it("should say that a diff is too large to show and give the command for a terminal", async () => {
+        // Arrange & Act
+        await renderDiff(seedWith(aDiff(), { failures: { "git.diffFile": anErrorPayload("OUTPUT_TOO_LARGE") } }))
+
+        // Assert
+        expect(screen.getByTestId("diff-too-large").textContent).toContain(
+            "This diff is too large to show (over 4 MB). Run this in a terminal to see it:"
+        )
+        expect(screen.getByTestId("copy-command").textContent.trim()).toBe("git diff -- src/app.ts")
+        expect(screen.queryByTestId("diff-failure")).toBeNull()
+    })
+
+    it("should give the command for the staged changes of a staged file that is too large", async () => {
+        // Arrange
+        const staged: GitWorkingTreeEntry = { ...APP, path: "src/big file.ts", kind: "staged" }
+        const failures = { "git.diffFile": anErrorPayload("OUTPUT_TOO_LARGE") }
+
+        // Act
+        await renderDiff(seedWith(null, { changes: [staged], failures }), "staged:src/big file.ts")
+
+        // Assert
+        expect(screen.getByTestId("copy-command").textContent.trim()).toBe('git diff --cached -- "src/big file.ts"')
+    })
+
+    it.each([
+        ["Linux and macOS", "Mozilla/5.0 (X11; Linux x86_64)", "git diff --no-index -- /dev/null notes.md"],
+        ["Windows", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "git diff --no-index -- NUL notes.md"]
+    ])("should compare an untracked file that is too large with the empty file of %s", async (_system, userAgent, command) => {
+        // Arrange
+        jest.spyOn(navigator, "userAgent", "get").mockReturnValue(userAgent)
+        const untracked: GitWorkingTreeEntry = { ...APP, path: "notes.md", kind: "untracked" }
+        const failures = { "git.diffFile": anErrorPayload("OUTPUT_TOO_LARGE") }
+
+        // Act
+        await renderDiff(seedWith(null, { changes: [untracked], failures }), "untracked:notes.md")
+
+        // Assert
+        expect(screen.getByTestId("copy-command").textContent.trim()).toBe(command)
+    })
 })

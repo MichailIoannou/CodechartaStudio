@@ -1,5 +1,6 @@
 import { counted } from "../../../util/wording"
 import { parseRefRange } from "../../gitHistory/facade"
+import { shortDate } from "../../projects/facade"
 import type {
     BaseMode,
     ComparedCommit,
@@ -32,14 +33,40 @@ export interface ResolveOutcome {
     offersTipVsTip: boolean
 }
 
-/** The branch or tag the user picked, else the short commit. */
+/** The branch or tag the user picked, else the short commit; a snapshot without a commit by its label. */
 export function refName(commit: ComparedCommit): string {
     return commit.label.kind === "commit" ? commit.shortCommit : commit.label.name
 }
 
-/** The name shown beside the short commit, or null for a plain commit. */
+/** The short commit, else (for a working-tree or imported snapshot) its label: what names a side in a sentence. */
+export function sideName(commit: ComparedCommit): string {
+    return commit.shortCommit ?? commit.label.name
+}
+
+/** Design C2's label of a shown side: an imported map by the day it entered the store. */
+export function shownSideCaption(side: Pick<LoadedSide, "requested" | "snapshot">): string | null {
+    if (side.requested.kind !== "imported") {
+        return sideCaption(side.requested)
+    }
+    const importedAt = side.snapshot.createdAt
+    return importedAt ? `imported ${shortDate(importedAt)}` : "imported, date unknown"
+}
+
+/** Design C2's label of a side in the chip's button: its branch, tag or request, its snapshot label, else its short commit. */
+export function chipLabel(side: Pick<LoadedSide, "requested" | "snapshot">): string {
+    return side.requested.kind === "imported" ? (shownSideCaption(side) ?? "") : refName(side.requested)
+}
+
+/** The name shown beside the short commit, or null for a plain commit; a request reads "PR #123" or "MR !123". */
 export function sideCaption(commit: ComparedCommit): string | null {
-    return commit.label.kind === "commit" ? null : commit.label.name
+    switch (commit.label.kind) {
+        case "commit":
+            return null
+        case "pullRequest":
+            return `${commit.label.name.startsWith("!") ? "MR" : "PR"} ${commit.label.name}`
+        default:
+            return commit.label.name
+    }
 }
 
 export function rangeText(base: ComparedCommit, head: ComparedCommit, baseMode: BaseMode): string {
@@ -61,7 +88,7 @@ export function resolveOutcome(resolved: ResolvedComparison): ResolveOutcome | n
     const head = refName(resolved.head.requested)
     switch (resolved.status.kind) {
         case "sameCommit":
-            return { tone: "info", text: "Both sides are the same commit — nothing to compare.", offersTipVsTip: false }
+            return { tone: "info", text: `Both sides are the same ${sameSideNoun(resolved)} — nothing to compare.`, offersTipVsTip: false }
         case "alreadyMerged":
             return {
                 tone: "info",
@@ -73,6 +100,10 @@ export function resolveOutcome(resolved: ResolvedComparison): ResolveOutcome | n
         case "ready":
             return null
     }
+}
+
+function sameSideNoun({ base }: ResolvedComparison): string {
+    return base.requested.kind === "commit" ? "commit" : "analysis"
 }
 
 export function errorSentence(error: CompareError): string {
@@ -125,6 +156,12 @@ export function staleBadge({ relation, behind, ahead }: Pick<LoadedSide, "relati
         default:
             return null
     }
+}
+
+/** Which analysis a stale side shows instead: "showing 3c4d5e6, 2 commits older". */
+export function showingText(side: Pick<LoadedSide, "snapshot" | "relation" | "behind" | "ahead">): string {
+    const distance = side.relation ? distanceText({ ...side, relation: side.relation }) : ""
+    return `showing ${side.snapshot.shortCommit ?? ""}${distance}`
 }
 
 /** How far the nearest analysis is from the asked commit, in the words of the stale notice. */

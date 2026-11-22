@@ -93,6 +93,8 @@ import type { PruneResult } from "./PruneResult"
 import type { RecordMapFactsParams } from "./RecordMapFactsParams"
 import type { RefsAt } from "./RefsAt"
 import type { RelinkFolderParams } from "./RelinkFolderParams"
+import type { RemovedRefs } from "./RemovedRefs"
+import type { RemoveFetchedRefsParams } from "./RemoveFetchedRefsParams"
 import type { RemoveFolderParams } from "./RemoveFolderParams"
 import type { RepositoryChanged } from "./RepositoryChanged"
 import type { ResolveCommitParams } from "./ResolveCommitParams"
@@ -222,6 +224,7 @@ export type CoreMethods = {
     "compare.changedFiles": { params: ChangedFilesParams; result: ChangedFilesResult }
     "hosting.status": { params: HostingStatusParams; result: HostingStatus }
     "hosting.fetchChangeRequestHead": { params: FetchChangeRequestHeadParams; result: FetchedHead }
+    "hosting.removeFetchedRefs": { params: RemoveFetchedRefsParams; result: RemovedRefs }
     "analysis.preflight": { params: PreflightParams; result: PreflightResult }
     "analysis.enqueue": { params: EnqueueParams; result: EnqueueResult }
     "analysis.cancel": { params: JobRefParams; result: null }
@@ -316,6 +319,7 @@ export const RENDERER_METHODS = [
     "compare.changedFiles",
     "hosting.status",
     "hosting.fetchChangeRequestHead",
+    "hosting.removeFetchedRefs",
     "analysis.preflight",
     "analysis.enqueue",
     "analysis.cancel",

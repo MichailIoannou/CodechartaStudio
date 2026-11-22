@@ -14,7 +14,8 @@ describe("LocalSourceActionsComponent", () => {
         status: "found",
         file: new File([content], relativePath.slice(relativePath.lastIndexOf("/") + 1)),
         folder,
-        relativePath
+        relativePath,
+        stateNote: null
     })
 
     const localSourceMock = {
@@ -22,7 +23,7 @@ describe("LocalSourceActionsComponent", () => {
         findSource: jest.fn(),
         chooseFolderAndFindSource: jest.fn(),
         chooseFolder: jest.fn(),
-        isMapRoot: jest.fn(),
+        offersFolderSettings: jest.fn(),
         editorTargetOf: jest.fn(),
         saveEditorRootPath: jest.fn()
     }
@@ -417,6 +418,40 @@ describe("LocalSourceActionsComponent", () => {
             )
         })
 
+        it("should say that the linked folder is not available and offer to re-link it instead of asking for a folder", async () => {
+            // Arrange
+            const relink = jest.fn()
+            localSourceMock.findSource.mockResolvedValue({ status: "folderUnavailable", folderLabel: "codecharta", relink })
+            const fixture = await renderActions()
+
+            // Act
+            await fixture.componentInstance.showSource("/root/src/Foo.kt")
+            fixture.detectChanges()
+            await userEvent.click(screen.getByRole("button", { name: "Re-link folder…", hidden: true }))
+
+            // Assert
+            expect(HTMLDialogElement.prototype.close).toHaveBeenCalled()
+            expect(relink).toHaveBeenCalledTimes(1)
+            expect(toastMock.show).not.toHaveBeenCalled()
+            expect(localSourceMock.chooseFolderAndFindSource).not.toHaveBeenCalled()
+        })
+
+        it("should name the unavailable folder in a warning without a re-link button when it cannot be re-linked", async () => {
+            // Arrange
+            localSourceMock.findSource.mockResolvedValue({ status: "folderUnavailable", folderLabel: "codecharta", relink: null })
+            const fixture = await renderActions()
+
+            // Act
+            await fixture.componentInstance.showSource("/root/src/Foo.kt")
+            fixture.detectChanges()
+
+            // Assert
+            expect(screen.getByTestId("local-source-folder-unavailable").textContent?.trim()).toBe(
+                "The folder 'codecharta' is not available, so its files cannot be opened."
+            )
+            expect(screen.queryByRole("button", { name: "Re-link folder…", hidden: true })).toBeNull()
+        })
+
         it("should report a folder that cannot be read", async () => {
             // Arrange
             localSourceMock.findSource.mockRejectedValue(new Error("no gesture"))
@@ -478,6 +513,21 @@ describe("LocalSourceActionsComponent", () => {
             expect(screen.getByTestId("local-source-editor-confirm")).not.toBe(null)
         })
 
+        it("should say that the linked folder is not available instead of asking for a path", async () => {
+            // Arrange
+            givenFreshClick(true)
+            localSourceMock.editorTargetOf.mockResolvedValue({ status: "folderUnavailable", folderLabel: "codecharta", relink: jest.fn() })
+            const fixture = await renderActions()
+
+            // Act
+            await fixture.componentInstance.openInEditor("/root/src/Foo.kt")
+            fixture.detectChanges()
+
+            // Assert
+            expect(openedLinks).toEqual([])
+            expect(screen.getByTestId("local-source-folder-unavailable").textContent).toContain("The folder 'codecharta' is not available")
+        })
+
         it("should do nothing for a node outside the visible maps", async () => {
             // Arrange
             localSourceMock.editorTargetOf.mockResolvedValue(null)
@@ -531,18 +581,18 @@ describe("LocalSourceActionsComponent", () => {
         })
     })
 
-    describe("isMapRoot", () => {
-        it("should ask the local source whether a node is a map's root", async () => {
+    describe("offersFolderSettings", () => {
+        it("should ask the local source whether a node offers the map's folder settings", async () => {
             // Arrange
-            localSourceMock.isMapRoot.mockReturnValue(true)
+            localSourceMock.offersFolderSettings.mockReturnValue(true)
             const component = (await renderActions()).componentInstance
 
             // Act
-            const isMapRoot = component.isMapRoot("/root")
+            const offersFolderSettings = component.offersFolderSettings("/root")
 
             // Assert
-            expect(isMapRoot).toBe(true)
-            expect(localSourceMock.isMapRoot).toHaveBeenCalledWith("/root")
+            expect(offersFolderSettings).toBe(true)
+            expect(localSourceMock.offersFolderSettings).toHaveBeenCalledWith("/root")
         })
     })
 

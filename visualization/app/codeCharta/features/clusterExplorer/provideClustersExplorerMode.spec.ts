@@ -11,7 +11,7 @@ describe("provideClustersExplorerMode", () => {
         TestBed.configureTestingModule({
             providers: [provideClustersExplorerMode(), { provide: ClusterExplorerReadStore, useValue: { hasClusterings$ } }]
         })
-        const modes = TestBed.inject(EXPLORER_CONDITIONAL_MODES)
+        const [modes] = TestBed.inject(EXPLORER_CONDITIONAL_MODES)
 
         // Act
         const withoutClusters = modes()

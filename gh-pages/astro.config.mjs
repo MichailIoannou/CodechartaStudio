@@ -115,6 +115,7 @@ export default defineConfig({
 							],
 						},
 						'docs/visualization/user-controls/compare',
+						'docs/visualization/user-controls/analyses',
 						'docs/visualization/user-controls/explorer',
 						'docs/visualization/user-controls/inspector',
 						'docs/visualization/user-controls/scenarios',

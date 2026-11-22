@@ -130,6 +130,19 @@
                                                 Import cc.json…
                                             </button>
                                         </li>
+                                        @for (action of row.actions; track action.id) {
+                                            <li>
+                                                <button
+                                                    type="button"
+                                                    [title]="action.hoverHint"
+                                                    [attr.data-testid]="'project-overview-folder-action-' + action.id + '-' + row.folder.label"
+                                                    (click)="runFolderAction(action, row.folder)"
+                                                >
+                                                    <i class="fa-fw" [class]="action.icon"></i>
+                                                    {{ action.label }}
+                                                </button>
+                                            </li>
+                                        }
                                     </ul>
                                 </div>
                             </div>

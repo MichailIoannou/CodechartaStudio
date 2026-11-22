@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Window Title Bar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/js/all.min.js"></script>
+<style>
+:root {
+  --page: #f6f7f9; --ink: #1d2330; --mute-ink: #5b6472;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page: #121418; --ink: #e8ebf0; --mute-ink: #9aa3b0; } }
+:root[data-theme="dark"] { --page: #121418; --ink: #e8ebf0; --mute-ink: #9aa3b0; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--font-body); }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 28px 0 6px; }
+p { margin: 0 0 10px; color: var(--mute-ink); max-width: 78ch; }
+.note { font-size: 12.5px; color: var(--mute-ink); margin: 4px 0 14px; }
+
+/* app themes */
+.app { --b100: #1e2329; --b200: #262c34; --b300: #3a424d; --fg: #e6e9ee; --mute: #9aa3b0; --primary: #8b9cff; }
+.app.light { --b100: #ffffff; --b200: #f3f4f6; --b300: #d1d5db; --fg: #1f2937; --mute: #6b7280; --primary: #0374c9; }
+.frame-wrap { overflow: hidden; border-radius: 8px; box-shadow: 0 1px 0 #0001, 0 6px 20px #0002; margin: 6px 0; }
+.frame { background: var(--b100); color: var(--fg); font: 13px/1.4 var(--font-body); transform-origin: top left; }
+.nav { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; height: 48px; padding: 0 0 0 8px; border-bottom: 1px solid var(--b300); position: relative; }
+.start, .end { display: flex; align-items: center; gap: 8px; min-width: 0; height: 48px; }
+.end { justify-content: flex-end; gap: 0; }
+.center { display: flex; gap: 2px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 6px; white-space: nowrap; flex-shrink: 0; }
+.btn.outline { border: 1px solid var(--b300); }
+.btn.sel { font-weight: 700; box-shadow: inset 0 -2px 0 var(--primary); }
+.m { color: var(--mute); }
+.sha { font-family: var(--font-mono); font-size: 12px; }
+.vr { width: 1px; height: 24px; background: var(--b300); flex-shrink: 0; }
+.caret { color: var(--mute); font-size: 11px; }
+.ws { display: inline-grid; grid-template-columns: 16px minmax(0,1fr) auto; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: 1px solid var(--b300); border-radius: 6px; width: 17rem; box-sizing: border-box; }
+.ws .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drag { align-self: stretch; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in oklab, var(--primary) 18%, transparent) 6px 8px); }
+
+/* Linux: Breeze look */
+.breeze { display: flex; align-items: center; gap: 4px; padding-right: 6px; }
+.breeze button { all: unset; width: 28px; height: 28px; display: grid; place-items: center; position: relative; color: color-mix(in oklab, var(--fg) 80%, transparent); cursor: default; }
+.breeze button::before { content: ""; position: absolute; width: 22px; height: 22px; border-radius: 50%; }
+.breeze button svg { position: relative; width: 12px; height: 12px; }
+.breeze button.hover::before, .breeze button:hover::before { background: color-mix(in oklab, var(--fg) 15%, transparent); }
+.breeze button.pressed::before { background: color-mix(in oklab, var(--fg) 25%, transparent); }
+.breeze button.close.hover::before, .breeze button.close:hover::before { background: #da4453; }
+.breeze button.close.hover, .breeze button.close:hover { color: #fff; }
+.breeze.inactive button { color: color-mix(in oklab, var(--fg) 45%, transparent); }
+
+/* Windows 11 caption buttons (drawn by Windows; approximated here) */
+.win { display: flex; align-self: stretch; }
+.win span { width: 46px; display: grid; place-items: center; color: var(--fg); }
+.win svg { width: 10px; height: 10px; }
+.win span.hover { background: color-mix(in oklab, var(--fg) 9%, transparent); }
+.win span.close.hover { background: #c42b1c; color: #fff; }
+
+/* macOS traffic lights (drawn by macOS; approximated here) */
+.mac { display: flex; gap: 8px; align-items: center; width: 80px; padding-left: 8px; box-sizing: border-box; align-self: stretch; }
+.mac i { width: 12px; height: 12px; border-radius: 50%; display: block; box-shadow: inset 0 0 0 .5px #0003; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--mute-ink); margin: 2px 0 8px; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.sw { width: 18px; height: 12px; border-radius: 3px; background: repeating-linear-gradient(135deg, transparent 0 4px, #8b9cff55 4px 6px); border: 1px solid #8b9cff66; }
+.setting { max-width: 640px; border: 1px solid #8884; border-radius: 10px; padding: 12px 14px; margin-top: 8px; }
+.setting h3 { margin: 0 0 8px; font-size: 13px; }
+.row { display: grid; grid-template-columns: 20px 1fr auto; gap: 4px 10px; align-items: start; }
+.cb { width: 16px; height: 16px; border-radius: 4px; background: #0374c9; display: grid; place-items: center; color: #fff; font-size: 10px; margin-top: 2px; }
+.warn { color: #b7791f; }
+.rbtn { border: 1px solid #8886; border-radius: 6px; padding: 3px 10px; font-size: 12.5px; align-self: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>One top bar: window controls in the nav bar</h1>
+  <p>With the setting <b>Use CodeCharta's title bar</b> on, the native title bar and frame go away and the nav bar is the only bar. Windows and macOS keep their real window buttons, drawn by the system into space the nav bar leaves free. On Linux, CodeCharta draws Breeze-style buttons itself. Shaded stripes mark the empty areas that move the window.</p>
+  <div class="legend"><span><span class="sw"></span>drag area (moves the window; double-click maximizes)</span><span>everything else stays clickable</span></div>
+
+  <h2>Linux (KDE Breeze look) — dark</h2>
+  <div class="frame-wrap"><div class="frame app" data-w="1440" style="width:1440px">
+    <div class="nav">
+      <div class="start"><b style="padding:0 6px">CodeCharta</b><span class="vr"></span><span class="btn outline"><i class="fa-solid fa-layer-group fa-fw"></i><span><span class="m">billing /</span> billing-api</span><i class="fa-solid fa-caret-down caret"></i></span><span class="ws"><i class="fa-solid fa-code-branch"></i><span class="t">feature/invoice-rounding <span class="m">@ <span class="sha">a1b2c3d</span></span></span><i class="fa-solid fa-caret-down caret"></i></span><span class="drag" style="flex:1"></span></div>
+      <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
+      <div class="end"><span class="drag" style="flex:1"></span><span class="btn">Settings</span><span class="drag" style="width:12px"></span>
+        <div class="breeze">
+          <button type="button" aria-label="Minimize" title="Minimize"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5 6 8.5 10 4.5"/></svg></button>
+          <button type="button" aria-label="Maximize" title="Maximize"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5 6 3.5 10 7.5"/></svg></button>
+          <button type="button" class="close" aria-label="Close" title="Close"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 2.5 9.5 9.5M9.5 2.5 2.5 9.5"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <p class="note">Hover any button in this page to see its highlight. States, left to right below: hover, pressed, close hover, maximized (restore diamond), window not focused.</p>
+  <div style="display:flex;gap:18px;flex-wrap:wrap">
+    <div class="app" style="background:var(--b100);border-radius:8px;padding:6px 4px"><div class="breeze"><button type="button" class="hover" aria-label="Minimize, hovered"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5 6 8.5 10 4.5"/></svg></button></div></div>
+    <div class="app" style="background:var(--b100);border-radius:8px;padding:6px 4px"><div class="breeze"><button type="button" class="pressed" aria-label="Maximize, pressed"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5 6 3.5 10 7.5"/></svg></button></div></div>
+    <div class="app" style="background:var(--b100);border-radius:8px;padding:6px 4px"><div class="breeze"><button type="button" class="close hover" aria-label="Close, hovered"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 2.5 9.5 9.5M9.5 2.5 2.5 9.5"/></svg></button></div></div>
+    <div class="app" style="background:var(--b100);border-radius:8px;padding:6px 4px"><div class="breeze"><button type="button" aria-label="Restore"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M6 1.8 10.2 6 6 10.2 1.8 6Z"/></svg></button></div></div>
+    <div class="app" style="background:var(--b100);border-radius:8px;padding:6px 4px"><div class="breeze inactive"><button type="button" aria-label="Minimize"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5 6 8.5 10 4.5"/></svg></button><button type="button" aria-label="Maximize"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5 6 3.5 10 7.5"/></svg></button><button type="button" class="close" aria-label="Close"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 2.5 9.5 9.5M9.5 2.5 2.5 9.5"/></svg></button></div></div>
+  </div>
+
+  <h2>Linux — light (CodeCharta Light)</h2>
+  <div class="frame-wrap"><div class="frame app light" data-w="1440" style="width:1440px">
+    <div class="nav">
+      <div class="start"><b style="padding:0 6px">CodeCharta</b><span class="vr"></span><span class="btn outline"><i class="fa-solid fa-layer-group fa-fw"></i><span><span class="m">billing /</span> billing-api</span><i class="fa-solid fa-caret-down caret"></i></span><span class="ws"><i class="fa-solid fa-code-branch"></i><span class="t">feature/invoice-rounding <span class="m">@ <span class="sha">a1b2c3d</span></span></span><i class="fa-solid fa-caret-down caret"></i></span><span class="drag" style="flex:1"></span></div>
+      <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
+      <div class="end"><span class="drag" style="flex:1"></span><span class="btn">Settings</span><span class="drag" style="width:12px"></span>
+        <div class="breeze">
+          <button type="button" aria-label="Minimize" title="Minimize"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5 6 8.5 10 4.5"/></svg></button>
+          <button type="button" class="hover" aria-label="Maximize" title="Maximize"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7.5 6 3.5 10 7.5"/></svg></button>
+          <button type="button" class="close" aria-label="Close" title="Close"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 2.5 9.5 9.5M9.5 2.5 2.5 9.5"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  <h2>Windows 11 — dark (buttons drawn by Windows; shown with Maximize and Close hovered)</h2>
+  <div class="frame-wrap"><div class="frame app" data-w="1440" style="width:1440px">
+    <div class="nav" style="border-bottom:0">
+      <div class="start"><b style="padding:0 6px">CodeCharta</b><span class="vr"></span><span class="btn outline"><i class="fa-solid fa-layer-group fa-fw"></i><span><span class="m">billing /</span> billing-api</span><i class="fa-solid fa-caret-down caret"></i></span><span class="ws"><i class="fa-solid fa-code-branch"></i><span class="t">feature/invoice-rounding <span class="m">@ <span class="sha">a1b2c3d</span></span></span><i class="fa-solid fa-caret-down caret"></i></span><span class="drag" style="flex:1"></span></div>
+      <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
+      <div class="end"><span class="drag" style="flex:1"></span><span class="btn">Settings</span><span class="drag" style="width:12px"></span>
+        <div class="win" title="Drawn by Windows (titleBarOverlay)">
+          <span><svg viewBox="0 0 10 10" stroke="currentColor" stroke-width="1"><path d="M0 5.5h10"/></svg></span>
+          <span class="hover"><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1"><rect x=".5" y=".5" width="9" height="9" rx="1.5"/></svg></span>
+          <span class="close"><svg viewBox="0 0 10 10" stroke="currentColor" stroke-width="1"><path d="M.5.5l9 9M9.5.5l-9 9"/></svg></span>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="frame-wrap" style="max-width:220px"><div class="app" style="background:var(--b100);display:flex;justify-content:flex-end;height:48px"><div class="win"><span><svg viewBox="0 0 10 10" stroke="currentColor" stroke-width="1"><path d="M0 5.5h10"/></svg></span><span><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1"><rect x=".5" y=".5" width="9" height="9" rx="1.5"/></svg></span><span class="close hover"><svg viewBox="0 0 10 10" stroke="currentColor" stroke-width="1"><path d="M.5.5l9 9M9.5.5l-9 9"/></svg></span></div></div></div>
+  <p class="note">The colours follow the theme: CodeCharta sends the nav bar's background and text colour to Windows, and sends them again when the theme changes. Hovering Maximize opens Windows' own snap-layout flyout.</p>
+
+  <h2>macOS — light (traffic lights drawn by macOS)</h2>
+  <div class="frame-wrap"><div class="frame app light" data-w="1440" style="width:1440px">
+    <div class="nav" style="padding-left:0">
+      <div class="start"><div class="mac drag" title="Drawn by macOS (hiddenInset)"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div><b style="padding:0 6px">CodeCharta</b><span class="vr"></span><span class="btn outline"><i class="fa-solid fa-layer-group fa-fw"></i><span><span class="m">billing /</span> billing-api</span><i class="fa-solid fa-caret-down caret"></i></span><span class="ws"><i class="fa-solid fa-code-branch"></i><span class="t">feature/invoice-rounding <span class="m">@ <span class="sha">a1b2c3d</span></span></span><i class="fa-solid fa-caret-down caret"></i></span><span class="drag" style="flex:1"></span></div>
+      <div class="center"><span class="btn sel">Metric</span><span class="btn">Domain</span><span class="btn">Dependencies</span><span class="btn">History</span></div>
+      <div class="end"><span class="drag" style="flex:1"></span><span class="btn" style="margin-right:8px">Settings</span></div>
+    </div>
+  </div></div>
+  <p class="note">The traffic lights sit in an 80 px area before the logo, centred in the 48 px bar. Below 1280 px the logo and its divider hide to make room; in full screen the traffic lights go away and the logo returns.</p>
+
+  <h2>The setting (Global Configuration, desktop only)</h2>
+  <div class="setting">
+    <h3>Window</h3>
+    <div class="row"><span class="cb"><i class="fa-solid fa-check"></i></span><span><b style="font-weight:600">Use CodeCharta's title bar</b><br><span style="color:var(--mute-ink);font-size:13px">One bar at the top: the window buttons move into CodeCharta's top bar.</span><br><span class="warn" style="font-size:13px">Takes effect when CodeCharta restarts.</span></span><span class="rbtn">Restart now</span></div>
+  </div>
+  <p class="note">Off by default. Shown here right after switching it on: the helper line turns amber and "Restart now" appears.</p>
+</main>
+<script>
+function fitFrames() {
+  for (const frame of document.querySelectorAll(".frame[data-w]")) {
+    const available = frame.parentElement.clientWidth;
+    frame.style.zoom = String(Math.min(1, available / Number(frame.dataset.w)));
+  }
+}
+fitFrames();
+addEventListener("resize", fitFrames);
+</script>
+</body>
+</html>

@@ -1,20 +1,24 @@
 import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
 import type { AnalysisTarget } from "../../../model/coreApi/AnalysisTarget"
+import type { BatchSelection } from "../../../model/coreApi/BatchSelection"
 import type { CompareIntent } from "../../../model/coreApi/CompareIntent"
 import type { ErrorCode } from "../../../model/coreApi/ErrorCode"
 import type { ErrorPayload } from "../../../model/coreApi/ErrorPayload"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../../model/coreApi/FolderRole"
+import type { GitAbortableOperation } from "../../../model/coreApi/GitAbortableOperation"
 import type { GitCommitDetails } from "../../../model/coreApi/GitCommitDetails"
 import type { GitCommitSummary } from "../../../model/coreApi/GitCommitSummary"
 import type { GitDiff } from "../../../model/coreApi/GitDiff"
 import type { GitEntryKind } from "../../../model/coreApi/GitEntryKind"
 import type { GitFileChange } from "../../../model/coreApi/GitFileChange"
 import type { GitLogParams } from "../../../model/coreApi/GitLogParams"
+import type { GitPullMode } from "../../../model/coreApi/GitPullMode"
 import type { GitRefs } from "../../../model/coreApi/GitRefs"
 import type { GitRepositoryInfo } from "../../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import type { GitWorkingTreeEntry } from "../../../model/coreApi/GitWorkingTreeEntry"
+import type { HostingOverride } from "../../../model/coreApi/HostingOverride"
 import type { JobError } from "../../../model/coreApi/JobError"
 import type { JobProgress } from "../../../model/coreApi/JobProgress"
 import type { NewFolder } from "../../../model/coreApi/NewFolder"
@@ -23,11 +27,13 @@ import type { PickedImportFile } from "../../../model/coreApi/PickedImportFile"
 import type { Project } from "../../../model/coreApi/Project"
 import type { ProjectView } from "../../../model/coreApi/ProjectView"
 import type { PromptKind } from "../../../model/coreApi/PromptKind"
+import type { PrunePolicy } from "../../../model/coreApi/PrunePolicy"
 import type { ResolvedCommit } from "../../../model/coreApi/ResolvedCommit"
+import type { SideInput } from "../../../model/coreApi/SideInput"
 import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import type { UpdateProjectParams } from "../../../model/coreApi/UpdateProjectParams"
-import type { BridgeMethod, CoreState } from "../desktopBridge"
+import type { BridgeMethod, CoreState, WindowState } from "../desktopBridge"
 
 export type FakeAnswerKey =
     | BridgeMethod
@@ -40,6 +46,11 @@ export type FakeAnswerKey =
     | "setWindowBackground"
     | "setColorScheme"
     | "restartCore"
+    | "windowState"
+    | "controlWindow"
+    | "setUseAppTitleBar"
+    | "reopenWindow"
+    | "setTitleBarColors"
 
 export type FakeGitMethod =
     | "git.repositoryInfo"
@@ -63,6 +74,9 @@ export type FakeGitMethod =
     | "git.discard"
     | "git.commit"
     | "git.isAncestor"
+    | "git.pull"
+    | "git.push"
+    | "git.abortOperation"
 
 /**
  * A write that does not answer at once: it reports its progress and asks its prompts under the caller's operation id,
@@ -94,11 +108,16 @@ export interface FakeGitRepository {
     areChangesTruncated?: boolean
     /** By `<kind>:<path>`; a listed row without one answers an empty diff. */
     diffs?: Record<string, GitDiff>
+    /** What `git.pull` answers for a mode instead of pulling. */
+    pullRefusals?: Partial<Record<GitPullMode, ErrorPayload>>
+    /** The paths a merge or rebase pull stops on; the merge or rebase then stays in progress. Without them every mode moves the branch onto its upstream. */
+    pullConflicts?: string[]
 }
 
 export interface FakeDesktopSeed {
     protocolVersion?: number
     coreState?: CoreState
+    windowState?: Partial<WindowState>
     responses?: Partial<Record<FakeAnswerKey, unknown>>
     failures?: Partial<Record<FakeAnswerKey, ErrorPayload>>
     projects?: Project[]
@@ -107,6 +126,8 @@ export interface FakeDesktopSeed {
     pickedFolders?: PickedFolder[]
     pickedImportFile?: PickedImportFile
     snapshotMaps?: Record<string, number[]>
+    /** By `<folderId>/<relativePath>`: what `projects.readSourceFile` reads; every other file is not found. */
+    sourceFiles?: Record<string, string>
     /** By folder id. */
     git?: Record<string, FakeGitRepository>
     /** Shorthands for `git` with only a status or only commits. */
@@ -142,6 +163,7 @@ export interface FakeRequestParams extends Partial<UpdateProjectParams> {
     offset?: number
     length?: number
     repo?: FolderRef
+    relativePath?: string
     sha?: string
     revision?: string
     scope?: GitLogParams["scope"]
@@ -165,6 +187,18 @@ export interface FakeRequestParams extends Partial<UpdateProjectParams> {
     amend?: boolean
     ancestor?: string
     descendant?: string
+    selection?: BatchSelection
+    dryRun?: boolean
+    batchId?: string
+    policy?: PrunePolicy
+    snapshotIds?: string[]
+    hosting?: HostingOverride
+    mode?: GitPullMode
+    branchRefName?: string
+    remote?: string
+    setUpstream?: boolean
+    forceWithLeaseExpected?: string | null
+    operation?: GitAbortableOperation
 }
 
 export type FakeGitTarget =
@@ -192,6 +226,7 @@ interface FakeStore {
     pickedFolders: Map<string, PickedFolder>
     snapshots: SnapshotSummary[]
     snapshotMaps: Record<string, number[]>
+    sourceFiles: Record<string, string>
     commits: Record<string, ResolvedCommit[]>
     importFileToPick: PickedImportFile | null
     pickedImportFiles: Map<string, PickedImportFile>
@@ -231,6 +266,29 @@ interface FakeGitApi {
     reachableCommits(commits: GitCommitSummary[], tips: string[]): GitCommitSummary[]
 }
 
+export interface FakeComparedSide {
+    requested: {
+        folder: FolderRef
+        kind: string
+        commit: string | null
+        shortCommit: string | null
+        snapshotId: string | null
+        label: { kind: string; name: string }
+    }
+    status: { status: string; snapshot?: SnapshotSummary; nearest?: { snapshot: SnapshotSummary } | null }
+}
+
+interface FakeCompareSidesApi {
+    repositoryOf(folderId: string): FakeGitRepository | undefined
+    commitsOf(folderId: string): GitCommitSummary[]
+    commitAtRevision(folderId: string, revision: string): string
+    reachedFrom(folderId: string, sha: string): Set<string>
+    comparedSide(folder: FolderRef, revision: string): FakeComparedSide
+    revisionOfTyped(folderId: string, name: string): string | null
+    sideOfInput(side: SideInput): FakeComparedSide | null
+    preflightOf(sides: FakeComparedSide[]): unknown
+}
+
 interface FakeOperationsApi {
     holdIfSlow(method: BridgeMethod, params: unknown, operationId: string | undefined): Promise<FakeAnswer> | null
     cancel(operationId: string): void
@@ -263,6 +321,7 @@ export interface FakeBridgeKit {
     folders: FakeFoldersApi
     snapshots: FakeSnapshotsApi
     git: FakeGitApi
+    compareSides: FakeCompareSidesApi
     operations?: FakeOperationsApi
     resolutions: FakeResolutionsApi
     controls: Partial<FakeBridgeControls>

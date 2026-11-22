@@ -1,12 +1,15 @@
-import { signal } from "@angular/core"
+import { Provider, signal } from "@angular/core"
 import { fireEvent, render, screen } from "@testing-library/angular"
+import { BRANCH_ACTIONS, BranchAction } from "../../ports/branchActions.port"
 import { BranchActionsService } from "../../services/branchActions.service"
-import { aLocalBranch, aRefs, aRemoteBranch, aTag } from "../../services/gitApi.mocks"
+import { aLocalBranch, anUpstream, aRefs, aRemoteBranch, aTag } from "../../services/gitApi.mocks"
 import { GitOperationService } from "../../services/gitOperation.service"
+import { GitRepositoryService } from "../../services/gitRepository.service"
+import { SyncActionsService } from "../../services/syncActions.service"
 import type { BranchRef } from "../../util/branchTree"
 import { BranchContextMenuComponent, BranchMenuTarget } from "./branchContextMenu.component"
 
-const FEATURE = aLocalBranch("feature/x")
+const FEATURE = aLocalBranch("feature/x", { upstream: anUpstream("origin/feature/x", { ahead: 2, behind: 1 }) })
 const REMOTE = aRemoteBranch("origin", "feature/y")
 const TAG = aTag("v2.4.0")
 const REFS = aRefs({ localBranches: [aLocalBranch("main", { isCurrent: true }), FEATURE], remoteBranches: [REMOTE], tags: [TAG] })
@@ -24,9 +27,18 @@ describe("BranchContextMenuComponent", () => {
         deleteRemote: jest.fn(),
         openDialog: jest.fn()
     }
+    const sync = {
+        push: jest.fn(),
+        forcePush: jest.fn(),
+        publish: jest.fn(),
+        remotes: signal([{ name: "origin", url: "https://example.com/billing-api.git" }]),
+        inProgress: signal<"merge" | null>(null)
+    }
     const isBusy = signal(false)
 
-    async function renderMenu(ref: BranchRef, isFromKeyboard = false) {
+    const repo = { projectId: "p-billing", folderId: "f-api" }
+
+    async function renderMenu(ref: BranchRef, isFromKeyboard = false, extraProviders: Provider[] = []) {
         jest.clearAllMocks()
         const target: BranchMenuTarget = { anchor: { x: 10, y: 20 }, ref, isFromKeyboard }
         const closed = jest.fn()
@@ -35,7 +47,10 @@ describe("BranchContextMenuComponent", () => {
             on: { closed },
             providers: [
                 { provide: BranchActionsService, useValue: actions },
-                { provide: GitOperationService, useValue: { isBusy } }
+                { provide: SyncActionsService, useValue: sync },
+                { provide: GitOperationService, useValue: { isBusy } },
+                { provide: GitRepositoryService, useValue: { activeRepository: signal(repo) } },
+                ...extraProviders
             ]
         })
         return { ...rendered, closed }
@@ -49,19 +64,99 @@ describe("BranchContextMenuComponent", () => {
         const { closed } = await renderMenu(LOCAL_REF)
 
         // Act
-        for (const label of ["Switch To", "New Branch from Here…", "Rename…", "Delete…", "Set Upstream…"]) {
+        for (const label of [
+            "Switch To",
+            "New Branch from Here…",
+            "Rename…",
+            "Delete…",
+            "Set Upstream…",
+            "Push",
+            "Force Push (with Lease)…"
+        ]) {
             click(label)
         }
 
         // Assert
         expect(actions.switchTo).toHaveBeenCalledWith(FEATURE)
         expect(actions.deleteLocal).toHaveBeenCalledWith(FEATURE)
+        expect(sync.push).toHaveBeenCalledWith(FEATURE)
+        expect(sync.forcePush).toHaveBeenCalledWith(FEATURE)
         expect(actions.openDialog.mock.calls).toEqual([
             [{ kind: "create", startPoint: FEATURE.commit, subject: "Release 2.4.0" }],
             [{ kind: "rename", branch: FEATURE }],
             [{ kind: "setUpstream", branch: FEATURE }]
         ])
         expect(closed).toHaveBeenCalledWith(false)
+    })
+
+    it("should hold push and force push while a merge is unfinished", async () => {
+        // Arrange
+        isBusy.set(false)
+        sync.inProgress.set("merge")
+        await renderMenu(LOCAL_REF)
+
+        // Act
+        const held = ["Push", "Force Push (with Lease)…"].map(label => screen.getByText(label).closest("button")?.title)
+        sync.inProgress.set(null)
+
+        // Assert
+        expect(held).toEqual(["Finish or abort the merge first.", "Finish or abort the merge first."])
+    })
+
+    it("should publish a local branch without upstream", async () => {
+        // Arrange
+        isBusy.set(false)
+        const unpublished = aLocalBranch("feature/z")
+        await renderMenu({ ...LOCAL_REF, refName: unpublished.refName, fullName: "feature/z", local: unpublished })
+
+        // Act
+        click("Publish 'feature/z'")
+
+        // Assert
+        expect(sync.publish).toHaveBeenCalledWith(unpublished)
+        expect(screen.queryByText("Push")).toBe(null)
+    })
+
+    it("should list the items other features contribute after its own and run them on the branch", async () => {
+        // Arrange
+        isBusy.set(false)
+        const run = jest.fn()
+        const compareWithMain: BranchAction = {
+            id: "compare.branchWithTarget",
+            icon: "fa-solid fa-code-compare",
+            labelFor: target => `Compare with 'main' (${target.name})`,
+            hoverHintFor: () => "Show what it changes",
+            isOfferedFor: target => target.kind === "local",
+            run
+        }
+        const { closed } = await renderMenu(LOCAL_REF, false, [{ provide: BRANCH_ACTIONS, multi: true, useValue: compareWithMain }])
+
+        // Act
+        const labels = screen.getAllByRole("button", { hidden: true }).map(button => button.textContent?.trim())
+        click("Compare with 'main' (feature/x)")
+
+        // Assert
+        expect(labels.at(-1)).toBe("Compare with 'main' (feature/x)")
+        expect(run).toHaveBeenCalledWith({ repo, refName: FEATURE.refName, name: "feature/x", kind: "local", isCurrent: false })
+        expect(closed).toHaveBeenCalledWith(false)
+    })
+
+    it("should leave out a contributed item not offered for the ref", async () => {
+        // Arrange
+        const offeredForLocalOnly: BranchAction = {
+            id: "compare.branchWithTarget",
+            icon: "fa-solid fa-code-compare",
+            labelFor: () => "Compare with 'main'",
+            hoverHintFor: () => "",
+            isOfferedFor: target => target.kind === "local",
+            run: jest.fn()
+        }
+
+        // Act
+        await renderMenu(TAG_REF, false, [{ provide: BRANCH_ACTIONS, multi: true, useValue: offeredForLocalOnly }])
+
+        // Assert
+        expect(screen.queryByText("Compare with 'main'")).toBeNull()
     })
 
     it("should run the actions of a remote branch and a tag", async () => {
@@ -117,7 +212,7 @@ describe("BranchContextMenuComponent", () => {
 
         // Assert
         expect(firstFocused).toBe("Switch To")
-        expect(afterUp).toBe("Set Upstream…")
+        expect(afterUp).toBe("Force Push (with Lease)…")
         expect(closed).toHaveBeenCalledWith(true)
     })
 

@@ -8,6 +8,7 @@ use codecharta_core_api::methods::git::{
 use codecharta_core_api::values::{CommitSha, FullRefName, Revision};
 
 use super::branch::{ensure_no_operation_in_progress, local_branch};
+use super::command::{BRANCH_LIMITS, GitCommand, QUERY_LIMITS};
 use super::error::refused;
 use super::locator::locate;
 use super::operation::{Mutation, OperationContext};
@@ -50,6 +51,11 @@ const REBASE_SUBCOMMAND: &str = "rebase";
 const LOCAL_BRANCHES_PREFIX: &str = "refs/heads/";
 /// The only refs the core writes into a user's repository besides what the user asks git to do (D5).
 pub const CODECHARTA_REFS_PREFIX: &str = "refs/codecharta/";
+/// `for-each-ref` matches a pattern without its slash from the start up to a slash: only that namespace.
+const PRIVATE_REFS_PATTERN: &str = "refs/codecharta";
+const LIST_PRIVATE_REFS_ARGS: [&str; 3] =
+    ["for-each-ref", "--format=%(refname)", PRIVATE_REFS_PATTERN];
+const UPDATE_REFS_FROM_STDIN_ARGS: [&str; 2] = ["update-ref", "--stdin"];
 const FULL_REF_PREFIX: &str = "refs/";
 const FORCE_PREFIX: &str = "+";
 const REFSPEC_SEPARATOR: &str = ":";
@@ -297,6 +303,33 @@ pub async fn fetch_refspecs(
     args.extend(refspecs.iter().map(String::as_str));
     mutation.run_network(&args).await?;
     Ok(before)
+}
+
+/// Deletes every ref under `refs/codecharta/` in one transaction and answers how many there were.
+pub async fn remove_private_refs(mutation: &Mutation<'_>) -> CoreResult<u32> {
+    let listed = mutation
+        .reads()
+        .run(&LIST_PRIVATE_REFS_ARGS, QUERY_LIMITS)
+        .await?;
+    let private_refs: Vec<&str> = listed
+        .lines()
+        .filter(|name| name.starts_with(CODECHARTA_REFS_PREFIX))
+        .collect();
+    if private_refs.is_empty() {
+        return Ok(0);
+    }
+    let deletions: String = private_refs
+        .iter()
+        .map(|name| format!("delete {name}\n"))
+        .collect();
+    let command = GitCommand::mutating(
+        &mutation.folder.path,
+        &UPDATE_REFS_FROM_STDIN_ARGS,
+        BRANCH_LIMITS,
+    )
+    .with_stdin(deletions);
+    mutation.run_command(&command).await?;
+    Ok(u32::try_from(private_refs.len()).unwrap_or(u32::MAX))
 }
 
 /// Branches, remote branches and tags that appeared, disappeared or point elsewhere.

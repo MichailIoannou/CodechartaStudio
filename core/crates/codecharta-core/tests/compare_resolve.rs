@@ -1,11 +1,11 @@
 mod support;
 
-use codecharta_core::CoreResult;
 use codecharta_core::compare::{CommitComparison, SideLookup, SizeLimits, side_status};
 use codecharta_core::git::{GitFolder, GitService};
 use codecharta_core::snapshots::nearest::{
     ResolutionCache, ResolutionFolder, ResolutionRequest, resolve_snapshot,
 };
+use codecharta_core::{CoreError, CoreResult};
 use codecharta_core_api::error::ErrorCode;
 use codecharta_core_api::ids::{FolderId, ProjectId, SnapshotId};
 use codecharta_core_api::methods::analysis::{AnalysisTarget, TargetKind};
@@ -38,11 +38,12 @@ struct InMemorySides<'test> {
 impl SideLookup for InMemorySides<'_> {
     async fn status_of(
         &self,
-        side: &ComparedCommit,
+        _folder: &FolderRef,
+        commit: &CommitSha,
         cancel: &CancellationToken,
     ) -> CoreResult<SideStatus> {
         let target = AnalysisTarget::Commit {
-            sha: side.commit.clone(),
+            sha: commit.clone(),
         };
         let request = ResolutionRequest {
             folder: ResolutionFolder::Git(&self.folder),
@@ -53,6 +54,10 @@ impl SideLookup for InMemorySides<'_> {
         resolve_snapshot(self.git, &ResolutionCache::default(), &request, cancel)
             .await
             .map(side_status)
+    }
+
+    fn snapshot(&self, snapshot: &SnapshotRef) -> CoreResult<SnapshotSummary> {
+        Err(CoreError::NotFound(snapshot.snapshot_id.to_string()))
     }
 }
 
@@ -167,9 +172,16 @@ async fn resolve(repo: &TempRepo, params: &ResolveComparisonParams) -> ResolvedC
 
 fn base_and_head(comparison: &ResolvedComparison) -> (String, String) {
     (
-        comparison.base.requested.commit.to_string(),
-        comparison.head.requested.commit.to_string(),
+        commit_of(&comparison.base.requested),
+        commit_of(&comparison.head.requested),
     )
+}
+
+fn commit_of(side: &ComparedCommit) -> String {
+    side.commit
+        .as_ref()
+        .map(ToString::to_string)
+        .expect("a commit side")
 }
 
 fn pair(base: &str, head: &str) -> (String, String) {
@@ -417,7 +429,10 @@ async fn should_use_the_merge_base_by_default() {
         pair(&history.fork_point, &history.feature_tip)
     );
     let tip = comparison.base_tip.expect("the target tip");
-    assert_eq!(tip.commit.as_str(), history.main_tip);
+    assert_eq!(
+        tip.commit.as_ref().expect("a commit").as_str(),
+        history.main_tip
+    );
     assert_eq!(tip.label.name, "main");
     assert_eq!(comparison.head.requested.label.name, "feature");
 }
@@ -441,7 +456,13 @@ async fn should_keep_the_target_name_when_the_merge_base_is_its_tip() {
     // Assert
     assert_eq!(comparison.status, ResolveStatus::Ready);
     assert_eq!(
-        comparison.base.requested.commit.as_str(),
+        comparison
+            .base
+            .requested
+            .commit
+            .as_ref()
+            .expect("a commit")
+            .as_str(),
         history.fork_point
     );
     assert_eq!(
@@ -710,7 +731,10 @@ async fn should_use_the_merge_base_of_the_recorded_base_and_the_head() {
     let tip = comparison
         .base_tip
         .expect("the tip the merge base came from");
-    assert_eq!(tip.commit.as_str(), history.root);
+    assert_eq!(
+        tip.commit.as_ref().expect("a commit").as_str(),
+        history.root
+    );
     assert_eq!(tip.label.name, "main");
 }
 
@@ -740,7 +764,10 @@ async fn should_fall_back_to_the_base_branch_tip() {
         pair(&history.first, &history.feature)
     );
     let tip = comparison.base_tip.expect("the remote branch tip");
-    assert_eq!(tip.commit.as_str(), history.second);
+    assert_eq!(
+        tip.commit.as_ref().expect("a commit").as_str(),
+        history.second
+    );
     assert_eq!(tip.label.name, "origin/main");
     assert_eq!(
         not_local.expect_err("origin has no gone").code(),
@@ -779,8 +806,26 @@ async fn should_ask_to_fetch_a_head_that_is_not_local() {
         unfetched.expect_err("nothing was fetched").code(),
         ErrorCode::HeadNotLocal
     );
-    assert_eq!(fetched.head.requested.commit.as_str(), history.feature);
-    assert_eq!(fetched.base.requested.commit.as_str(), history.first);
+    assert_eq!(
+        fetched
+            .head
+            .requested
+            .commit
+            .as_ref()
+            .expect("a commit")
+            .as_str(),
+        history.feature
+    );
+    assert_eq!(
+        fetched
+            .base
+            .requested
+            .commit
+            .as_ref()
+            .expect("a commit")
+            .as_str(),
+        history.first
+    );
 }
 
 #[tokio::test]

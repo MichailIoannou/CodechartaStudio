@@ -75,6 +75,7 @@ export class ApplyThemeEffect {
         const colorScheme = preference === SYSTEM_THEME ? SYSTEM_THEME : theme.colorScheme
         this.desktopBridge?.setWindowBackground(theme.render.surface).catch(ignoreRefusal)
         this.desktopBridge?.setColorScheme(colorScheme).catch(ignoreRefusal)
+        this.desktopBridge?.setTitleBarColors({ color: theme.chrome.base100, symbolColor: theme.chrome.baseContent }).catch(ignoreRefusal)
     }
 }
 

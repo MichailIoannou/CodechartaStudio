@@ -1,3 +1,4 @@
+import { signal } from "@angular/core"
 import { TestBed } from "@angular/core/testing"
 import { fireEvent, render, screen } from "@testing-library/angular"
 import type { FakeDesktopSeed } from "../../../../util/desktop/desktopBridge.mocks"
@@ -6,6 +7,7 @@ import { anErrorPayload, aRefs, aRepositoryInfo, aStatusOn } from "../../service
 import { provideGitHistory, settleGit } from "../../services/gitHistoryTestBed.mocks"
 import { GitLogService } from "../../services/gitLog.service"
 import { WIDE_WINDOW_PX } from "../../services/historyLayout.service"
+import { HistoryNavigation } from "../../services/historyNavigation.service"
 import { GitHistoryPanelComponent } from "./gitHistoryPanel.component"
 
 const API_FOLDER = aFolder("f-api", { label: "billing-api" })
@@ -144,6 +146,44 @@ describe("GitHistoryPanelComponent", () => {
         expect(relink).toHaveBeenCalledWith({ id: "f-api", label: "billing-api" })
     })
 
+    it("should offer the one other git folder of the project when the working folder is not a repository", async () => {
+        // Arrange
+        const project = aProject("p-billing", [
+            API_FOLDER,
+            aFolder("f-web", { label: "billing-web" }),
+            aFolder("f-docs", { kind: "plain" })
+        ])
+        provideGitHistory({ git: { "f-api": { failures: { "git.repositoryInfo": anErrorPayload("NOT_A_REPOSITORY") } } } }, project)
+        const { fixture, detectChanges } = await render(GitHistoryPanelComponent)
+        await settleGit()
+        detectChanges()
+        const workIn = jest.fn()
+        fixture.componentInstance.workInFolder.subscribe(workIn)
+
+        // Act
+        fireEvent.click(screen.getByRole("button", { name: "Work in 'billing-web'" }))
+
+        // Assert
+        expect(workIn).toHaveBeenCalledWith({ id: "f-web", label: "billing-web" })
+    })
+
+    it("should ask to choose the working folder when the project has several other git folders", async () => {
+        // Arrange
+        const project = aProject("p-billing", [API_FOLDER, aFolder("f-web"), aFolder("f-app"), aFolder("f-gone", { status: "missing" })])
+        provideGitHistory({ git: { "f-api": { failures: { "git.repositoryInfo": anErrorPayload("NOT_A_REPOSITORY") } } } }, project)
+        const { fixture, detectChanges } = await render(GitHistoryPanelComponent)
+        await settleGit()
+        detectChanges()
+        const choose = jest.fn()
+        fixture.componentInstance.chooseWorkingFolder.subscribe(choose)
+
+        // Act
+        fireEvent.click(screen.getByRole("button", { name: "Choose working folder…" }))
+
+        // Assert
+        expect(choose).toHaveBeenCalled()
+    })
+
     it("should pass on the request for the desktop tools", async () => {
         // Arrange
         const { fixture } = await renderPanel({
@@ -173,6 +213,41 @@ describe("GitHistoryPanelComponent", () => {
         // Assert
         expect(noticeText).toContain("Shallow clone: history is cut off, counts are lower bounds.")
         expect(screen.queryByTestId("history-shallow-notice")).toBeNull()
+    })
+
+    it("should show the merge in progress above the panes", async () => {
+        // Arrange & Act
+        await renderPanel({
+            git: { "f-api": { info: aRepositoryInfo(), status: aStatusOn("main", { operationInProgress: "merge" }), refs: aRefs() } }
+        })
+
+        // Assert
+        expect(screen.getByTestId("history-operation-notice").textContent).toContain("Merging into 'main'.")
+    })
+
+    it("should keep the toasts below its toolbar and notices only while it is shown", async () => {
+        // Arrange
+        const isShown = signal(true)
+        provideGitHistory(
+            { git: { "f-api": { info: aRepositoryInfo(), status: aStatusOn("main", { operationInProgress: "merge" }), refs: aRefs() } } },
+            BILLING
+        )
+        TestBed.overrideProvider(HistoryNavigation, { useValue: { isShown } })
+        const { detectChanges } = await render(GitHistoryPanelComponent)
+        await settleGit()
+        detectChanges()
+        const offsetWhileShown = document.documentElement.style.getPropertyValue("--cc-toast-offset")
+
+        // Act
+        isShown.set(false)
+        detectChanges()
+
+        // Assert
+        const header = screen.getByTestId("history-header")
+        expect(header.contains(screen.getByTestId("history-operation-notice"))).toBe(true)
+        expect(header.querySelector("cc-history-toolbar")).not.toBeNull()
+        expect(offsetWhileShown).toMatch(/^\d+px$/)
+        expect(document.documentElement.style.getPropertyValue("--cc-toast-offset")).toBe("")
     })
 
     it("should refresh on F5 inside the history without letting the key through", async () => {

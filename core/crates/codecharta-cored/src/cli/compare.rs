@@ -196,7 +196,8 @@ fn print_comparison(comparison: &ResolvedComparison, json: bool) -> CoreResult<(
     Ok(())
 }
 
-/// `<short commit>  <label>  exact <id>`, `… nearest <id> <relation> stale by <n>` or `… missing`.
+/// `<short commit>  <label>  exact <id>`, `… nearest <id> <relation> stale by <n>` or `… missing`; a
+/// snapshot side without a commit shows its snapshot id in place of the short commit.
 fn side_line(side: &ResolvedSide) -> String {
     let requested = &side.requested;
     let status = match &side.status {
@@ -211,10 +212,13 @@ fn side_line(side: &ResolvedSide) -> String {
         ),
         SideStatus::Missing { nearest: None } => "missing".to_string(),
     };
-    format!(
-        "{}  {}  {status}",
-        requested.short_commit, requested.label.name
-    )
+    let short_name = requested
+        .short_commit
+        .as_ref()
+        .map(ToString::to_string)
+        .or_else(|| requested.snapshot_id.as_ref().map(ToString::to_string))
+        .unwrap_or_default();
+    format!("{short_name}  {}  {status}", requested.label.name)
 }
 
 /// `<combined bytes> bytes <verdict>`, plus `identical` and `profiles-differ` when they apply.

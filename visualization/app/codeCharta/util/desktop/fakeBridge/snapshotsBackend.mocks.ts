@@ -48,6 +48,7 @@ export function fakeSnapshotsBackend(kit: FakeBridgeKit): FakeBackend {
         if (project?.view.shownSnapshotIdByFolder[snapshot.ref.folderId] === snapshot.ref.snapshotId) {
             delete project.view.shownSnapshotIdByFolder[snapshot.ref.folderId]
         }
+        kit.emit("snapshots.changed", { projectId: snapshot.ref.projectId, folderId: snapshot.ref.folderId })
         return succeed(null)
     }
 

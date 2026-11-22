@@ -1,0 +1,114 @@
+<dialog #dialog class="modal" aria-labelledby="batch-analysis-title" data-testid="batch-analysis-dialog">
+    <div class="modal-box flex max-w-md flex-col gap-3">
+        <h2 id="batch-analysis-title" class="text-xl font-bold">Analyse Several Commits</h2>
+
+        <div class="flex min-w-0 items-center gap-3 text-sm">
+            <span class="w-14 shrink-0 text-base-content/60">Folder</span>
+            <span class="truncate font-medium" data-testid="batch-folder">{{ request().folderLabel }}</span>
+        </div>
+
+        <fieldset class="flex flex-col gap-2 text-sm">
+            <legend class="sr-only">Which commits</legend>
+            <div class="flex flex-wrap items-center gap-2">
+                <input
+                    id="batch-mode-last"
+                    type="radio"
+                    class="radio radio-sm"
+                    name="batch-mode"
+                    data-testid="batch-mode-last"
+                    [checked]="mode() === 'lastCommits'"
+                    (change)="mode.set('lastCommits')"
+                />
+                <label for="batch-mode-last">The last</label>
+                <input
+                    type="number"
+                    class="input input-bordered input-sm w-20"
+                    min="1"
+                    [max]="maxCommits"
+                    aria-label="Number of commits"
+                    data-testid="batch-count"
+                    [class.input-error]="countError()"
+                    [value]="count()"
+                    [disabled]="mode() !== 'lastCommits'"
+                    (input)="setCount($event)"
+                />
+                @if (branches().length > 0) {
+                    <label for="batch-branch">commits of</label>
+                    <select
+                        id="batch-branch"
+                        class="select select-sm w-32"
+                        data-testid="batch-branch"
+                        [disabled]="mode() !== 'lastCommits'"
+                        (change)="chosenBranch.set($any($event.target).value)"
+                    >
+                        @for (option of branches(); track option.refName) {
+                            <option [value]="option.refName" [selected]="option.refName === branch()?.refName">{{ option.name }}</option>
+                        }
+                    </select>
+                } @else {
+                    <span>commits up to <span class="font-mono" data-testid="batch-tip">{{ shortTip() }}</span></span>
+                }
+            </div>
+            @if (countError(); as countError) {
+                <span class="pl-6 text-xs text-error" data-testid="batch-count-error">{{ countError }}</span>
+            }
+            <label class="flex items-center gap-2 pl-6">
+                <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm"
+                    data-testid="batch-first-parent"
+                    [checked]="firstParentOnly()"
+                    [disabled]="mode() !== 'lastCommits'"
+                    (change)="firstParentOnly.set($any($event.target).checked)"
+                />
+                Main line only (first parent)
+            </label>
+            <label class="flex items-center gap-2">
+                <input type="radio" class="radio radio-sm" name="batch-mode" data-testid="batch-mode-tags" [checked]="mode() === 'tags'" (change)="mode.set('tags')" />
+                Every tag
+            </label>
+        </fieldset>
+
+        <div class="divider my-0"></div>
+
+        @if (problems(); as problems) {
+            <cc-preflight-problems [problems]="problems" />
+        }
+
+        <div class="flex min-h-10 flex-col gap-1 text-sm" aria-live="polite" data-testid="batch-summary">
+            @if (preview().kind === "loading") {
+                <span class="loading loading-dots loading-xs" aria-label="Counting commits"></span>
+            } @else if (previewFailure(); as previewFailure) {
+                <div role="alert" class="alert alert-error text-xs" data-testid="batch-preview-failure">
+                    <span class="min-w-0 break-words">{{ previewFailure }}</span>
+                </div>
+            } @else {
+                @if (summary(); as summary) {
+                    <span>{{ summary }}</span>
+                }
+                @if (estimate(); as estimate) {
+                    <span class="text-base-content/70">{{ estimate }}</span>
+                }
+                @if (leftOut(); as leftOut) {
+                    <span class="text-base-content/70">{{ leftOut }}</span>
+                }
+                @if (isNothingToAnalyse()) {
+                    <span class="text-base-content/70">Nothing to analyse — all commits are analysed.</span>
+                }
+            }
+        </div>
+
+        <div class="modal-action mt-0">
+            <button type="button" class="btn" data-testid="batch-cancel" (click)="close()">Cancel</button>
+            <button type="button" class="btn btn-primary" data-testid="batch-start" [disabled]="!canStart()" (click)="start()">
+                @if (isStarting()) {
+                    <span class="loading loading-spinner loading-xs"></span>
+                }
+                {{ startLabel() }}
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>

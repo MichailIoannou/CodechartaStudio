@@ -1,12 +1,17 @@
 import { computed, Injectable, inject } from "@angular/core"
 import type { ProjectSnapshotsLoadResult } from "../../../load/load.facade"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
+import type { HostingOverride } from "../../../model/coreApi/HostingOverride"
 import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
-import { ProjectsService } from "./projects.service"
+import { FolderMenuRequestsService } from "./folderMenuRequests.service"
+import { ProjectFoldersService } from "./projectFolders.service"
+import { FolderChoice, ProjectsService } from "./projects.service"
 
 @Injectable({ providedIn: "root" })
 export class ProjectsFacade {
     private readonly projects = inject(ProjectsService)
+    private readonly projectFolders = inject(ProjectFoldersService)
+    private readonly folderMenuRequests = inject(FolderMenuRequestsService)
 
     readonly isDesktop = this.projects.isDesktop
     readonly activeProject = this.projects.activeProject
@@ -33,6 +38,19 @@ export class ProjectsFacade {
 
     refreshFolderSnapshots(folder: FolderRef): Promise<void> {
         return this.projects.refreshFolderSnapshots(folder)
+    }
+
+    chooseFolder(choice: FolderChoice): Promise<void> {
+        return this.projects.chooseFolder(choice)
+    }
+
+    openFolderMenu(): void {
+        this.folderMenuRequests.request()
+    }
+
+    /** Plan 06: the provider of a host the core does not recognise, kept on the folder record. */
+    setFolderHosting(folderId: string, hosting: HostingOverride): Promise<void> {
+        return this.projectFolders.updateFolder(folderId, { hosting })
     }
 
     showOverview(): void {

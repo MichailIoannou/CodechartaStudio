@@ -1,0 +1,97 @@
+<dialog #dialog class="modal" aria-labelledby="cleanup-dialog-title" data-testid="cleanup-dialog">
+    <div class="modal-box flex max-w-xl flex-col gap-3">
+        <h2 id="cleanup-dialog-title" class="truncate text-xl font-bold" [title]="title()">{{ title() }}</h2>
+
+        <div class="grid grid-cols-[3rem_auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 text-sm">
+            <span class="text-base-content/60">Keep</span>
+            <input
+                type="number"
+                min="0"
+                class="input input-bordered input-sm w-20"
+                aria-label="Newest commit analyses to keep"
+                data-testid="cleanup-keep-commits"
+                [value]="keepCommits()"
+                (input)="setCount('commits', $event)"
+            />
+            <span>newest commit analyses</span>
+            <span></span>
+            <input
+                type="number"
+                min="0"
+                class="input input-bordered input-sm w-20"
+                aria-label="Newest working-tree analyses to keep"
+                data-testid="cleanup-keep-working-trees"
+                [value]="keepWorkingTrees()"
+                (input)="setCount('workingTrees', $event)"
+            />
+            <span>newest working-tree analyses</span>
+            <span></span>
+            <label class="col-span-2 flex items-center gap-2">
+                <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm"
+                    data-testid="cleanup-keep-tips"
+                    [checked]="keepTipsAndTags()"
+                    (change)="keepTipsAndTags.set($any($event.target).checked)"
+                />
+                Analyses of branch tips and tags
+            </label>
+        </div>
+        @if (!policy()) {
+            <span class="text-xs text-error" data-testid="cleanup-input-error">Enter a whole number of 0 or more.</span>
+        }
+        <p class="text-xs text-base-content/60">Always kept: the analysis shown in the map, imported snapshots.</p>
+
+        <div class="divider my-0"></div>
+
+        <div class="flex min-h-10 flex-col gap-2 text-sm" aria-live="polite" data-testid="cleanup-plan">
+            @if (planState().kind === "loading") {
+                <span class="loading loading-dots loading-xs" aria-label="Planning the clean-up"></span>
+            } @else if (planFailure(); as planFailure) {
+                <div role="alert" class="alert alert-error text-xs" data-testid="cleanup-plan-failure">
+                    <span class="min-w-0 break-words">{{ planFailure }}</span>
+                </div>
+            } @else if (plan() && count() === 0) {
+                <span class="text-base-content/70">Nothing to clean up with these settings.</span>
+            } @else if (plan()) {
+                <span>{{ summary() }}</span>
+                <details class="collapse collapse-arrow shrink-0 rounded-box border border-base-300" data-testid="cleanup-list">
+                    <summary class="collapse-title min-h-0 px-3 py-2 text-sm">{{ listLabel() }}</summary>
+                    <div class="collapse-content px-0 pb-1">
+                        <div class="grid max-h-60 grid-cols-[minmax(0,1fr)_auto_auto] gap-x-3 gap-y-1 overflow-y-auto px-3 text-sm">
+                            @for (row of rows(); track row.snapshotId) {
+                                <span class="flex min-w-0 gap-2" data-testid="cleanup-row">
+                                    <span class="shrink-0 font-mono">{{ row.label }}</span>
+                                    @if (row.subject) {
+                                        <span class="truncate" [title]="row.subject">{{ row.subject }}</span>
+                                    }
+                                </span>
+                                <span class="text-base-content/60">{{ row.date }}</span>
+                                <span class="text-right tabular-nums">{{ row.size }}</span>
+                            }
+                        </div>
+                    </div>
+                </details>
+            }
+        </div>
+
+        @if (pruneFailure(); as pruneFailure) {
+            <div role="alert" class="alert alert-error text-xs" data-testid="cleanup-failure">
+                <span class="min-w-0 break-words">{{ pruneFailure }}</span>
+            </div>
+        }
+
+        <div class="modal-action mt-0">
+            <button type="button" class="btn" data-testid="cleanup-cancel" (click)="close()">Cancel</button>
+            <button type="button" class="btn btn-error" data-testid="cleanup-confirm" [disabled]="!canPrune()" (click)="prune()">
+                @if (isPruning()) {
+                    <span class="loading loading-spinner loading-xs"></span>
+                }
+                Move {{ count() }} to recycle bin
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>

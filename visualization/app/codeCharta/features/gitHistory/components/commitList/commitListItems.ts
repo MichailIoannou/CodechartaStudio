@@ -10,6 +10,8 @@ import type { CommitRowView } from "../commitRow/commitRow.component"
 
 /** Room for the `+n` beside the drawn lanes. */
 const HIDDEN_LANES_ROOM_PX = 24
+/** The column header "Graph" needs this much, even when one lane is narrower. */
+const GRAPH_HEADER_MIN_PX = 52
 const COMMIT_COLUMN = "minmax(0,1fr)"
 const ANALYSIS_COLUMN = "6.5rem"
 const AUTHOR_COLUMN = "8rem"
@@ -53,7 +55,8 @@ export function gridTemplateOf(isAnalysisShown: boolean, graphColumnWidth: numbe
 
 export function graphColumnWidthOf(rows: readonly GraphRow[]): number {
     const laneCount = rows.reduce((max, row) => Math.max(max, row.laneCount), 0)
-    return graphWidthFor(Math.max(1, laneCount)) + (laneCount > MAX_DRAWN_LANES ? HIDDEN_LANES_ROOM_PX : 0)
+    const lanesWidth = graphWidthFor(Math.max(1, laneCount)) + (laneCount > MAX_DRAWN_LANES ? HIDDEN_LANES_ROOM_PX : 0)
+    return Math.max(GRAPH_HEADER_MIN_PX, lanesWidth)
 }
 
 export function firstPageFailureOf(page: LogPage, commitCount: number): string | null {

@@ -74,4 +74,117 @@ describe("InspectorVisibilityService", () => {
         expect(threeSceneService.clearSelection).toHaveBeenCalled()
         expect(threeRendererService.render).toHaveBeenCalled()
     })
+
+    it("should stay visible but no longer expanded when collapsed", () => {
+        // Arrange
+        selectBuilding()
+
+        // Act
+        service.collapse()
+
+        // Assert
+        expect(service.isVisible()).toBe(true)
+        expect(service.isCollapsed()).toBe(true)
+        expect(service.isExpanded()).toBe(false)
+    })
+
+    it("should expand again with its building still selected", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+
+        // Act
+        service.expand()
+
+        // Assert
+        expect(service.isExpanded()).toBe(true)
+    })
+
+    it("should stay collapsed while another building is selected", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+
+        // Act
+        mockStore.overrideSelector(selectedNodeSelector, { name: "other.ts", path: "/root/other.ts" } as CodeMapNode)
+        mockStore.refreshState()
+
+        // Assert
+        expect(service.isCollapsed()).toBe(true)
+    })
+
+    it("should open expanded for the next selection once the building was deselected", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+        deselectBuilding()
+
+        // Act
+        selectBuilding()
+
+        // Assert
+        expect(service.isExpanded()).toBe(true)
+    })
+
+    it("should not count as collapsed while nothing is selected", () => {
+        // Act
+        service.collapse()
+
+        // Assert
+        expect(service.isCollapsed()).toBe(false)
+    })
+
+    function selectOtherBuilding() {
+        mockStore.overrideSelector(selectedNodeSelector, { name: "other.ts", path: "/root/other.ts" } as CodeMapNode)
+        mockStore.refreshState()
+    }
+
+    it("should mark a selection made while collapsed as not yet seen", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+
+        // Act
+        selectOtherBuilding()
+
+        // Assert
+        expect(service.hasUnseenSelection()).toBe(true)
+    })
+
+    it("should count the building shown when it collapsed as seen", () => {
+        // Arrange
+        selectBuilding()
+
+        // Act
+        service.collapse()
+
+        // Assert
+        expect(service.hasUnseenSelection()).toBe(false)
+    })
+
+    it("should count a selection as seen once the inspector is expanded", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+        selectOtherBuilding()
+
+        // Act
+        service.expand()
+
+        // Assert
+        expect(service.hasUnseenSelection()).toBe(false)
+    })
+
+    it("should count the selection as seen again when the building shown before is selected again", () => {
+        // Arrange
+        selectBuilding()
+        service.collapse()
+        selectOtherBuilding()
+
+        // Act
+        selectBuilding()
+
+        // Assert
+        expect(service.hasUnseenSelection()).toBe(false)
+    })
 })

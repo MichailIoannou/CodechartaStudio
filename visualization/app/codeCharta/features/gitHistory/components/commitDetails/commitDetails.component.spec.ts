@@ -90,6 +90,35 @@ describe("CommitDetailsComponent", () => {
         expect(screen.getByTestId("commit-details-committer").textContent).toContain("Carl Committer <carl@example.test>")
     })
 
+    it("should label the author, committer and parents rows in a grid", async () => {
+        // Arrange
+        const rendered = await renderDetails(seedOf([MERGE, RELEASE, BASE], { [MERGE.sha]: MERGE_DETAILS }))
+
+        // Act
+        await select(rendered, MERGE)
+
+        // Assert
+        const grid = screen.getByTestId("commit-details-meta")
+        expect(grid.className).toContain("grid-cols-[5.5rem_minmax(0,1fr)]")
+        expect([...grid.querySelectorAll("dt")].map(label => label.textContent?.trim())).toEqual(["Author", "Committer", "Parents"])
+        const author = screen.getByTestId("commit-details-author")
+        expect(author.className).toContain("truncate")
+        expect(author.getAttribute("title")).toMatch(/^Mia Chen <mia@example\.com> · 3 Nov 2026, \d\d:\d\d \(.+ ago\)$/)
+        expect(leafTexts(screen.getByTestId("commit-details-parents"))).toBe("4444444 2222222")
+    })
+
+    it("should show the committer when only the commit date differs from the author's", async () => {
+        // Arrange
+        const rebased: GitCommitDetails = { ...MERGE_DETAILS, committerName: MERGE.authorName, committerEmail: MERGE.authorEmail }
+        const rendered = await renderDetails(seedOf([MERGE], { [MERGE.sha]: rebased }))
+
+        // Act
+        await select(rendered, MERGE)
+
+        // Assert
+        expect(screen.getByTestId("commit-details-committer").textContent).toMatch(/^Mia Chen <mia@example\.com> · 3 Nov 2026, \d\d:05$/)
+    })
+
     it("should list the changed files with their change and counts", async () => {
         // Arrange
         const rendered = await renderDetails(seedOf([MERGE], { [MERGE.sha]: MERGE_DETAILS }))

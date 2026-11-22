@@ -3,6 +3,8 @@ import type { FolderRef } from "./FolderRef"
 import type { RefInput } from "./RefInput"
 
 /**
- * What the user typed or picked for one side. Both sides of an `explicit` intent are in one folder.
+ * What the user typed or picked for one side. The two sides of an `explicit` intent may be in two folders
+ * of one project: then the merge base and the status come from a clone that has both commits, and without
+ * one the comparison is tip vs tip.
  */
 export type SideInput = { folder: FolderRef; rev: RefInput }

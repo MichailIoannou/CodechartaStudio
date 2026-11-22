@@ -1,6 +1,6 @@
 import type { DesktopBridge } from "../desktopBridge"
 import { createFakeDesktopBridge } from "../desktopBridge.mocks"
-import { aFolder, answerValue, aProject, aSnapshot, NOW } from "./fakeBridgeTestData.mocks"
+import { aFolder, aLogCommitOf, answerValue, aProject, aSnapshot, NOW } from "./fakeBridgeTestData.mocks"
 
 describe("createFakeDesktopBridge", () => {
     describe("analyses", () => {
@@ -46,6 +46,75 @@ describe("createFakeDesktopBridge", () => {
             expect(events).toEqual(["analysis.queued", "analysis.started", "analysis.progress", "analysis.finished", "snapshots.changed"])
             expect(jobs[0]).toMatchObject({ id: job.id, state: "done", snapshotId: `${COMMIT}-01234567` })
             expect(snapshots.map(snapshot => snapshot.shortCommit)).toEqual(["a1b2c3d"])
+        })
+
+        it("should queue a batch of the last commits, skip analysed ones and only estimate on a dry run", async () => {
+            // Arrange
+            const shas = ["c", "b", "a"].map(seed => seed.repeat(40))
+            const commits = shas.map((sha, index) => ({ ...aLogCommitOf(sha), parents: shas.slice(index + 1, index + 2) }))
+            const analysed = { ...aSnapshot("p-1", "f-1", "s-a", NOW), source: "analysed" as const, target: "commit" as const }
+            const bridge = createFakeDesktopBridge({
+                gitLogs: { "f-1": commits },
+                snapshots: [{ ...analysed, commit: shas[2], durationMs: 60_000 }]
+            })
+            const selection = { kind: "lastCommits" as const, tipSha: shas[0], count: 3, firstParentOnly: true }
+
+            // Act
+            const preview = await answerValue(bridge, "analysis.enqueueBatch", { ...FOLDER, selection, dryRun: true })
+            const queuedBeforeRun = (await answerValue(bridge, "analysis.list", {})).jobs.length
+            const started = await answerValue(bridge, "analysis.enqueueBatch", { ...FOLDER, selection, dryRun: false })
+            const tooMany = await bridge.request("analysis.enqueueBatch", {
+                ...FOLDER,
+                selection: { ...selection, count: 201 },
+                dryRun: true
+            })
+
+            // Assert
+            expect(preview).toEqual({
+                batchId: null,
+                toAnalyse: shas.slice(0, 2),
+                alreadyAnalysed: [shas[2]],
+                leftOut: 0,
+                jobs: [],
+                estimatedDurationMs: 120_000,
+                problems: []
+            })
+            expect(queuedBeforeRun).toBe(0)
+            expect(started.jobs.map(job => [job.batchId, job.target])).toEqual(
+                shas.slice(0, 2).map(sha => [started.batchId, { kind: "commit", sha }])
+            )
+            expect(tooMany).toEqual(expect.objectContaining({ ok: false, error: expect.objectContaining({ code: "BAD_REQUEST" }) }))
+        })
+
+        it("should queue every tagged commit and cancel all jobs of a batch", async () => {
+            // Arrange
+            const tags = ["d", "e"].map(seed => ({
+                refName: `refs/tags/${seed}`,
+                name: seed,
+                commit: seed.repeat(40),
+                isAnnotated: true,
+                createdAt: 1
+            }))
+            const refs = {
+                fingerprint: "1",
+                head: { kind: "detached" as const, commit: "d".repeat(40) },
+                localBranches: [],
+                remoteBranches: [],
+                tags,
+                remotes: []
+            }
+            const bridge = createFakeDesktopBridge({ git: { "f-1": { refs } } })
+            const started = await answerValue(bridge, "analysis.enqueueBatch", { ...FOLDER, selection: { kind: "tags" }, dryRun: false })
+
+            // Act
+            await answerValue(bridge, "analysis.cancelBatch", { batchId: started.batchId ?? "" })
+            const unknown = await bridge.request("analysis.cancelBatch", { batchId: "batch-unknown" })
+            const { jobs } = await answerValue(bridge, "analysis.list", {})
+
+            // Assert
+            expect(started.toAnalyse).toEqual(tags.map(tag => tag.commit))
+            expect(jobs.map(job => job.state)).toEqual(["cancelled", "cancelled"])
+            expect(unknown).toEqual(expect.objectContaining({ ok: false, error: expect.objectContaining({ code: "NOT_FOUND" }) }))
         })
 
         it("should stop after unsubscribe", async () => {

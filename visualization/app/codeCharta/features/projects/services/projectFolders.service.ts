@@ -1,5 +1,7 @@
 import { Injectable, inject } from "@angular/core"
+import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { FolderRole } from "../../../model/coreApi/FolderRole"
+import type { HostingOverride } from "../../../model/coreApi/HostingOverride"
 import type { NewFolder } from "../../../model/coreApi/NewFolder"
 import type { PickedFolder } from "../../../model/coreApi/PickedFolder"
 import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.service"
@@ -50,7 +52,7 @@ export class ProjectFoldersService {
         }
     }
 
-    async updateFolder(folderId: string, changes: { label?: string; role?: FolderRole }): Promise<void> {
+    async updateFolder(folderId: string, changes: { label?: string; role?: FolderRole; hosting?: HostingOverride }): Promise<void> {
         await this.projects.applyProject(await this.projects.request("projects.updateFolder", { ...this.folderRef(folderId), ...changes }))
     }
 
@@ -74,6 +76,11 @@ export class ProjectFoldersService {
 
     pickFolder(title: string): Promise<PickedFolder | null> {
         return this.projects.request("projects.pickFolder", { title })
+    }
+
+    async readSourceFile(folder: FolderRef, relativePath: string): Promise<Uint8Array | null> {
+        const sourceFile = await this.projects.request("projects.readSourceFile", { ...folder, relativePath })
+        return sourceFile?.bytes ?? null
     }
 
     async revealFolder(folderId: string): Promise<void> {

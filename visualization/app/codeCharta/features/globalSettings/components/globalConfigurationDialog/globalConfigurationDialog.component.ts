@@ -6,12 +6,14 @@ import { DesktopEnvironment } from "../../../../util/desktop/desktopEnvironment.
 import { DesktopToolsPanelComponent } from "../../../desktopTools/facade"
 import { canOpenFoldersHere } from "../../../localSource/facade"
 import { ThemePickerComponent } from "../../../theme/facade"
+import { GlobalConfigurationTarget } from "../../globalConfigurationTarget"
 import { GlobalSettingsWriteStore } from "../../stores/globalSettings.write.store"
 import { ExternalLinksComponent } from "./externalLinks/externalLinks.component"
 import { ResetFiltersButtonComponent } from "./resetFiltersButton/resetFiltersButton.component"
 import { ResetMapButtonComponent } from "./resetMapButton/resetMapButton.component"
 import { ResetSettingsButtonComponent } from "./resetSettingsButton/resetSettingsButton.component"
 import { SettingToggleComponent } from "./settingToggle/settingToggle.component"
+import { WindowTitleBarSettingComponent } from "./windowTitleBarSetting/windowTitleBarSetting.component"
 
 @Component({
     selector: "cc-global-configuration-dialog",
@@ -23,7 +25,8 @@ import { SettingToggleComponent } from "./settingToggle/settingToggle.component"
         SettingToggleComponent,
         ExternalLinksComponent,
         ThemePickerComponent,
-        DesktopToolsPanelComponent
+        DesktopToolsPanelComponent,
+        WindowTitleBarSettingComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -33,6 +36,7 @@ export class GlobalConfigurationDialogComponent {
     private readonly globalSettingsWriteStore = inject(GlobalSettingsWriteStore)
 
     dialogElement = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
+    private readonly desktopToolsPanel = viewChild(DesktopToolsPanelComponent)
 
     screenshotToClipboardEnabled = toSignal(this.preferencesReadWindow.screenshotToClipboardEnabled$, {
         requireSync: true
@@ -46,8 +50,11 @@ export class GlobalConfigurationDialogComponent {
         requireSync: true
     })
 
-    open() {
+    open(target?: GlobalConfigurationTarget) {
         this.dialogElement().nativeElement.showModal()
+        if (target?.section === "desktopTools") {
+            this.desktopToolsPanel()?.reveal(target.tool)
+        }
     }
 
     close() {

@@ -1,96 +1,99 @@
-<div class="flex min-w-0 items-center gap-1" role="group" aria-label="Comparison" data-testid="comparison-chip">
-    @if (isNoDifferences()) {
-        <span class="flex min-w-0 items-center gap-2 px-2 text-sm" data-testid="comparison-no-differences">
-            <i class="fa-solid fa-equals fa-fw text-base-content/60"></i>
-            <span class="truncate"
-                >No metric differences between <span class="font-mono">{{ base()?.shortCommit }}</span> and
-                <span class="font-mono">{{ head()?.shortCommit }}</span></span
-            >
-        </span>
-    } @else {
-        @for (side of [base(), head()]; track $index; let isHead = $last) {
-            @if (isHead) {
-                <button
-                    type="button"
-                    class="btn btn-ghost btn-sm btn-square"
-                    title="Switch reference and comparison file"
-                    data-testid="comparison-swap"
-                    (click)="swap()"
-                >
-                    <i class="fa fa-arrows-h"></i>
-                </button>
+<div class="dropdown" [class.dropdown-open]="isMenuOpen()" data-testid="comparison-chip" (keydown.escape)="closeWithKeyboard()">
+    <button
+        #trigger
+        type="button"
+        class="btn btn-sm btn-outline border-base-300 w-32 min-w-0 flex-nowrap gap-1 px-2 font-normal xl:w-56 xl:gap-1.5 xl:px-3 2xl:w-72"
+        aria-haspopup="dialog"
+        data-testid="comparison-trigger"
+        [attr.aria-expanded]="isMenuOpen()"
+        [title]="title()"
+        (click)="toggleMenu()"
+        (keydown.arrowdown)="openWithKeyboard($event)"
+    >
+        @if (isNoDifferences()) {
+            <i class="fa-solid fa-equals fa-fw shrink-0 text-base-content/60"></i>
+            <span class="min-w-0 flex-1 truncate text-left" data-testid="comparison-no-differences">No metric differences</span>
+        } @else {
+            <span class="hidden shrink-0 xl:inline-flex" data-testid="comparison-icon"><i class="fa-solid fa-code-compare fa-fw"></i></span>
+            <span class="min-w-8 flex-1 truncate text-left xl:min-w-10" data-testid="comparison-base-label">{{ base()?.buttonLabel }}</span>
+            <i class="fa-solid fa-arrow-right shrink-0 text-xs text-base-content/60"></i>
+            <span class="min-w-8 flex-1 truncate text-left xl:min-w-10" data-testid="comparison-head-label">{{ head()?.buttonLabel }}</span>
+            @if (isStale()) {
+                <span class="size-2 shrink-0 rounded-full bg-warning" title="A side is stale" data-testid="comparison-stale-dot"></span>
             }
-            @if (side; as side) {
-                <button
-                    type="button"
-                    class="btn btn-ghost btn-sm min-w-0 max-w-48 shrink gap-1 font-normal"
-                    [attr.data-testid]="'comparison-' + side.caption"
-                    [title]="side.caption + ' ' + side.shortCommit + (side.label ? ' ' + side.label : '')"
-                    (click)="change()"
-                >
-                    <span class="hidden text-xs text-base-content/60 xl:inline">{{ side.caption }}</span>
-                    <span class="font-mono">{{ side.shortCommit }}</span>
-                    @if (side.label) {
-                        <span class="truncate">{{ side.label }}</span>
-                    }
-                </button>
-                @if (side.staleBadge) {
-                    <span class="badge badge-warning badge-sm shrink-0 whitespace-nowrap" data-testid="comparison-stale" [title]="side.staleTitle">{{
-                        side.staleBadge
-                    }}</span>
-                }
+            @if (changeRequest()) {
+                <span class="hidden shrink-0 xl:inline-flex" data-testid="comparison-pull-request-icon"><i class="fa-solid fa-code-pull-request"></i></span>
             }
         }
-        @if (baseModeBadge(); as badge) {
-            <span class="badge badge-ghost badge-xs hidden shrink-0 whitespace-nowrap xl:inline-flex" data-testid="comparison-base-mode" [title]="badge.title">{{
-                badge.text
-            }}</span>
-        }
-    }
+        <i class="fa-solid fa-caret-down shrink-0"></i>
+    </button>
 
-    <div class="dropdown dropdown-end" [class.dropdown-open]="isMenuOpen()">
-        <button
-            type="button"
-            class="btn btn-ghost btn-sm btn-square"
-            aria-label="Comparison actions"
-            aria-haspopup="menu"
-            data-testid="comparison-actions"
-            [attr.aria-expanded]="isMenuOpen()"
-            (click)="toggleMenu()"
+    @if (isMenuOpen()) {
+        <div
+            role="dialog"
+            aria-label="Comparison"
+            class="dropdown-content z-[70] mt-1 flex w-[28rem] max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-box border border-base-300 bg-base-100 p-2 text-sm shadow-md"
+            data-testid="comparison-details"
         >
-            <i class="fa fa-caret-down"></i>
-        </button>
-        @if (isMenuOpen()) {
-            <ul role="menu" class="dropdown-content z-[70] mt-1 flex w-max min-w-48 flex-col gap-0.5 rounded-box border border-base-300 bg-base-100 p-1 text-sm shadow-md">
-                <li role="none">
-                    <button type="button" role="menuitem" class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200" (click)="change()">
-                        <i class="fa-fw"></i>Change…
-                    </button>
-                </li>
-                @if (!isNoDifferences()) {
-                    <li role="none">
-                        <button type="button" role="menuitem" class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200" (click)="swap()">
-                            <i class="fa-fw"></i>Swap base and head
-                        </button>
-                    </li>
+            <div class="flex items-center justify-between gap-2 px-1">
+                <span class="text-xs uppercase tracking-wide text-base-content/60">Comparing</span>
+                @if (baseModeLine(); as baseModeLine) {
+                    <span class="text-xs text-base-content/60" data-testid="comparison-base-mode" [title]="baseModeLine.title">{{ baseModeLine.text }}</span>
                 }
-                <li role="none">
-                    <button type="button" role="menuitem" class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200" (click)="copyAsText()">
-                        <i class="fa-fw"></i>Copy as text
+            </div>
+            @for (side of sides(); track side.caption) {
+                <div
+                    class="grid grid-cols-[3rem_auto_minmax(0,1fr)_auto_auto] items-center gap-2 px-1"
+                    [attr.data-testid]="'comparison-' + (side.caption === 'Base' ? 'base' : 'head')"
+                >
+                    <span class="text-xs text-base-content/60">{{ side.caption }}</span>
+                    <span class="font-mono text-xs">{{ side.shortCommit ?? "" }}</span>
+                    <span class="min-w-0 truncate" [title]="side.rowLabel">{{ side.rowLabel }}</span>
+                    @if (side.status.isStale) {
+                        <span class="badge badge-warning badge-xs whitespace-nowrap" data-testid="comparison-stale" [title]="side.status.title">{{
+                            side.status.badge
+                        }}</span>
+                    } @else {
+                        <span class="badge badge-soft badge-xs whitespace-nowrap">{{ side.status.badge }}</span>
+                    }
+                    <button type="button" class="btn btn-ghost btn-xs" [attr.aria-label]="'Change ' + side.caption.toLowerCase()" (click)="change()">
+                        Change…
                     </button>
-                </li>
-                <li role="none">
-                    <button
-                        type="button"
-                        role="menuitem"
-                        class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-base-200"
-                        data-testid="comparison-leave"
-                        (click)="leave()"
-                    >
-                        <i class="fa-solid fa-xmark fa-fw"></i>Leave compare
+                    @if (side.status.showing; as showing) {
+                        <span class="col-start-3 col-end-6 text-xs text-base-content/60" data-testid="comparison-showing">{{ showing }}</span>
+                    }
+                </div>
+            }
+            @if (!isNoDifferences()) {
+                <div class="pl-14">
+                    <button type="button" class="btn btn-ghost btn-xs" title="Switch reference and comparison file" data-testid="comparison-swap" (click)="swap()">
+                        <i class="fa fa-arrows-h"></i>Swap base and head
                     </button>
-                </li>
-            </ul>
-        }
-    </div>
+                </div>
+            }
+            @if (changeRequest(); as changeRequest) {
+                <div class="flex min-w-0 items-center gap-2 px-1 py-1" data-testid="comparison-pull-request" [title]="changeRequest.title">
+                    <i class="fa-solid fa-code-pull-request shrink-0"></i>
+                    @if (changeRequest.url) {
+                        <a class="link link-hover inline-flex min-w-0 items-center gap-2" target="_blank" rel="noopener" [href]="changeRequest.url">
+                            <span class="truncate">{{ changeRequest.title }}</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square shrink-0 text-xs text-base-content/60"></i>
+                        </a>
+                    } @else {
+                        <span class="truncate">{{ changeRequest.title }}</span>
+                    }
+                </div>
+            }
+            @if (isNoDifferences() && gitLine(); as gitLine) {
+                <div class="px-1 text-xs text-base-content/60" data-testid="comparison-git-line">{{ gitLine }}</div>
+            }
+            <div class="divider my-0"></div>
+            <div class="flex items-center justify-between">
+                <button type="button" class="btn btn-ghost btn-xs" data-testid="comparison-copy" (click)="copyAsText()">Copy as text</button>
+                <button type="button" class="btn btn-ghost btn-xs" data-testid="comparison-leave" (click)="leave()">
+                    <i class="fa-solid fa-xmark"></i>Leave compare
+                </button>
+            </div>
+        </div>
+    }
 </div>

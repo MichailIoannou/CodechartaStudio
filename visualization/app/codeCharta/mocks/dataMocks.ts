@@ -1976,7 +1976,8 @@ export const STATE: CcState = {
         hoveredFileExtensions: [],
         keptHighlightPaths: [],
         selectedNodePath: null,
-        rightClickedNodeData: null
+        rightClickedNodeData: null,
+        changedFilesFilter: null
     },
     preferences: {
         isColorMetricLinkedToHeightMetric: false,
@@ -2059,6 +2060,7 @@ export const STATE: CcState = {
         layoutAlgorithm: LayoutAlgorithm.SquarifiedTreeMap
     },
     files: [],
+    fileRenames: [],
     isLoadingFile: true,
     currentFilesAreSampleFiles: false
 }
@@ -2155,7 +2157,8 @@ export const DEFAULT_STATE: CcState = {
         hoveredFileExtensions: [],
         keptHighlightPaths: [],
         selectedNodePath: null,
-        rightClickedNodeData: null
+        rightClickedNodeData: null,
+        changedFilesFilter: null
     },
     metricsLensSource: {
         attributeTypes: {},
@@ -2169,6 +2172,7 @@ export const DEFAULT_STATE: CcState = {
     },
     domainState: defaultDomainState,
     files: [],
+    fileRenames: [],
     isLoadingFile: true,
     currentFilesAreSampleFiles: false
 }

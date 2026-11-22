@@ -1,5 +1,16 @@
 import { NgTemplateOutlet } from "@angular/common"
-import { AfterViewInit, ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal, viewChild } from "@angular/core"
+import {
+    AfterViewInit,
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    ElementRef,
+    effect,
+    inject,
+    signal,
+    untracked,
+    viewChild
+} from "@angular/core"
 import type { AnalysisTarget } from "../../../../model/coreApi/AnalysisTarget"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import type { SnapshotSummary } from "../../../../model/coreApi/SnapshotSummary"
@@ -13,11 +24,16 @@ import {
     relativeTime,
     shortDate
 } from "../../../projects/facade"
+import { SNAPSHOT_ACTIONS, SnapshotAction } from "../../ports/snapshotActions.port"
+import { BatchAnalysisDialogService } from "../../services/batchAnalysisDialog.service"
 import { SnapshotCatalogService } from "../../services/snapshotCatalog.service"
+import { SnapshotRetentionService } from "../../services/snapshotRetention.service"
 import { SnapshotsDialogService } from "../../services/snapshotsDialog.service"
 import { SnapshotViewService } from "../../services/snapshotView.service"
 import { isUnboundImport, reanalyseTarget, shortProfile, snapshotCommitLabel } from "../../util/analysisWording"
 import { AnalysisLogDialogComponent } from "../analysisLogDialog/analysisLogDialog.component"
+import { CleanupDialogComponent } from "../cleanupDialog/cleanupDialog.component"
+import { DeleteSnapshotDialogComponent } from "../deleteSnapshotDialog/deleteSnapshotDialog.component"
 import { PreflightProblemsComponent } from "../preflightProblems/preflightProblems.component"
 
 const ALL_FOLDERS = "all"
@@ -29,6 +45,7 @@ interface SnapshotRow {
     commitLabel: string
     isShown: boolean
     reanalyse: AnalysisTarget | null
+    actions: readonly SnapshotAction[]
 }
 
 interface FolderSection {
@@ -40,7 +57,14 @@ interface FolderSection {
 @Component({
     selector: "cc-snapshots-dialog",
     templateUrl: "./snapshotsDialog.component.html",
-    imports: [AnalysisLogDialogComponent, MoveSnapshotDialogComponent, PreflightProblemsComponent, NgTemplateOutlet],
+    imports: [
+        AnalysisLogDialogComponent,
+        CleanupDialogComponent,
+        DeleteSnapshotDialogComponent,
+        MoveSnapshotDialogComponent,
+        PreflightProblemsComponent,
+        NgTemplateOutlet
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SnapshotsDialogComponent implements AfterViewInit {
@@ -49,12 +73,16 @@ export class SnapshotsDialogComponent implements AfterViewInit {
     private readonly view = inject(SnapshotViewService)
     private readonly dialogService = inject(SnapshotsDialogService)
     private readonly gitRepository = inject(GitRepositoryService)
+    private readonly batchDialog = inject(BatchAnalysisDialogService)
+    private readonly retention = inject(SnapshotRetentionService)
+    private readonly contributedActions = inject(SNAPSHOT_ACTIONS, { optional: true }) ?? []
     private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog")
 
     readonly allFolders = ALL_FOLDERS
     readonly folderFilter = signal(this.projects.workingFolder()?.id ?? ALL_FOLDERS)
     readonly isRefreshing = signal(true)
     readonly nowMs = signal(Date.now())
+    readonly usageBytes = signal<number | null>(null)
     readonly byteSize = byteSize
     readonly shortProfile = shortProfile
 
@@ -78,9 +106,18 @@ export class SnapshotsDialogComponent implements AfterViewInit {
             failure: this.catalog.failureOf(folder.id)
         }))
     )
+    readonly workingFolderLabel = computed(() => this.projects.workingFolder()?.label ?? null)
     readonly unboundImports = computed(() =>
         this.visibleFolders().flatMap(folder => this.rowsOf(folder).filter(row => isUnboundImport(row.snapshot)))
     )
+
+    constructor() {
+        effect(() => {
+            const projectId = this.project()?.id
+            this.projects.snapshotsByFolder()
+            untracked(() => void this.readUsage(projectId))
+        })
+    }
 
     async ngAfterViewInit() {
         const dialog = this.dialog().nativeElement
@@ -115,6 +152,13 @@ export class SnapshotsDialogComponent implements AfterViewInit {
         }
     }
 
+    analyseSeveral() {
+        const folder = this.actionFolder()
+        if (folder) {
+            this.batchDialog.show({ folder: this.refOf(folder), folderLabel: folder.label, tipSha: null })
+        }
+    }
+
     reanalyse(row: SnapshotRow) {
         if (row.reanalyse) {
             void this.view.analyse({ folder: this.refOf(row.folder), target: row.reanalyse, surface: "dialog", force: true })
@@ -124,6 +168,11 @@ export class SnapshotsDialogComponent implements AfterViewInit {
     openSnapshot(row: SnapshotRow) {
         this.close()
         void this.view.open(row.snapshot.ref)
+    }
+
+    runAction(action: SnapshotAction, row: SnapshotRow) {
+        this.close()
+        action.run(row.snapshot)
     }
 
     retry(folder: ProjectFolder) {
@@ -150,6 +199,14 @@ export class SnapshotsDialogComponent implements AfterViewInit {
         return `Not in the map: ${snapshot.notInMap.join(", ")}`
     }
 
+    private async readUsage(projectId: string | undefined) {
+        try {
+            this.usageBytes.set(projectId ? (await this.retention.usage(projectId)).totalBytes : null)
+        } catch {
+            this.usageBytes.set(null)
+        }
+    }
+
     private async refresh() {
         this.isRefreshing.set(true)
         const gitFolders = this.folders().filter(folder => folder.kind === "git" && folder.status === "ok")
@@ -173,7 +230,8 @@ export class SnapshotsDialogComponent implements AfterViewInit {
             folder,
             commitLabel: snapshotCommitLabel(snapshot),
             isShown: snapshot.ref.snapshotId === shownId,
-            reanalyse: reanalyseTarget(snapshot)
+            reanalyse: reanalyseTarget(snapshot),
+            actions: this.contributedActions.filter(action => action.isOfferedFor(snapshot))
         }))
     }
 
