@@ -10,7 +10,7 @@ Plan: `02-themes.md` ("UI", "Error states and edge cases", M1, M5). Principles:
 | T1 | Theme picker | `cc-theme-picker` | Global Configuration dialog, first row | `cc-setting-toggle` row |
 | T2 | (removed by OD10: no theme control in the nav bar) | — | — | — |
 | T3 | Dark chrome audit | checklist | every existing screen | — |
-| T4 | Metrics bar, refreshed; compact icon form when the map is narrow | `cc-metrics-bar`, `ccBarShell`, new `cc-metric-glyph` | floating bar above the file extension bar | today's metrics bar |
+| T4 | Metrics bar, refreshed; cell icons on the settings buttons; compact icon form when the map is narrow | `cc-metrics-bar`, `ccBarShell`, new `cc-metric-glyph` | floating bar above the file extension bar | today's metrics bar |
 | T5 | File extension bar, blended edges | `cc-file-extension-bar`, `cc-file-extension-bar-segment` | full-width bar above the bottom bar | today's file extension bar |
 
 ## T1 Theme picker
@@ -126,9 +126,18 @@ Studio (dark, one rounded rectangle, nothing protrudes):
   inspector strip and its "selection changed" dot (O9.1); the explorer's own collapse button stays.
 - **Cells** (axis cards, labels/scenarios, layout): `rounded-xl px-3 py-2 hover:bg-base-200
   transition-colors`; open popover → `bg-base-200 ring-1 ring-primary/40`. Inside unchanged: the
-  `text-[10px] uppercase tracking-wide text-base-content/60` label with the cog (`btn btn-ghost btn-xs
-  btn-square rounded-lg`) on the same line, the metric name `text-sm font-semibold truncate`, the meta
-  value (`Σ 1,420`, delta values with their colours) `text-xs text-base-content/70`.
+  `text-[10px] uppercase tracking-wide text-base-content/60` label with the settings button (`btn
+  btn-ghost btn-xs btn-square rounded-lg`) on the same line, the metric name `text-sm font-semibold
+  truncate`, the meta value (`Σ 1,420`, delta values with their colours) `text-xs
+  text-base-content/70`.
+- **Cell icon instead of the cog** (owner, 2026-11-22): the settings button shows the cell's own
+  icon (section "T4 compact bar", Icons) instead of `fa-cog`, at 14 px (`size-3.5` for the SVG
+  glyphs, `text-[13px]` for Font Awesome) in `text-base-content/70`, hover `text-base-content`. It
+  opens the same settings popover. Its `title` and `aria-label` name the cell: "Area settings",
+  "Height settings", "Color settings", "Edge settings", "Folder settings", "Label settings"; the delta
+  Color card uses the palette too. `cc-axis-card-header` gets an optional icon input; a card without
+  one keeps the cog, so the domain and dependency bars stay as they are. Scenarios keeps its ＋ (it
+  saves, it has no settings); Layout keeps its glyph and caret.
 - **Layout** becomes the first cell inside the bar: label "LAYOUT", glyph + layout name (two lines
   allowed, `leading-tight`) + `fa-caret-down`; same `title` "Change the map layout" and same popover
   (`cc-settings-popover-shell`, now anchored above the cell).
@@ -219,8 +228,9 @@ compact bar, 900 px window, both panels open (236 px free, bar 231 px):
 One icon per cell, the same in both themes (`currentColor`). New glyphs are drawn like
 `cc-layout-glyph`: `viewBox="0 0 20 20"`, `fill="none" stroke="currentColor" stroke-width="1.4"
 stroke-linejoin="round" stroke-linecap="round"`. They go into a new `cc-metric-glyph` component
-(`features/metricsBar/components/metricGlyph`, input `kind: "area" | "height" | "labels"`), next to
-`cc-layout-glyph`.
+(`features/metricsBar/components/metricGlyph`, input `kind: "area" | "height"`), next to
+`cc-layout-glyph`. The same icons appear in the full bar, on each card's settings button (T4, "Cell
+icon instead of the cog").
 
 | Cell | Icon | Source |
 |---|---|---|
@@ -229,7 +239,7 @@ stroke-linejoin="round" stroke-linecap="round"`. They go into a new `cc-metric-g
 | Height | building with an up arrow | new glyph `height` |
 | Color | palette | `fa-solid fa-palette` |
 | Edges | circle nodes | `fa-solid fa-circle-nodes` |
-| Labels | label on a stalk above a building | new glyph `labels` |
+| Labels | tags | `fa-solid fa-tags` (owner, 2026-11-22) |
 | Scenarios | bookmark, outline | `fa-regular fa-bookmark` |
 | Folders (radial) | folder | `fa-regular fa-folder` (existing) |
 | Link, view tools | unchanged | existing |
@@ -242,16 +252,11 @@ stroke-linejoin="round" stroke-linecap="round"`. They go into a new `cc-metric-g
 <path d="M7.5 5.5l5-2.6 5 2.6-5 2.6z"/>
 <path d="M7.5 5.5v9.4l5 2.6 5-2.6V5.5M12.5 8.1v9.4"/>
 <path d="M3.5 17.5V3M1.3 5.2L3.5 3l2.2 2.2"/>
-<!-- labels -->
-<rect x="7" y="13" width="6" height="5" rx=".6" fill="currentColor" stroke="none"/>
-<path d="M10 13V9"/>
-<rect x="3" y="2.5" width="14" height="6.5" rx="1.5"/>
-<path d="M6 5.75h8" stroke-width="1.2"/>
 ```
 
 **One concept, one icon:** the Scenarios dialog's group icons (`SCENARIO_GROUP_ICONS`) switch to the
-same icons: area and height the new glyphs, color `fa-palette`, edge `fa-circle-nodes`, labels the
-new glyph. Camera and filters keep theirs.
+same icons: area and height the new glyphs, color `fa-palette`, edge `fa-circle-nodes`; labels already
+use `fa-tags`. Camera and filters keep theirs.
 
 ### Hover texts
 
