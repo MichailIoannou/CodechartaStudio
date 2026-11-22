@@ -16,6 +16,21 @@ import { RulesPopoverComponent } from "../rulesPopover/rulesPopover.component"
 
 export const COLLAPSED_STRIP_WIDTH_PX = 300
 
+const EXPANDED_HEIGHT =
+    "calc(100vh - var(--cc-bars-height, 49px) - var(--cc-file-extension-bar-height, 0px) - var(--cc-bottom-bar-height, 32px) - 0.75rem)"
+
+// Rebuilding a tree with thousands of open rows froze the app for seconds on every re-open, so the collapsed
+// explorer keeps its content, skipped by the renderer at its expanded size, and re-opening only paints it.
+// Chrome restyles every row on a class change around them or on a sibling coming or going, so the content
+// is hidden by inline styles, clips itself, and whatever comes and goes sits inside wrappers that stay.
+const hiddenWhileCollapsedStyle = (width: number) => ({
+    position: "absolute",
+    width: `${width}px`,
+    height: EXPANDED_HEIGHT,
+    "content-visibility": "hidden",
+    "pointer-events": "none"
+})
+
 @Component({
     selector: "cc-sidebar-explorer",
     templateUrl: "./sidebarExplorer.component.html",
@@ -32,11 +47,9 @@ export const COLLAPSED_STRIP_WIDTH_PX = 300
     ],
     host: {
         class: "fixed left-0 z-[60] m-1.5 rounded-[10px] bg-base-100 flex flex-col shadow-lg",
-        "[class.overflow-hidden]": "!isCollapsed()",
         "[style.width.px]": "displayWidth()",
         "[style.top]": "'var(--cc-bars-height, 49px)'",
-        "[style.height]":
-            "isCollapsed() ? 'auto' : 'calc(100vh - var(--cc-bars-height, 49px) - var(--cc-file-extension-bar-height, 0px) - var(--cc-bottom-bar-height, 32px) - 0.75rem)'"
+        "[style.height]": "isCollapsed() ? 'auto' : expandedHeight"
     }
 })
 export class SidebarExplorerComponent {
@@ -52,11 +65,14 @@ export class SidebarExplorerComponent {
     /** Only views that provide metric values can offer the metric rule editor. */
     readonly hasMetricRules = inject(EXPLORER_METRIC_RULES, { optional: true }) !== null
 
+    readonly expandedHeight = EXPANDED_HEIGHT
+
     readonly isCollapsed = this.collapseService.isCollapsed
     readonly isFilesMode = this.modeService.isFilesMode
     readonly showsListTools = this.modeService.showsListTools
     readonly width = this.widthService.width
     readonly displayWidth = computed(() => (this.isCollapsed() ? COLLAPSED_STRIP_WIDTH_PX : this.width()))
+    readonly contentStyle = computed(() => (this.isCollapsed() ? hiddenWhileCollapsedStyle(this.width()) : null))
 
     constructor() {
         effect(() => this.scrollHostService.register(this.scrollHost()?.nativeElement ?? null))

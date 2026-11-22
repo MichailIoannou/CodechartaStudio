@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 - **Delta screenshot names**: a screenshot taken while comparing two maps names the reference map before the comparison map.
 - **Grey triangles over buildings**: on some graphics cards, folder floors no longer cut through buildings and buildings keep their lit colours when the map is zoomed out.
+- **Re-opening the explorer**: opening the collapsed explorer again shows it at once, with its folders still open, instead of freezing the app for seconds on a large map.
 
 ## [2.11.0] - 2026-11-10
 

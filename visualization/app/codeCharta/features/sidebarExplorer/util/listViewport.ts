@@ -32,7 +32,7 @@ export class ListViewport {
 
     /**
      * The panel is handed in rather than searched for: the explorer destroys and re-creates it as the mode
-     * switches or the sidebar collapses, and this list outlives all of that. Searching for it once left the
+     * switches, and this list outlives that. Searching for it once left the
      * list unmeasured — and therefore rendering every row — for the rest of the session.
      */
     attachTo(host: HTMLElement, scrollHost: HTMLElement | null): void {

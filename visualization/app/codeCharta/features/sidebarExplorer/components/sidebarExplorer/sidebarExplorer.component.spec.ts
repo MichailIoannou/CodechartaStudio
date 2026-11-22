@@ -155,20 +155,94 @@ describe("SidebarExplorerComponent", () => {
         expect(document.documentElement.style.getPropertyValue("--cc-bar-inset-left")).toBe("0px")
     })
 
-    it("should render only the expand button and the projected strip when collapsed", async () => {
+    it("should show the expand button and hide the panel's content while collapsed", async () => {
         // Arrange
-        const { container, detectChanges } = await render(SidebarExplorerComponent)
+        const { detectChanges } = await render(SidebarExplorerComponent)
         const collapseService = TestBed.inject(ExplorerCollapseService)
 
         // Act
         collapseService.toggle()
         detectChanges()
 
-        // Assert — the expanded chrome is gone; each view projects its own collapsed content
+        // Assert
         expect(screen.getByTestId("explorer-expand-button")).not.toBe(null)
-        expect(container.querySelector("cc-explorer-header")).toBe(null)
-        expect(container.querySelector("cc-explorer-sort-control")).toBe(null)
-        expect(container.querySelector("cc-explorer-tree")).toBe(null)
+        expect(screen.getByTestId("explorer-panel-content").style.getPropertyValue("content-visibility")).toBe("hidden")
+    })
+
+    it("should keep the tree it built when the explorer collapses and expands again", async () => {
+        // Arrange
+        const { container, detectChanges } = await render(SidebarExplorerComponent)
+        const collapseService = TestBed.inject(ExplorerCollapseService)
+        const treeBeforeCollapse = container.querySelector("cc-explorer-tree")
+
+        // Act
+        collapseService.toggle()
+        detectChanges()
+        collapseService.toggle()
+        detectChanges()
+
+        // Assert
+        expect(container.querySelector("cc-explorer-tree")).toBe(treeBeforeCollapse)
+        expect(screen.getByTestId("explorer-panel-content").getAttribute("style") ?? "").not.toContain("content-visibility")
+    })
+
+    it("should keep its expanded size for the hidden content so re-opening does not lay it out again", async () => {
+        // Arrange
+        const { detectChanges } = await render(SidebarExplorerComponent)
+        TestBed.inject(ExplorerWidthService).setWidth(420)
+
+        // Act
+        TestBed.inject(ExplorerCollapseService).toggle()
+        detectChanges()
+
+        // Assert
+        const content = screen.getByTestId("explorer-panel-content")
+        expect(content.style.width).toBe("420px")
+        expect(content.style.height).toContain("var(--cc-bars-height, 49px)")
+    })
+
+    it("should clip the open panel's content rather than its host, so collapsing keeps the content's layout", async () => {
+        // Arrange & Act
+        const { fixture } = await render(SidebarExplorerComponent)
+        const host = fixture.nativeElement as HTMLElement
+
+        // Assert
+        expect(host.classList.contains("overflow-hidden")).toBe(false)
+        expect(screen.getByTestId("explorer-panel-content").classList).toContain("overflow-hidden")
+    })
+
+    it("should keep the same elements beside the panel's content while collapsing and expanding", async () => {
+        // Arrange
+        const { fixture, detectChanges } = await render(SidebarExplorerComponent)
+        const host = fixture.nativeElement as HTMLElement
+        const content = screen.getByTestId("explorer-panel-content")
+        const childrenBefore = [...host.children]
+        const contentChildrenBefore = [...content.children]
+
+        // Act
+        TestBed.inject(ExplorerCollapseService).toggle()
+        detectChanges()
+        const childrenWhileCollapsed = [...host.children]
+        const contentChildrenWhileCollapsed = [...content.children]
+
+        // Assert
+        expect(childrenWhileCollapsed).toHaveLength(childrenBefore.length)
+        expect(childrenWhileCollapsed.every((child, index) => child === childrenBefore[index])).toBe(true)
+        expect(contentChildrenWhileCollapsed).toHaveLength(contentChildrenBefore.length)
+        expect(contentChildrenWhileCollapsed.every((child, index) => child === contentChildrenBefore[index])).toBe(true)
+    })
+
+    it("should leave the collapsed strip with a single search bar", async () => {
+        // Arrange
+        const { container, detectChanges } = await render(SidebarExplorerComponent)
+
+        // Act
+        TestBed.inject(ExplorerCollapseService).toggle()
+        detectChanges()
+
+        // Assert
+        expect(container.querySelector("cc-explorer-search-bar")).toBe(null)
+        expect(container.querySelectorAll("cc-rules-popover").length).toBe(0)
     })
 
     it("should not clip its children while collapsed", async () => {

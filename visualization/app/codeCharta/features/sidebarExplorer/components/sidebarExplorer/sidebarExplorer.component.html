@@ -1,23 +1,32 @@
-@if (isCollapsed()) {
-    <div class="flex items-center gap-1 px-2 py-1">
-        <button
-            type="button"
-            class="btn btn-ghost btn-sm btn-square shrink-0"
-            (click)="toggle()"
-            title="Expand explorer"
-            data-testid="explorer-expand-button"
-        >
-            <i class="fa-solid fa-folder-tree"></i>
-        </button>
+<div data-testid="explorer-collapsed-strip">
+    @if (isCollapsed()) {
+        <div class="flex items-center gap-1 px-2 py-1">
+            <button
+                type="button"
+                class="btn btn-ghost btn-sm btn-square shrink-0"
+                (click)="toggle()"
+                title="Expand explorer"
+                data-testid="explorer-expand-button"
+            >
+                <i class="fa-solid fa-folder-tree"></i>
+            </button>
 
-        <ng-content select="[collapsedContent]"></ng-content>
-    </div>
-} @else {
+            <ng-content select="[collapsedContent]"></ng-content>
+        </div>
+    }
+</div>
+<div
+    class="relative top-0 left-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px]"
+    [style]="contentStyle()"
+    data-testid="explorer-panel-content"
+>
     <cc-explorer-header></cc-explorer-header>
     <ng-content select="[headerChips]"></ng-content>
-    @if (capabilities.showSearch && showsListTools()) {
-        <cc-explorer-search-bar></cc-explorer-search-bar>
-    }
+    <div>
+        @if (capabilities.showSearch && showsListTools() && !isCollapsed()) {
+            <cc-explorer-search-bar></cc-explorer-search-bar>
+        }
+    </div>
     <cc-explorer-focus-banner></cc-explorer-focus-banner>
     @if (showsListTools()) {
         <cc-explorer-sort-control></cc-explorer-sort-control>
@@ -29,24 +38,28 @@
             <ng-content select="[modeBody]"></ng-content>
         }
     </div>
-    <ng-content select="[explorerPopovers]"></ng-content>
-    @if (capabilities.showRules && capabilities.canFlatten) {
-        <cc-rules-popover kind="flatten" popoverId="explorer-flatten-rules" anchorName="explorer-flat-chip"></cc-rules-popover>
-    }
-    @if (capabilities.showRules) {
-        <cc-rules-popover kind="exclude" popoverId="explorer-excluded-rules" anchorName="explorer-excluded-chip"></cc-rules-popover>
-    }
-    @if (capabilities.showRules && hasMetricRules) {
-        <cc-metric-rule-editor
-            type="flatten"
-            popoverId="explorer-flatten-metric-rule"
-            anchorName="explorer-search-actions"
-        ></cc-metric-rule-editor>
-        <cc-metric-rule-editor
-            type="exclude"
-            popoverId="explorer-exclude-metric-rule"
-            anchorName="explorer-search-actions"
-        ></cc-metric-rule-editor>
-    }
     <div ccColumnResizeHandle="right" data-testid="explorer-resize-handle" (widthChange)="setWidth($event)" (widthReset)="resetWidth()"></div>
-}
+</div>
+<div>
+    @if (!isCollapsed()) {
+        <ng-content select="[explorerPopovers]"></ng-content>
+        @if (capabilities.showRules && capabilities.canFlatten) {
+            <cc-rules-popover kind="flatten" popoverId="explorer-flatten-rules" anchorName="explorer-flat-chip"></cc-rules-popover>
+        }
+        @if (capabilities.showRules) {
+            <cc-rules-popover kind="exclude" popoverId="explorer-excluded-rules" anchorName="explorer-excluded-chip"></cc-rules-popover>
+        }
+        @if (capabilities.showRules && hasMetricRules) {
+            <cc-metric-rule-editor
+                type="flatten"
+                popoverId="explorer-flatten-metric-rule"
+                anchorName="explorer-search-actions"
+            ></cc-metric-rule-editor>
+            <cc-metric-rule-editor
+                type="exclude"
+                popoverId="explorer-exclude-metric-rule"
+                anchorName="explorer-search-actions"
+            ></cc-metric-rule-editor>
+        }
+    }
+</div>
