@@ -59,7 +59,7 @@ cannot alternate.
   "…" (canvas). The domain and dependency bars do not provide it and stay as they were. The labels/scenarios cell keeps
   its two label rows whole the same way; its scenario count is the only thing in it that shortens. Link button and
   tools are `shrink-0`; the tools grid stays 2 × 2.
-- `CompactBarDirective`: compact when the free width (same probe as before) is below the full bar's minimum, full again
+- `CompactBarDirective`: compact when the free width (same probe as before; *superseded 2026-11-22: the room around the window centre, see `02-bar-window-centre.md`*) is below the full bar's minimum, full again
   at minimum + 32 px. `measureFullBarMinimum` only reads: padding, border and gaps plus every flex item (`display:
   contents` flattened, fixed/absolute left out) at its inline minimum if it can shrink, else at its width. It is
   measured on every free-width change and, through a `MutationObserver` (children, text, `class`, `data-revealed`),

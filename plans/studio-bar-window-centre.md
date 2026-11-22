@@ -1,6 +1,6 @@
 ---
 name: Metrics bar centred on the window
-state: progress
+state: complete
 version: 1
 ---
 
@@ -28,10 +28,11 @@ no open panel covers, and the metrics bar turns compact below its full minimum, 
 
 ## Steps
 
-- [ ] Complete Task 1: Bar shell centred on the window
-- [ ] Complete Task 2: Compact switch measures the room
-- [ ] Complete Task 3: Tests, changelog, notes
+- [x] Complete Task 1: Bar shell centred on the window
+- [x] Complete Task 2: Compact switch measures the room
+- [x] Complete Task 3: Tests, changelog, notes
 
 ## Notes
 
-- Branch `feature/studio-bar-window-centre`.
+- Branch `feature/studio-bar-window-centre`. Progress note: `dev_docs/studio/agents/progress/02-bar-window-centre.md`.
+- E2e runs at 1280 px, where the open explorer leaves the full metrics bar too little room; specs using its cards widen the window first.

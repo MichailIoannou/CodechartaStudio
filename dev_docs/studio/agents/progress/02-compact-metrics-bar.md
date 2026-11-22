@@ -26,7 +26,7 @@ Branch `feature/studio-compact-metrics-bar` from `feature/studio-next`. Plan: `p
   "selection changed" dot (`CollapsedInspectorStripComponent`), `InspectorVisibilityService.collapse/expand`,
   `DependencyInspectorCollapseStore`, `ExplorerCollapseService.collapse()`, the `sidePanelsGiveWay` e2e and its
   `sample_with_declarations.cc.json` fixture. The legend drawer again moves aside for any open inspector.
-- The explorer keeps its own collapse button; the bars stay centred between the panels (O7).
+- The explorer keeps its own collapse button; the bars stay centred between the panels (O7). *Superseded (2026-11-22): centred on the window, room around its centre — see `02-bar-window-centre.md`.*
 
 ### 2. Cell icons
 - `cc-metric-glyph` (`kind: "area" | "height"`) lives in `features/shared/components/metricGlyph`, not in
