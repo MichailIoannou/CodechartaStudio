@@ -42,6 +42,25 @@ describe("mapCcJson2ToCCFile", () => {
         })
     })
 
+    it("should carry the project snapshot origin into the file meta", () => {
+        // Arrange
+        const projectSnapshot = { projectId: "p-1", folderId: "f-1", snapshotId: "s-1", folderLabel: "billing" }
+
+        // Act
+        const result = mapCcJson2ToCCFile(file, { ...nameDataPair(file), projectSnapshot })
+
+        // Assert
+        expect(result.fileMeta.projectSnapshot).toEqual(projectSnapshot)
+    })
+
+    it("should leave the key absent for an upload", () => {
+        // Act
+        const result = mapCcJson2ToCCFile(file, nameDataPair(file))
+
+        // Assert
+        expect("projectSnapshot" in result.fileMeta).toBe(false)
+    })
+
     it("should attach metric attributes by node id and keep a single root", () => {
         // Act
         const result = mapCcJson2ToCCFile(file, nameDataPair(file))

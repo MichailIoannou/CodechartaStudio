@@ -33,6 +33,28 @@ pub enum CoreError {
     },
     #[error("internal error: {0}")]
     Internal(String),
+    #[error(
+        "The store was written by a newer CodeCharta (schema {found}); this version reads up to schema {supported}."
+    )]
+    StoreNewerSchema { found: u64, supported: u32 },
+    #[error("Another CodeCharta process is using the store at {store_root}.")]
+    StoreLocked { store_root: String },
+    #[error("The choice has expired or was used already; choose the {what} again.")]
+    TokenExpired { what: &'static str },
+    #[error("The folder {path} is already part of this project.")]
+    DuplicateFolder { path: String },
+    #[error("Another folder of this project is already called {label:?}.")]
+    DuplicateLabel { label: String },
+    #[error("{0}")]
+    FolderUnavailable(String),
+    #[error(
+        "The folder at {path} has a different history; relink anyway only if this is intended."
+    )]
+    DifferentHistory { path: String },
+    #[error("The file is larger than {limit_bytes} bytes.")]
+    TooLarge { limit_bytes: u64 },
+    #[error("The folder has no commit {commit}.")]
+    NotACommit { commit: String },
 }
 
 pub type CoreResult<T> = Result<T, CoreError>;
@@ -51,6 +73,15 @@ impl CoreError {
             CoreError::OutputTooLarge { .. } => ErrorCode::OutputTooLarge,
             CoreError::Io { .. } => ErrorCode::Io,
             CoreError::Internal(_) => ErrorCode::Internal,
+            CoreError::StoreNewerSchema { .. } => ErrorCode::StoreNewerSchema,
+            CoreError::StoreLocked { .. } => ErrorCode::StoreLocked,
+            CoreError::TokenExpired { .. } => ErrorCode::TokenExpired,
+            CoreError::DuplicateFolder { .. } => ErrorCode::DuplicateFolder,
+            CoreError::DuplicateLabel { .. } => ErrorCode::DuplicateLabel,
+            CoreError::FolderUnavailable(_) => ErrorCode::FolderUnavailable,
+            CoreError::DifferentHistory { .. } => ErrorCode::DifferentHistory,
+            CoreError::TooLarge { .. } => ErrorCode::TooLarge,
+            CoreError::NotACommit { .. } => ErrorCode::NotACommit,
         }
     }
 
@@ -76,7 +107,7 @@ impl CoreError {
                 Some(("tool", serde_json::json!(tool)))
             }
             CoreError::Timeout { after_ms } => Some(("afterMs", serde_json::json!(after_ms))),
-            CoreError::OutputTooLarge { limit_bytes } => {
+            CoreError::OutputTooLarge { limit_bytes } | CoreError::TooLarge { limit_bytes } => {
                 Some(("limitBytes", serde_json::json!(limit_bytes)))
             }
             _ => None,
@@ -125,6 +156,52 @@ mod tests {
             (
                 CoreError::Internal("broken invariant".into()),
                 ErrorCode::Internal,
+            ),
+            (
+                CoreError::StoreNewerSchema {
+                    found: 2,
+                    supported: 1,
+                },
+                ErrorCode::StoreNewerSchema,
+            ),
+            (
+                CoreError::StoreLocked {
+                    store_root: "/data/store".into(),
+                },
+                ErrorCode::StoreLocked,
+            ),
+            (
+                CoreError::TokenExpired { what: "folder" },
+                ErrorCode::TokenExpired,
+            ),
+            (
+                CoreError::DuplicateFolder {
+                    path: "/src/app".into(),
+                },
+                ErrorCode::DuplicateFolder,
+            ),
+            (
+                CoreError::DuplicateLabel {
+                    label: "app".into(),
+                },
+                ErrorCode::DuplicateLabel,
+            ),
+            (
+                CoreError::FolderUnavailable("gone".into()),
+                ErrorCode::FolderUnavailable,
+            ),
+            (
+                CoreError::DifferentHistory {
+                    path: "/src/other".into(),
+                },
+                ErrorCode::DifferentHistory,
+            ),
+            (CoreError::TooLarge { limit_bytes: 16 }, ErrorCode::TooLarge),
+            (
+                CoreError::NotACommit {
+                    commit: "0123456789abcdef0123456789abcdef01234567".into(),
+                },
+                ErrorCode::NotACommit,
             ),
         ]
     }

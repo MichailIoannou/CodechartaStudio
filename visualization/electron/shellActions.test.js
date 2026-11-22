@@ -80,6 +80,50 @@ describe("dialog actions", () => {
         assert.deepEqual(harness.calls.dialogs, [{ ...options, properties: ["openFile"] }])
     })
 
+    test("should copy the store into a picked folder and answer the new paths", async () => {
+        // Arrange
+        const paths = { ok: true, value: { storeRoot: "/elsewhere/store", isDefaultStoreRoot: false } }
+        const changed = { ok: true, value: { storeRoot: "/elsewhere/store", adopted: false } }
+        const harness = createHarness({
+            pickedPaths: ["/elsewhere/store"],
+            coreAnswers: { "store.changeRoot": changed, "paths.get": paths }
+        })
+
+        // Act
+        const answer = await runAction(harness.dialogActions, { kind: "chooseStoreRoot", options: { title: "Store folder" } })
+
+        // Assert
+        assert.deepEqual(answer, paths)
+        assert.deepEqual(harness.calls.requests, [
+            { method: "store.changeRoot", params: { path: "/elsewhere/store" } },
+            { method: "paths.get", params: {} }
+        ])
+        assert.deepEqual(
+            harness.calls.dialogs.map(({ title, properties }) => ({ title, properties })),
+            [{ title: "Store folder", properties: ["openDirectory", "createDirectory"] }]
+        )
+    })
+
+    test("should pass on a refused store folder with the picked path and ask nothing when the picker is cancelled", async () => {
+        // Arrange
+        const refusal = { ok: false, error: { code: "BAD_REQUEST", message: "not empty", details: {} } }
+        const refusing = createHarness({ pickedPaths: ["/home/mia"], coreAnswers: { "store.changeRoot": refusal } })
+        const cancelling = createHarness()
+
+        // Act
+        const refused = await runAction(refusing.dialogActions, { kind: "chooseStoreRoot", options: { title: "Store folder" } })
+        const cancelled = await runAction(cancelling.dialogActions, { kind: "chooseStoreRoot", options: { title: "Store folder" } })
+
+        // Assert
+        assert.deepEqual(refused, { ok: false, error: { ...refusal.error, details: { path: "/home/mia" } } })
+        assert.deepEqual(
+            refusing.calls.requests.map(request => request.method),
+            ["store.changeRoot"]
+        )
+        assert.deepEqual(cancelled, { ok: true, value: null })
+        assert.deepEqual(cancelling.calls.requests, [])
+    })
+
     test("should not open a picker for malformed options", async () => {
         // Arrange
         const harness = createHarness({ pickedPaths: ["/tmp"] })
@@ -119,17 +163,9 @@ describe("shell actions", () => {
         assert.deepEqual(harness.calls.requests, [{ method: "shell.resolvePath", params: { target: { kind: "storeRoot" } } }])
     })
 
-    test("should read a map inside the store", async () => {
+    test("should no longer read a whole stored map, which the page reads in chunks", async () => {
         // Arrange
-        const mapPath = path.join(dataDir, "store", "map.cc.json.gz")
-        fs.mkdirSync(path.dirname(mapPath))
-        fs.writeFileSync(mapPath, Buffer.from([31, 139, 8]))
-        const harness = createHarness({
-            coreAnswers: {
-                "shell.resolvePath": { ok: true, value: { path: mapPath } },
-                "paths.get": { ok: true, value: { storeRoot: path.join(dataDir, "store") } }
-            }
-        })
+        const harness = createHarness()
 
         // Act
         const answer = await runAction(harness.shellActions, {
@@ -138,28 +174,8 @@ describe("shell actions", () => {
         })
 
         // Assert
-        assert.equal(answer.ok, true)
-        assert.deepEqual([...answer.value], [31, 139, 8])
-        assert.deepEqual(harness.calls.requests[0].params.target, { kind: "snapshotMap", projectId: "p", folderId: "f", snapshotId: "s" })
-    })
-
-    test("should refuse to read a map the core resolves outside the data folder", async () => {
-        // Arrange
-        const harness = createHarness({
-            coreAnswers: {
-                "shell.resolvePath": { ok: true, value: { path: path.join(os.tmpdir(), "elsewhere", "map.cc.json") } },
-                "paths.get": { ok: true, value: { storeRoot: path.join(dataDir, "store") } }
-            }
-        })
-
-        // Act
-        const answer = await runAction(harness.shellActions, {
-            kind: "readSnapshotMap",
-            target: { projectId: "p", folderId: "f", snapshotId: "s" }
-        })
-
-        // Assert
-        assert.equal(answer.error.code, "NOT_ALLOWED")
+        assert.equal(answer.ok, false)
+        assert.deepEqual(harness.calls.requests, [])
     })
 
     test("should remember the window background", async () => {

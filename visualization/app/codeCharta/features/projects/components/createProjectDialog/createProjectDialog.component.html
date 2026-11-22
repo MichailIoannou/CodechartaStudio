@@ -1,0 +1,69 @@
+<dialog #dialog class="modal" aria-labelledby="create-project-title" data-testid="create-project-dialog" (keydown.control.enter)="submitWithKeyboard($event)">
+    <div class="modal-box max-w-2xl">
+        <h2 id="create-project-title" class="mb-4 text-xl font-bold">New Project</h2>
+
+        <div class="form-control mb-3">
+            <label class="label" for="create-project-name">
+                <span class="label-text">Name</span>
+            </label>
+            <input
+                id="create-project-name"
+                class="input input-bordered w-full"
+                autofocus
+                [attr.maxlength]="nameMaxLength"
+                [value]="name()"
+                (input)="typeName($any($event.target).value)"
+                (blur)="isNameTouched.set(true)"
+                (keydown.enter)="$event.preventDefault()"
+            />
+            @if (isNameTouched() && isNameMissing()) {
+                <span class="label-text-alt text-error">A name is required.</span>
+            }
+        </div>
+
+        <div class="form-control mb-4">
+            <label class="label" for="create-project-description">
+                <span class="label-text">Description (optional)</span>
+            </label>
+            <textarea
+                id="create-project-description"
+                class="textarea textarea-bordered w-full"
+                rows="2"
+                [attr.maxlength]="descriptionMaxLength"
+                [value]="description()"
+                (input)="description.set($any($event.target).value)"
+            ></textarea>
+        </div>
+
+        <div class="mb-1 flex items-center">
+            <span class="label-text">Folders</span>
+            <button type="button" class="btn btn-sm ml-auto" data-testid="create-project-add-folder" (click)="addFolder()">
+                <i class="fa-solid fa-plus fa-fw"></i>
+                Add folder…
+            </button>
+        </div>
+        <cc-folder-list-editor
+            [rows]="rows()"
+            (labelChange)="changeLabel($event)"
+            (roleChange)="changeRole($event)"
+            (remove)="removeFolder($event)"
+        />
+
+        @if (failure(); as failure) {
+            <div role="alert" class="alert alert-error mt-4 text-sm" data-testid="create-project-failure">{{ failure }}</div>
+        }
+
+        <div class="modal-action">
+            <button type="button" class="btn" (click)="close()">Cancel</button>
+            <button type="button" class="btn btn-primary" data-testid="create-project-submit" [disabled]="!canCreate()" (click)="create()">
+                @if (isCreating()) {
+                    <span class="loading loading-spinner loading-sm"></span>
+                }
+                Create project
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>

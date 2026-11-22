@@ -35,7 +35,8 @@ export function mapCcJson2ToCCFile(file: CcJson2WithCarryover, nameDataPair: Nam
             projectName: file.meta.projectName,
             apiVersion: file.meta.apiVersion,
             exportedFileSize: nameDataPair.fileSize,
-            repoCreationDate: ""
+            repoCreationDate: "",
+            ...(nameDataPair.projectSnapshot && { projectSnapshot: nameDataPair.projectSnapshot })
         },
         settings: {
             fileSettings: {

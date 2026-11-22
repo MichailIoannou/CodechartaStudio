@@ -1,5 +1,5 @@
 const path = require("node:path")
-const { isColorScheme, isReadableMapPath, isWindowBackgroundColor, toDialogOptions } = require("./shellPolicy")
+const { isColorScheme, isWindowBackgroundColor, toDialogOptions } = require("./shellPolicy")
 
 const SHELL_SETTINGS_FILE = "shell.json"
 const FILE_PICKER = ["openFile"]
@@ -38,65 +38,48 @@ async function nearestExistingFolder(fs, filePath) {
     return candidate
 }
 
-function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, requestCore, restartCore, dataDir, platform }) {
-    async function pickPath(properties, options) {
-        const dialogOptions = toDialogOptions(options)
-        if (dialogOptions === null) {
-            console.warn("Refused a picker with malformed options")
-            return null
-        }
-        const { canceled, filePaths } = await dialog.showOpenDialog(getWindow(), { ...dialogOptions, properties })
-        return canceled || filePaths.length === 0 ? null : filePaths[0]
+async function pickPath({ dialog, getWindow }, properties, options) {
+    const dialogOptions = toDialogOptions(options)
+    if (dialogOptions === null) {
+        console.warn("Refused a picker with malformed options")
+        return null
     }
+    const { canceled, filePaths } = await dialog.showOpenDialog(getWindow(), { ...dialogOptions, properties })
+    return canceled || filePaths.length === 0 ? null : filePaths[0]
+}
 
+async function showInFileManager({ fs, shell }, targetPath) {
+    const stats = await statOrNull(fs, targetPath)
+    if (stats?.isFile()) {
+        shell.showItemInFolder(targetPath)
+        return NOTHING_CHOSEN
+    }
+    const folder = stats === null ? await nearestExistingFolder(fs, targetPath) : targetPath
+    const problem = await shell.openPath(folder)
+    return problem ? failure("IO", problem) : NOTHING_CHOSEN
+}
+
+function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, requestCore, restartCore, dataDir, platform }) {
     async function pickThenRequest(properties, options, method, paramsFor) {
-        const pickedPath = await pickPath(properties, options)
+        const pickedPath = await pickPath({ dialog, getWindow }, properties, options)
         return pickedPath === null ? NOTHING_CHOSEN : requestCore(method, paramsFor(pickedPath))
     }
 
-    async function showInFileManager(targetPath) {
-        const stats = await statOrNull(fs, targetPath)
-        if (stats?.isFile()) {
-            shell.showItemInFolder(targetPath)
+    async function chooseStoreRoot({ options }) {
+        const pickedPath = await pickPath({ dialog, getWindow }, FOLDER_PICKER, options)
+        if (pickedPath === null) {
             return NOTHING_CHOSEN
         }
-        const folder = stats === null ? await nearestExistingFolder(fs, targetPath) : targetPath
-        const problem = await shell.openPath(folder)
-        return problem ? failure("IO", problem) : NOTHING_CHOSEN
+        const changed = await requestCore("store.changeRoot", { path: pickedPath })
+        if (!changed.ok) {
+            return { ok: false, error: { ...changed.error, details: { ...changed.error.details, path: pickedPath } } }
+        }
+        return requestCore("paths.get", {})
     }
 
     async function reveal({ target }) {
         const resolved = await requestCore("shell.resolvePath", { target })
-        return resolved.ok ? showInFileManager(resolved.value.path) : resolved
-    }
-
-    async function readMapFile(mapPath) {
-        try {
-            return { ok: true, value: await fs.promises.readFile(mapPath) }
-        } catch {
-            return failure("IO", "The map file could not be read.")
-        }
-    }
-
-    async function readSnapshotMap({ target }) {
-        const snapshotMap = {
-            kind: "snapshotMap",
-            projectId: target?.projectId,
-            folderId: target?.folderId,
-            snapshotId: target?.snapshotId
-        }
-        const resolved = await requestCore("shell.resolvePath", { target: snapshotMap })
-        if (!resolved.ok) {
-            return resolved
-        }
-        const paths = await requestCore("paths.get", {})
-        if (!paths.ok) {
-            return paths
-        }
-        const allowed = { allowedRoots: [dataDir, paths.value.storeRoot], platform }
-        return isReadableMapPath(resolved.value.path, allowed)
-            ? readMapFile(resolved.value.path)
-            : failure("NOT_ALLOWED", "The file is not a stored map.")
+        return resolved.ok ? showInFileManager({ fs, shell }, resolved.value.path) : resolved
     }
 
     async function setWindowBackground({ color }) {
@@ -121,16 +104,14 @@ function createShellActions({ dialog, shell, fs, nativeTheme, getWindow, request
 
     return {
         dialogActions: {
-            pickFolder: ({ options }) => pickPath(FOLDER_PICKER, options),
-            pickFile: ({ options }) => pickPath(FILE_PICKER, options),
+            pickFolder: ({ options }) => pickPath({ dialog, getWindow }, FOLDER_PICKER, options),
+            pickFile: ({ options }) => pickPath({ dialog, getWindow }, FILE_PICKER, options),
             chooseToolExecutable: ({ tool, options }) =>
                 pickThenRequest(FILE_PICKER, options, "tools.setPath", pickedPath => ({ tool, path: pickedPath })),
-            chooseStoreRoot: ({ options }) =>
-                pickThenRequest(FOLDER_PICKER, options, "paths.setStoreRoot", pickedPath => ({ path: pickedPath }))
+            chooseStoreRoot
         },
         shellActions: {
             reveal,
-            readSnapshotMap,
             setWindowBackground,
             setColorScheme,
             restartCore: async () => {
@@ -149,4 +130,14 @@ function runAction(actions, payload) {
     return actions[kind](payload)
 }
 
-module.exports = { createShellActions, readShellSettings, runAction }
+module.exports = {
+    FILE_PICKER,
+    FOLDER_PICKER,
+    NOTHING_CHOSEN,
+    createShellActions,
+    failure,
+    pickPath,
+    readShellSettings,
+    runAction,
+    showInFileManager
+}

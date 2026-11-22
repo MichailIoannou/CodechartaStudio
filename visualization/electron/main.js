@@ -4,7 +4,9 @@ const fs = require("node:fs")
 const path = require("node:path")
 const contract = require("./coreMethods.generated.json")
 const { CoreClient } = require("./coreClient")
+const { createProjectsShell } = require("./projectsShell")
 const { createShellActions, readShellSettings, runAction } = require("./shellActions")
+const { createDropShell, createSnapshotsShell } = require("./snapshotsShell")
 const policy = require("./shellPolicy")
 
 const CHANNELS = {
@@ -30,6 +32,7 @@ let mainWindow = null
 let coreClient = null
 let trustedPage = null
 let isCoreStopped = false
+let composedMethods = {}
 const operationsBySender = new Map()
 
 function applyUserDataOverride() {
@@ -137,6 +140,9 @@ function cancelOperationsOf(webContentsId) {
 }
 
 function relayRequest(sender, { method, params, operationId }) {
+    if (policy.isComposedMethod(method, composedMethods)) {
+        return composedMethods[method](params ?? {})
+    }
     if (!policy.isRendererMethod(method, contract)) {
         return failure("NOT_ALLOWED", `${String(method)} cannot be called from the page.`)
     }
@@ -157,18 +163,21 @@ function requestCore(method, params) {
     return coreClient.request(method, params).promise
 }
 
+function shellPorts() {
+    return { dialog, shell, fs, getWindow: () => mainWindow, requestCore, platform: process.platform }
+}
+
 function createActions() {
     return createShellActions({
-        dialog,
-        shell,
-        fs,
+        ...shellPorts(),
         nativeTheme,
-        getWindow: () => mainWindow,
-        requestCore,
         restartCore: () => coreClient.restart(),
-        dataDir: app.getPath("userData"),
-        platform: process.platform
+        dataDir: app.getPath("userData")
     })
+}
+
+function createComposedMethods() {
+    return { ...createProjectsShell(shellPorts()), ...createSnapshotsShell(shellPorts()) }
 }
 
 function captureSender(event) {
@@ -201,13 +210,15 @@ function handleTrusted(channel, handler) {
 
 function registerIpcHandlers() {
     const { dialogActions, shellActions } = createActions()
+    composedMethods = createComposedMethods()
     ipcMain.on(CHANNELS.hello, event => {
         const isTrustedSender = isTrusted(captureSender(event))
         event.returnValue = isTrustedSender ? { protocolVersion: contract.protocolVersion, coreState: coreClient.currentState() } : null
     })
     handleTrusted(CHANNELS.request, relayRequest)
     handleTrusted(CHANNELS.cancel, relayCancel)
-    handleTrusted(CHANNELS.dialog, (_sender, payload) => runAction(dialogActions, payload))
+    const allDialogActions = { ...dialogActions, ...createDropShell(shellPorts()) }
+    handleTrusted(CHANNELS.dialog, (_sender, payload) => runAction(allDialogActions, payload))
     handleTrusted(CHANNELS.shell, (_sender, payload) => runAction(shellActions, payload))
 }
 

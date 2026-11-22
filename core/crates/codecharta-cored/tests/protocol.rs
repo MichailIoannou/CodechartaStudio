@@ -1,137 +1,15 @@
-use std::io::{BufRead, BufReader, Write};
-use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
-use std::sync::mpsc::{self, Receiver};
-use std::thread;
-use std::time::{Duration, Instant};
+mod support;
 
+#[cfg(feature = "test-methods")]
+use std::time::Instant;
+
+use codecharta_core::CoreError;
+use codecharta_core::store::Store;
+use codecharta_core::store::lock::StoreLock;
 use serde_json::{Value, json};
-
-const CORE_EXECUTABLE: &str = env!("CARGO_BIN_EXE_codecharta-core");
-const ANSWER_TIMEOUT: Duration = Duration::from_secs(5);
-const EXIT_TIMEOUT: Duration = Duration::from_secs(5);
-const EXIT_POLL_INTERVAL: Duration = Duration::from_millis(20);
-const PROTOCOL_VERSION: u32 = 1;
-
-struct ServingCore {
-    child: Child,
-    stdin: Option<ChildStdin>,
-    stdout_lines: Receiver<String>,
-    data_dir: tempfile::TempDir,
-}
-
-impl ServingCore {
-    fn start() -> Self {
-        Self::start_with(|_| {})
-    }
-
-    fn start_with(configure: impl FnOnce(&mut Command)) -> Self {
-        let data_dir = tempfile::tempdir().expect("a temporary data folder");
-        let mut command = Command::new(CORE_EXECUTABLE);
-        configure(&mut command);
-        let mut child = command
-            .args(["--log-level", "debug", "--data-dir"])
-            .arg(data_dir.path())
-            .arg("serve")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("the core binary starts");
-        let stdin = child.stdin.take();
-        let stdout = child.stdout.take().expect("stdout is piped");
-        let (sender, stdout_lines) = mpsc::channel();
-        thread::spawn(move || {
-            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-                if sender.send(line).is_err() {
-                    return;
-                }
-            }
-        });
-        Self {
-            child,
-            stdin,
-            stdout_lines,
-            data_dir,
-        }
-    }
-
-    fn started_and_greeted() -> Self {
-        let mut core = Self::start();
-        core.request(0, "core.hello", hello_params(PROTOCOL_VERSION));
-        core
-    }
-
-    fn send_line(&mut self, line: &str) {
-        let stdin = self.stdin.as_mut().expect("stdin is still open");
-        writeln!(stdin, "{line}").expect("the core reads stdin");
-        stdin.flush().expect("the core reads stdin");
-    }
-
-    fn send(&mut self, message: Value) {
-        self.send_line(&message.to_string());
-    }
-
-    fn request(&mut self, id: i64, method: &str, params: Value) -> Value {
-        self.send(json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }));
-        self.receive_answer_to(&json!(id))
-    }
-
-    fn receive(&self) -> Value {
-        let line = self
-            .stdout_lines
-            .recv_timeout(ANSWER_TIMEOUT)
-            .expect("the core answers in time");
-        serde_json::from_str(&line).expect("the core writes JSON")
-    }
-
-    fn receive_answer_to(&self, id: &Value) -> Value {
-        loop {
-            let message = self.receive();
-            if message.get("id") == Some(id) {
-                return message;
-            }
-        }
-    }
-
-    fn close_stdin(&mut self) {
-        self.stdin.take();
-    }
-
-    fn wait_for_exit(&mut self) -> ExitStatus {
-        let deadline = Instant::now() + EXIT_TIMEOUT;
-        while Instant::now() < deadline {
-            if let Some(status) = self
-                .child
-                .try_wait()
-                .expect("the core process can be polled")
-            {
-                return status;
-            }
-            thread::sleep(EXIT_POLL_INTERVAL);
-        }
-        self.child.kill().expect("the core process can be killed");
-        panic!("the core did not exit within {EXIT_TIMEOUT:?}");
-    }
-
-    fn remaining_stdout(&self) -> Vec<String> {
-        self.stdout_lines.iter().collect()
-    }
-}
-
-impl Drop for ServingCore {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
-}
-
-fn hello_params(protocol_version: u32) -> Value {
-    json!({ "clientName": "protocol test", "protocolVersion": protocol_version })
-}
-
-fn error_data_code(answer: &Value) -> &Value {
-    &answer["error"]["data"]["code"]
-}
+#[cfg(feature = "test-methods")]
+use support::ANSWER_TIMEOUT;
+use support::{PROTOCOL_VERSION, ServingCore, error_data_code, hello_params};
 
 #[test]
 fn should_answer_hello_with_versions() {
@@ -336,21 +214,46 @@ fn should_answer_paths_inside_the_data_dir() {
 }
 
 #[test]
-fn should_keep_a_chosen_store_root_in_the_settings_file() {
+fn should_copy_the_store_into_a_chosen_folder_and_keep_it_in_the_settings_file() {
     // Arrange
     let mut core = ServingCore::started_and_greeted();
     let chosen = tempfile::tempdir().unwrap();
     let path = chosen.path().to_str().unwrap();
 
     // Act
-    let answer = core.request(1, "paths.setStoreRoot", json!({ "path": path }));
+    let answer = core.request(1, "store.changeRoot", json!({ "path": path }));
+    let paths = core.request(2, "paths.get", json!({}));
 
     // Assert
-    assert_eq!(answer["result"]["storeRoot"], json!(path));
+    assert_eq!(
+        answer["result"],
+        json!({ "storeRoot": path, "adopted": false })
+    );
+    assert_eq!(paths["result"]["storeRoot"], json!(path));
+    assert_eq!(paths["result"]["isDefaultStoreRoot"], json!(false));
     let settings_file = core.data_dir.path().join("core-settings.json");
     let settings: Value =
         serde_json::from_str(&std::fs::read_to_string(settings_file).unwrap()).unwrap();
     assert_eq!(settings["storeRoot"], json!(path));
+    assert!(chosen.path().join("store.json").is_file());
+    assert!(chosen.path().join(".lock").is_file());
+    assert!(core.store_root().join("store.json").is_file());
+}
+
+#[test]
+fn should_refuse_a_store_folder_that_is_neither_empty_nor_a_store() {
+    // Arrange
+    let mut core = ServingCore::started_and_greeted();
+    let chosen = tempfile::tempdir().unwrap();
+    std::fs::write(chosen.path().join("notes.txt"), "mine").unwrap();
+
+    // Act
+    let answer = core.request(1, "store.changeRoot", json!({ "path": chosen.path() }));
+    let paths = core.request(2, "paths.get", json!({}));
+
+    // Assert
+    assert_eq!(error_data_code(&answer), &json!("BAD_REQUEST"));
+    assert_eq!(paths["result"]["isDefaultStoreRoot"], json!(true));
 }
 
 #[test]
@@ -407,4 +310,58 @@ fn should_resolve_shell_path_targets() {
     let logs_dir = core.data_dir.path().join("logs");
     assert_eq!(logs["result"]["path"], json!(logs_dir.to_str().unwrap()));
     assert_eq!(error_data_code(&map), &json!("NOT_FOUND"));
+}
+
+#[test]
+fn should_answer_store_status_with_null_for_a_healthy_store() {
+    // Arrange
+    let mut core = ServingCore::started_and_greeted();
+
+    // Act
+    let answer = core.request(1, "store.status", json!({}));
+
+    // Assert
+    assert_eq!(answer["result"], json!({ "problem": null }));
+    let store_root = core.store_root();
+    assert!(store_root.join("store.json").is_file());
+    assert!(store_root.join(".lock").is_file());
+    let second_writer = Store::open(&store_root);
+    assert!(matches!(second_writer, Err(CoreError::StoreLocked { .. })));
+}
+
+#[test]
+fn should_report_store_newer_schema_and_still_answer_paths_get() {
+    // Arrange
+    let data_dir = tempfile::tempdir().unwrap();
+    let store_root = data_dir.path().join("store");
+    std::fs::create_dir_all(&store_root).unwrap();
+    std::fs::write(store_root.join("store.json"), r#"{ "schemaVersion": 999 }"#).unwrap();
+    let mut core = ServingCore::started_and_greeted_in(data_dir);
+
+    // Act
+    let status = core.request(1, "store.status", json!({}));
+    let paths = core.request(2, "paths.get", json!({}));
+
+    // Assert
+    assert_eq!(status["result"], json!({ "problem": "STORE_NEWER_SCHEMA" }));
+    assert_eq!(
+        paths["result"]["storeRoot"],
+        json!(store_root.to_str().unwrap())
+    );
+}
+
+#[test]
+fn should_report_store_locked_while_another_process_holds_the_store() {
+    // Arrange
+    let data_dir = tempfile::tempdir().unwrap();
+    let store_root = data_dir.path().join("store");
+    let _holder = StoreLock::acquire(&store_root).unwrap();
+    let mut core = ServingCore::started_and_greeted_in(data_dir);
+
+    // Act
+    let status = core.request(1, "store.status", json!({}));
+
+    // Assert
+    assert_eq!(status["result"], json!({ "problem": "STORE_LOCKED" }));
+    assert!(!store_root.join("store.json").exists());
 }

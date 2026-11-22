@@ -113,7 +113,7 @@ impl Paths {
         })
     }
 
-    /// Existing content is not moved; copying the store over is the store's own job (plan 03).
+    /// Only remembers the folder; `Core::change_store_root` prepares and opens the store there first.
     pub async fn set_store_root(&self, path: &Path) -> CoreResult<PathsInfo> {
         if !path.is_absolute() {
             return Err(CoreError::BadRequest(format!(
@@ -141,7 +141,7 @@ impl Paths {
         self.info()
     }
 
-    /// Snapshot maps live in the store, which arrives with plan 03; until then none can be found.
+    /// Snapshot maps live in the store, which `Core::resolve_path` asks; the paths alone know none.
     pub fn resolve(&self, target: &ShellPathTarget) -> CoreResult<PathBuf> {
         match target {
             ShellPathTarget::DataFolder => Ok(self.data_dir.clone()),
@@ -153,7 +153,7 @@ impl Paths {
         }
     }
 
-    fn default_store_root(&self) -> PathBuf {
+    pub fn default_store_root(&self) -> PathBuf {
         self.data_dir.join(STORE_FOLDER_NAME)
     }
 }

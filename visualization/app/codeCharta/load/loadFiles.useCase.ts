@@ -11,6 +11,7 @@ import {
     getContentChecksum,
     getNameDataPair,
     LoadFileService,
+    LoadFilesOptions,
     NameDataPair,
     NO_FILES_LOADED_ERROR_MESSAGE,
     RestoredSettings,
@@ -19,7 +20,7 @@ import {
     setIsLoadingFile,
     UrlExtractor
 } from "../stores/fileStore/fileStore.facade"
-import { clearLoadPhase, setLoadPhase } from "../util/busy/loadPhase"
+import { clearLoadPhase, describeFileBeingRead, setLoadPhase } from "../util/busy/loadPhase"
 import { ErrorDialogService } from "../util/errorDialog/errorDialog.service"
 import { fileRoot } from "../util/fileRoot"
 import { nextPaint } from "../util/nextPaint"
@@ -27,14 +28,18 @@ import { NO_URL_METRICS, UrlMetricSelection } from "../util/queryParameter/query
 import { QueryParamsService } from "../util/queryParameter/queryParams.service"
 import { LoadInitialFileStore } from "./loadInitialFile.store"
 import { CcStatePersistence, PersistedCcStateRead } from "./services/ccStatePersistence"
+import { asNothingLoaded, ProjectSnapshotsLoadResult, ProjectSnapshotToLoad, readProjectSnapshots } from "./services/projectSnapshotReader"
 
 const URL_LOAD_ERROR_TITLE = "File(s) could not be loaded from the given file URL parameter. Loaded sample files instead."
 const INDEXED_DB_LOAD_ERROR_TITLE = "Previously loaded files and settings could not be restored. Loaded sample files instead."
+const SAVED_SETTINGS_ERROR_TITLE = "Saved settings could not be restored."
 const MISSING_PROPERTIES_ERROR_TITLE =
     "The previous state could not be fully restored after loading the page. The following properties were not restored."
 
 const RESTORING_SESSION_PHASE = "Restoring your session"
 const BUILDING_MAP_PHASE = "Building the map"
+
+type ProvenanceOptions = Parameters<LoadFilesUseCase["provenance"]>[1]
 
 @Injectable({ providedIn: "root" })
 export class LoadFilesUseCase {
@@ -97,6 +102,88 @@ export class LoadFilesUseCase {
         }
     }
 
+    async bootFromProject(resolveSnapshots: () => Promise<ProjectSnapshotToLoad[]>): Promise<ProjectSnapshotsLoadResult> {
+        this.store.dispatch(setIsLoadingFile({ value: true }))
+        setLoadPhase(RESTORING_SESSION_PHASE)
+
+        const savedCcState = await this.readSavedSettings()
+        const restored = savedCcState ? this.applySavedSettingsUpFront(savedCcState) : null
+        const result = await this.readAndCommitProjectSnapshots(await resolveSnapshots(), {
+            areSampleFiles: false,
+            forceAutoFit: savedCcState ? !savedCcState.preferences.resetCameraIfNewFileIsLoaded : false,
+            restoredSettings: restored?.restoredSettings
+        })
+
+        if (savedCcState) {
+            this.finishRestoringSettings(savedCcState, restored.missingProperties, result)
+        }
+        return result
+    }
+
+    showSampleFiles(): void {
+        this.loadSampleFiles(null, "sample")
+    }
+
+    unloadAllFiles(): void {
+        this.loadInitialFileStore.setFiles([])
+        this.stopLoadingIndicator()
+    }
+
+    async loadProjectSnapshots(
+        snapshots: ProjectSnapshotToLoad[],
+        options: { discardMetricSelection?: boolean } = {}
+    ): Promise<ProjectSnapshotsLoadResult> {
+        this.store.dispatch(setIsLoadingFile({ value: true }))
+        return this.readAndCommitProjectSnapshots(snapshots, {
+            areSampleFiles: false,
+            forceDefaultMetrics: options.discardMetricSelection
+        })
+    }
+
+    private async readAndCommitProjectSnapshots(
+        snapshots: ProjectSnapshotToLoad[],
+        provenanceOptions: ProvenanceOptions
+    ): Promise<ProjectSnapshotsLoadResult> {
+        const { nameDataPairs, result } = await readProjectSnapshots(snapshots, (snapshot, position) =>
+            setLoadPhase(describeFileBeingRead(snapshot.displayName, position, snapshots.length))
+        )
+        if (nameDataPairs.length === 0) {
+            this.stopLoadingIndicator()
+            return result
+        }
+        setLoadPhase(BUILDING_MAP_PHASE)
+        await nextPaint()
+        try {
+            this.commit(nameDataPairs, this.provenance("project", provenanceOptions), { replaceLoadedFiles: true })
+            return result
+        } catch {
+            this.stopLoadingIndicator()
+            return asNothingLoaded(result)
+        }
+    }
+
+    private async readSavedSettings(): Promise<CcState | null> {
+        const persisted = await this.ccStatePersistence.read()
+        if (persisted.error) {
+            this.errorDialogService.open({ title: SAVED_SETTINGS_ERROR_TITLE, message: persisted.error.message })
+            return null
+        }
+        return persisted.state
+    }
+
+    private finishRestoringSettings(savedCcState: CcState, missingProperties: string[], result: ProjectSnapshotsLoadResult): void {
+        if (result.loaded.length === 0) {
+            this.applyAllSettings(savedCcState)
+            return
+        }
+        this.showMissingPropertiesDialog(missingProperties)
+    }
+
+    private stopLoadingIndicator(): void {
+        this.store.dispatch(setIsLoadingFile({ value: false }))
+        clearLoadPhase()
+    }
+
     private async loadFromUrl(persisted: PersistedCcStateRead): Promise<void> {
         const urlMetrics = this.urlMetrics()
 
@@ -151,9 +238,9 @@ export class LoadFilesUseCase {
     }
 
     /** `filesLoaded` goes last, in the same task as the setFiles it triggers: the reconciliation picks it out of that burst. */
-    private commit(nameDataPairs: NameDataPair[], provenance: FilesLoadedPayload): void {
+    private commit(nameDataPairs: NameDataPair[], provenance: FilesLoadedPayload, ...loadOptions: [LoadFilesOptions?]): void {
         try {
-            this.loadFileService.loadFiles(nameDataPairs)
+            this.loadFileService.loadFiles(nameDataPairs, ...loadOptions)
         } catch (error) {
             if ((error as Error).message === NO_FILES_LOADED_ERROR_MESSAGE) {
                 // Nothing was written to the store. The caller falls back to the sample files.
@@ -191,17 +278,26 @@ export class LoadFilesUseCase {
         source: FilesLoadedSource,
         urlMetrics: UrlMetricSelection
     ): void {
-        const missingProperties = []
+        const { restoredSettings, missingProperties } = this.applySavedSettingsUpFront(savedCcState)
 
         // The very first map is fitted once even when the user turned the camera reset off.
         const forceAutoFit = !savedCcState.preferences.resetCameraIfNewFileIsLoaded
 
+        this.commitRestoredFiles(
+            savedFileStates,
+            this.provenance(source, { areSampleFiles: false, urlMetrics, forceAutoFit, restoredSettings })
+        )
+
+        this.showMissingPropertiesDialog(missingProperties)
+    }
+
+    private applySavedSettingsUpFront(savedCcState: CcState): { restoredSettings: RestoredSettings; missingProperties: string[] } {
         // Applied up front: the persisted metric selection has to be in the store before the reconciliation resolves it.
-        missingProperties.push(
+        const missingProperties = [
             ...this.loadInitialFileStore.applyPreferences(savedCcState.preferences),
             ...this.loadInitialFileStore.applyMapState(savedCcState.mapState),
             ...this.loadInitialFileStore.applyDomainState(savedCcState.domainState)
-        )
+        ]
 
         // The reconciliation applies the view slices after its file-derived merge, which would otherwise erase them.
         const restoredSettings: RestoredSettings = {
@@ -217,12 +313,7 @@ export class LoadFilesUseCase {
             ...this.loadInitialFileStore.missingKeysOfDomainLensSource(savedCcState.domainLensSource)
         )
 
-        this.commitRestoredFiles(
-            savedFileStates,
-            this.provenance(source, { areSampleFiles: false, urlMetrics, forceAutoFit, restoredSettings })
-        )
-
-        this.showMissingPropertiesDialog(missingProperties)
+        return { restoredSettings, missingProperties }
     }
 
     /**
@@ -290,6 +381,7 @@ export class LoadFilesUseCase {
             areSampleFiles: boolean
             urlMetrics?: UrlMetricSelection
             forceAutoFit?: boolean
+            forceDefaultMetrics?: boolean
             restoredSettings?: RestoredSettings
         }
     ): FilesLoadedPayload {
@@ -300,7 +392,7 @@ export class LoadFilesUseCase {
             forceAutoFit: options.forceAutoFit ?? false,
             // A reset deliberately discards the previous selection, so the metrics must fall back to the
             // computed default even when the old selection is still available in the reloaded files.
-            forceDefaultMetrics: source === "reset",
+            forceDefaultMetrics: options.forceDefaultMetrics ?? source === "reset",
             restoredSettings: options.restoredSettings ?? null
         }
     }

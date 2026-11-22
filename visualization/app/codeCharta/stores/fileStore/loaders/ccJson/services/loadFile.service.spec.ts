@@ -13,17 +13,18 @@ import { CCFile, CcState, NodeMetricData, NodeType } from "../../../../../model/
 import { FileSelectionState, FileState } from "../../../../../model/files/files"
 import { getCCFiles, isPartialState } from "../../../../../model/files/files.helper"
 import { metricDataSelector } from "../../../../../renderer/renderModel/accumulatedData/metricData/metricData.selector"
+import * as cloneModule from "../../../../../util/clone"
 import { clone } from "../../../../../util/clone"
 import { ErrorDialogService } from "../../../../../util/errorDialog/errorDialog.service"
 import { fileRoot } from "../../../../../util/fileRoot"
 import { appReducers, setStateMiddleware } from "../../../../rootStore/store"
 import { FilesRepo } from "../../../repos/files.repo"
 import { setCurrentFilesAreSampleFiles } from "../../../store/currentFilesAreSampleFiles/currentFilesAreSampleFiles.actions"
-import { removeFiles, setStandard } from "../../../store/files.actions"
+import { removeFiles, setFiles, setStandard } from "../../../store/files.actions"
 import { parseCcFileBytes } from "../util/ccFileHelper"
 import { ERROR_MESSAGES } from "../util/fileValidationMessages"
 import { CCFileValidationResult } from "../util/fileValidator"
-import { FILES_ALREADY_LOADED_ERROR_MESSAGE, LoadFileService } from "./loadFile.service"
+import { FILES_ALREADY_LOADED_ERROR_MESSAGE, LoadFileService, NO_FILES_LOADED_ERROR_MESSAGE } from "./loadFile.service"
 import { loadFilesValidationToErrorDialog } from "./loadFilesValidationToErrorDialog"
 
 const mockedMetricDataSelector = metricDataSelector as unknown as jest.Mock
@@ -622,6 +623,53 @@ describe("loadFileService", () => {
             store.dispatch(removeFiles({ fileNames: ["FirstFile", "SecondFile"] }))
             expect(state.getValue().files).toHaveLength(1)
             expect(state.getValue().files[0].file.fileMeta.fileName).toEqual("ThirdFile")
+        })
+    })
+
+    describe("loadFiles replacing the loaded files", () => {
+        let secondFileContent: ExportCCFile
+
+        beforeEach(() => {
+            secondFileContent = klona(validFileContent)
+            secondFileContent.fileChecksum = "hash_1"
+            codeChartaService.loadFiles([{ fileName: "FirstFile", content: validFileContent, fileSize: 42 }])
+            storeDispatchSpy.mockClear()
+        })
+
+        it("should replace the loaded files in one setFiles", () => {
+            // Act
+            codeChartaService.loadFiles([{ fileName: "SecondFile", content: secondFileContent, fileSize: 42 }], {
+                replaceLoadedFiles: true
+            })
+
+            // Assert
+            const setFilesCalls = storeDispatchSpy.mock.calls.filter(([action]) => action.type === setFiles.type)
+            expect(setFilesCalls).toHaveLength(1)
+            expect(getCCFiles(state.getValue().files).map(file => file.fileMeta.fileName)).toEqual(["SecondFile"])
+        })
+
+        it("should keep the loaded files when every new file is invalid", () => {
+            // Act
+            const replaceWithInvalidFile = () =>
+                codeChartaService.loadFiles([{ fileName: "Broken", content: null, fileSize: 1 }], { replaceLoadedFiles: true })
+
+            // Assert
+            expect(replaceWithInvalidFile).toThrow(NO_FILES_LOADED_ERROR_MESSAGE)
+            expect(getCCFiles(state.getValue().files).map(file => file.fileMeta.fileName)).toEqual(["FirstFile"])
+        })
+
+        it("should not clone the loaded files when replacing", () => {
+            // Arrange
+            const cloneSpy = jest.spyOn(cloneModule, "clone")
+
+            // Act
+            codeChartaService.loadFiles([{ fileName: "SecondFile", content: secondFileContent, fileSize: 42 }], {
+                replaceLoadedFiles: true
+            })
+
+            // Assert
+            expect(cloneSpy).not.toHaveBeenCalled()
+            cloneSpy.mockRestore()
         })
     })
 

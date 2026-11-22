@@ -1,9 +1,10 @@
 //! Stand-in for git, ccsh, java, gh and glab in the core's tests; never packaged. The first argument
 //! picks the behaviour. Asked for its version (`--version`, `-version`), it prints the files
 //! `<own name>.stdout` and `<own name>.stderr` next to itself, so a test can copy it as `git` or `java`
-//! and decide what it answers.
+//! and decide what it answers. `hold-store-lock <root>` plays a second core process that holds the
+//! store lock until its stdin closes.
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, ExitCode, Stdio};
 use std::time::Duration;
@@ -15,6 +16,7 @@ const FLOOD_BYTE: u8 = b'x';
 const FLOOD_BLOCK_BYTES: usize = 8 * 1024;
 const STDOUT_SIDECAR: &str = "stdout";
 const STDERR_SIDECAR: &str = "stderr";
+const LOCK_HELD: &str = "locked";
 
 type FakeResult = Result<ExitCode, String>;
 
@@ -40,6 +42,7 @@ fn run(mode: &str, rest: &[String]) -> FakeResult {
         "exit" => exit_with(first(rest)?),
         "utf8-split" => write_split_multibyte_text(),
         "print-env" => print_stdout(&std::env::var(first(rest)?).unwrap_or_default()),
+        "hold-store-lock" => hold_store_lock(first(rest)?),
         unknown => Err(format!("unknown mode {unknown:?}")),
     }
 }
@@ -119,6 +122,16 @@ fn write_split_multibyte_text() -> FakeResult {
             .map_err(|error| error.to_string())?;
         std::thread::sleep(SPLIT_WRITE_PAUSE);
     }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn hold_store_lock(root: &str) -> FakeResult {
+    let _lock = codecharta_core::store::lock::StoreLock::acquire(std::path::Path::new(root))
+        .map_err(|error| error.to_string())?;
+    println!("{LOCK_HELD}");
+    std::io::stdin()
+        .read_to_end(&mut Vec::new())
+        .map_err(|error| error.to_string())?;
     Ok(ExitCode::SUCCESS)
 }
 

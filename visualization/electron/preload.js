@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron")
+const { contextBridge, ipcRenderer, webUtils } = require("electron")
 
 const CHANNELS = {
     hello: "codecharta:hello",
@@ -67,8 +67,8 @@ if (greeting) {
         pickFile: options => ipcRenderer.invoke(CHANNELS.dialog, { kind: "pickFile", options }),
         chooseToolExecutable: (tool, options) => ipcRenderer.invoke(CHANNELS.dialog, { kind: "chooseToolExecutable", tool, options }),
         chooseStoreRoot: options => ipcRenderer.invoke(CHANNELS.dialog, { kind: "chooseStoreRoot", options }),
+        openDroppedFile: file => ipcRenderer.invoke(CHANNELS.dialog, { kind: "openDroppedFile", path: webUtils.getPathForFile(file) }),
         reveal: target => ipcRenderer.invoke(CHANNELS.shell, { kind: "reveal", target }),
-        readSnapshotMap: target => ipcRenderer.invoke(CHANNELS.shell, { kind: "readSnapshotMap", target }),
         setWindowBackground: color => ipcRenderer.invoke(CHANNELS.shell, { kind: "setWindowBackground", color }),
         setColorScheme: scheme => ipcRenderer.invoke(CHANNELS.shell, { kind: "setColorScheme", scheme }),
         restartCore: () => ipcRenderer.invoke(CHANNELS.shell, { kind: "restartCore" })
