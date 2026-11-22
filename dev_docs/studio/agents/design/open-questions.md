@@ -464,3 +464,18 @@ answer that differs means the named file is changed, nothing else.
      "7 scenarios available". Which wording?
   5. With both panels open in a 1600 px window the full bar's "AREA" label truncates to "A…" (it did before
      this change too). Wanted, or should labels keep priority over metric names?
+
+- **O14 (2026-11-22). Follow-ups from the nav bar and metrics bar fit** (`progress/02-05-nav-and-bar-fit.md`,
+  built with the reading given). The equal 74 px height answers O13.1.
+  1. Compare chip at 1024 px: logo, divider, icon-only project menu, icon-only W1 and a labels-only chip
+     with `min-w-10` labels overflow by about 15 px, so the labels-only chip lets its labels shrink to
+     `min-w-8` with `gap-1 px-2`. Acceptable, or should something else give way (e.g. the arrow)?
+  2. The measured full-bar minimum is about 800 px with the sample map (mock-up: 732), because the app keeps
+     `px-3` on cells and `gap-1` on the shell, so the bar turns compact earlier. Reduce card padding or the
+     shell gap?
+  3. To fit 74 px, the labels/scenarios cell lost its separator line and its scenario count shortens
+     ("7 scenarios availa…"). OK?
+  4. Should the domain and dependency bars also get the 12-character name minimum and the 74 px height?
+  5. While dragging the window narrower, the 200 ms width transition can put a nav bar trigger up to about
+     8 px under the view tabs until it settles. OK, or narrow instantly and animate only widening?
+  6. W1's `aria-label` no longer says "map shows <sha>" (still in the title and dropdown). Bring it back?
