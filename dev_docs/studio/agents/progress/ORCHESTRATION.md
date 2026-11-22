@@ -443,6 +443,14 @@ Design questions are in `design/open-questions.md`.
 
 ## Session log
 
+- 2026-11-22: the machine rebooted (wiped `/tmp`: Playwright browsers, sample repo, scripts); Chromium 1243 now in
+  `~/.cache/ms-playwright`; sample repo rebuilt durably at `/home/mike/Programming/sample-shop` as project "Sample
+  Shop". Merged the stack's gate and CI fixes (fake bridge split, service splits, Windows store fix), the 3D map
+  depth fix (upstream bug: `lowp` shader precision on GPUs that honour it), the history and compare follow-ups,
+  and removed the default Electron menu bar. Owner asked to lighten CPU: panels, projects/snapshots and renames
+  agents paused; gates now run one at a time. Owner request O10 (hide native window decorations, own window
+  controls) waits for design ("designer first"); O11 holds the latest follow-up questions.
+
 - 2026-11-21: merged the CI fixes of the stack (smoke tests with software WebGL, Windows path in a core test,
   gate config for `*.test.js`; gates at f391e393a all green incl. cargo 870/866, web e2e 220/220), the
   SonarCloud skip without token, and the designer's answers to O9 (ad536f668 on `docs/studio-plans`). The owner

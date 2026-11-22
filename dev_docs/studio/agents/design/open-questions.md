@@ -322,3 +322,33 @@ answer that differs means the named file is changed, nothing else.
      nothing to compare." approved; inspector git line as new C10 (badge, "renamed from <old path>", no
      "in git" text); "Remove fetched pull requests" as new C11; working-tree and imported comparisons
      stay out of Recent.
+
+- **O10 (2026-11-22). Owner request: hide the native window decorations (desktop app).** The default
+  File / Edit / View / Window menu bar is removed (macOS keeps a minimal app and Edit menu so its shortcuts
+  work). The owner wants a setting that hides the native title bar, so the app has a single top bar: our
+  nav bar then carries minimize, maximize/restore and close buttons that look almost identical to the
+  platform's own — KDE Breeze on Linux (the owner's reference: thin chevron-down, chevron-up, ✕ glyphs,
+  no frames), Windows 11 caption buttons on Windows, and the traffic lights on macOS (left side). Needs
+  design before implementation (owner decision 2026-11-22, "designer first"):
+  - the setting's wording, section and default (off?), and whether switching needs a window restart (the
+    shell can recreate the window, or apply `titleBarStyle`/frameless on the next start);
+  - placement in the nav bar per platform (right end on Linux/Windows; left of the logo on macOS), spacing,
+    sizes, hover/pressed colours (Windows close turns red), focus ring, and the dark/light theme variants;
+  - the drag region (which parts of the nav bar move the window, which stay clickable), double-click to
+    maximize, and right-click (system menu on Windows?);
+  - maximized vs restored icon, a disabled maximize when the window cannot grow, full-screen (macOS);
+  - how the nav bar's existing content (project menu, workspace status, view tabs, compare chip, Settings)
+    gives way to the extra buttons at narrow widths;
+  - which other KDE window decorations themes users have (Breeze is the default) — follow Breeze only, or
+    the system's colours?
+- **O11 (2026-11-22). Follow-ups from the third implementation round** (built with the reading given):
+  1. History (`progress/history-followups.md`): Pull is disabled at "nothing behind", which relies on the
+     counts of the last fetch; if the remote moved since, Pull stays disabled until a fetch. Keep, or leave
+     Pull enabled and let git answer "Already up to date"? Should the branch context menu also hold Push,
+     Force Push and Publish during a merge or rebase (H5 names only the sync button)?
+  2. Compare (`progress/compare-followups.md`): C11 "only when such refs exist" is not built (no core
+     count of `refs/codecharta/`; the item is offered for every git folder and answers "'<folder>' has no
+     fetched pull requests."). Is a core count wanted? C10 read literally shows "renamed" twice (badge and
+     "renamed from <path>") — intended? The PR line reads "Pull request #7 ↗" (no title without a listing).
+     Swap keeps the chip's dropdown open. At 1024 px the collapsed inspector header's button draws over the
+     top of the chip's dropdown — z-order rule?
