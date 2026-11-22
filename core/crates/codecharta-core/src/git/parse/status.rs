@@ -2,7 +2,7 @@ use codecharta_core_api::methods::git::{GitHead, OperationInProgress, StatusCoun
 
 use crate::error::CoreResult;
 use crate::git::error::parse_failed;
-use crate::git::nul::split_nul_fields;
+use crate::git::nul_separated::split_nul_fields;
 
 pub const STATUS_ARGS: [&str; 6] = [
     "status",

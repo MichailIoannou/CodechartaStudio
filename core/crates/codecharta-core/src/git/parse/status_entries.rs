@@ -2,7 +2,7 @@ use codecharta_core_api::methods::git::{GitEntryKind, GitFileChange, GitWorkingT
 
 use crate::error::CoreResult;
 use crate::git::error::parse_failed;
-use crate::git::nul::split_nul_fields;
+use crate::git::nul_separated::split_nul_fields;
 use crate::git::parse::changed_files::{TWO_PATH_CHANGES, change_of_letter};
 
 /// Every untracked file on its own line, so each one can be staged, shown and discarded by itself.

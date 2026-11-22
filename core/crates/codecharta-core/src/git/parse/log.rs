@@ -3,7 +3,7 @@ use codecharta_core_api::values::CommitSha;
 
 use crate::error::CoreResult;
 use crate::git::error::parse_failed;
-use crate::git::nul::{chunk_records, split_nul_fields};
+use crate::git::nul_separated::{chunk_records, split_nul_fields};
 
 /// One commit per record: sha, parents, author name and email, author and committer time, subject.
 pub const SUMMARY_FORMAT: &str = "--format=tformat:%H%x00%P%x00%aN%x00%aE%x00%at%x00%ct%x00%s";

@@ -98,7 +98,7 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0. Bra
 - **Deviation: `CommitSha` and `FullRefName` live in the api's `values.rs`** (validated while deserialised,
   like plan 03's `FullCommit`), not in a core `revisions.rs`; `validate_new_branch_name` comes with M8.
   `FullRefName`: starts with `refs/`, at most 1024 bytes, no character below U+0020 or U+007F.
-- Core `git/nul.rs` (`split_nul_fields`, `chunk_records` -> `Option`, `None` for a count that is not a
+- Core `git/nul_separated.rs` (`split_nul_fields`, `chunk_records` -> `Option`, `None` for a count that is not a
   multiple), `git/cache.rs` (`LruCache`, linear lookups, most recent first).
 - Tests: the plan's six names (the error code one renamed as above) plus
   `should_tag_heads_by_kind_with_camel_case_fields`, `should_replace_the_value_of_a_known_key`.
@@ -241,7 +241,7 @@ Environment (2026-11-18): Arch Linux x86_64, rustc/cargo 1.95.0, git 2.56.0. Bra
   `TOOL_NOT_FOUND` (git missing), `NOT_FOUND`, `FOLDER_UNAVAILABLE`, `BAD_REQUEST`, `TIMEOUT`, `CANCELLED`,
   `OUTPUT_TOO_LARGE`; git's own text in `details.detail` (always show it).
 - Rust: `GitService` (`core.git()?`), `GitFolder`, `GitCli` over `GitProcess`, `GitCommand::read` +
-  `Limits` constants, `git::read::{status_summary, read_refs}`, `nul::{split_nul_fields, chunk_records}`,
+  `Limits` constants, `git::read::{status_summary, read_refs}`, `nul_separated::{split_nul_fields, chunk_records}`,
   `cache::LruCache`, api values `CommitSha` / `FullRefName`. M2 needs: runner stdin and stdout line streaming
   (not in plan 01's runner yet), log / show / diff-tree captures (extend `testdata/capture.sh`), and should add
   its own `*_LIMITS`.

@@ -11,7 +11,7 @@ pub mod fingerprint;
 pub mod locator;
 pub mod log;
 pub mod memory;
-pub mod nul;
+pub mod nul_separated;
 pub mod operation;
 pub mod parse;
 pub mod progress;
