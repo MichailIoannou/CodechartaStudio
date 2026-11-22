@@ -74,6 +74,16 @@ answer that differs means the named file is changed, nothing else.
     1150 px. *Alternatives:* (a) leave it as a known limit, or (b) let the bar sit above the inspector
     and cover it. Applied in `02-themes.md` T4 "Too little room".
 
+13. **Linux window buttons: Breeze look only?** (O10) *Default:* the buttons CodeCharta draws on Linux
+    always have KDE Breeze's shape (thin chevrons, diamond, cross, round highlight, red close) in the
+    app theme's colours; only the button order follows the system (KDE `kwinrc`, GNOME
+    `button-layout`). Other KDE decoration themes (Oxygen, Aurorae themes) and GNOME's Adwaita buttons
+    are not imitated. *Alternatives:* (a) read the colours of the system's window decoration from KDE's
+    `kdeglobals`; (b) a GNOME look on GNOME. Applied in `01-desktop-tools.md` D7.
+14. **"Use CodeCharta's title bar" off by default?** (O10) *Default:* off, so every Linux window manager
+    keeps its native frame; *alternative:* on for Windows and macOS, where the system still draws the
+    buttons, off on Linux. Applied in `01-desktop-tools.md` D6.
+
 ## Area 01 — desktop tools
 
 11. ~~**Confirm before changing the store folder?** *Default:* yes, one yes/no before the folder picker,
@@ -352,3 +362,31 @@ answer that differs means the named file is changed, nothing else.
      "renamed from <path>") — intended? The PR line reads "Pull request #7 ↗" (no title without a listing).
      Swap keeps the chip's dropdown open. At 1024 px the collapsed inspector header's button draws over the
      top of the chip's dropdown — z-order rule?
+
+  *Answered (designer, 2026-11-22), O10:* `01-desktop-tools.md` D6 (setting) and D7 (window controls);
+  mock-up `mockups/window-controls.html`.
+  - Setting "Use CodeCharta's title bar" in a "Window" section of Global Configuration after the desktop
+    tools, off by default (owner question 14); stored in the shell's settings file; applies at the next
+    start, with "Restart now", which reopens the window while the core keeps running.
+  - The system draws the buttons where it can: macOS real traffic lights (`hiddenInset`, 80 px inset
+    before the logo); Windows real caption buttons through `titleBarOverlay` with the theme's colours
+    (snap layouts and the red close come for free); Linux `frame: false` with CodeCharta's own
+    Breeze-look buttons at the right end (28 px hit areas, 22 px round highlight, red `#da4453` close,
+    diamond when maximized, dimmed when the window is not focused, disabled maximize, hidden in full
+    screen). Breeze shape only, button order from the system (owner question 13).
+  - Drag region: the nav bar background drags, every control is `no-drag`; a 12 px gap before the
+    buttons and the macOS inset always stay free. Double-click maximizes/restores; right-click shows
+    the system menu on Windows and Minimize/Maximize/Close on Linux.
+  - Space: the right half holds only Settings, so Windows and Linux need no give-way down to 1024 px; on
+    macOS the logo and divider hide below 1280 px.
+  - To verify in implementation: edge resizing and shadow of frameless windows on KDE (X11, Wayland) and
+    GNOME Wayland; double-click on a drag region under Linux.
+
+  *Answered (designer, 2026-11-22), O11:*
+  1. History (`04-history.md` H5): Pull stays enabled at "nothing behind" and git answers "Already up to
+     date" (the counts may be stale); the merge/rebase disabling applies to the branch context menu too.
+  2. Compare (`06-compare.md`): no core count for C11 — the item stays for every git folder and the info
+     toast says "'<folder>' has no fetched pull requests."; C10 says "renamed" once (badge + "from <old
+     path>"); "Pull request #7" without a title is right; Swap keeping the dropdown open is intended.
+     z-order: nav-bar dropdowns (`z-[70]`) are always above the side panels, and nothing inside a panel
+     (its collapsed strip included) may create a higher layer (principles §4) — the overlap is a bug.
