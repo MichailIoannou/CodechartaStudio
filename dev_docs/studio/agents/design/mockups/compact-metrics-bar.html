@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compact Metrics Bar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+:root { --page: #f6f7f9; --ink: #1d2330; --mute-ink: #5b6472; --font-body: "Inter", "Segoe UI", system-ui, sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page: #121418; --ink: #e8ebf0; --mute-ink: #9aa3b0; } }
+:root[data-theme="dark"] { --page: #121418; --ink: #e8ebf0; --mute-ink: #9aa3b0; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--font-body); }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 30px 0 6px; }
+p { margin: 0 0 10px; color: var(--mute-ink); max-width: 80ch; }
+.note { font-size: 12.5px; color: var(--mute-ink); margin: 6px 0 0; }
+
+/* app tokens */
+.app { --b100: #1e2329; --b200: #262c34; --b300: #3a424d; --backdrop: #15191e; --fg: #e6e9ee; --mute: #9aa3b0; --primary: #8b9cff; --tip: #e6e9ee; --tipfg: #1e2329; }
+.app.light { --b100: #ffffff; --b200: #f1f3f5; --b300: #d1d5db; --backdrop: #e8ebef; --fg: #1f2937; --mute: #6b7280; --primary: #0374c9; --tip: #1f2937; --tipfg: #fff; }
+.app { color: var(--fg); font: 13px/1.4 var(--font-body); }
+
+/* window frames */
+.frames { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.scaled { overflow: hidden; border-radius: 8px; box-shadow: 0 1px 0 #0001, 0 6px 20px #0003; }
+.win { position: relative; background: var(--backdrop); transform-origin: top left; }
+.cap { font-size: 12.5px; color: var(--mute-ink); margin-top: 6px; }
+.navbar { height: 48px; background: var(--b100); border-bottom: 1px solid var(--b300); display: flex; align-items: center; padding: 0 12px; gap: 10px; color: var(--mute); }
+.panel { position: absolute; top: 54px; bottom: 6px; width: 320px; background: var(--b100); border-radius: 10px; padding: 10px 12px; box-sizing: border-box; }
+.panel.l { left: 6px; } .panel.r { right: 6px; }
+.panel .t { font-weight: 600; margin-bottom: 8px; }
+.panel .ln { height: 9px; border-radius: 4px; background: var(--b200); margin: 9px 0; }
+.map { position: absolute; top: 54px; bottom: 28px; left: 0; right: 0; }
+.blocks { position: absolute; inset: 70px 30px 150px; display: grid; grid-template-columns: repeat(14, 1fr); gap: 5px; opacity: .55; }
+.blocks i { display: block; border-radius: 2px; }
+.extbar { position: absolute; bottom: 30px; height: 12px; border-radius: 4px; display: flex; overflow: hidden; }
+.bottombar { position: absolute; bottom: 0; left: 0; right: 0; height: 24px; background: var(--b100); border-top: 1px solid var(--b300); }
+
+/* bar shell */
+.shell { position: absolute; display: flex; align-items: stretch; gap: 4px; padding: 6px; background: var(--b100); border: 1px solid var(--b300); border-radius: 16px; box-shadow: 0 10px 15px -3px #0005; box-sizing: border-box; }
+.inline .shell { position: relative; display: inline-flex; }
+.div { width: 1px; background: var(--b300); margin: 4px 4px; flex-shrink: 0; }
+/* full bar cards */
+.card { border-radius: 12px; padding: 6px 10px; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.card .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--mute); display: flex; justify-content: space-between; gap: 8px; }
+.card .val { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .meta { font-size: 11.5px; color: var(--mute); }
+/* compact */
+.grp { display: grid; grid-template-rows: 28px 28px; grid-auto-flow: column; gap: 2px; }
+.ib { width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: color-mix(in oklab, var(--fg) 80%, transparent); font-size: 15px; position: relative; box-sizing: border-box; cursor: pointer; }
+.ib:hover, .ib.hover { background: var(--b200); }
+.ib.open { background: var(--b200); box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 40%, transparent); }
+.ib.dim { color: color-mix(in oklab, var(--fg) 40%, transparent); }
+.ib svg { width: 16px; height: 16px; }
+.ib.tall { grid-row: span 2; height: 58px; flex-direction: column; gap: 3px; }
+.ib.tall .fa-caret-down { font-size: 8px; color: var(--mute); }
+.link { grid-row: span 2; width: 16px; height: 58px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; }
+.link.on { background: color-mix(in oklab, var(--primary) 18%, transparent); color: var(--primary); }
+.link.off { color: color-mix(in oklab, var(--fg) 50%, transparent); }
+.empty { width: 28px; height: 28px; }
+.tip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--tip); color: var(--tipfg); font-size: 12px; font-weight: 500; padding: 4px 8px; border-radius: 6px; white-space: nowrap; z-index: 5; }
+.tip::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -4px; border: 4px solid transparent; border-top-color: var(--tip); }
+/* popovers */
+.pop { position: absolute; bottom: calc(100% + 10px); background: var(--b100); border: 1px solid var(--b300); border-radius: 12px; box-shadow: 0 10px 25px #0006; padding: 8px; z-index: 6; box-sizing: border-box; }
+.search { height: 30px; border: 1px solid var(--b300); border-radius: 8px; display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--mute); font-size: 12.5px; }
+.opt { display: flex; justify-content: space-between; padding: 5px 8px; border-radius: 6px; font-size: 12.5px; }
+.opt.sel { background: color-mix(in oklab, var(--primary) 18%, transparent); color: var(--primary); font-weight: 600; }
+.opt .m { color: var(--mute); }
+.foot { border-top: 1px solid var(--b300); margin: 6px -8px 0; padding: 6px 8px 0; }
+.mbtn { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; font-size: 12.5px; }
+.mbtn:hover, .mbtn.hover { background: var(--b200); }
+.mbtn i { width: 14px; text-align: center; color: var(--mute); }
+
+.stage { position: relative; display: inline-block; padding: 150px 40px 24px; border-radius: 10px; background: var(--backdrop); zoom: 1.6; }
+.stage.small { padding: 64px 28px 20px; }
+.row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
+.vlabel { font-size: 12px; color: var(--mute-ink); margin-top: 6px; }
+table { border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+td, th { border-bottom: 1px solid color-mix(in oklab, var(--ink) 12%, transparent); padding: 6px 12px 6px 0; text-align: left; vertical-align: middle; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--mute-ink); }
+.iconcell { display: inline-flex; gap: 10px; align-items: center; }
+.iconcell .sw { width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; }
+.iconcell svg { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Compact metrics bar</h1>
+<p>02-themes T4 compact bar, owner answer to question 12. When less than 30rem of map is free between the open side panels, the metrics bar turns into icon buttons in two rows, about as tall as the full bar. It returns at 32rem. Every button has a tooltip and opens the same popover as its card.</p>
+
+<h2>1 · Full bar at 1400 px, compact bar at 900 px (both panels open, 320 px each)</h2>
+<div class="frames" id="frames"></div>
+<p class="note">Left: 1400 px window, 748 px of map free, full bar. Right: 900 px window, 236 px free, compact bar (231 px). Both are drawn at half size.</p>
+
+<h2>2 · Compact bar up close (dark and light)</h2>
+<div class="row" id="closeup"></div>
+<p class="note">Groups: Layout | Area, Height, link / Edges, Color | Labels / Scenarios | view tools. The link button stands beside Height and Color, the two cells it joins. Shown at 1.6×.</p>
+
+<h2>3 · Hover, open chooser, Scenarios menu</h2>
+<div class="row" id="states"></div>
+<p class="note">A tooltip shows on hover and on keyboard focus and doubles as the <code>aria-label</code>. Clicking a metric icon opens that card's metric chooser, which in the compact bar ends with "&lt;cell&gt; settings". Scenarios opens a two-item menu.</p>
+
+<h2>4 · Variants</h2>
+<div class="row" id="variants"></div>
+
+<h2>5 · Icons</h2>
+<table id="icons"><tr><th>Cell</th><th>Dark</th><th>Light</th><th>Source</th><th>Tooltip example</th></tr></table>
+</main>
+
+<script>
+const G = {
+  area: '<path d="M10 4.5l8.5 4.5-8.5 4.5-8.5-4.5z" fill="currentColor" fill-opacity=".4"/><path d="M1.5 9v3l8.5 4.5 8.5-4.5V9M10 13.5v3"/>',
+  height: '<path d="M7.5 5.5l5-2.6 5 2.6-5 2.6z"/><path d="M7.5 5.5v9.4l5 2.6 5-2.6V5.5M12.5 8.1v9.4"/><path d="M3.5 17.5V3M1.3 5.2L3.5 3l2.2 2.2"/>',
+  labels: '<rect x="7" y="13" width="6" height="5" rx=".6" fill="currentColor" stroke="none"/><path d="M10 13V9"/><rect x="3" y="2.5" width="14" height="6.5" rx="1.5"/><path d="M6 5.75h8" stroke-width="1.2"/>',
+  layout: '<rect x="2.5" y="2.5" width="15" height="15" rx="1.2"/><path d="M11 2.5v15M2.5 10h8.5M11 12.5h6.5M6.5 10v7.5M14.5 2.5v10"/>',
+  radial: '<circle cx="10" cy="10" r="3"/><circle cx="10" cy="10" r="8.5"/><path d="M10 7V1.5M12.6 11.5l4.8 2.8M7.4 11.5l-4.8 2.8"/>'
+};
+const svg = k => `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">${G[k]}</svg>`;
+const fa = c => `<i class="${c}"></i>`;
+const ICON = { area: svg('area'), height: svg('height'), color: fa('fa-solid fa-palette'), edges: fa('fa-solid fa-circle-nodes'),
+  labels: svg('labels'), scenarios: fa('fa-regular fa-bookmark'), folders: fa('fa-regular fa-folder') };
+
+function ib(key, o = {}) {
+  const cls = ['ib', o.state || ''].join(' ');
+  return `<span class="${cls}" style="grid-column:${o.c};grid-row:${o.r}" title="${o.tip || ''}">${ICON[key]}${o.showTip ? `<span class="tip">${o.tip}</span>` : ''}${o.pop || ''}</span>`;
+}
+function compact(o = {}) {
+  const radial = o.radial, s = o.states || {};
+  const layout = `<div class="grp"><span class="ib tall ${s.layout || ''}" title="Layout · Squarified TreeMap">${svg(radial ? 'radial' : 'layout')}<i class="fa-solid fa-caret-down"></i></span></div>`;
+  let metrics;
+  if (radial) {
+    metrics = ib('area', { c: 1, r: 1, tip: 'Area · rloc · Σ 1,420' }) + `<span class="empty" style="grid-column:1;grid-row:2"></span>` +
+      ib('folders', { c: 2, r: 1, tip: 'Folders · rloc · Shaded' }) + ib('color', { c: 2, r: 2, tip: 'Color · sonar_complexity · Σ 393' });
+  } else {
+    metrics = ib('area', { c: 1, r: 1, tip: 'Area · rloc · Σ 1,420', ...(s.area || {}) }) +
+      (o.noEdges ? `<span class="empty" style="grid-column:1;grid-row:2"></span>` : ib('edges', { c: 1, r: 2, tip: 'Edges · avgCommits', ...(s.edges || {}) })) +
+      ib('height', { c: 2, r: 1, tip: 'Height · sonar_complexity · Σ 393', ...(s.height || {}) }) +
+      ib('color', { c: 2, r: 2, tip: o.delta ? 'Color · delta colours' : 'Color · sonar_complexity · Σ 393', ...(s.color || {}) }) +
+      `<span class="link ${o.unlinked ? 'off' : 'on'}" style="grid-column:3;grid-row:1 / span 2" title="${o.unlinked ? 'Link' : 'Unlink'} Height and Color Metric"><i class="fa-solid ${o.unlinked ? 'fa-link-slash' : 'fa-link'}"></i></span>`;
+  }
+  const ls = `<div class="grp">${radial ? `<span class="empty"></span>` : ib('labels', { c: 1, r: 1, tip: 'Labels · label settings' })}${ib('scenarios', { c: 1, r: 2, tip: 'Scenarios · 7 available', ...(s.scenarios || {}) })}</div>`;
+  const tools = ['fa-compass', 'fa-lightbulb', 'fa-camera', 'fa-list'];
+  const t = o.focused ? ['fa-compass', 'fa-lightbulb', 'fa-crosshairs', 'fa-camera', 'fa-list'] : tools;
+  const toolsHtml = `<div class="grp">${t.map(i => `<span class="ib"><i class="fa-solid ${i}"></i></span>`).join('')}</div>`;
+  return `<div class="shell" style="${o.style || ''}">${layout}<span class="div"></span><div class="grp">${metrics}</div><span class="div"></span>${ls}<span class="div"></span>${toolsHtml}</div>`;
+}
+function full(style) {
+  const c = (l, v, m, cog = true) => `<div class="card"><div class="lbl"><span>${l}</span>${cog ? '<i class="fa-solid fa-gear"></i>' : ''}</div><div class="val">${v}</div><div class="meta">${m}</div></div>`;
+  return `<div class="shell" style="${style}">
+    <div class="card"><div class="lbl"><span>Layout</span></div><div class="val" style="display:flex;gap:6px;align-items:center"><span class="ib" style="width:16px;height:16px">${svg('layout')}</span>Squarified <i class="fa-solid fa-caret-down" style="font-size:9px;color:var(--mute)"></i></div><div class="meta">TreeMap</div></div><span class="div"></span>
+    ${c('Area', 'rloc', 'Σ 1,420')}${c('Height', 'sonar_complexity', 'Σ 393')}
+    <span class="link on" style="align-self:center;height:28px;width:28px"><i class="fa-solid fa-link"></i></span>
+    ${c('Color', 'sonar_complexity', 'Σ 393')}${c('Edges', 'avgCommits', 'Σ 5 / 5')}<span class="div"></span>
+    <div class="card"><div class="lbl"><span>Labels</span><i class="fa-solid fa-gear"></i></div><div class="lbl" style="margin-top:6px"><span>Scenarios</span><i class="fa-solid fa-plus"></i></div><div class="val" style="font-size:12px">7 scenarios</div></div><span class="div"></span>
+    <div class="grp">${['fa-compass','fa-lightbulb','fa-camera','fa-list'].map(i => `<span class="ib"><i class="fa-solid ${i}"></i></span>`).join('')}</div></div>`;
+}
+const PAL = ['#3b82f6','#22c55e','#eab308','#ef4444','#a855f7','#14b8a6','#f97316'];
+function win(w, h, bar, theme) {
+  const free = w - 640 - 24;
+  const blocks = Array.from({ length: 70 }, (_, i) => `<i style="background:${PAL[(i * 5 + (i >> 2)) % 7]};height:${18 + (i * 37 % 46)}px;align-self:end"></i>`).join('');
+  const center = 6 + 320 + 6 + free / 2;
+  return `<div class="app ${theme}"><div class="win" style="width:${w}px;height:${h}px">
+    <div class="navbar"><i class="fa-solid fa-cubes"></i><span style="font-weight:600;color:var(--fg)">billing-api</span></div>
+    <div class="map"><div class="blocks" style="left:${340}px;right:${340}px">${blocks}</div></div>
+    <div class="extbar" style="left:${338}px;right:${338}px"><span style="flex:42;background:#3b82f6"></span><span style="flex:28;background:#eab308"></span><span style="flex:25;background:#22c55e"></span><span style="flex:5;background:#ef4444"></span></div>
+    ${bar(center)}
+    <div class="panel l"><div class="t">Explorer</div>${'<div class="ln"></div>'.repeat(14)}</div>
+    <div class="panel r"><div class="t">Inspector</div>${'<div class="ln"></div>'.repeat(10)}</div>
+    <div class="bottombar"></div></div></div>`;
+}
+function scaled(w, h, inner, cap) {
+  const s = .5;
+  return `<div><div class="scaled" style="width:${w * s}px;height:${h * s}px"><div style="transform:scale(${s});transform-origin:top left">${inner}</div></div><div class="cap">${cap}</div></div>`;
+}
+document.getElementById('frames').innerHTML =
+  scaled(1400, 760, win(1400, 760, c => full(`bottom:50px;left:${c}px;transform:translateX(-50%);max-width:${1400 - 664}px`), ''), '1400 px · full bar') +
+  scaled(900, 760, win(900, 760, c => compact({ style: `bottom:50px;left:${c}px;transform:translateX(-50%)` }), ''), '900 px · compact bar');
+
+const stage = (inner, theme, label, small, pad) => `<div><div class="app ${theme} inline"><div class="stage ${small ? 'small' : ''}" style="${pad || ''}">${inner}</div></div><div class="vlabel">${label}</div></div>`;
+document.getElementById('closeup').innerHTML = stage(compact(), '', 'dark', true) + stage(compact(), 'light', 'light', true);
+
+const chooser = `<div class="pop" style="left:-10px;width:230px">
+  <div class="search"><i class="fa-solid fa-magnifying-glass"></i>Area Metric (highest value)</div>
+  <div style="margin-top:6px"><div class="opt sel"><span>rloc</span><span class="m">1,420</span></div><div class="opt"><span>loc</span><span class="m">2,310</span></div><div class="opt"><span>functions</span><span class="m">188</span></div><div class="opt"><span>mcc</span><span class="m">393</span></div></div>
+  <div class="foot"><div class="mbtn"><i class="fa-solid fa-gear"></i>Area settings</div></div></div>`;
+const scenMenu = `<div class="pop" style="left:50%;transform:translateX(-50%);width:240px"><div class="mbtn hover"><i class="fa-regular fa-bookmark"></i>Open saved scenarios (7)</div><div class="mbtn"><i class="fa-solid fa-plus"></i>Save current state as scenario</div></div>`;
+document.getElementById('states').innerHTML =
+  stage(compact({ states: { area: { state: 'hover', showTip: true } } }), '', 'hover on Area', true) +
+  stage(compact({ states: { area: { state: 'open', pop: chooser } } }), '', 'Area clicked: metric chooser with "Area settings"', false, 'padding-top:225px') +
+  stage(compact({ states: { scenarios: { state: 'open', pop: scenMenu } } }), 'light', 'Scenarios clicked: menu', false, 'padding-top:100px;padding-left:90px;padding-right:90px');
+
+document.getElementById('variants').innerHTML =
+  stage(compact({ radial: true }), '', 'radial layout: Folders, no link, no edges', true) +
+  stage(compact({ noEdges: true, unlinked: true }), '', 'no edge metric (slot stays empty), unlinked', true) +
+  stage(compact({ focused: true }), '', 'folder focused: Unfocus adds a tools column (259 px)', true) +
+  stage(compact({ delta: true, states: { color: { state: 'hover', showTip: true } } }), 'light', 'delta mode: Color opens delta colours', true);
+
+const rows = [
+  ['Layout', svg('layout'), 'cc-layout-glyph (current layout)', 'Layout · Squarified TreeMap'],
+  ['Area', ICON.area, 'new glyph "area"', 'Area · rloc · Σ 1,420'],
+  ['Height', ICON.height, 'new glyph "height"', 'Height · sonar_complexity · Σ 393'],
+  ['Color', ICON.color, 'fa-solid fa-palette', 'Color · sonar_complexity · Σ 393'],
+  ['Edges', ICON.edges, 'fa-solid fa-circle-nodes', 'Edges · avgCommits'],
+  ['Labels', ICON.labels, 'new glyph "labels"', 'Labels · label settings'],
+  ['Scenarios', ICON.scenarios, 'fa-regular fa-bookmark', 'Scenarios · 7 available'],
+  ['Folders (radial)', ICON.folders, 'fa-regular fa-folder', 'Folders · rloc · Shaded'],
+];
+const tb = document.getElementById('icons');
+for (const [n, i, src, tip] of rows) {
+  tb.insertAdjacentHTML('beforeend',
+  `<tr><td>${n}</td><td><span class="app iconcell"><span class="sw" style="background:#1e2329;color:#e6e9ee">${i}</span></span></td><td><span class="app light iconcell"><span class="sw" style="background:#fff;color:#1f2937;border:1px solid #d1d5db">${i}</span></span></td><td><code>${src}</code></td><td>${tip}</td></tr>`);
+}
+</script>
+</body>
+</html>

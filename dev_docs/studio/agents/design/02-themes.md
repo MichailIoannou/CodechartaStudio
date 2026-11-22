@@ -10,7 +10,7 @@ Plan: `02-themes.md` ("UI", "Error states and edge cases", M1, M5). Principles:
 | T1 | Theme picker | `cc-theme-picker` | Global Configuration dialog, first row | `cc-setting-toggle` row |
 | T2 | (removed by OD10: no theme control in the nav bar) | — | — | — |
 | T3 | Dark chrome audit | checklist | every existing screen | — |
-| T4 | Metrics bar, refreshed | `cc-metrics-bar`, `ccBarShell` | floating bar above the file extension bar | today's metrics bar |
+| T4 | Metrics bar, refreshed; compact icon form when the map is narrow | `cc-metrics-bar`, `ccBarShell`, new `cc-metric-glyph` | floating bar above the file extension bar | today's metrics bar |
 | T5 | File extension bar, blended edges | `cc-file-extension-bar`, `cc-file-extension-bar-segment` | full-width bar above the bottom bar | today's file extension bar |
 
 ## T1 Theme picker
@@ -119,23 +119,11 @@ Studio (dark, one rounded rectangle, nothing protrudes):
 - **Position** (owner answer O7, option A): the bar is centred in the free map area between the open
   explorer and the open inspector, not on the window, so the wider bar is never covered by a panel.
   Collapsed panels give their width back. The legend drawer opens above the bar (O6).
-- **Too little room** (implementation finding after O7: at about 900 px with both panels open only
-  236 px are free, the bar stops at its 30rem minimum and its tools lie under the inspector). Neither
-  a z-order change (the bar would cover the inspector instead) nor a compact bar (five metric cells
-  cannot fit in 236 px) solves it. Instead **side panels give way**: when opening a side panel would
-  leave less than 30rem of free map width, the panel on the other side collapses (it keeps its
-  content and reopens with one click, which in turn collapses the first). A window resize that makes
-  the free width too small collapses the inspector first. Above about 1150 px with default panel
-  widths nothing changes. Owner question 12 in `open-questions.md` (default applied).
-  Refinements (O9.1):
-  - The panel the user is working in never collapses under the pointer: a panel opened by a click
-    or focus inside the other panel opens collapsed itself.
-  - A new selection does not reopen a collapsed inspector; its strip shows a `badge badge-primary
-    badge-xs` dot until it is opened, title "Show inspector — selection changed".
-  - Collapsed inspector strip: the mirror of the explorer's strip (same island, width and
-    expand button on the side facing the map), icon `fa-solid fa-circle-info`, title "Show
-    inspector".
-  - The Dependencies view follows the same rule with the same strip for its inspector.
+- **Too little room: compact bar** (owner answer to question 12, replacing the side panels that gave
+  way). Both side panels stay open; when the full bar does not fit, it becomes a **compact bar** of icon
+  buttons in two rows, about as tall as the full bar, so the map does not jump. Section "T4 compact bar"
+  below has the detail. The automatic collapsing of side panels is removed, with the collapsed
+  inspector strip and its "selection changed" dot (O9.1); the explorer's own collapse button stays.
 - **Cells** (axis cards, labels/scenarios, layout): `rounded-xl px-3 py-2 hover:bg-base-200
   transition-colors`; open popover → `bg-base-200 ring-1 ring-primary/40`. Inside unchanged: the
   `text-[10px] uppercase tracking-wide text-base-content/60` label with the cog (`btn btn-ghost btn-xs
@@ -161,11 +149,151 @@ Studio (dark, one rounded rectangle, nothing protrudes):
   (Color shows "Settings" with the delta colour popover), no edges (no Edges cell).
 - **States**: disabled cell `opacity-50 cursor-default`; narrow window (the bar is
   `max-w-[min(95vw,1200px)]`): metric names truncate first, then the layout name shows only its glyph,
-  then the tools grid becomes `grid-cols-1`; the bar never scrolls or wraps.
+  then the tools grid becomes `grid-cols-1`; the bar never scrolls or wraps. Below 30rem of free map
+  the compact bar takes over (T4 compact bar).
 - **Keyboard**: unchanged order (layout, area, height, link, color, edges, labels, scenarios, tools);
   every icon-only button has `title` = `aria-label`.
 - **Domain bar** (`features/domainBar`) and **dependency bar** use the same shell and get the same
   shape and tools cell; the dependency view's rotated LEGEND tab also becomes a Legend tool (O6).
+
+## T4 compact bar (owner answer to question 12)
+
+When the map between the open side panels is too narrow for the full bar, the bar shows one icon
+button per cell instead of its cards. The buttons open the same popovers as the cards. Mock-up:
+`mockups/compact-metrics-bar.html`.
+
+```
+full bar, 1400 px window (unchanged):
+╭─────────────────────────────────────────────────────────────────────────────────────────────╮
+│ LAYOUT     │ AREA    ⚙ │ HEIGHT        ⚙ │⛓│ COLOR         ⚙ │ EDGES    ⚙ │ LABELS    ⚙ │ ⌖ 💡 │
+│ ▦ Squarif… │ rloc       │ sonar_complexity│  │ sonar_complexity│ avgCommits │ SCENARIOS ＋ │ 📷 ☰ │
+╰─────────────────────────────────────────────────────────────────────────────────────────────╯
+
+compact bar, 900 px window, both panels open (236 px free, bar 231 px):
+╭──────────────────────────────╮
+│ ▦ │ ⬖  ⬆▢ ┐│ 🏷 │ ⌖  💡 │
+│ ▾ │ ⊛  🎨 ┘│ 🔖 │ 📷 ☰ │
+╰──────────────────────────────╯
+  Layout | Area Height ⛓ / Edges Color | Labels / Scenarios | view tools
+```
+
+- **When:** the compact bar takes over when the free map width (the width the bar shell already
+  computes from the panel insets, `FREE_WIDTH`) is below **30rem**, the narrowest the full bar can
+  get (it already shrinks names, the layout name and the tools grid down to that width). It returns
+  to the full bar at **32rem** or more, so dragging a panel edge near the limit doesn't make it
+  flicker. No animation; the bar stays centred between the panels (O7). Measured on every panel
+  open/close/resize and window resize, like the insets today.
+- **Shell:** the same `ccBarShell` (`rounded-2xl`, `p-1.5`, same z-index), with cell groups
+  separated by the same `cc-bar-divider`. Inside, each group is a `grid grid-rows-2 grid-flow-col
+  gap-0.5`; the buttons are placed with explicit `col-start`/`row-start`, so DOM and tab order stay
+  as today: layout, area, height, link, color, edges, labels, scenarios, tools.
+- **Buttons:** `btn btn-ghost btn-square size-7 min-h-0 rounded-lg` (28 px), icon 16 px
+  (`size-4` for the SVG glyphs, `text-[15px]` for Font Awesome), `text-base-content/80`, hover
+  `bg-base-200`. Open popover → `btn-active ring-1 ring-primary/40` (like an open card). Disabled
+  cell → `btn-disabled opacity-50`. Dimmed card (hidden edges, neutral folders) → icon
+  `text-base-content/40`.
+- **Groups and slots** (row 1 / row 2):
+
+  | Group | Slots | Notes |
+  |---|---|---|
+  | Layout | one button `row-span-2`, `h-full w-7`: layout glyph with `fa-caret-down text-[8px]` under it | |
+  | Metrics | col 1: Area / Edges · col 2: Height / Color · col 3: link `row-span-2` | link sits beside Height and Color, which it joins |
+  | Labels, Scenarios | Labels / Scenarios | same stacking as the full bar's cell |
+  | View tools | today's `grid-cols-2` of tools, buttons `size-7` | Unfocus adds a third column, as in the full bar |
+
+  - **Link** (`row-span-2`): `btn btn-square w-4 h-full min-h-0 p-0 rounded-md`, `fa-link` or
+    `fa-unlink` `text-[10px]`; linked `btn-soft btn-primary`, unlinked `btn-ghost
+    text-base-content/50`. Titles unchanged ("Link Height and Color Metric" / "Unlink Height and
+    Color Metric").
+  - **Radial layout:** Area / –, Folders / Color; no link, no edges.
+  - **No edge metric:** the Edges slot stays empty, so the other icons don't move between files.
+  - **Delta mode:** the Color button opens the delta colour popover directly.
+- **Width:** 28 (layout) + 76 (metrics) + 28 (labels/scenarios) + 58 (tools) + 3 dividers × 9 +
+  padding and border 14 = **231 px**, which fits the 236 px left at 900 px with both panels at their
+  default 320 px. If the map is narrower still (panels widened, or Unfocus showing), the compact bar
+  keeps its own width as the smallest the bar gets and reaches under a panel's edge, as the full bar
+  does at its 30rem floor today.
+
+### Icons
+
+One icon per cell, the same in both themes (`currentColor`). New glyphs are drawn like
+`cc-layout-glyph`: `viewBox="0 0 20 20"`, `fill="none" stroke="currentColor" stroke-width="1.4"
+stroke-linejoin="round" stroke-linecap="round"`. They go into a new `cc-metric-glyph` component
+(`features/metricsBar/components/metricGlyph`, input `kind: "area" | "height" | "labels"`), next to
+`cc-layout-glyph`.
+
+| Cell | Icon | Source |
+|---|---|---|
+| Layout | the current layout's glyph | `cc-layout-glyph` (existing) |
+| Area | footprint tile | new glyph `area` |
+| Height | building with an up arrow | new glyph `height` |
+| Color | palette | `fa-solid fa-palette` |
+| Edges | circle nodes | `fa-solid fa-circle-nodes` |
+| Labels | label on a stalk above a building | new glyph `labels` |
+| Scenarios | bookmark, outline | `fa-regular fa-bookmark` |
+| Folders (radial) | folder | `fa-regular fa-folder` (existing) |
+| Link, view tools | unchanged | existing |
+
+```html
+<!-- area -->
+<path d="M10 4.5l8.5 4.5-8.5 4.5-8.5-4.5z" fill="currentColor" fill-opacity=".4"/>
+<path d="M1.5 9v3l8.5 4.5 8.5-4.5V9M10 13.5v3"/>
+<!-- height -->
+<path d="M7.5 5.5l5-2.6 5 2.6-5 2.6z"/>
+<path d="M7.5 5.5v9.4l5 2.6 5-2.6V5.5M12.5 8.1v9.4"/>
+<path d="M3.5 17.5V3M1.3 5.2L3.5 3l2.2 2.2"/>
+<!-- labels -->
+<rect x="7" y="13" width="6" height="5" rx=".6" fill="currentColor" stroke="none"/>
+<path d="M10 13V9"/>
+<rect x="3" y="2.5" width="14" height="6.5" rx="1.5"/>
+<path d="M6 5.75h8" stroke-width="1.2"/>
+```
+
+**One concept, one icon:** the Scenarios dialog's group icons (`SCENARIO_GROUP_ICONS`) switch to the
+same icons: area and height the new glyphs, color `fa-palette`, edge `fa-circle-nodes`, labels the
+new glyph. Camera and filters keep theirs.
+
+### Hover texts
+
+Every button gets a daisyUI tooltip above it (`tooltip tooltip-top`, `data-tip`), shown on hover
+and on keyboard focus. Its text is also the button's `aria-label`. The tooltip hides while that
+button's popover is open. The text is the cell's label, then what the card would show, joined by
+" · ". The meta part is left out when the card shows none.
+
+| Button | Tooltip (example) |
+|---|---|
+| Layout | "Layout · Squarified TreeMap" |
+| Area | "Area · rloc · Σ 1,420" |
+| Height | "Height · sonar_complexity · Σ 393" |
+| Color | "Color · sonar_complexity · Σ 393"; delta mode "Color · delta colours" |
+| Edges | "Edges · avgCommits"; hidden edges "Edges · avgCommits · hidden" |
+| Folders | "Folders · <value label> · <style label>" |
+| Labels | "Labels · label settings" |
+| Scenarios | "Scenarios · 7 available" (the count text the card shows) |
+| Link, tools | their titles today, as tooltips |
+
+Delta values in the tooltip keep their sign (`+12`, `−3`) but not their colour.
+
+### Clicks
+
+- **Layout:** the layout popover, anchored above the button.
+- **Area, Height, Color, Edges, Folders:** the metric chooser the card's metric name opens (for
+  Folders the value popover). In the compact bar the chooser ends with a row `border-t
+  border-base-300` holding `btn btn-ghost btn-sm justify-start w-full`: `fa-cog` "Area settings"
+  (Height settings, Color settings, …), which closes the chooser and opens the cell's settings
+  popover anchored to the same button. The full bar's choosers don't get this row.
+- **Labels:** the label settings popover.
+- **Scenarios:** a small menu above the button (`menu menu-sm`, in `cc-settings-popover-shell`
+  `w-60`): `fa-regular fa-bookmark` "Open saved scenarios (7)" and `fa-plus` "Save current state as
+  scenario". Each runs what the card's count and ＋ button run today.
+- **Link, view tools:** unchanged; right-click on Center map keeps its zoom menu.
+- **Keyboard:** each button is a normal button (Enter/Space); popovers close with Esc and return
+  focus to the button.
+
+### Other bars
+
+The domain bar and the dependency bar keep their behaviour; they have no compact form. Owner
+question 15 in `open-questions.md` (default applied).
 
 ## T5 File extension bar, blended edges (owner decision OD7)
 
