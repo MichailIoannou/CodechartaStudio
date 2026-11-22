@@ -1,0 +1,20 @@
+<svg
+    class="h-full w-full"
+    viewBox="0 0 20 20"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.4"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+    aria-hidden="true"
+    [attr.data-glyph]="kind()"
+>
+    @if (kind() === "area") {
+        <path d="M10 4.5l8.5 4.5-8.5 4.5-8.5-4.5z" fill="currentColor" fill-opacity=".4" />
+        <path d="M1.5 9v3l8.5 4.5 8.5-4.5V9M10 13.5v3" />
+    } @else {
+        <path d="M7.5 5.5l5-2.6 5 2.6-5 2.6z" />
+        <path d="M7.5 5.5v9.4l5 2.6 5-2.6V5.5M12.5 8.1v9.4" />
+        <path d="M3.5 17.5V3M1.3 5.2L3.5 3l2.2 2.2" />
+    }
+</svg>

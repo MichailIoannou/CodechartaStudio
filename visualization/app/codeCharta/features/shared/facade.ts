@@ -20,6 +20,7 @@ export { FloatingMenuAnchor, FloatingMenuComponent } from "./components/floating
 export { InlineColorPickerComponent } from "./components/inlineColorPicker/inlineColorPicker.component"
 export { InspectorResizeHandleComponent } from "./components/inspectorResizeHandle/inspectorResizeHandle.component"
 export { LoadingFileProgressSpinnerComponent } from "./components/loadingFileProgressSpinner/loadingFileProgressSpinner.component"
+export { MetricGlyphComponent, MetricGlyphKind } from "./components/metricGlyph/metricGlyph.component"
 export { MetricOption } from "./components/metricSelectPopover/metricOption"
 export { MetricSelectPopoverComponent } from "./components/metricSelectPopover/metricSelectPopover.component"
 export { HEIGHT_CSS_VARIABLE, PublishesHeightDirective } from "./components/publishesHeight/publishesHeight.directive"

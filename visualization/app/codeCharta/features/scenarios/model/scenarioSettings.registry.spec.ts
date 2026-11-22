@@ -130,6 +130,14 @@ describe("scenario settings registry", () => {
             }
         })
 
+        it("should show the metric groups with the metrics bar's cell icons", () => {
+            // Assert
+            expect(SCENARIO_GROUP_ICONS.area).toEqual({ glyph: "area" })
+            expect(SCENARIO_GROUP_ICONS.height).toEqual({ glyph: "height" })
+            expect(SCENARIO_GROUP_ICONS.color).toEqual({ fontAwesome: "fa-solid fa-palette" })
+            expect(SCENARIO_GROUP_ICONS.edge).toEqual({ fontAwesome: "fa-solid fa-circle-nodes" })
+        })
+
         it("should give every setting a label", () => {
             // Assert
             for (const key of SCENARIO_SETTING_KEYS) {
