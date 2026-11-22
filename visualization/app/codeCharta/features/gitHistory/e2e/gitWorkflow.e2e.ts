@@ -144,6 +144,38 @@ test.describe("Git workflow", () => {
         await expect(history.syncButton()).toHaveAttribute("title", /^Fetch from all remotes/)
     })
 
+    test("should still pull from the sync menu when the counts show nothing behind", async ({ page }) => {
+        // Arrange
+        const history = await openHistory(page, workflowSeed(tracking(0, 0)))
+
+        // Act
+        await history.chooseFromSyncMenu("pull")
+        await history.confirm("yes")
+
+        // Assert
+        await expect(history.toasts().filter({ hasText: /^Pulled|^Already up to date/ })).toBeVisible()
+        expect(await requestsOf(page, "git.pull")).toHaveLength(1)
+    })
+
+    test("should hold Push and Force Push in the branch menu while a merge is unfinished", async ({ page }) => {
+        // Arrange
+        const history = await openHistory(page, workflowSeed(tracking(2, 1), { pullConflicts: ["src/billing/invoice.ts"] }))
+        await history.syncButton().click()
+        await history.choose("merge")
+        await history.confirm("yes")
+        await expect(history.operationNotice()).toContainText(`Merging into '${BRANCH}'.`)
+
+        // Act
+        await history.branchRow(`refs/heads/${BRANCH}`).click({ button: "right" })
+
+        // Assert
+        const menu = page.getByTestId("branch-context-menu")
+        await expect(menu.locator("button", { hasText: /^Push$/ })).toHaveAttribute("title", "Finish or abort the merge first.")
+        await page.mouse.click(1000, 600)
+        await history.branchRow("refs/heads/main").click({ button: "right" })
+        await expect(menu.locator("button", { hasText: "Force Push" })).toHaveAttribute("title", "Finish or abort the merge first.")
+    })
+
     test("should offer Pull in the toast of a rejected push", async ({ page }) => {
         // Arrange
         const failures = { "git.push": anErrorPayload("PUSH_REJECTED", "error: failed to push some refs") }

@@ -97,4 +97,31 @@ describe("branchMenuItems", () => {
         // Assert
         expect(reasons).toEqual([[null, null], ["Nothing to push"]])
     })
+
+    it("should hold push, publish and force push until the merge or rebase is finished", () => {
+        // Arrange
+        const published = aRef("local", {
+            local: aLocalBranch("feature/x", { upstream: anUpstream("origin/feature/x", { ahead: 2, behind: 1 }) })
+        })
+        const unpublished = aRef("local", { local: aLocalBranch("feature/y") })
+
+        // Act
+        const reasons = [published, unpublished].map(ref =>
+            branchMenuItems(ref, false, [ORIGIN], "rebase")
+                .filter(item => ["push", "publish", "forcePush"].includes(item.action))
+                .map(item => [item.action, item.disabledReason])
+        )
+
+        // Assert
+        expect(reasons).toEqual([
+            [
+                ["push", "Finish or abort the rebase first."],
+                ["forcePush", "Finish or abort the rebase first."]
+            ],
+            [
+                ["publish", "Finish or abort the rebase first."],
+                ["forcePush", "Finish or abort the rebase first."]
+            ]
+        ])
+    })
 })

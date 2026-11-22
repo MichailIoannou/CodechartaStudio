@@ -59,3 +59,16 @@ Branch `feature/studio-history-followups` from `feature/studio-next`. No core ch
 1. Pull disabled at "nothing behind" relies on counts from the last fetch; a remote that moved since shows Pull
    disabled until Fetch. Keep it, or leave Pull enabled and let git answer "Already up to date"?
 2. Should the branch context menu also hold Push/Force Push/Publish during a merge or rebase?
+
+## O11 tweaks
+
+Designer answer of 2026-11-22 (O11.1), branch `feature/studio-o11-tweaks`.
+
+- Pull stays enabled at "nothing behind": `pullReasonOf` only refuses for the blocking reasons (detached, no or gone
+  upstream, operation in progress); "Nothing to pull: ..." is gone. The counts may be stale, so git answers; a pull with
+  nothing new shows the existing "Already up to date" toast. The main part of the sync button still shows Fetch when
+  nothing is behind, so only the caret's Pull item changed.
+- The branch context menu holds Push, Publish and Force Push during a merge, rebase or any other operation in
+  progress, with the sync button's reason ("Finish or abort the merge first."): `branchMenuItems` takes the operation
+  as a fourth argument, fed from `SyncActionsService.inProgress`.
+- Tests: `syncState`, `branchMenu`, branch context menu specs; two e2e tests in `gitWorkflow.e2e.ts`.
