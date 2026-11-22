@@ -28,15 +28,19 @@ describe("LayoutCellComponent", () => {
 
     const layoutTile = (layout: LayoutAlgorithm) => screen.getByRole("button", { name: new RegExp(`^${layout}`) })
 
-    it("should name the current layout on the cell", async () => {
+    it("should show only the current layout's glyph on the cell and name the layout in its tooltip", async () => {
         // Arrange & Act
         await setup(LayoutAlgorithm.StreetMap)
 
         // Assert
-        expect(screen.getByTestId("metrics-bar-layout-cell").textContent).toContain(LayoutAlgorithm.StreetMap)
+        const cell = screen.getByTestId("metrics-bar-layout-cell")
+        expect(cell.textContent?.trim()).toBe("Layout")
+        expect(cell.querySelector("cc-layout-glyph")).not.toBeNull()
+        expect(cell.title).toBe("Layout · StreetMap")
+        expect(cell.getAttribute("aria-label")).toBe("Layout · StreetMap")
     })
 
-    it("should rename the cell when the layout changes", async () => {
+    it("should rename the cell's tooltip when the layout changes", async () => {
         // Arrange
         const { layoutAlgorithm$, fixture } = await setup()
 
@@ -45,7 +49,7 @@ describe("LayoutCellComponent", () => {
         fixture.detectChanges()
 
         // Assert
-        expect(screen.getByTestId("metrics-bar-layout-cell").textContent).toContain(LayoutAlgorithm.Sunburst)
+        expect(screen.getByTestId("metrics-bar-layout-cell").title).toBe("Layout · Sunburst")
     })
 
     it("should offer one tile for every layout", async () => {

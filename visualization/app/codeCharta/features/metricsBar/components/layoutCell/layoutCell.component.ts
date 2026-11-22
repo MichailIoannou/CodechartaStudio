@@ -18,7 +18,7 @@ import { LayoutGlyphComponent } from "./layoutGlyph.component"
 
 const MIN_RADIAL_LEVELS = 1
 const MAX_RADIAL_LEVELS = 10
-const COMPACT_HOST_CLASSES = "grid shrink-0 grid-rows-2"
+const COMPACT_HOST_CLASSES = "grid h-[3.875rem] shrink-0 grid-rows-2 self-center"
 const RADIAL_LAYOUTS = new Set([LayoutAlgorithm.Sunburst, LayoutAlgorithm.RadialTreeMap])
 
 const LAYOUT_DESCRIPTIONS: Record<LayoutAlgorithm, string> = {
