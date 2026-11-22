@@ -112,6 +112,25 @@ describe("ChangeRequestListComponent", () => {
         })
     })
 
+    it("should say that requests cannot be listed here when only the number entry works", async () => {
+        // Act
+        await setup({ kind: "numberEntry", hosting: GITHUB })
+
+        // Assert
+        expect(screen.getByTestId("change-requests-not-listed").textContent?.trim()).toBe(
+            "Pull requests cannot be listed here. Enter a number to open one."
+        )
+        expect(screen.getByTestId("change-requests-number-entry")).toBeTruthy()
+    })
+
+    it("should say nothing about listing while the CLI is missing", async () => {
+        // Act
+        await setup({ kind: "notInstalled", hosting: GITHUB })
+
+        // Assert
+        expect(screen.queryByTestId("change-requests-not-listed")).toBeNull()
+    })
+
     it("should open nothing until a whole number is entered", async () => {
         // Arrange
         await setup({ kind: "numberEntry", hosting: GITHUB })

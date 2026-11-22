@@ -26,7 +26,9 @@ class Export3DMapDialogStubComponent {
 }
 
 @Component({ selector: "cc-project-switcher", template: "" })
-class ProjectSwitcherStubComponent {}
+class ProjectSwitcherStubComponent {
+    readonly isIconOnlyBelowXl = input(false)
+}
 
 @Component({ selector: "cc-workspace-status", template: "" })
 class WorkspaceStatusStubComponent {
@@ -270,6 +272,27 @@ describe("NavBarComponent", () => {
             expect(mapSlot.slice(-2)).toEqual(["cc-workspace-status", "cc-comparison-chip"])
             expect(fixture.debugElement.query(element => element.name === "cc-workspace-status").componentInstance.iconOnly()).toBe(true)
             expect(container.querySelectorAll("cc-delta-selector").length).toBe(0)
+        })
+
+        it("should shrink the project menu to its icon below 1280 px only during a comparison", async () => {
+            // Arrange
+            const isComparing = signal(false)
+            const { fixture } = await render(NavBarComponent, {
+                providers: [
+                    ...desktopProvidersFor({ hasFiles: true, hasActiveProject: true }),
+                    { provide: CompareFacade, useValue: { isComparing } }
+                ]
+            })
+            const switcher = () => fixture.debugElement.query(element => element.name === "cc-project-switcher").componentInstance
+            const whileNotComparing = switcher().isIconOnlyBelowXl()
+
+            // Act
+            isComparing.set(true)
+            fixture.detectChanges()
+
+            // Assert
+            expect(whileNotComparing).toBe(false)
+            expect(switcher().isIconOnlyBelowXl()).toBe(true)
         })
 
         it("should show the delta selector for uploaded files", async () => {

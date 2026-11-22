@@ -42,6 +42,7 @@ describe("ChangesExplorerComponent", () => {
     const activeMode = signal<Pick<ExplorerMode, "id">>({ id: "changes" })
     const changedFilesFilter = signal<ChangedFilesFilter | null>(null)
     const selectedNodePath = signal<string | null>(null)
+    const areDeltaColorsInverted = signal(false)
     const writeStore = { selectNode: jest.fn(), focusFolder: jest.fn() }
     const changedFilesService = { setOnlyChangedFiles: jest.fn() }
 
@@ -50,6 +51,7 @@ describe("ChangesExplorerComponent", () => {
         activeMode.set({ id: "changes" })
         changedFilesFilter.set(null)
         selectedNodePath.set(null)
+        areDeltaColorsInverted.set(false)
         const rendered = await render(ChangesExplorerComponent, {
             imports: [StoreModule.forRoot(appReducers, { metaReducers: [setStateMiddleware] })],
             providers: [
@@ -63,7 +65,8 @@ describe("ChangesExplorerComponent", () => {
                         areaMetric: signal("rloc"),
                         heightMetric: signal("rloc"),
                         changedFilesFilter,
-                        selectedNodePath
+                        selectedNodePath,
+                        areDeltaColorsInverted
                     }
                 },
                 { provide: CompareWriteStore, useValue: writeStore },
@@ -105,6 +108,21 @@ describe("ChangesExplorerComponent", () => {
         expect(rows.map(row => row.querySelector(".badge")?.textContent)).toEqual(["modified", "deleted"])
         expect(rows[0].textContent).toContain("src/billing")
         expect(rows[0].textContent).toContain("+12")
+    })
+
+    it("should colour a height delta as the map does and follow inverted delta colours", async () => {
+        // Arrange
+        const { fixture } = await setup(GIT_LIST)
+        const delta = () => screen.getAllByTestId("changes-row")[0].querySelector(".tabular-nums") as HTMLElement
+        const defaultClasses = [delta().classList.contains("text-success"), delta().classList.contains("text-error")]
+
+        // Act
+        areDeltaColorsInverted.set(true)
+        fixture.detectChanges()
+
+        // Assert
+        expect(defaultClasses).toEqual([true, false])
+        expect([delta().classList.contains("text-success"), delta().classList.contains("text-error")]).toEqual([false, true])
     })
 
     it("should grey a path that is not part of the analysis and not select it", async () => {

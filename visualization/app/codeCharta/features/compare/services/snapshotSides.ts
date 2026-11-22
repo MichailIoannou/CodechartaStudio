@@ -9,19 +9,27 @@ export interface SnapshotSideInput {
 }
 
 const IMPORTED_DETAIL = "imported, analysis time unknown"
+const LISTED_WORKING_TREES = 3
 
-/** The working-tree and imported snapshots of a folder, newest first, each under a name no other one has. */
+/** The imported and the three newest working-tree snapshots of a folder, newest first, each under a name no other one has. */
 export function snapshotOptionsOf(snapshots: readonly SnapshotSummary[]): RefPickerSnapshot[] {
-    const options = [...snapshots]
+    const newestFirst = [...snapshots]
         .sort((first, second) => second.createdAt.localeCompare(first.createdAt))
         .flatMap(snapshot => {
             const option = snapshotOptionOf(snapshot)
             return option ? [option] : []
         })
+    const options = withoutOlderWorkingTrees(newestFirst)
     return options.map((option, index) => {
         const sameNameBefore = options.slice(0, index).filter(other => other.name === option.name).length
         return sameNameBefore === 0 ? option : { ...option, name: `${option.name} (${sameNameBefore + 1})` }
     })
+}
+
+/** Older working-tree analyses stay in the snapshots dialog (design C4). */
+function withoutOlderWorkingTrees(newestFirst: RefPickerSnapshot[]): RefPickerSnapshot[] {
+    const workingTrees = newestFirst.filter(option => option.kind === "workingTree").slice(0, LISTED_WORKING_TREES)
+    return newestFirst.filter(option => option.kind !== "workingTree" || workingTrees.includes(option))
 }
 
 /** The snapshot a picker's text names, or null when it names a revision. */

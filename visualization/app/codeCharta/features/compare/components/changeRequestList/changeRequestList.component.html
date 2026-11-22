@@ -31,6 +31,9 @@
             </button>
         </div>
     }
+    @if (panel().kind === "numberEntry" && wording(); as wording) {
+        <p class="m-0 px-3 text-sm" data-testid="change-requests-not-listed">{{ wording.notListed }}</p>
+    }
     @if (problemLine(); as line) {
         <div class="flex items-center gap-2 px-3" data-testid="change-requests-problem">
             <span class="min-w-0 flex-1 font-mono text-xs">{{ line }}</span>
