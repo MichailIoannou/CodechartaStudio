@@ -137,11 +137,9 @@ describe("SnapshotRetentionService", () => {
 
         // Assert
         expect(outcome).toBe("recycleFailed")
-        expect(testBed.toastService.show).toHaveBeenCalledWith(
-            "Could not move every analysis to the recycle bin. Moved 1 of 2; the rest were kept.",
-            "error",
-            { details: "The recycle bin is not available." }
-        )
+        expect(testBed.toastService.show).toHaveBeenCalledWith("Moved 1 of 2 analyses to the recycle bin; the rest were kept.", "warning", {
+            details: "The recycle bin is not available."
+        })
     })
 
     it("should hand any other failure of a clean-up to the dialog", async () => {

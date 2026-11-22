@@ -9,7 +9,7 @@ import { BLOCKED_MESSAGE, LocalSourceAvailability } from "./localSourceAvailabil
 
 describe("LocalSourceAvailability", () => {
     const toastMock = { show: jest.fn() }
-    const linkedFolder: LinkedSourceFolder = { status: "available", rootPath: "/repos/app", readFile: async () => null }
+    const linkedFolder: LinkedSourceFolder = { status: "available", rootPath: "/repos/app", stateNote: null, readFile: async () => null }
     let isSwitchedOn: BehaviorSubject<boolean>
     let visibleFileStates: BehaviorSubject<{ file: { fileMeta: Pick<FileMeta, "fileName"> } }[]>
 

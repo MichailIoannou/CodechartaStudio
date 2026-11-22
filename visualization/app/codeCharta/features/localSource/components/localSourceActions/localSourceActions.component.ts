@@ -26,6 +26,8 @@ interface FolderRequest {
 
 type StillWanted = () => boolean
 
+type FoundSource = Extract<SourceLookup, { status: "found" }>
+
 const NOT_A_TEXT_FILE = "This file is not a text file, so it can't be shown here."
 
 @Component({
@@ -43,11 +45,13 @@ export class LocalSourceActionsComponent {
     private readonly viewer = viewChild.required(SourceViewerComponent)
     private readonly notShownDialog = viewChild.required<ElementRef<HTMLDialogElement>>("notShownDialog")
     private readonly folderDialog = viewChild.required<ElementRef<HTMLDialogElement>>("folderDialog")
+    private readonly unavailableFolderDialog = viewChild.required<ElementRef<HTMLDialogElement>>("unavailableFolderDialog")
     private readonly editorFolderDialog = viewChild.required(EditorFolderDialogComponent)
 
     readonly isAvailable = this.localSource.isAvailable
     readonly folderRequest = signal<FolderRequest | null>(null)
     readonly notShownFile = signal<NotShownFile | null>(null)
+    readonly unavailableFolder = signal<FolderUnavailable | null>(null)
 
     offersFolderSettings(nodePath: string): boolean {
         return this.localSource.offersFolderSettings(nodePath)
@@ -64,7 +68,7 @@ export class LocalSourceActionsComponent {
             this.folderRequest.set({ nodePath, mapName: mapNameOf(mapFileName), relativePath, missingFrom, problem: null })
             this.folderDialog().nativeElement.showModal()
         } else if (lookup?.status === "found") {
-            await this.show(nodePath, lookup.relativePath, lookup.file, isStillWanted)
+            await this.show(nodePath, lookup, isStillWanted)
         }
     }
 
@@ -81,11 +85,11 @@ export class LocalSourceActionsComponent {
         }
         this.folderDialog().nativeElement.close()
         if (lookup?.status === "found") {
-            await this.show(nodePath, lookup.relativePath, lookup.file, isStillWanted)
+            await this.show(nodePath, lookup, isStillWanted)
         }
     }
 
-    private async show(nodePath: string, relativePath: string, file: File, isStillWanted: StillWanted) {
+    private async show(nodePath: string, { relativePath, file, stateNote }: FoundSource, isStillWanted: StillWanted) {
         if (isTooLargeToShow(file.size)) {
             this.explainNotShown({
                 nodePath,
@@ -103,7 +107,17 @@ export class LocalSourceActionsComponent {
             this.explainNotShown({ nodePath, relativePath, reason: NOT_A_TEXT_FILE })
             return
         }
-        await this.viewer().open({ nodePath, relativePath, ...decoded, bytes: file.size })
+        await this.viewer().open({ nodePath, relativePath, ...decoded, bytes: file.size, stateNote })
+    }
+
+    relinkUnavailableFolder(folder: FolderUnavailable) {
+        this.unavailableFolderDialog().nativeElement.close()
+        folder.relink?.()
+    }
+
+    private explainUnavailable(folder: FolderUnavailable) {
+        this.unavailableFolder.set(folder)
+        this.unavailableFolderDialog().nativeElement.showModal()
     }
 
     private explainNotShown(file: NotShownFile) {
@@ -123,7 +137,7 @@ export class LocalSourceActionsComponent {
             return
         }
         if ("status" in target) {
-            this.toast.show(folderUnavailableMessage(target), "warning")
+            this.explainUnavailable(target)
             return
         }
         const { mapFileName, relativePath, editorRootPath } = target
@@ -165,7 +179,7 @@ export class LocalSourceActionsComponent {
         } else if (lookup?.status === "doesNotFitMap") {
             this.toast.show(FOLDER_DOES_NOT_FIT_MAP_MESSAGE, "warning")
         } else if (lookup?.status === "folderUnavailable") {
-            this.toast.show(folderUnavailableMessage(lookup), "warning")
+            this.explainUnavailable(lookup)
         }
         return lookup
     }
@@ -173,10 +187,6 @@ export class LocalSourceActionsComponent {
     private findEditorTarget(nodePath: string): Promise<EditorTarget | FolderUnavailable | null> {
         return reportingFailure(this.toast, READING_FAILED, () => this.localSource.editorTargetOf(nodePath))
     }
-}
-
-function folderUnavailableMessage({ folderLabel }: FolderUnavailable): string {
-    return `The folder "${folderLabel}" is not available, so its files cannot be opened. Re-link it in the project.`
 }
 
 function folderProblemOf(lookup: SourceLookup | null): string | null {

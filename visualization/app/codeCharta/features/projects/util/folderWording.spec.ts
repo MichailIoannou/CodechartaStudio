@@ -10,6 +10,7 @@ import {
     relativeTime,
     remoteDisplay,
     shortDate,
+    shortDateTime,
     shortSha,
     upstreamState
 } from "./folderWording"
@@ -136,6 +137,14 @@ describe("folderWording", () => {
         // Assert
         expect(date).toBe("12 Nov 2026")
         expect(withTime).toMatch(/^12 Nov 2026, \d{2}:\d{2}$/)
+    })
+
+    it("should write a date as day and month with the time", () => {
+        // Arrange & Act
+        const dateTime = shortDateTime("2026-11-12T12:00:00Z")
+
+        // Assert
+        expect(dateTime).toMatch(/^12 Nov \d{2}:\d{2}$/)
     })
 
     it("should write how long an analysis took", () => {

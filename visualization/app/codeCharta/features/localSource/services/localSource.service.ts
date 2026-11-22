@@ -22,12 +22,12 @@ const MIN_SHARE_OF_FITTING_SAMPLES = 0.5
 
 type FolderRefusal = { status: "cancelled" } | { status: "blocked" } | { status: "doesNotFitMap" }
 
-export type FolderUnavailable = { status: "folderUnavailable"; folderLabel: string }
+export type FolderUnavailable = { status: "folderUnavailable"; folderLabel: string; relink: (() => void) | null }
 
 export type FolderChoice = { status: "chosen"; folder: LocalSourceFolder } | FolderRefusal
 
 export type SourceLookup =
-    | { status: "found"; file: File; folder: LocalSourceFolder; relativePath: string }
+    | { status: "found"; file: File; folder: LocalSourceFolder; relativePath: string; stateNote: string | null }
     | { status: "notFound"; relativePath: string }
     /** Asking the browser for a folder needs a click of its own, so the caller explains first and then chooses. */
     | { status: "folderNeeded"; mapFileName: string; relativePath: string; missingFrom: string | null }
@@ -55,6 +55,7 @@ interface MapLocation {
 }
 
 type AvailableLinkedFolder = Extract<LinkedSourceFolder, { status: "available" }>
+type UnavailableLinkedFolder = Extract<LinkedSourceFolder, { status: "unavailable" }>
 
 @Injectable({ providedIn: "root" })
 export class LocalSourceService {
@@ -87,7 +88,7 @@ export class LocalSourceService {
         }
         const linkedFolder = this.linkedFolders.folderOf(location.fileMeta)
         if (linkedFolder) {
-            return linkedFolder.status === "available" ? findInLinkedFolder(linkedFolder, location) : unavailable(linkedFolder.label)
+            return linkedFolder.status === "available" ? findInLinkedFolder(linkedFolder, location) : unavailable(linkedFolder)
         }
         return this.findInSavedFolder(location)
     }
@@ -96,7 +97,7 @@ export class LocalSourceService {
         const savedFolder = await this.readableSavedFolder(location.mapFileName)
         const file = savedFolder && (await findFile(savedFolder.directory, location.relativePath))
         if (file) {
-            return { status: "found", file, folder: savedFolder, relativePath: location.relativePath }
+            return { status: "found", file, folder: savedFolder, relativePath: location.relativePath, stateNote: null }
         }
         return {
             status: "folderNeeded",
@@ -151,7 +152,7 @@ export class LocalSourceService {
         if (linkedFolder) {
             return linkedFolder.status === "available"
                 ? { mapFileName, relativePath, editorRootPath: linkedFolder.rootPath }
-                : unavailable(linkedFolder.label)
+                : unavailable(linkedFolder)
         }
         const folder = await this.repository.find(mapFileName)
         return { mapFileName, relativePath, editorRootPath: folder?.editorRootPath ?? null }
@@ -169,7 +170,7 @@ export class LocalSourceService {
         }
         const { relativePath } = location
         const file = await findFile(choice.folder.directory, relativePath)
-        return file ? { status: "found", file, folder: choice.folder, relativePath } : { status: "notFound", relativePath }
+        return file ? { status: "found", file, folder: choice.folder, relativePath, stateNote: null } : { status: "notFound", relativePath }
     }
 
     private async chooseFolderFor({ mapFileName, map }: MapLocation): Promise<FolderChoice> {
@@ -242,11 +243,12 @@ async function findInLinkedFolder(folder: AvailableLinkedFolder, { mapFileName, 
     if (!file) {
         return { status: "notFound", relativePath }
     }
-    return { status: "found", file, folder: { mapKey: mapFileName, directory: null, editorRootPath: folder.rootPath }, relativePath }
+    const linkedFolder = { mapKey: mapFileName, directory: null, editorRootPath: folder.rootPath }
+    return { status: "found", file, folder: linkedFolder, relativePath, stateNote: folder.stateNote }
 }
 
-function unavailable(folderLabel: string): FolderUnavailable {
-    return { status: "folderUnavailable", folderLabel }
+function unavailable({ label, relink }: UnavailableLinkedFolder): FolderUnavailable {
+    return { status: "folderUnavailable", folderLabel: label, relink }
 }
 
 async function fitsMap(directory: LocalDirectoryHandle, map: CodeMapNode): Promise<boolean> {

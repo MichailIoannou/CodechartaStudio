@@ -27,6 +27,7 @@ interface BatchGroup {
     isPending: boolean
     isExpanded: boolean
     rows: ActivityRow[]
+    runningRows: ActivityRow[]
 }
 
 /** One line of the activity: a job on its own, or a batch with its jobs. */
@@ -116,7 +117,8 @@ export class AnalysisActivityComponent {
             sentence: `Batch: ${label} (${doneCount} of ${rows.length} done)`,
             isPending: rows.some(row => isPendingJob(row.job)),
             isExpanded: this.expandedBatches().has(batchId),
-            rows
+            rows,
+            runningRows: rows.filter(row => row.job.state === "running")
         }
     }
 
