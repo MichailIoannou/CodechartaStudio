@@ -6,6 +6,7 @@ import { PreferencesReadWindow } from "../../../../stores/preferences/preference
 import { describeRadialFolderValue, folderSwatchBackground } from "../../../../util/radialFolderValues"
 import { AxisCardComponent } from "../../../shared/facade"
 import { MetricsBarWriteStore } from "../../stores/metricsBar.write.store"
+import { CellIconComponent } from "../cellIcon/cellIcon.component"
 import { FolderStylePopoverComponent } from "../folderStylePopover/folderStylePopover.component"
 import { FolderValuePopoverComponent } from "../folderValuePopover/folderValuePopover.component"
 
@@ -16,7 +17,7 @@ const PERCENT = 100
     templateUrl: "./foldersSegment.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "contents" },
-    imports: [AxisCardComponent, FolderStylePopoverComponent, FolderValuePopoverComponent]
+    imports: [AxisCardComponent, CellIconComponent, FolderStylePopoverComponent, FolderValuePopoverComponent]
 })
 export class FoldersSegmentComponent {
     readonly valuePopoverId = "metric-select-popover-folders"

@@ -15,6 +15,7 @@ import {
 } from "../../../shared/facade"
 import { MetricsBarReadStore } from "../../stores/metricsBar.read.store"
 import { AreaSegmentComponent } from "../areaSegment/areaSegment.component"
+import { CellIconComponent } from "../cellIcon/cellIcon.component"
 import { ColorSegmentComponent } from "../colorSegment/colorSegment.component"
 import { ColorSettingsPopoverComponent } from "../colorSettingsPopover/colorSettingsPopover.component"
 import { EdgeSegmentComponent } from "../edgeSegment/edgeSegment.component"
@@ -33,6 +34,7 @@ import { LinkColorHeightButtonComponent } from "../linkColorHeightButton/linkCol
         AxisCardComponent,
         BarDividerComponent,
         BarToolsCellComponent,
+        CellIconComponent,
         ColorSegmentComponent,
         ColorSettingsPopoverComponent,
         EdgeSegmentComponent,

@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, input, output } from "@angular/core"
+import { ChangeDetectionStrategy, Component, computed, input, output } from "@angular/core"
 import { PrimaryMetrics } from "../../../../model/codeCharta.model"
-import { AxisCardComponent } from "../../../shared/facade"
+import { AxisCardComponent, MetricGlyphKind } from "../../../shared/facade"
+import { CELL_SETTINGS_TITLES } from "../cellIcon/barCellKind"
+import { CellIconComponent } from "../cellIcon/cellIcon.component"
 import { MetricBarSelectPopoverComponent } from "../metricBarSelectPopover/metricBarSelectPopover.component"
 import { MetricMetaValueComponent } from "../metricMetaValue/metricMetaValue.component"
 
@@ -9,10 +11,11 @@ import { MetricMetaValueComponent } from "../metricMetaValue/metricMetaValue.com
     templateUrl: "./metricSegment.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "contents" },
-    imports: [AxisCardComponent, MetricMetaValueComponent, MetricBarSelectPopoverComponent]
+    imports: [AxisCardComponent, CellIconComponent, MetricMetaValueComponent, MetricBarSelectPopoverComponent]
 })
 export class MetricSegmentComponent {
     readonly label = input.required<string>()
+    readonly cell = input.required<MetricGlyphKind>()
     readonly metricName = input("")
     readonly metricFor = input.required<keyof PrimaryMetrics>()
     readonly placeholder = input("")
@@ -23,4 +26,6 @@ export class MetricSegmentComponent {
     readonly settingsAnchorName = input.required<string>()
     readonly testIdPrefix = input.required<string>()
     readonly metricSelected = output<string>()
+
+    protected readonly settingsTitle = computed(() => CELL_SETTINGS_TITLES[this.cell()])
 }

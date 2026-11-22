@@ -16,6 +16,9 @@ import {
     openBarCellClasses,
     SettingsPopoverShellComponent
 } from "../../../shared/facade"
+import { CELL_SETTINGS_TITLES } from "../cellIcon/barCellKind"
+import { CellIconComponent } from "../cellIcon/cellIcon.component"
+import { ScenariosMenuComponent } from "../scenariosMenu/scenariosMenu.component"
 
 @Component({
     selector: "cc-labels-scenarios-segment",
@@ -23,6 +26,8 @@ import {
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: `group relative flex min-w-0 flex-col items-stretch ${BAR_CELL_CLASSES}`, "[class]": "openClasses()" },
     imports: [
+        CellIconComponent,
+        ScenariosMenuComponent,
         LabelSettingsPanelComponent,
         ScenarioListDialogComponent,
         SaveScenarioDialogComponent,
@@ -34,8 +39,11 @@ export class LabelsScenariosSegmentComponent implements OnInit {
     private readonly scenariosService = inject(ScenariosService)
     readonly isRadialLayout = injectIsRadialLayout()
     readonly labelSettingsPopoverId = "metric-settings-popover-labels"
-    private readonly isLabelSettingsOpen = injectIsAnyPopoverOpen(() => [this.labelSettingsPopoverId])
-    protected readonly openClasses = computed(() => openBarCellClasses(this.isLabelSettingsOpen()))
+    readonly scenariosMenuPopoverId = "metric-segment-scenarios-menu"
+    readonly labelSettingsTitle = CELL_SETTINGS_TITLES.labels
+    readonly settingsButtonClasses = "btn btn-ghost btn-xs btn-square shrink-0 rounded-lg text-base-content/70 hover:text-base-content"
+    private readonly isPopoverOpen = injectIsAnyPopoverOpen(() => [this.labelSettingsPopoverId, this.scenariosMenuPopoverId])
+    protected readonly openClasses = computed(() => openBarCellClasses(this.isPopoverOpen()))
 
     readonly listDialog = viewChild.required<ScenarioListDialogComponent>("listDialog")
     readonly saveDialog = viewChild.required<SaveScenarioDialogComponent>("saveDialog")

@@ -52,7 +52,7 @@ describe("LabelsScenariosSegmentComponent", () => {
         // Assert
         expect(screen.getByTestId("metric-segment-labels")).not.toBeNull()
         expect(screen.getByTestId("metric-segment-scenario")).not.toBeNull()
-        expect(screen.getByTestId("metric-segment-scenario-save")).not.toBeNull()
+        expect(screen.getByTestId("metric-segment-scenario-menu")).not.toBeNull()
     })
 
     it("should load scenarios on init", async () => {
@@ -118,5 +118,26 @@ describe("LabelsScenariosSegmentComponent", () => {
         // Assert
         expect(saveOpenSpy).toHaveBeenCalled()
         expect(listOpenSpy).toHaveBeenCalled()
+    })
+
+    it("should show the labels icon on the label settings button", async () => {
+        // Act
+        await setup()
+
+        // Assert
+        const settingsButton = screen.getByRole("button", { name: "Label settings" })
+        expect(settingsButton.getAttribute("popovertarget")).toBe("metric-settings-popover-labels")
+        expect(settingsButton.querySelector(".fa-tags")).not.toBeNull()
+    })
+
+    it("should open the scenarios menu from the bookmark", async () => {
+        // Act
+        const { container } = await setup([createScenario("A", "a")])
+
+        // Assert
+        const bookmark = screen.getByRole("button", { name: "Scenarios" })
+        expect(bookmark.querySelector(".fa-bookmark")).not.toBeNull()
+        const menu = container.querySelector(`#${bookmark.getAttribute("popovertarget")}`)
+        expect(menu.textContent).toContain("Open saved scenarios (1)")
     })
 })

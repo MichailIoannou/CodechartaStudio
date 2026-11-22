@@ -1,3 +1,4 @@
+<ng-template #cellIcon><cc-cell-icon cell="folders" /></ng-template>
 <cc-axis-card
     label="Folders"
     [metricName]="valueLabel()"
@@ -5,6 +6,8 @@
     [hasCog]="true"
     [cogPopoverId]="stylePopoverId"
     [cogAnchorName]="styleAnchorName"
+    [cogIcon]="cellIcon"
+    cogTitle="Folder settings"
     [searchPopoverId]="valuePopoverId"
     [searchAnchorName]="valueAnchorName"
     [testId]="'metric-segment-folders'"

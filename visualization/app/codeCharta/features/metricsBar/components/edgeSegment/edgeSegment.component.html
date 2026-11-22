@@ -1,9 +1,12 @@
+<ng-template #cellIcon><cc-cell-icon cell="edges" /></ng-template>
 <cc-axis-card
     label="Edges"
     [metricName]="edgeMetric()"
     [hasCog]="true"
     [cogPopoverId]="settingsPopoverId"
     [cogAnchorName]="settingsAnchorName"
+    [cogIcon]="cellIcon"
+    cogTitle="Edge settings"
     [searchPopoverId]="searchPopoverId"
     [searchAnchorName]="searchAnchorName"
     [dimmed]="!isEdgeMetricVisible()"

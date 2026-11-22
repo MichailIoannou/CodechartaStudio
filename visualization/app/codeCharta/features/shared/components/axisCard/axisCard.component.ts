@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from "@angular/common"
-import { ChangeDetectionStrategy, Component, computed, input } from "@angular/core"
+import { ChangeDetectionStrategy, Component, computed, input, TemplateRef } from "@angular/core"
 import { injectIsAnyPopoverOpen } from "../../util/injectIsAnyPopoverOpen"
 import { BAR_CELL_CLASSES, openBarCellClasses } from "../barShell/barCell"
 import { AxisCardHeaderComponent } from "./axisCardHeader.component"
@@ -20,6 +20,8 @@ export class AxisCardComponent {
     readonly hasCog = input(false)
     readonly cogPopoverId = input<string | null>(null)
     readonly cogAnchorName = input<string | null>(null)
+    readonly cogIcon = input<TemplateRef<unknown> | null>(null)
+    readonly cogTitle = input("Settings")
     readonly searchPopoverId = input<string | null>(null)
     readonly searchAnchorName = input<string | null>(null)
     readonly disabled = input(false)

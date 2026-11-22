@@ -3,14 +3,19 @@
     @if (hasCog()) {
         <button
             type="button"
-            class="btn btn-ghost btn-xs btn-square shrink-0 rounded-lg"
+            [class]="cogButtonClasses()"
             [attr.popovertarget]="cogPopoverId()"
             [style.anchor-name]="cogAnchorStyle()"
             [attr.data-anchor-name]="cogAnchorName()"
             [attr.data-testid]="cogTestId()"
-            title="Settings"
+            [attr.title]="cogTitle()"
+            [attr.aria-label]="cogTitle()"
         >
-            <i class="fa fa-cog text-[10px]"></i>
+            @if (cogIcon(); as icon) {
+                <ng-container [ngTemplateOutlet]="icon"></ng-container>
+            } @else {
+                <i class="fa fa-cog text-[10px]" aria-hidden="true"></i>
+            }
         </button>
     }
 </div>

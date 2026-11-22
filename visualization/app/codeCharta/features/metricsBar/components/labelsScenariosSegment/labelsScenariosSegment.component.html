@@ -5,13 +5,14 @@
                 <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">Labels</span>
                 <button
                     type="button"
-                    class="btn btn-ghost btn-xs btn-square shrink-0 rounded-lg"
+                    [class]="settingsButtonClasses"
                     [attr.popovertarget]="labelSettingsPopoverId"
                     style="anchor-name: --metric-segment-labels"
                     data-anchor-name="metric-segment-labels"
-                    title="Label Settings"
+                    [title]="labelSettingsTitle"
+                    [attr.aria-label]="labelSettingsTitle"
                 >
-                    <i class="fa fa-cog text-[10px]"></i>
+                    <cc-cell-icon cell="labels" />
                 </button>
             </div>
         </div>
@@ -22,12 +23,15 @@
             <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">Scenarios</span>
             <button
                 type="button"
-                class="btn btn-ghost btn-xs btn-square shrink-0 rounded-lg"
-                title="Save current state as scenario"
-                data-testid="metric-segment-scenario-save"
-                (click)="openSaveDialog()"
+                [class]="settingsButtonClasses"
+                [attr.popovertarget]="scenariosMenuPopoverId"
+                style="anchor-name: --metric-segment-scenarios"
+                data-anchor-name="metric-segment-scenarios"
+                title="Scenarios"
+                aria-label="Scenarios"
+                data-testid="metric-segment-scenario-menu"
             >
-                <i class="fa fa-plus text-[10px]"></i>
+                <cc-cell-icon cell="scenarios" />
             </button>
         </div>
         <button
@@ -47,6 +51,13 @@
     </cc-settings-popover-shell>
 }
 
+<cc-scenarios-menu
+    [popoverId]="scenariosMenuPopoverId"
+    anchorName="metric-segment-scenarios"
+    [scenarioCount]="scenarios().length"
+    (openScenarioList)="openScenarioList()"
+    (saveScenario)="openSaveDialog()"
+></cc-scenarios-menu>
 <cc-scenario-list-dialog #listDialog (applyRequested)="handleApplyRequested($event)"></cc-scenario-list-dialog>
 <cc-save-scenario-dialog #saveDialog></cc-save-scenario-dialog>
 

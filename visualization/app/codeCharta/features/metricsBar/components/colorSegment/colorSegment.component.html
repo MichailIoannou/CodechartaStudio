@@ -1,9 +1,12 @@
+<ng-template #cellIcon><cc-cell-icon cell="color" /></ng-template>
 <cc-axis-card
     label="Color"
     [metricName]="colorMetric()"
     [hasCog]="true"
     [cogPopoverId]="settingsPopoverId"
     [cogAnchorName]="settingsAnchorName"
+    [cogIcon]="cellIcon"
+    cogTitle="Color settings"
     [searchPopoverId]="searchPopoverId"
     [searchAnchorName]="searchAnchorName"
     [disabled]="isSelectionLocked()"

@@ -1,9 +1,12 @@
+<ng-template #cellIcon><cc-cell-icon [cell]="cell()" /></ng-template>
 <cc-axis-card
     [label]="label()"
     [metricName]="metricName()"
     [hasCog]="hasSettings()"
     [cogPopoverId]="settingsPopoverId()"
     [cogAnchorName]="settingsAnchorName()"
+    [cogIcon]="cellIcon"
+    [cogTitle]="settingsTitle()"
     [searchPopoverId]="searchPopoverId()"
     [searchAnchorName]="searchAnchorName()"
     [testId]="testIdPrefix()"

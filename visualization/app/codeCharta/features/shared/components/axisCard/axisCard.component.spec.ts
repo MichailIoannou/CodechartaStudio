@@ -74,4 +74,29 @@ describe("AxisCardComponent", () => {
         expect(card.classList).toContain("ring-1")
         expect(card.classList).toContain("bg-base-200")
     })
+
+    it("should keep the cog on its settings button when given no icon", async () => {
+        // Act
+        await render(AxisCardComponent, { inputs: { label: "Shape", hasCog: true, cogPopoverId: "shape-settings" } })
+
+        // Assert
+        const settingsButton = screen.getByRole("button", { name: "Settings" })
+        expect(settingsButton.querySelector(".fa-cog")).not.toBeNull()
+    })
+
+    it("should show the cell's icon on its settings button and name the button after the cell", async () => {
+        // Act
+        await render(
+            `<ng-template #icon><span data-testid="cell-icon"></span></ng-template>
+            <cc-axis-card label="Area" [hasCog]="true" cogPopoverId="area-settings" [cogIcon]="icon" cogTitle="Area settings"></cc-axis-card>`,
+            { imports: [AxisCardComponent] }
+        )
+
+        // Assert
+        const settingsButton = screen.getByRole("button", { name: "Area settings" })
+        expect(settingsButton.getAttribute("title")).toBe("Area settings")
+        expect(settingsButton.querySelector("[data-testid='cell-icon']")).not.toBeNull()
+        expect(settingsButton.querySelector(".fa-cog")).toBeNull()
+        expect(settingsButton.classList).toContain("text-base-content/70")
+    })
 })

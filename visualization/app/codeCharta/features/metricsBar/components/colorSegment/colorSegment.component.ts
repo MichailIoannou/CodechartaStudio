@@ -4,6 +4,7 @@ import { MapStateReadWindow } from "../../../../stores/mapState/mapState.read.fa
 import { PreferencesReadWindow } from "../../../../stores/preferences/preferences.read.facade"
 import { AxisCardComponent, injectIsRadialLayout } from "../../../shared/facade"
 import { MetricsBarWriteStore } from "../../stores/metricsBar.write.store"
+import { CellIconComponent } from "../cellIcon/cellIcon.component"
 import { ColorSettingsPopoverComponent } from "../colorSettingsPopover/colorSettingsPopover.component"
 import { MetricBarSelectPopoverComponent } from "../metricBarSelectPopover/metricBarSelectPopover.component"
 import { MetricMetaValueComponent } from "../metricMetaValue/metricMetaValue.component"
@@ -13,7 +14,13 @@ import { MetricMetaValueComponent } from "../metricMetaValue/metricMetaValue.com
     templateUrl: "./colorSegment.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "contents" },
-    imports: [AxisCardComponent, MetricBarSelectPopoverComponent, MetricMetaValueComponent, ColorSettingsPopoverComponent]
+    imports: [
+        AxisCardComponent,
+        CellIconComponent,
+        MetricBarSelectPopoverComponent,
+        MetricMetaValueComponent,
+        ColorSettingsPopoverComponent
+    ]
 })
 export class ColorSegmentComponent {
     constructor(

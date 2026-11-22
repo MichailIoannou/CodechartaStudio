@@ -10,7 +10,8 @@ export class ScenariosPageObject {
     }
 
     async openSaveDialog() {
-        await clickButtonOnPageElement(this.page, "[title='Save current state as scenario']")
+        await clickButtonOnPageElement(this.page, "[data-testid='metric-segment-scenario-menu']")
+        await clickButtonOnPageElement(this.page, "[data-testid='scenarios-menu-save']")
         await this.page.getByRole("dialog", { name: "Save Scenario" }).waitFor({ state: "attached", timeout: 10_000 })
     }
 
