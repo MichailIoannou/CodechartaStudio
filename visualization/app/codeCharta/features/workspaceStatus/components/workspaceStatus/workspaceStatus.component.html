@@ -3,8 +3,9 @@
         <button
             #trigger
             type="button"
-            class="btn btn-ghost btn-sm relative isolate grid items-center gap-2 overflow-hidden px-2 font-normal data-[tone=failed]:bg-error/15 data-[tone=finished]:bg-success/15"
-            [class]="iconOnly() ? 'w-[3.25rem] grid-cols-[1rem_auto]' : 'w-40 grid-cols-[1rem_minmax(0,1fr)_auto_auto] xl:w-[17.5rem] 2xl:w-[22rem]'"
+            class="btn btn-ghost btn-sm relative isolate grid items-center gap-2 overflow-hidden px-2 font-normal transition-[width] duration-200 ease-out motion-reduce:transition-none data-[tone=failed]:bg-error/15 data-[tone=finished]:bg-success/15"
+            [class]="iconOnly() ? 'grid-cols-[1rem_auto]' : 'grid-cols-[1rem_minmax(0,1fr)_auto_auto]'"
+            [style.width]="triggerWidth()"
             aria-haspopup="menu"
             data-testid="workspace-status-trigger"
             [attr.data-tone]="status.fill"
@@ -36,17 +37,25 @@
                 } @else {
                     <i [class]="status.icon + ' fa-fw text-[0.875rem]'" data-testid="workspace-status-icon"></i>
                 }
+                @if (iconOnly() && status.badge; as badge) {
+                    <span
+                        class="absolute -right-1 -top-1 size-2 rounded-full ring-2 ring-base-100"
+                        data-testid="workspace-status-badge-dot"
+                        [class]="badgeDotClasses[badge.tone]"
+                        [title]="badge.text"
+                    ></span>
+                }
             </span>
 
             @if (!iconOnly()) {
             <span class="relative z-10 flex min-w-0 items-center gap-2 text-left">
                 @if (status.isBranchLoading) {
-                    <span class="skeleton hidden h-3 w-24 shrink-0 xl:block" data-testid="workspace-status-branch-loading"></span>
+                    <span class="skeleton h-3 w-24 shrink" data-testid="workspace-status-branch-loading"></span>
                 } @else {
-                    <span class="hidden min-w-[2ch] shrink truncate font-medium xl:inline" data-testid="workspace-status-branch">{{ status.branch }}</span>
+                    <span class="min-w-[2ch] shrink truncate font-medium" data-testid="workspace-status-branch">{{ status.branch }}</span>
                 }
-                @if (status.ahead > 0 || status.behind > 0) {
-                    <span class="hidden shrink-0 items-center gap-1 text-xs tabular-nums 2xl:inline-flex">
+                @if (showsCounts() && (status.ahead > 0 || status.behind > 0)) {
+                    <span class="inline-flex shrink-0 items-center gap-1 text-xs tabular-nums" data-testid="workspace-status-counts">
                         @if (status.ahead > 0) {
                             <i class="fa-solid fa-arrow-up"></i>{{ status.ahead }}
                         }
@@ -56,10 +65,10 @@
                     </span>
                 }
                 @if (status.uncommitted > 0) {
-                    <span class="hidden size-2 shrink-0 rounded-full bg-warning xl:inline-block" [title]="uncommittedTitle(status.uncommitted)"></span>
+                    <span class="inline-block size-2 shrink-0 rounded-full bg-warning" [title]="uncommittedTitle(status.uncommitted)"></span>
                 }
                 @if (status.mapPart; as mapPart) {
-                    <span class="flex min-w-0 max-w-full shrink-0 items-center text-base-content/70 xl:max-w-[70%]" data-testid="workspace-status-map">
+                    <span class="flex min-w-0 max-w-[70%] shrink-0 items-center text-base-content/70" data-testid="workspace-status-map">
                         @if (mapPart.activity && mapPart.percent !== null) {
                             <span class="truncate">{{ mapPart.activity }} ·</span>
                             <span class="inline-block w-[4.5ch] shrink-0 text-right tabular-nums">{{ mapPart.percent }} %</span>

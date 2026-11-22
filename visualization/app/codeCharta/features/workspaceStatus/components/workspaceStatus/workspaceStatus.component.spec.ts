@@ -98,8 +98,48 @@ describe("WorkspaceStatusComponent", () => {
         expect(screen.queryByTestId("workspace-status-branch")).toBeNull()
         expect(screen.queryByTestId("workspace-status-map")).toBeNull()
         expect(screen.getByTestId("workspace-status-icon")).toBeTruthy()
-        expect(trigger().className).toContain("w-[3.25rem]")
+        expect(trigger().style.width).toBe("3.25rem")
         expect(trigger().getAttribute("aria-label")).toBe("Branch main")
+    })
+
+    it("should keep its fixed 18rem width whatever it shows and tell the nav bar fit how far it can narrow", async () => {
+        // Arrange & Act
+        const fixture = await renderStatus()
+
+        // Assert
+        const host: HTMLElement = fixture.nativeElement
+        expect(trigger().style.width).toBe("18rem")
+        expect([host.dataset.fitFull, host.dataset.fitNarrowest, host.dataset.fitCompact]).toEqual(["18", "9", "3.25"])
+        expect(screen.getByTestId("workspace-status-counts").textContent?.trim()).toBe("2")
+    })
+
+    it("should take the width the nav bar fit gives it and drop the ahead and behind counts first", async () => {
+        // Arrange
+        const fixture = await renderStatus()
+
+        // Act
+        fixture.componentRef.setInput("width", 200)
+        await settle()
+
+        // Assert
+        expect(trigger().style.width).toBe("200px")
+        expect(screen.queryByTestId("workspace-status-counts")).toBeNull()
+        expect(screen.getByTestId("workspace-status-branch").textContent).toBe("main")
+    })
+
+    it("should show its badge as a dot on the icon in its icon-only form", async () => {
+        // Arrange
+        const fixture = await renderStatus({ snapshots: [] })
+
+        // Act
+        fixture.componentRef.setInput("iconOnly", true)
+        await settle()
+
+        // Assert
+        const dot = screen.getByTestId("workspace-status-badge-dot")
+        expect(dot.title).toBe("not analysed")
+        expect(dot.classList).toContain("bg-base-content/50")
+        expect(screen.queryByTestId("workspace-status-badge")).toBeNull()
     })
 
     it("should show analysis progress as its fill and percent", async () => {

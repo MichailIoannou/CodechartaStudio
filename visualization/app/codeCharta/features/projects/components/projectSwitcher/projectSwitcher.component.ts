@@ -47,7 +47,7 @@ interface MenuProject {
     templateUrl: "./projectSwitcher.component.html",
     imports: [CreateProjectDialogComponent, ManageProjectDialogComponent, OpenFileDialogComponent, NgTemplateOutlet],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: "min-w-0" }
+    host: { class: "shrink-0" }
 })
 export class ProjectSwitcherComponent {
     private readonly projects = inject(ProjectsService)
@@ -58,8 +58,9 @@ export class ProjectSwitcherComponent {
     private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>("trigger")
     private readonly menu = viewChild<ElementRef<HTMLElement>>("menu")
 
-    /** Below 1280 px the trigger shows only its icon, with the folder in its title (design C2: room for the comparison chip). */
-    readonly isIconOnlyBelowXl = input(false)
+    /** Set by the nav bar fit when the folder name has to shorten; it is always whole in the title. */
+    readonly labelMaxWidth = input<number | null>(null)
+    readonly iconOnly = input(false)
     readonly isOpen = signal(false)
     readonly expandedProjectIds = signal<ReadonlySet<string>>(new Set())
     readonly activeProject = this.projects.activeProject
@@ -68,6 +69,7 @@ export class ProjectSwitcherComponent {
     readonly isBusy = this.projects.isBusy
     readonly counted = counted
 
+    readonly triggerLabel = computed(() => (this.activeProject() ? (this.workingFolder()?.label ?? "") : "No project"))
     readonly triggerTitle = computed(() => {
         const project = this.activeProject()
         const folder = this.workingFolder()

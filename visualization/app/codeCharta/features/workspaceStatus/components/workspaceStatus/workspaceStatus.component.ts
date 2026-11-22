@@ -38,10 +38,14 @@ import {
     SnapshotViewService,
     targetName
 } from "../../../snapshots/facade"
-import { gitActivityOf, RecentOutcome, stalenessOf, uncommittedTitle, workspaceTrigger } from "../../util/workspaceTrigger"
+import { gitActivityOf, RecentOutcome, stalenessOf, TriggerBadge, uncommittedTitle, workspaceTrigger } from "../../util/workspaceTrigger"
 import { AnalysisActivityComponent } from "../analysisActivity/analysisActivity.component"
 
 const FINISHED_TINT_MS = 1500
+const FULL_WIDTH_REM = 18
+const NARROWEST_WIDTH_REM = 9
+const ICON_ONLY_WIDTH_REM = 3.25
+const BADGE_DOT_CLASSES: Record<TriggerBadge["tone"], string> = { error: "bg-error", warning: "bg-warning", ghost: "bg-base-content/50" }
 const MENU_ITEM_SELECTOR = "[data-menu-item]:not([disabled])"
 const OFFLINE_STATES: ReadonlySet<string> = new Set(["restarting", "unavailable"])
 
@@ -50,7 +54,12 @@ const OFFLINE_STATES: ReadonlySet<string> = new Set(["restarting", "unavailable"
     templateUrl: "./workspaceStatus.component.html",
     imports: [AnalysisActivityComponent, AnalysisLogDialogComponent, SyncButtonComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: "min-w-0" }
+    host: {
+        class: "shrink-0",
+        "[attr.data-fit-full]": "fullWidthRem",
+        "[attr.data-fit-narrowest]": "narrowestWidthRem",
+        "[attr.data-fit-compact]": "iconOnlyWidthRem"
+    }
 })
 export class WorkspaceStatusComponent {
     private readonly projects = inject(ProjectsFacade)
@@ -69,8 +78,22 @@ export class WorkspaceStatusComponent {
     private readonly logDialog = viewChild.required(AnalysisLogDialogComponent)
     private finishedTimer: ReturnType<typeof setTimeout> | undefined
 
-    /** During a project comparison only the activity icon and the progress fill stay, in front of the comparison chip. */
+    /** Only the activity icon, the badge as a dot and the progress fill stay: during a project comparison or when the nav bar is short. */
     readonly iconOnly = input(false)
+    /** Set by the nav bar fit when the room gets short; otherwise the trigger keeps its fixed width, whatever it shows. */
+    readonly width = input<number | null>(null)
+    protected readonly fullWidthRem = FULL_WIDTH_REM
+    protected readonly narrowestWidthRem = NARROWEST_WIDTH_REM
+    protected readonly iconOnlyWidthRem = ICON_ONLY_WIDTH_REM
+    protected readonly badgeDotClasses = BADGE_DOT_CLASSES
+    readonly triggerWidth = computed(() => {
+        const width = this.width()
+        if (this.iconOnly()) {
+            return `${ICON_ONLY_WIDTH_REM}rem`
+        }
+        return width === null ? `${FULL_WIDTH_REM}rem` : `${width}px`
+    })
+    readonly showsCounts = computed(() => !this.iconOnly() && this.width() === null)
     readonly isOpen = signal(false)
     readonly outcome = signal<RecentOutcome>("none")
     readonly shortDate = shortDate

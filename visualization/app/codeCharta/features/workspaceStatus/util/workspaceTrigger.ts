@@ -70,7 +70,7 @@ interface MapPart {
 
 type BadgeTone = "error" | "warning" | "ghost"
 
-interface TriggerBadge {
+export interface TriggerBadge {
     text: string
     tone: BadgeTone
 }
