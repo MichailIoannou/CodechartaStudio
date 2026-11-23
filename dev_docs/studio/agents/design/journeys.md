@@ -33,7 +33,7 @@ the area files; OD1–OD4 are in `owner-decisions.md`.
 
 ```
 ┌ nav bar ──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [logo] │ [▣ billing / billing-api ▾] [⎇ feature/x  @ 9f8e7d6  stale by 4 ▾]   Metric Domain Dependencies History        Settings │
+│ [logo] │ [▣ billing-api ▾] [⎇ feature/x  stale by 4 ▾]                     Metric Domain Dependencies History        Settings │
 │          P1 project + working folder   W1 workspace status                    H1 new tab                                  │
 ├──────────────┬───────────────────────────────────────────────────────────────────────┬────────────────┤
 │ EXPLORER   « │                                   ┌ S2 ⚠ No analysis for a1b2c3d —      ┐│ inspector      │
@@ -67,8 +67,8 @@ icon-only form.
 3. The overview shows the project with its working folder (the primary one): git state, "No analysis
    yet", **Analyse current checkout**.
 4. **Analyse** → W1's icon turns into a spinner and its background fills as the analysis runs.
-5. When it finishes, W1 flashes green and the map opens; the nav bar reads `billing / billing-api ▾ |
-   ⎇ main @ a1b2c3d ▾`.
+5. When it finishes, W1 flashes green and the map opens; the nav bar reads `billing-api ▾ |
+   ⎇ main ▾`.
 
 ### J2 Opening a cc.json someone sent
 

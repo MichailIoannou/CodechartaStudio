@@ -1,0 +1,35 @@
+<cc-settings-popover-shell
+    [popoverId]="popoverId()"
+    [anchorName]="anchorName()"
+    widthClass="w-60"
+    contentClass="p-1"
+    ariaLabel="Scenarios menu"
+    testId="scenarios-menu"
+>
+    <ul class="menu menu-sm w-full p-0">
+        <li>
+            <button
+                type="button"
+                [attr.popovertarget]="popoverId()"
+                popovertargetaction="hide"
+                data-testid="scenarios-menu-open"
+                (click)="openScenarioList.emit()"
+            >
+                <i class="fa-regular fa-bookmark w-3.5 text-center text-base-content/60" aria-hidden="true"></i>
+                Open saved scenarios ({{ scenarioCount() }})
+            </button>
+        </li>
+        <li>
+            <button
+                type="button"
+                [attr.popovertarget]="popoverId()"
+                popovertargetaction="hide"
+                data-testid="scenarios-menu-save"
+                (click)="saveScenario.emit()"
+            >
+                <i class="fa-solid fa-plus w-3.5 text-center text-base-content/60" aria-hidden="true"></i>
+                Save current state as scenario
+            </button>
+        </li>
+    </ul>
+</cc-settings-popover-shell>

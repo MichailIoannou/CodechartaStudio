@@ -1,10 +1,16 @@
 import { State } from "@ngrx/store"
 import { provideMockStore } from "@ngrx/store/testing"
-import { render, screen } from "@testing-library/angular"
+import { render, screen, within } from "@testing-library/angular"
 import { metricDataSelector } from "../../../../renderer/renderModel/accumulatedData/metricData/metricData.selector"
 import { isDeltaStateSelector } from "../../../../stores/fileStore/store/isDeltaState.selector"
-import { areaMetricSelector, heightMetricSelector, isRadialLayoutSelector } from "../../../../stores/mapState/mapState.read.facade"
+import {
+    areaMetricSelector,
+    colorMetricSelector,
+    heightMetricSelector,
+    isRadialLayoutSelector
+} from "../../../../stores/mapState/mapState.read.facade"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
+import { reportResize, stubElementSize, stubResizeObserver } from "../../../../util/testUtils/domStubs"
 import { MetricsBarComponent } from "./metricsBar.component"
 
 describe("MetricsBarComponent", () => {
@@ -25,6 +31,7 @@ describe("MetricsBarComponent", () => {
                     { selector: isRadialLayoutSelector, value: isRadialLayout },
                     { selector: areaMetricSelector, value: "rloc" },
                     { selector: heightMetricSelector, value: "mcc" },
+                    { selector: colorMetricSelector, value: "mcc" },
                     {
                         selector: metricDataSelector,
                         value: {
@@ -38,6 +45,10 @@ describe("MetricsBarComponent", () => {
             { provide: State, useValue: { getValue: () => defaultState } }
         ]
     }
+
+    afterEach(() => {
+        jest.restoreAllMocks()
+    })
 
     async function setup(options: Parameters<typeof barProviders>[0] = {}) {
         return render(MetricsBarComponent, { providers: barProviders(options) })
@@ -133,5 +144,140 @@ describe("MetricsBarComponent", () => {
         await setup({ hasEdgeMetric: true })
 
         expect(screen.getByTestId("metric-segment-edges")).not.toBeNull()
+    })
+
+    it("should be 74 px tall with its cards centred and keep 12 characters of every metric name", async () => {
+        // Arrange
+        jest.spyOn(CanvasRenderingContext2D.prototype, "measureText").mockImplementation(text => ({ width: text.length }) as TextMetrics)
+
+        // Act
+        const { container } = await setup()
+
+        // Assert
+        expect(container.classList).toContain("h-[4.625rem]")
+        expect(container.classList).not.toContain("gap-x-0")
+        const areaCard: HTMLElement = container.querySelector("cc-axis-card")
+        expect(areaCard.style.minWidth).toMatch(/^\d+px$/)
+    })
+
+    describe("with too little free map for the full bar", () => {
+        const NARROW_FREE_MAP_PX = 236
+        const CELL_WIDTH_PX = 100
+        let restoreElementSize: () => void
+
+        beforeEach(() => {
+            stubResizeObserver()
+            restoreElementSize = stubElementSize(() => ({ width: NARROW_FREE_MAP_PX, height: 0 }))
+            jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: CELL_WIDTH_PX } as DOMRect)
+        })
+
+        afterEach(() => {
+            restoreElementSize()
+            jest.restoreAllMocks()
+        })
+
+        async function setupCompact(options: Parameters<typeof barProviders>[0] = {}) {
+            const rendered = await render('<cc-metrics-bar><button type="button" barTools>Center map</button></cc-metrics-bar>', {
+                imports: [MetricsBarComponent],
+                providers: barProviders(options)
+            })
+            reportResize()
+            rendered.fixture.detectChanges()
+            return rendered
+        }
+
+        function compactButtonNames(container: Element) {
+            return [...container.querySelectorAll("cc-compact-bar-button button")].map(button => button.getAttribute("aria-label"))
+        }
+
+        it("should keep the full bar's 74 px height and space its groups by the dividers alone", async () => {
+            // Act
+            const { container } = await setupCompact()
+
+            // Assert
+            const bar = container.querySelector("cc-metrics-bar")
+            expect(bar.classList).toContain("h-[4.625rem]")
+            expect(bar.classList).toContain("gap-x-0")
+            expect(bar.classList).toContain("[&>cc-bar-divider]:mx-1")
+        })
+
+        it("should show one icon button per cell, in today's order, instead of the cards", async () => {
+            // Act
+            const { container } = await setupCompact({ hasEdgeMetric: true })
+
+            // Assert
+            expect(container.querySelector("cc-metrics-bar").getAttribute("data-compact")).toBe("true")
+            expect(container.querySelector("cc-axis-card")).toBeNull()
+            expect(compactButtonNames(container)).toEqual([
+                "Layout · Squarified TreeMap",
+                "Area · rloc",
+                "Height · mcc",
+                "Color · mcc",
+                "Edges",
+                "Labels · label settings",
+                expect.stringMatching(/^Scenarios · \d+ available$/)
+            ])
+        })
+
+        it("should place the metric buttons in two rows, the link beside Height and Color", async () => {
+            // Act
+            await setupCompact({ hasEdgeMetric: true })
+
+            // Assert
+            const metricCells = screen.getByTestId("metrics-bar-metric-cells")
+            expect(metricCells.classList).toContain("grid-rows-2")
+            expect(metricCells.classList).toContain("grid-flow-col")
+            expect(within(metricCells).getByTestId("metric-segment-area-compact").parentElement.className).toContain(
+                "col-start-1 row-start-1"
+            )
+            expect(within(metricCells).getByTestId("metric-segment-edges-compact").parentElement.className).toContain(
+                "col-start-1 row-start-2"
+            )
+            expect(within(metricCells).getByTestId("metric-segment-height-compact").parentElement.className).toContain(
+                "col-start-2 row-start-1"
+            )
+            expect(within(metricCells).getByTestId("metric-segment-color-compact").parentElement.className).toContain(
+                "col-start-2 row-start-2"
+            )
+            expect(metricCells.querySelector("cc-link-color-height-button").className).toContain("row-span-2")
+        })
+
+        it("should leave the Edges slot empty for a map without edges", async () => {
+            // Act
+            await setupCompact()
+
+            // Assert
+            expect(screen.queryByTestId("metric-segment-edges-compact")).toBeNull()
+            expect(screen.getByTestId("metric-segment-color-compact").parentElement.className).toContain("col-start-2 row-start-2")
+        })
+
+        it("should show Folders instead of Height and no link in a radial layout", async () => {
+            // Act
+            const { container } = await setupCompact({ hasEdgeMetric: true, isRadialLayout: true })
+
+            // Assert
+            expect(screen.getByTestId("metric-segment-folders-compact")).not.toBeNull()
+            expect(screen.queryByTestId("metric-segment-height-compact")).toBeNull()
+            expect(screen.queryByTestId("metric-segment-edges-compact")).toBeNull()
+            expect(screen.queryByTestId("metric-segment-labels-compact")).toBeNull()
+            expect(container.querySelector("cc-link-color-height-button")).toBeNull()
+        })
+
+        it("should open the delta colours from the Color button in delta mode", async () => {
+            // Act
+            await setupCompact({ isDelta: true })
+
+            // Assert
+            const colorButton = screen.getByRole("button", { name: "Color · delta colours" })
+            expect(colorButton.getAttribute("popovertarget")).toBe("metric-settings-popover-color-delta")
+        })
+
+        it("should give the tools the compact size", async () => {
+            // Act
+            await setupCompact()
+
+            // Assert
+            expect(screen.getByRole("toolbar", { name: "View tools" }).classList).toContain("[&_.btn]:size-7")
+        })
     })
 })

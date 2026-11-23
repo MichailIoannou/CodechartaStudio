@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from "@angular/core"
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, viewChild } from "@angular/core"
 import { toSignal } from "@angular/core/rxjs-interop"
 import { FileStoreReadWindow } from "../../../../stores/fileStore/fileStore.facade"
 import { Export3DMapDialogComponent, Export3DMapDialogStore } from "../../../3dPrint/facade"
@@ -13,6 +13,7 @@ import {
 } from "../../../snapshots/facade"
 import { WindowControlsComponent, WindowControlsService } from "../../../windowControls/facade"
 import { WorkspaceStatusComponent } from "../../../workspaceStatus/facade"
+import { NavBarFit } from "../../services/navBarFit.service"
 import { DeltaSelectorComponent } from "../deltaSelector/deltaSelector.component"
 import { MapSelectorComponent } from "../mapSelector/mapSelector.component"
 import { NavBarFolderButtonComponent } from "../navBarFolderButton/navBarFolderButton.component"
@@ -44,7 +45,7 @@ const DRAG_AREAS = ".navbar, .navbar-start, .navbar-center, .navbar-end, .cc-win
         WindowControlsComponent
     ],
     hostDirectives: [PublishesHeightDirective],
-    providers: [{ provide: HEIGHT_CSS_VARIABLE, useValue: "--cc-bars-height" }],
+    providers: [{ provide: HEIGHT_CSS_VARIABLE, useValue: "--cc-bars-height" }, NavBarFit],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class NavBarComponent {
@@ -54,6 +55,8 @@ export class NavBarComponent {
     private readonly batchDialog = inject(BatchAnalysisDialogService)
     private readonly windowControls = inject(WindowControlsService)
     private readonly files = toSignal(this.fileStoreReadWindow.files$, { requireSync: true })
+    private readonly start = viewChild.required<ElementRef<HTMLElement>>("start")
+    protected readonly fit = inject(NavBarFit)
 
     isDeltaState = toSignal(this.fileStoreReadWindow.isDeltaState$, { requireSync: true })
     readonly isDesktop = this.projectsFacade.isDesktop
@@ -70,6 +73,14 @@ export class NavBarComponent {
     readonly isExportDialogOpen = this.export3DMapDialogStore.isDialogOpen
     readonly isSnapshotsDialogOpen = inject(SnapshotsDialogService).isOpen
     readonly isBatchDialogOpen = computed(() => this.batchDialog.current() !== null)
+
+    constructor() {
+        const destroyRef = inject(DestroyRef)
+        afterNextRender(() => {
+            const stopFitting = this.fit.observe(this.start().nativeElement)
+            destroyRef.onDestroy(stopFitting)
+        })
+    }
 
     openWindowMenu(event: MouseEvent) {
         const isOnDragArea = event.target instanceof Element && event.target.matches(DRAG_AREAS)

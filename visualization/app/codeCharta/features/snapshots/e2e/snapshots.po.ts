@@ -7,6 +7,10 @@ export class SnapshotsPageObject {
         return this.page.getByTestId("workspace-status-trigger")
     }
 
+    workspaceStatusBadge() {
+        return this.page.getByTestId("workspace-status-badge")
+    }
+
     workspaceMenu() {
         return this.page.getByTestId("workspace-status-menu")
     }

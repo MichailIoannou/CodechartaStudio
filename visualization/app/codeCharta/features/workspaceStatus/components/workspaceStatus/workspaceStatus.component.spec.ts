@@ -73,14 +73,15 @@ describe("WorkspaceStatusComponent", () => {
         expect(screen.queryByTestId("workspace-status-trigger")).toBeNull()
     })
 
-    it("should show the branch, the commit in the map and the uncommitted changes", async () => {
+    it("should show the branch and the uncommitted changes, with the commit in the map only in the title", async () => {
         // Arrange & Act
         await renderStatus()
 
         // Assert
         expect(screen.getByTestId("workspace-status-branch").textContent).toBe("main")
-        expect(screen.getByTestId("workspace-status-map").textContent?.trim()).toBe("@ 9f8e7d6")
-        expect(trigger().getAttribute("aria-label")).toBe("Branch main, map shows 9f8e7d6")
+        expect(screen.queryByTestId("workspace-status-map")).toBeNull()
+        expect(trigger().getAttribute("aria-label")).toBe("Branch main")
+        expect(trigger().title).toContain("Map shows 9f8e7d6 Release 2.4.0")
         expect(trigger().title).toContain("Branch main, 2 to pull, 3 uncommitted")
         expect(trigger().querySelector("[title='3 uncommitted changes']")).not.toBeNull()
     })
@@ -97,8 +98,48 @@ describe("WorkspaceStatusComponent", () => {
         expect(screen.queryByTestId("workspace-status-branch")).toBeNull()
         expect(screen.queryByTestId("workspace-status-map")).toBeNull()
         expect(screen.getByTestId("workspace-status-icon")).toBeTruthy()
-        expect(trigger().className).toContain("w-[3.25rem]")
-        expect(trigger().getAttribute("aria-label")).toBe("Branch main, map shows 9f8e7d6")
+        expect(trigger().style.width).toBe("3.25rem")
+        expect(trigger().getAttribute("aria-label")).toBe("Branch main")
+    })
+
+    it("should keep its fixed 18rem width whatever it shows and tell the nav bar fit how far it can narrow", async () => {
+        // Arrange & Act
+        const fixture = await renderStatus()
+
+        // Assert
+        const host: HTMLElement = fixture.nativeElement
+        expect(trigger().style.width).toBe("18rem")
+        expect([host.dataset.fitFull, host.dataset.fitNarrowest, host.dataset.fitCompact]).toEqual(["18", "9", "3.25"])
+        expect(screen.getByTestId("workspace-status-counts").textContent?.trim()).toBe("2")
+    })
+
+    it("should take the width the nav bar fit gives it and drop the ahead and behind counts first", async () => {
+        // Arrange
+        const fixture = await renderStatus()
+
+        // Act
+        fixture.componentRef.setInput("width", 200)
+        await settle()
+
+        // Assert
+        expect(trigger().style.width).toBe("200px")
+        expect(screen.queryByTestId("workspace-status-counts")).toBeNull()
+        expect(screen.getByTestId("workspace-status-branch").textContent).toBe("main")
+    })
+
+    it("should show its badge as a dot on the icon in its icon-only form", async () => {
+        // Arrange
+        const fixture = await renderStatus({ snapshots: [] })
+
+        // Act
+        fixture.componentRef.setInput("iconOnly", true)
+        await settle()
+
+        // Assert
+        const dot = screen.getByTestId("workspace-status-badge-dot")
+        expect(dot.title).toBe("This folder has no analysis yet")
+        expect(dot.classList).toContain("bg-base-content/50")
+        expect(screen.queryByTestId("workspace-status-badge")).toBeNull()
     })
 
     it("should show analysis progress as its fill and percent", async () => {
@@ -247,6 +288,44 @@ describe("WorkspaceStatusComponent", () => {
             { projectId: "p-billing", folderId: "f-api", target: { kind: "workingTree" }, force: false }
         ])
         expect(within(menu).queryByTestId("workspace-status-analyse")).toBeNull()
+    })
+
+    it("should badge how far a restored snapshot is from the current checkout", async () => {
+        // Arrange
+        const restored = aSnapshot("p-billing", "f-api", "s-restored", {
+            target: "commit",
+            commit: "9f8e7d6".padEnd(40, "0"),
+            shortCommit: "9f8e7d6",
+            subject: "Release 2.4.0"
+        })
+        const remembering = { ...BILLING, view: { workingFolderId: "f-api", shownSnapshotIdByFolder: { "f-api": "s-restored" } } }
+        const distances = { distances: [{ sha: restored.commit, onlyInCandidate: 0, onlyInTarget: 4 }] }
+
+        // Act
+        await renderStatus({ projects: [remembering], snapshots: [restored], responses: { "git.measureDistances": distances } })
+
+        // Assert
+        const badge = screen.getByTestId("workspace-status-badge")
+        expect(badge.textContent).toBe("stale by 4")
+        expect(badge.title).toBe("Map is 4 commits behind the current checkout")
+        expect(trigger().title).toContain("Map shows 9f8e7d6 Release 2.4.0, 4 commits behind the current checkout")
+    })
+
+    it("should explain the badge of an analysis of uncommitted changes, also as a dot", async () => {
+        // Arrange
+        const fixture = await renderStatus({ snapshots: [{ ...SHOWN, dirty: true, target: "workingTree" }] })
+        const badge = screen.getByTestId("workspace-status-badge")
+        const badgeTitle = badge.title
+        const badgeText = badge.textContent
+
+        // Act
+        fixture.componentRef.setInput("iconOnly", true)
+        await settle()
+
+        // Assert
+        expect(badgeText).toBe("uncommitted")
+        expect(badgeTitle).toBe("Map is an analysis of uncommitted changes on 9f8e7d6")
+        expect(screen.getByTestId("workspace-status-badge-dot").title).toBe(badgeTitle)
     })
 
     it("should show the preflight problems of an analysis it started", async () => {

@@ -1,6 +1,7 @@
 import { Box3, Ray, Vector3 } from "three"
 import { Scaling } from "../../../model/codeCharta.model"
 import { CodeMapBuilding } from "./codeMapBuilding"
+import { isOnGround } from "./mapBase"
 
 const BVH_LEAF_THRESHOLD = 4
 // BVH node layout: [minX, minY, minZ, maxX, maxY, maxZ, leftChild, rightChild, firstIndex, count]
@@ -42,6 +43,7 @@ export class CodeMapGeometricDescription {
     private readonly boxTranslation = new Vector3()
     private readonly _intersectTarget = new Vector3()
     private boxesDirty = true
+    private mapBaseDepth = 0
 
     // BVH data
     private bvhNodes: Float32Array | null = null
@@ -62,6 +64,14 @@ export class CodeMapGeometricDescription {
     /** The buildings moved, so the scaled boxes and the BVH built from them no longer describe them. */
     markBuildingsChanged() {
         this.boxesDirty = true
+    }
+
+    /** The root floor's base below the ground is drawn by the shader, so picking has to reach down to it too. */
+    setMapBaseDepth(depth: number) {
+        if (this.mapBaseDepth !== depth) {
+            this.mapBaseDepth = depth
+            this.boxesDirty = true
+        }
     }
 
     get buildings() {
@@ -89,6 +99,9 @@ export class CodeMapGeometricDescription {
 
         this.scaledBoxes = this._buildings.map(building => {
             const box = building.boundingBox.clone()
+            if (isOnGround(box.min.y)) {
+                box.min.y -= this.mapBaseDepth
+            }
             box.min.multiply(this.scales)
             box.max.multiply(this.scales)
             box.translate(this.boxTranslation)

@@ -35,6 +35,10 @@ test.describe("load pipeline", () => {
         })
     }
 
+    test.beforeEach(async ({ page }) => {
+        await new MetricsBarPageObject(page).widenWindowForTheFullBar()
+    })
+
     test.afterEach(async ({ page }) => {
         await clearIndexedDB(page)
     })

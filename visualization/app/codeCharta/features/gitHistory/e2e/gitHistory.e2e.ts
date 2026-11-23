@@ -502,6 +502,6 @@ test.describe("Show in map", () => {
 
         // Assert
         await expect(page).toHaveURL(/#\/$/)
-        await expect(history.workspaceStatus()).toContainText("ccccccc")
+        await expect(history.workspaceStatus()).toHaveAttribute("title", /Map shows ccccccc/)
     })
 })

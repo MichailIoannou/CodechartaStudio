@@ -1,16 +1,21 @@
-<div class="flex min-h-6 items-center justify-between gap-1">
-    <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">{{ label() }}</span>
+<div class="flex min-h-6 items-center justify-between gap-1" data-card-header>
+    <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60" data-bar-text>{{ label() }}</span>
     @if (hasCog()) {
         <button
             type="button"
-            class="btn btn-ghost btn-xs btn-square shrink-0 rounded-lg"
+            [class]="cogButtonClasses()"
             [attr.popovertarget]="cogPopoverId()"
             [style.anchor-name]="cogAnchorStyle()"
             [attr.data-anchor-name]="cogAnchorName()"
             [attr.data-testid]="cogTestId()"
-            title="Settings"
+            [attr.title]="cogTitle()"
+            [attr.aria-label]="cogTitle()"
         >
-            <i class="fa fa-cog text-[10px]"></i>
+            @if (cogIcon(); as icon) {
+                <ng-container [ngTemplateOutlet]="icon"></ng-container>
+            } @else {
+                <i class="fa fa-cog text-[10px]" aria-hidden="true"></i>
+            }
         </button>
     }
 </div>

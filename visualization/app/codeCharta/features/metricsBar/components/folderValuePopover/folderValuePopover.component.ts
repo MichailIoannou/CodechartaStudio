@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from "@angular/core"
 import { RadialFolderValue } from "../../../../model/codeCharta.model"
 import { describeRadialFolderValue, RADIAL_FOLDER_VALUES } from "../../../../util/radialFolderValues"
-import { SettingsPopoverShellComponent } from "../../../shared/facade"
+import { SettingsPopoverShellComponent, SettingsShortcut, SettingsShortcutComponent } from "../../../shared/facade"
 
 @Component({
     selector: "cc-folder-value-popover",
     templateUrl: "./folderValuePopover.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "contents" },
-    imports: [SettingsPopoverShellComponent]
+    imports: [SettingsPopoverShellComponent, SettingsShortcutComponent]
 })
 export class FolderValuePopoverComponent {
     readonly popoverId = input.required<string>()
@@ -16,6 +16,7 @@ export class FolderValuePopoverComponent {
     readonly selected = input.required<RadialFolderValue>()
     readonly isNeutral = input.required<boolean>()
     readonly colorMetric = input.required<string>()
+    readonly settingsShortcut = input<SettingsShortcut | null>(null)
     readonly valueSelected = output<RadialFolderValue>()
 
     readonly options = RADIAL_FOLDER_VALUES

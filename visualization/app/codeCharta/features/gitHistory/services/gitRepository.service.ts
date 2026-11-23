@@ -1,11 +1,12 @@
 import { computed, DestroyRef, effect, Injectable, inject, signal, untracked } from "@angular/core"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
+import type { GitCommitDistance } from "../../../model/coreApi/GitCommitDistance"
 import type { GitCommitSummary } from "../../../model/coreApi/GitCommitSummary"
 import type { GitRefs } from "../../../model/coreApi/GitRefs"
 import type { GitRepositoryInfo } from "../../../model/coreApi/GitRepositoryInfo"
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import type { RepositoryChanged } from "../../../model/coreApi/RepositoryChanged"
-import { FolderGitStatus, GitProblem } from "../model/folderGitStatus"
+import { FolderGitStatus, GitProblem, isGitStatus } from "../model/folderGitStatus"
 import type { GitResult } from "../model/gitError"
 import { IDLE, LOADING, LoadState, loadStateOf, readyValueOf } from "../model/loadState"
 import { WORKING_FOLDER_SOURCE } from "../ports/workingFolderSource.port"
@@ -79,6 +80,12 @@ export class GitRepositoryService {
         return this.folderStatuses()[keyOf(folder)]
     }
 
+    /** `null` while the status is unknown or git cannot answer. */
+    headCommitOf(folder: FolderRef): string | null {
+        const status = this.statusOf(folder)
+        return isGitStatus(status) ? status.head.commit : null
+    }
+
     async refreshFolders(folders: FolderRef[]): Promise<void> {
         await Promise.all(folders.map(async folder => this.rememberStatus(folder, await this.api.status(folder))))
     }
@@ -86,6 +93,12 @@ export class GitRepositoryService {
     async recentCommits(folder: FolderRef): Promise<GitCommitSummary[] | null> {
         const answer = await this.api.log({ repo: folder, scope: { kind: "head" }, filter: null, cursor: null })
         return "error" in answer ? null : answer.value.commits.slice(0, RECENT_COMMIT_COUNT)
+    }
+
+    /** `null` when the repository does not contain the candidate or git cannot answer. */
+    async distanceOf(folder: FolderRef, target: string, candidate: string): Promise<GitCommitDistance | null> {
+        const answer = await this.api.measureDistances(folder, target, [candidate])
+        return answer.ok ? (answer.value.distances[0] ?? null) : null
     }
 
     private async open(repo: FolderRef | null): Promise<void> {

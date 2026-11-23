@@ -43,7 +43,7 @@ describe("ComparisonChipComponent", () => {
     async function renderChip(phase: "active" | "noDifferences" = "active", resolved: ResolvedComparison | null = null, head = HEAD) {
         service = { swap: jest.fn(), exit: jest.fn() }
         toast = jest.fn()
-        await render(ComparisonChipComponent, {
+        const { fixture } = await render(ComparisonChipComponent, {
             imports: [StoreModule.forRoot(appReducers, { metaReducers: [setStateMiddleware] })],
             providers: [
                 { provide: CompareService, useValue: service },
@@ -67,6 +67,7 @@ describe("ComparisonChipComponent", () => {
             changeRequest: null
         })
         await screen.findByTestId("comparison-chip")
+        return fixture
     }
 
     const trigger = () => screen.getByTestId("comparison-trigger")
@@ -95,24 +96,40 @@ describe("ComparisonChipComponent", () => {
         expect(trigger().getAttribute("aria-haspopup")).toBe("dialog")
     })
 
-    it("should keep a fixed width per breakpoint and leave out the compare and pull request icons below 1280 px", async () => {
+    it("should be as wide as its labels until the nav bar fit gives it a width", async () => {
         // Arrange
-        await renderChip()
+        const fixture = await renderChip()
+        const naturalWidth = trigger().style.width
 
         // Act
+        fixture.componentRef.setInput("width", 180)
+        TestBed.tick()
+
+        // Assert
+        expect(naturalWidth).toBe("")
+        expect(trigger().style.width).toBe("180px")
+        expect(screen.getByTestId("comparison-base-label").classList).toContain("min-w-10")
+    })
+
+    it("should leave out the compare and pull request icons and let its labels get shorter in its labels-only form", async () => {
+        // Arrange
+        const fixture = await renderChip()
         TestBed.inject(CompareStore).update({
             changeRequest: { folder: FOLDER, provider: "github", number: 7, remote: "origin", baseRefName: "main", url: null }
         })
         TestBed.tick()
+        const icons = () => [screen.getByTestId("comparison-icon"), screen.getByTestId("comparison-pull-request-icon")]
+        const wereShown = icons().every(icon => !icon.classList.contains("hidden"))
+
+        // Act
+        fixture.componentRef.setInput("labelsOnly", true)
+        TestBed.tick()
 
         // Assert
-        expect(trigger().className).toEqual(expect.stringMatching(/(?=.*\bw-32\b)(?=.*\bxl:w-56\b)(?=.*\b2xl:w-72\b)/))
-        for (const icon of [screen.getByTestId("comparison-icon"), screen.getByTestId("comparison-pull-request-icon")]) {
-            expect(icon.className).toEqual(expect.stringMatching(/(?=.*\bhidden\b)(?=.*\bxl:inline-flex\b)/))
-        }
-        expect(screen.getByTestId("comparison-base-label").className).toEqual(
-            expect.stringMatching(/(?=.*\bmin-w-8\b)(?=.*\bxl:min-w-10\b)/)
-        )
+        expect(wereShown).toBe(true)
+        expect(icons().every(icon => icon.classList.contains("hidden"))).toBe(true)
+        expect(screen.getByTestId("comparison-head-label").classList).toContain("min-w-8")
+        expect(trigger().classList).toContain("px-2")
     })
 
     it("should mark a stale side with a dot in the button and say in the details how stale each side is", async () => {

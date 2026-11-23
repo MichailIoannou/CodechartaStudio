@@ -1,7 +1,7 @@
 import { Injectable, signal } from "@angular/core"
 
-/** The tree is destroyed whenever the explorer shows another mode or collapses, so which folders are
- * open lives here, next to the view, rather than in the tree levels. */
+/** The tree is destroyed whenever the explorer shows another mode, so which folders are open lives here,
+ * next to the view, rather than in the tree levels. */
 @Injectable()
 export class ExplorerOpenFoldersService {
     private readonly openStateByPath = signal<ReadonlyMap<string, boolean>>(new Map())

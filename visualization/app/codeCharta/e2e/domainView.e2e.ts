@@ -215,7 +215,7 @@ test.describe("DomainView", () => {
     })
 
     test("should keep rendering only a slice after the explorer is collapsed and re-opened", async ({ page }) => {
-        // Arrange — collapsing destroys the panel the list measures itself against.
+        // Arrange — collapsing hides the panel the list measures itself against.
         await new NavBarFolderButtonPageObject(page).openFiles([MANY_WORDS_FILE])
         await new ViewSwitcherPageObject(page).switchToDomain()
         await expect(page.locator("cc-word-cloud canvas")).toBeVisible()

@@ -1,5 +1,5 @@
 import { Component, input, output, signal } from "@angular/core"
-import { TestBed } from "@angular/core/testing"
+import { ComponentFixture, TestBed } from "@angular/core/testing"
 import { provideRouter } from "@angular/router"
 import { State } from "@ngrx/store"
 import { provideMockStore } from "@ngrx/store/testing"
@@ -18,6 +18,7 @@ import {
 } from "../../../snapshots/facade"
 import { WindowControlsService } from "../../../windowControls/facade"
 import { WorkspaceStatusComponent } from "../../../workspaceStatus/facade"
+import { NavBarFit } from "../../services/navBarFit.service"
 import { UploadFilesService } from "../../services/uploadFiles.service"
 import { NavBarComponent } from "./navBar.component"
 
@@ -28,12 +29,14 @@ class Export3DMapDialogStubComponent {
 
 @Component({ selector: "cc-project-switcher", template: "" })
 class ProjectSwitcherStubComponent {
-    readonly isIconOnlyBelowXl = input(false)
+    readonly labelMaxWidth = input<number | null>(null)
+    readonly iconOnly = input(false)
 }
 
 @Component({ selector: "cc-workspace-status", template: "" })
 class WorkspaceStatusStubComponent {
     readonly iconOnly = input(false)
+    readonly width = input<number | null>(null)
 }
 
 @Component({ selector: "cc-snapshots-dialog", template: "" })
@@ -275,25 +278,68 @@ describe("NavBarComponent", () => {
             expect(container.querySelectorAll("cc-delta-selector").length).toBe(0)
         })
 
-        it("should shrink the project menu to its icon below 1280 px only during a comparison", async () => {
-            // Arrange
-            const isComparing = signal(false)
-            const { fixture } = await render(NavBarComponent, {
-                providers: [
-                    ...desktopProvidersFor({ hasFiles: true, hasActiveProject: true }),
-                    { provide: CompareFacade, useValue: { isComparing } }
-                ]
+        describe("fitting navbar-start", () => {
+            const fakeFit = () => ({
+                projectLabelMaxWidth: signal<number | null>(64),
+                isProjectIconOnly: signal(false),
+                slotWidth: signal<number | null>(200),
+                isSlotCompact: signal(true),
+                observe: jest.fn(() => stopFitting)
             })
-            const switcher = () => fixture.debugElement.query(element => element.name === "cc-project-switcher").componentInstance
-            const whileNotComparing = switcher().isIconOnlyBelowXl()
+            let stopFitting: jest.Mock
 
-            // Act
-            isComparing.set(true)
-            fixture.detectChanges()
+            beforeEach(() => {
+                stopFitting = jest.fn()
+            })
 
-            // Assert
-            expect(whileNotComparing).toBe(false)
-            expect(switcher().isIconOnlyBelowXl()).toBe(true)
+            const instanceOf = (fixture: ComponentFixture<NavBarComponent>, name: string) =>
+                fixture.debugElement.query(element => element.name === name).componentInstance
+
+            it("should hand the fitted widths to the project menu and the workspace status", async () => {
+                // Arrange & Act
+                const { fixture } = await render(NavBarComponent, {
+                    providers: desktopProvidersFor({ hasFiles: true, hasActiveProject: true }),
+                    componentProviders: [{ provide: NavBarFit, useValue: fakeFit() }]
+                })
+
+                // Assert
+                const switcher = instanceOf(fixture, "cc-project-switcher")
+                const status = instanceOf(fixture, "cc-workspace-status")
+                expect([switcher.labelMaxWidth(), switcher.iconOnly()]).toEqual([64, false])
+                expect([status.width(), status.iconOnly()]).toEqual([200, true])
+            })
+
+            it("should hand the map slot's width to the comparison chip and keep the workspace status icon-only", async () => {
+                // Arrange & Act
+                const { fixture } = await render(NavBarComponent, {
+                    providers: [
+                        ...desktopProvidersFor({ hasFiles: true, isDeltaState: true, hasActiveProject: true }),
+                        { provide: CompareFacade, useValue: { isComparing: signal(true) } }
+                    ],
+                    componentProviders: [{ provide: NavBarFit, useValue: fakeFit() }]
+                })
+
+                // Assert
+                const chip = instanceOf(fixture, "cc-comparison-chip")
+                expect([chip.width(), chip.labelsOnly()]).toEqual([200, true])
+                expect(instanceOf(fixture, "cc-workspace-status").iconOnly()).toBe(true)
+            })
+
+            it("should watch navbar-start once rendered and stop when the nav bar goes", async () => {
+                // Arrange
+                const fit = fakeFit()
+                const { fixture, container } = await render(NavBarComponent, {
+                    providers: desktopProvidersFor({ hasActiveProject: true }),
+                    componentProviders: [{ provide: NavBarFit, useValue: fit }]
+                })
+
+                // Act
+                fixture.destroy()
+
+                // Assert
+                expect(fit.observe).toHaveBeenCalledWith(container.querySelector(".navbar-start"))
+                expect(stopFitting).toHaveBeenCalled()
+            })
         })
 
         it("should show the delta selector for uploaded files", async () => {

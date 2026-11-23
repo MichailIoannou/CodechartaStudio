@@ -1,5 +1,5 @@
 import { Locator, Page } from "@playwright/test"
-import { clickButtonOnPageElement } from "../../../../../playwright.helper"
+import { clickButtonOnPageElement, E2E_VIEWPORT } from "../../../../../playwright.helper"
 
 export class MetricsBarPageObject {
     constructor(private page: Page) {}
@@ -99,5 +99,14 @@ export class MetricsBarPageObject {
         await this.page.getByTestId("metric-segment-folders-cog").click()
         await this.page.getByTestId("folder-style-popover").waitFor({ state: "visible", timeout: 10_000 })
         await this.page.getByTestId(`folder-style-${style}`).click()
+    }
+
+    /** The bar keeps to the room the open explorer leaves around the window centre, too narrow in a 1280 px window for its full form. */
+    async widenWindowForTheFullBar() {
+        await this.page.setViewportSize(E2E_VIEWPORT)
+    }
+
+    bar(): Locator {
+        return this.page.locator("cc-metrics-bar")
     }
 }

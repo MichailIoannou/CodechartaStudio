@@ -53,4 +53,21 @@ describe("FolderValuePopoverComponent", () => {
         // Assert
         expect(valueSelected).toHaveBeenCalledWith(RadialFolderValue.Max)
     })
+
+    it("should end with the folder settings shortcut in the compact bar", async () => {
+        // Act
+        await render(FolderValuePopoverComponent, {
+            inputs: {
+                popoverId: "values",
+                anchorName: "anchor",
+                selected: RadialFolderValue.Max,
+                isNeutral: false,
+                colorMetric: "mcc",
+                settingsShortcut: { label: "Folder settings", popoverId: "styles" }
+            }
+        })
+
+        // Assert
+        expect(screen.getByTestId("settings-shortcut").textContent.trim()).toBe("Folder settings")
+    })
 })

@@ -2,6 +2,7 @@ import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, input, O
 import { FormsModule } from "@angular/forms"
 import { AttributeDescriptors } from "../../../../model/codeCharta.model"
 import { PopoverPositionArea, SettingsPopoverShellComponent } from "../settingsPopoverShell/settingsPopoverShell.component"
+import { SettingsShortcut, SettingsShortcutComponent } from "../settingsShortcut/settingsShortcut.component"
 import { FilterMetricDataBySearchTermPipe } from "./filterMetricDataBySearchTerm.pipe"
 import { MetricOption } from "./metricOption"
 import { MetricSelectOptionComponent } from "./metricSelectOption.component"
@@ -11,7 +12,13 @@ import { MetricSelectOptionComponent } from "./metricSelectOption.component"
     templateUrl: "./metricSelectPopover.component.html",
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: { class: "contents" },
-    imports: [FormsModule, FilterMetricDataBySearchTermPipe, SettingsPopoverShellComponent, MetricSelectOptionComponent]
+    imports: [
+        FormsModule,
+        FilterMetricDataBySearchTermPipe,
+        SettingsPopoverShellComponent,
+        SettingsShortcutComponent,
+        MetricSelectOptionComponent
+    ]
 })
 export class MetricSelectPopoverComponent implements AfterViewInit, OnDestroy {
     readonly popoverId = input.required<string>()
@@ -21,6 +28,7 @@ export class MetricSelectPopoverComponent implements AfterViewInit, OnDestroy {
     readonly options = input.required<readonly MetricOption[]>()
     readonly descriptors = input<AttributeDescriptors>({})
     readonly selected = input<string | null>(null)
+    readonly settingsShortcut = input<SettingsShortcut | null>(null)
     readonly metricSelected = output<string>()
 
     readonly shell = viewChild.required(SettingsPopoverShellComponent)

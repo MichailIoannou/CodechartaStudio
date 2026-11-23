@@ -12,6 +12,7 @@ describe("MetricSegmentComponent", () => {
             ...(await render(MetricSegmentComponent, {
                 inputs: {
                     label: "Area",
+                    cell: "area",
                     metricName: "rloc",
                     metricFor: "areaMetric",
                     placeholder: "Area Metric",

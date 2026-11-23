@@ -1,0 +1,28 @@
+@if (isCompact()) {
+    <cc-compact-bar-button
+        [class]="compactSlot"
+        tooltip="Color · delta colours"
+        [popoverId]="settingsPopoverId"
+        [anchorNames]="[settingsAnchorName]"
+        testId="metric-segment-color-settings-compact"
+    >
+        <cc-cell-icon cell="color" size="compact" />
+    </cc-compact-bar-button>
+} @else {
+    <ng-template #cellIcon><cc-cell-icon cell="color" /></ng-template>
+    <cc-axis-card
+        label="Color"
+        [metricName]="'Settings'"
+        [hasCog]="true"
+        [cogPopoverId]="settingsPopoverId"
+        [cogAnchorName]="settingsAnchorName"
+        [cogIcon]="cellIcon"
+        cogTitle="Color settings"
+        [testId]="'metric-segment-color-settings'"
+        [cogTestId]="'metric-segment-color-settings-cog'"
+    ></cc-axis-card>
+}
+<cc-color-settings-popover
+    [popoverId]="settingsPopoverId"
+    [anchorName]="settingsAnchorName"
+></cc-color-settings-popover>

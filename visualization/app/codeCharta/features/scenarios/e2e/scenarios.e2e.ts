@@ -5,6 +5,7 @@ import { ScenariosPageObject } from "./scenarios.po"
 
 test.describe("Scenarios", () => {
     test.beforeEach(async ({ page }) => {
+        await new MetricsBarPageObject(page).widenWindowForTheFullBar()
         await goto(page)
     })
 

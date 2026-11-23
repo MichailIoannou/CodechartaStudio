@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, HostListener, inject, signal, viewChild } from "@angular/core"
+import { ChangeDetectionStrategy, Component, computed, ElementRef, HostListener, inject, input, signal, viewChild } from "@angular/core"
 import { CopyToClipboardService } from "../../../../util/copyToClipboard.service"
 import { ProjectsFacade } from "../../../projects/facade"
 import { ToastService } from "../../../shared/facade"
@@ -25,6 +25,11 @@ export class ComparisonChipComponent {
     private readonly projects = inject(ProjectsFacade)
     private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>("trigger")
 
+    /** Set by the nav bar fit when the room gets short; otherwise the chip is as wide as its labels. */
+    readonly width = input<number | null>(null)
+    readonly labelsOnly = input(false)
+    /** The labels-only form is the last step before the chip would reach under the view tabs, so its labels may get shorter. */
+    protected readonly labelMinWidth = computed(() => (this.labelsOnly() ? "min-w-8" : "min-w-10"))
     readonly isMenuOpen = signal(false)
     readonly isNoDifferences = this.store.isShowingNoDifferences
     readonly base = computed(() => {

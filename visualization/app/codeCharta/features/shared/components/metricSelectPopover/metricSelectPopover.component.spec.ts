@@ -37,6 +37,22 @@ describe("MetricSelectPopoverComponent", () => {
         expect(screen.getByText("(100)")).not.toBeNull()
     })
 
+    it("should end with a shortcut to the cell's settings when it is given one", async () => {
+        // Act
+        await setup({ settingsShortcut: { label: "Area settings", popoverId: "metric-settings-popover-area" } })
+
+        // Assert
+        expect(screen.getByTestId("settings-shortcut").textContent.trim()).toBe("Area settings")
+    })
+
+    it("should leave out the settings shortcut by default", async () => {
+        // Act
+        await setup()
+
+        // Assert
+        expect(screen.queryByTestId("settings-shortcut")).toBeNull()
+    })
+
     it("should mark the selected metric", async () => {
         // Arrange & Act
         const { container } = await setup({ selected: "mcc" })

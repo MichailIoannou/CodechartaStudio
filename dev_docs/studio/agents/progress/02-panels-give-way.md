@@ -69,3 +69,7 @@ Not covered by the design, left alone: dragging a panel wider with its resize ha
 
 ### Verification
 See the report of this milestone (gate results pasted there).
+
+### Superseded
+Task 1 (side panels give way) was removed by the owner's answer to question 12: both panels stay open and the metrics
+bar turns compact instead. See `02-compact-metrics-bar.md`. Task 2 (desktop tools deep link) stays.

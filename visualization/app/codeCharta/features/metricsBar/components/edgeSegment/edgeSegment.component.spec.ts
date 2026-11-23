@@ -7,11 +7,17 @@ import { CodeMapNode, Node } from "../../../../model/codeCharta.model"
 import { edgeMetricSelector, isEdgeMetricVisibleSelector } from "../../../../stores/mapState/mapState.read.facade"
 import { setEdgeMetric } from "../../../../stores/mapState/mapState.write.facade"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
+import { provideCompactBar } from "../../metricsBar.mocks"
 import { NodeSelectionService } from "../../services/nodeSelection.service"
 import { EdgeSegmentComponent } from "./edgeSegment.component"
 
 describe("EdgeSegmentComponent", () => {
-    async function setup(edgeMetric = "pairingRate", isEdgeMetricVisible = true, node: CodeMapNode | Node | undefined = undefined) {
+    async function setup(
+        edgeMetric = "pairingRate",
+        isEdgeMetricVisible = true,
+        node: CodeMapNode | Node | undefined = undefined,
+        isCompact = false
+    ) {
         const node$: Observable<CodeMapNode | Node | undefined> = of(node)
         const renderResult = await render(EdgeSegmentComponent, {
             providers: [
@@ -26,7 +32,8 @@ describe("EdgeSegmentComponent", () => {
                 {
                     provide: NodeSelectionService,
                     useValue: { createNodeObservable: () => node$ }
-                }
+                },
+                ...(isCompact ? [provideCompactBar()] : [])
             ]
         })
         return { ...renderResult, component: renderResult.fixture.componentInstance }
@@ -126,5 +133,29 @@ describe("EdgeSegmentComponent", () => {
         expect(cogButton.getAttribute("popovertarget")).toBe("metric-settings-popover-edge")
         expect(document.getElementById("metric-settings-popover-edge")).not.toBeNull()
         expect(document.getElementById("metric-select-popover-edge")).not.toBeNull()
+    })
+
+    describe("in the compact bar", () => {
+        it("should name the edge metric and open its chooser, which ends with the edge settings", async () => {
+            // Act
+            await setup("avgCommits", true, undefined, true)
+
+            // Assert
+            const button = screen.getByTestId("metric-segment-edges-compact")
+            expect(button.getAttribute("aria-label")).toBe("Edges · avgCommits")
+            expect(button.getAttribute("popovertarget")).toBe("metric-select-popover-edge")
+            expect(button.querySelector(".fa-circle-nodes")).not.toBeNull()
+            expect(screen.getByTestId("settings-shortcut").textContent.trim()).toBe("Edge settings")
+        })
+
+        it("should dim its icon and say so while the edges are hidden", async () => {
+            // Act
+            await setup("avgCommits", false, undefined, true)
+
+            // Assert
+            const button = screen.getByTestId("metric-segment-edges-compact")
+            expect(button.getAttribute("aria-label")).toBe("Edges · avgCommits · hidden")
+            expect(button.classList).toContain("text-base-content/40")
+        })
     })
 })

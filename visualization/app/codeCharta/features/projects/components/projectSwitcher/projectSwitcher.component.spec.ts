@@ -48,30 +48,44 @@ describe("ProjectSwitcherComponent", () => {
         await settle()
     }
 
-    it("should name the project and the working folder on the trigger", async () => {
+    it("should show only the working folder on the trigger and name the project in its title", async () => {
         // Arrange & Act
         await renderSwitcher()
 
         // Assert
         const trigger = screen.getByTestId("project-switcher-trigger")
-        expect(Array.from(trigger.querySelectorAll("span span"), span => span.textContent?.trim())).toEqual(["billing", "/", "billing-api"])
+        expect(screen.getByTestId("project-switcher-label").textContent?.trim()).toBe("billing-api")
+        expect(trigger.textContent).not.toContain("billing /")
         expect(trigger.title).toBe("Project 'billing', working folder 'billing-api' (C:\\work\\billing-api) — switch folder or project")
         expect(trigger.getAttribute("aria-expanded")).toBe("false")
     })
 
-    it("should show only its icon below 1280 px when asked to, keeping the folder in its title", async () => {
+    it("should shorten the folder name to the width the nav bar leaves it", async () => {
         // Arrange
         const fixture = await renderSwitcher()
-        const label = () => screen.getByTestId("project-switcher-label")
-        const labelClassBefore = label().className
 
         // Act
-        fixture.componentRef.setInput("isIconOnlyBelowXl", true)
+        fixture.componentRef.setInput("labelMaxWidth", 48)
         await settle()
 
         // Assert
-        expect(labelClassBefore).not.toContain("max-xl:hidden")
-        expect(label().className).toContain("max-xl:hidden")
+        expect(screen.getByTestId("project-switcher-label").style.maxWidth).toBe("48px")
+    })
+
+    it("should show only its icon when asked to, keeping the folder for screen readers and in its title", async () => {
+        // Arrange
+        const fixture = await renderSwitcher()
+        const label = () => screen.getByTestId("project-switcher-label")
+        const wasHidden = label().classList.contains("sr-only")
+
+        // Act
+        fixture.componentRef.setInput("iconOnly", true)
+        await settle()
+
+        // Assert
+        expect(wasHidden).toBe(false)
+        expect(label().classList).toContain("sr-only")
+        expect(label().textContent?.trim()).toBe("billing-api")
         expect(screen.getByTestId("project-switcher-trigger").title).toContain("working folder 'billing-api'")
     })
 

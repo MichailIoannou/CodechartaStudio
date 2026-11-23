@@ -27,6 +27,7 @@ const FIRST_MARK_PINK = "#ff1d8e"
 
 test.describe("Sunburst layout", () => {
     test.beforeEach(async ({ page }) => {
+        await new MetricsBarPageObject(page).widenWindowForTheFullBar()
         await goto(page)
         await new ThemePickerPageObject(page).pick("CodeCharta Light")
     })
@@ -306,6 +307,7 @@ const FILE_CELL_IN_FIRST_BAND = 195
 
 test.describe("Radial treemap layout", () => {
     test.beforeEach(async ({ page }) => {
+        await new MetricsBarPageObject(page).widenWindowForTheFullBar()
         await goto(page)
         await new ThemePickerPageObject(page).pick("CodeCharta Light")
     })

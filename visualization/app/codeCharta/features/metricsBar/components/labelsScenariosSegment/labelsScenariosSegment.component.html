@@ -1,52 +1,85 @@
-<div class="flex min-w-0 max-w-[220px] flex-col items-stretch gap-1.5">
+@if (isCompact()) {
     @if (!isRadialLayout()) {
-        <div class="flex flex-col gap-1" data-testid="metric-segment-labels">
-            <div class="flex items-center justify-between gap-1">
-                <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">Labels</span>
+        <cc-compact-bar-button
+            [class]="labelsSlot"
+            [tooltip]="labelsTooltip"
+            [popoverId]="labelSettingsPopoverId"
+            [anchorNames]="['metric-segment-labels']"
+            testId="metric-segment-labels-compact"
+        >
+            <cc-cell-icon cell="labels" size="compact" />
+        </cc-compact-bar-button>
+    }
+    <cc-compact-bar-button
+        [class]="scenariosSlot"
+        [tooltip]="scenariosTooltip()"
+        [popoverId]="scenariosMenuPopoverId"
+        [anchorNames]="['metric-segment-scenarios']"
+        testId="metric-segment-scenario-compact"
+    >
+        <cc-cell-icon cell="scenarios" size="compact" />
+    </cc-compact-bar-button>
+} @else {
+    <div class="flex min-w-0 flex-col items-stretch gap-0.5">
+        @if (!isRadialLayout()) {
+            <div class="flex flex-col" data-testid="metric-segment-labels">
+                <div class="flex items-center justify-between gap-1" data-label-row>
+                    <span class="whitespace-nowrap text-[10px] uppercase tracking-wide text-base-content/60" data-bar-text>Labels</span>
+                    <button
+                        type="button"
+                        [class]="settingsButtonClasses"
+                        [attr.popovertarget]="labelSettingsPopoverId"
+                        style="anchor-name: --metric-segment-labels"
+                        data-anchor-name="metric-segment-labels"
+                        [title]="labelSettingsTitle"
+                        [attr.aria-label]="labelSettingsTitle"
+                    >
+                        <cc-cell-icon cell="labels" />
+                    </button>
+                </div>
+            </div>
+        }
+        <div class="flex flex-col gap-0.5" data-testid="metric-segment-scenario">
+            <div class="flex items-center justify-between gap-1" data-label-row>
+                <span class="whitespace-nowrap text-[10px] uppercase tracking-wide text-base-content/60" data-bar-text>Scenarios</span>
                 <button
                     type="button"
-                    class="btn btn-ghost btn-xs btn-square shrink-0 rounded-lg"
-                    [attr.popovertarget]="labelSettingsPopoverId"
-                    style="anchor-name: --metric-segment-labels"
-                    data-anchor-name="metric-segment-labels"
-                    title="Label Settings"
+                    [class]="settingsButtonClasses"
+                    [attr.popovertarget]="scenariosMenuPopoverId"
+                    style="anchor-name: --metric-segment-scenarios"
+                    data-anchor-name="metric-segment-scenarios"
+                    title="Scenarios"
+                    aria-label="Scenarios"
+                    data-testid="metric-segment-scenario-menu"
                 >
-                    <i class="fa fa-cog text-[10px]"></i>
+                    <cc-cell-icon cell="scenarios" />
                 </button>
             </div>
-        </div>
-        <div class="border-t border-base-300 -mx-1"></div>
-    }
-    <div class="flex flex-col gap-1" data-testid="metric-segment-scenario">
-        <div class="flex items-center justify-between gap-1">
-            <span class="min-w-0 truncate text-[10px] uppercase tracking-wide text-base-content/60">Scenarios</span>
             <button
                 type="button"
-                class="btn btn-ghost btn-xs btn-square shrink-0 rounded-lg"
-                title="Save current state as scenario"
-                data-testid="metric-segment-scenario-save"
-                (click)="openSaveDialog()"
+                class="min-w-0 cursor-pointer truncate border-0 bg-transparent p-0 text-center text-xs font-semibold leading-tight"
+                title="Open saved scenarios"
+                data-bar-text
+                (click)="openScenarioList()"
             >
-                <i class="fa fa-plus text-[10px]"></i>
+                {{ scenariosCountLabel() }}
             </button>
         </div>
-        <button
-            type="button"
-            class="cursor-pointer truncate border-0 bg-transparent p-0 text-center text-sm font-semibold leading-tight"
-            title="Open saved scenarios"
-            (click)="openScenarioList()"
-        >
-            {{ scenariosCountLabel() }}
-        </button>
     </div>
-</div>
-
+}
 @if (!isRadialLayout()) {
     <cc-settings-popover-shell [popoverId]="labelSettingsPopoverId" anchorName="metric-segment-labels" widthClass="w-80">
         <cc-label-settings-panel></cc-label-settings-panel>
     </cc-settings-popover-shell>
 }
 
+<cc-scenarios-menu
+    [popoverId]="scenariosMenuPopoverId"
+    anchorName="metric-segment-scenarios"
+    [scenarioCount]="scenarios().length"
+    (openScenarioList)="openScenarioList()"
+    (saveScenario)="openSaveDialog()"
+></cc-scenarios-menu>
 <cc-scenario-list-dialog #listDialog (applyRequested)="handleApplyRequested($event)"></cc-scenario-list-dialog>
 <cc-save-scenario-dialog #saveDialog></cc-save-scenario-dialog>
 

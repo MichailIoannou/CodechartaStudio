@@ -1,11 +1,12 @@
 <button
     type="button"
     [class]="buttonClass()"
-    [title]="title()"
+    [attr.title]="isCompact() ? null : title()"
     [attr.aria-label]="title()"
+    [attr.data-tip]="isCompact() ? title() : null"
     [attr.data-testid]="'metric-link-button'"
     [attr.aria-pressed]="isLinked()"
     (click)="toggle()"
 >
-    <i [class]="iconClass()"></i>
+    <i [class]="iconClass()" data-bar-icon="link"></i>
 </button>

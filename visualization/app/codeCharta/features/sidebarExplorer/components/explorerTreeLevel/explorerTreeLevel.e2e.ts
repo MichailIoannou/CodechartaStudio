@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { clearIndexedDB, goto } from "../../../../../playwright.helper"
+import { clearIndexedDB, collapseExplorer, goto } from "../../../../../playwright.helper"
 import { NodeContextMenuPageObject } from "../../../nodeContextMenu/components/nodeContextMenu/nodeContextMenu.po"
 import { ExplorerTreeLevelPageObject } from "./explorerTreeLevel.po"
 
@@ -25,6 +25,25 @@ test.describe("ExplorerTreeLevel", () => {
             await nodeContextMenu.exclude()
 
             await expect(explorerTreeLevel.node(filePath)).toHaveCount(0)
+        })
+    })
+
+    test.describe("Collapsing the explorer", () => {
+        test("should show the same rows again, still open, when the explorer is re-opened", async ({ page }) => {
+            // Arrange
+            const explorerTreeLevel = new ExplorerTreeLevelPageObject(page)
+            const filePath = "/root/sample1.cc.json/bigLeaf.ts"
+            await explorerTreeLevel.openFolder("/root/sample1.cc.json")
+            await explorerTreeLevel.node(filePath).evaluate(row => row.setAttribute("data-e2e-kept", "true"))
+
+            // Act
+            await collapseExplorer(page)
+            await expect(explorerTreeLevel.node(filePath)).toBeHidden()
+            await page.getByTestId("explorer-expand-button").click()
+
+            // Assert
+            await expect(explorerTreeLevel.node(filePath)).toBeVisible()
+            await expect(explorerTreeLevel.node(filePath)).toHaveAttribute("data-e2e-kept", "true")
         })
     })
 

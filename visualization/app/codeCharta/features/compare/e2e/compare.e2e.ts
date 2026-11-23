@@ -160,6 +160,7 @@ test.describe("Compare", () => {
         // Arrange
         const compare = new ComparePageObject(page)
         const metricsBar = new MetricsBarPageObject(page)
+        await metricsBar.widenWindowForTheFullBar()
         await metricsBar.openAreaMetricSelect()
         await metricsBar.selectAreaMetricOption("functions")
         await page.keyboard.press("Escape")
@@ -208,7 +209,7 @@ test.describe("Compare", () => {
 
         // Assert
         await expect(compare.chip()).toHaveCount(0)
-        await expect(page.getByTestId("workspace-status-trigger")).toContainText("a1b2c3d")
+        await expect(page.getByTestId("workspace-status-trigger")).toHaveAttribute("title", /Map shows a1b2c3d/)
         await expect(page.locator("cc-sidebar-explorer")).not.toContainText("sample1OnlyLeaf.scss")
     })
 
@@ -333,9 +334,9 @@ test.describe("Compare a renamed file", () => {
 })
 
 const NAV_BAR_WIDTHS = [
-    { windowWidth: 1920, chipWidth: 288, showsFolderName: true },
-    { windowWidth: 1280, chipWidth: 224, showsFolderName: true },
-    { windowWidth: 1024, chipWidth: 128, showsFolderName: false }
+    { windowWidth: 1920, isChipAsWideAsItsLabels: true, showsFolderName: true },
+    { windowWidth: 1280, isChipAsWideAsItsLabels: true, showsFolderName: true },
+    { windowWidth: 1024, isChipAsWideAsItsLabels: false, showsFolderName: false }
 ]
 
 test.describe("Comparison chip in the nav bar", () => {
@@ -344,7 +345,7 @@ test.describe("Comparison chip in the nav bar", () => {
         await goto(page)
     })
 
-    for (const { windowWidth, chipWidth, showsFolderName } of NAV_BAR_WIDTHS) {
+    for (const { windowWidth, isChipAsWideAsItsLabels, showsFolderName } of NAV_BAR_WIDTHS) {
         test(`should fit beside the project menu at ${windowWidth} px and reach Leave compare with the mouse`, async ({ page }) => {
             // Arrange
             await page.setViewportSize({ width: windowWidth, height: 900 })
@@ -361,12 +362,12 @@ test.describe("Comparison chip in the nav bar", () => {
             // Assert
             const chip = await compare.chipButton().boundingBox()
             const viewSwitcher = await compare.viewSwitcher().boundingBox()
-            expect(Math.round(chip?.width ?? 0)).toBe(chipWidth)
+            expect(await compare.chipButton().evaluate(button => button.style.width === "")).toBe(isChipAsWideAsItsLabels)
             expect(await compare.chipButton().evaluate(button => button.scrollWidth <= button.clientWidth)).toBe(true)
             expect((chip?.x ?? 0) + (chip?.width ?? 0)).toBeLessThanOrEqual(viewSwitcher?.x ?? 0)
             expect(chip?.y ?? 0).toBeLessThan((viewSwitcher?.y ?? 0) + (viewSwitcher?.height ?? 0))
             await expect(compare.staleDot()).toBeVisible()
-            await expect(compare.projectMenuLabel()).toBeVisible({ visible: showsFolderName })
+            expect(await compare.projectMenuLabel().evaluate(label => !label.classList.contains("sr-only"))).toBe(showsFolderName)
             await expect(compare.staleBadge()).toHaveText("stale by 2")
             await compare.leaveButton().click()
             await expect(compare.chip()).toHaveCount(0)

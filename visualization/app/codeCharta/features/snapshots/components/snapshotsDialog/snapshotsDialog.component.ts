@@ -14,7 +14,7 @@ import {
 import type { AnalysisTarget } from "../../../../model/coreApi/AnalysisTarget"
 import type { ProjectFolder } from "../../../../model/coreApi/ProjectFolder"
 import type { SnapshotSummary } from "../../../../model/coreApi/SnapshotSummary"
-import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
+import { GitRepositoryService } from "../../../gitHistory/facade"
 import {
     byteSize,
     fileDate,
@@ -92,8 +92,7 @@ export class SnapshotsDialogComponent implements AfterViewInit {
     readonly actionFolder = computed(() => this.folderById(this.folderFilter()) ?? this.projects.workingFolder())
     readonly headCommit = computed(() => {
         const folder = this.actionFolder()
-        const status = folder ? this.gitRepository.statusOf(this.refOf(folder)) : undefined
-        return isGitStatus(status) ? status.head.commit : null
+        return folder && this.gitRepository.headCommitOf(this.refOf(folder))
     })
     readonly problems = computed(() => {
         const rejected = this.view.rejectedRun()

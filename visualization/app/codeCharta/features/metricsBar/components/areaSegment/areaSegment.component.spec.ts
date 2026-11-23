@@ -5,10 +5,11 @@ import { render, screen } from "@testing-library/angular"
 import { areaMetricSelector, isRadialLayoutSelector } from "../../../../stores/mapState/mapState.read.facade"
 import { setAreaMetric } from "../../../../stores/mapState/mapState.write.facade"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
+import { provideCompactBar } from "../../metricsBar.mocks"
 import { AreaSegmentComponent } from "./areaSegment.component"
 
 describe("AreaSegmentComponent", () => {
-    async function setup(areaMetric = "rloc", isRadialLayout = false) {
+    async function setup(areaMetric = "rloc", isRadialLayout = false, isCompact = false) {
         const renderResult = await render(AreaSegmentComponent, {
             providers: [
                 provideMockStore({
@@ -18,7 +19,8 @@ describe("AreaSegmentComponent", () => {
                         { selector: isRadialLayoutSelector, value: isRadialLayout }
                     ]
                 }),
-                { provide: State, useValue: { getValue: () => defaultState } }
+                { provide: State, useValue: { getValue: () => defaultState } },
+                ...(isCompact ? [provideCompactBar()] : [])
             ]
         })
         return { ...renderResult, component: renderResult.fixture.componentInstance }
@@ -63,5 +65,44 @@ describe("AreaSegmentComponent", () => {
 
         // Assert
         expect(dispatchSpy).toHaveBeenCalledWith(setAreaMetric({ value: "mcc" }))
+    })
+
+    describe("in the compact bar", () => {
+        it("should show the area glyph button that opens the metric chooser, named by its card", async () => {
+            // Act
+            await setup("rloc", false, true)
+
+            // Assert
+            const button = screen.getByTestId("metric-segment-area-compact")
+            expect(button.getAttribute("aria-label")).toBe("Area · rloc")
+            expect(button.getAttribute("popovertarget")).toBe("metric-select-popover-area")
+            expect(button.querySelector("[data-glyph='area']")).not.toBeNull()
+            expect(screen.queryByTestId("metric-segment-area")).toBeNull()
+        })
+
+        it("should end the chooser with the area settings", async () => {
+            // Act
+            await setup("rloc", false, true)
+
+            // Assert
+            expect(screen.getByTestId("settings-shortcut").textContent.trim()).toBe("Area settings")
+        })
+
+        it("should leave out the settings shortcut in a radial layout, where Area has no settings", async () => {
+            // Act
+            await setup("rloc", true, true)
+
+            // Assert
+            expect(screen.queryByTestId("settings-shortcut")).toBeNull()
+        })
+    })
+
+    it("should keep the full bar's chooser free of the settings shortcut", async () => {
+        // Act
+        await setup()
+
+        // Assert
+        expect(screen.queryByTestId("settings-shortcut")).toBeNull()
+        expect(screen.getByRole("button", { name: "Area settings" })).not.toBeNull()
     })
 })

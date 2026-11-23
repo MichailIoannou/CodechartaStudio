@@ -12,7 +12,7 @@
 	}
 	<span class="flex gap-1.5 text-[11px] text-base-content/40">
 		@for (key of view().groupKeys; track key) {
-			<i class="fa {{ groupIcons[key] }}" [title]="groupLabels[key]"></i>
+			<cc-scenario-group-icon [icon]="groupIcons[key]" [title]="groupLabels[key]" />
 		}
 	</span>
 </div>

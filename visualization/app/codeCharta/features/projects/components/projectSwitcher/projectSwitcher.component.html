@@ -1,9 +1,8 @@
-<div class="dropdown min-w-0" [class.dropdown-open]="isOpen()">
+<div class="dropdown" [class.dropdown-open]="isOpen()">
     <button
         #trigger
         type="button"
-        class="btn btn-ghost btn-sm min-w-0 max-w-24 justify-between xl:max-w-28 2xl:max-w-52"
-        [class]="isIconOnlyBelowXl() ? 'max-xl:px-2' : ''"
+        class="btn btn-ghost btn-sm shrink-0 flex-nowrap"
         aria-haspopup="menu"
         data-testid="project-switcher-trigger"
         [attr.aria-expanded]="isOpen()"
@@ -12,15 +11,15 @@
         (keydown.arrowdown)="openWithKeyboard($event)"
     >
         <i class="fa-solid fa-layer-group fa-fw shrink-0"></i>
-        @if (activeProject(); as project) {
-            <span class="flex min-w-0 items-center gap-1" [class]="isIconOnlyBelowXl() ? 'max-xl:hidden' : ''" data-testid="project-switcher-label">
-                <span class="hidden min-w-0 shrink-[100] truncate text-base-content/60 2xl:inline">{{ project.name }}</span>
-                <span class="hidden shrink-0 text-base-content/60 2xl:inline">/</span>
-                <span class="min-w-0 max-w-32 truncate font-medium">{{ workingFolder()?.label ?? "" }}</span>
-            </span>
-        } @else {
-            <span class="truncate text-base-content/60">No project</span>
-        }
+        <span
+            class="truncate transition-[max-width] duration-200 ease-out motion-reduce:transition-none"
+            [class]="activeProject() ? 'font-medium' : 'text-base-content/60'"
+            [class.sr-only]="iconOnly()"
+            [style.max-width.px]="labelMaxWidth()"
+            data-testid="project-switcher-label"
+            data-fit-label
+            >{{ triggerLabel() }}</span
+        >
         <i class="fa fa-caret-down shrink-0"></i>
     </button>
 

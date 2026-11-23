@@ -5,21 +5,25 @@
     [style.padding-inline-end]="reservesCaptionButtons() ? captionButtonsInset : null"
     (contextmenu)="openWindowMenu($event)"
 >
-    <div class="navbar-start min-w-0 gap-1">
+    <div #start class="navbar-start min-w-0 gap-1">
         @if (reservesTrafficLights()) {
             <div class="cc-window-drag-area w-20 shrink-0 self-stretch" data-testid="traffic-lights-inset"></div>
         }
         <cc-nav-bar-logo [class]="reservesTrafficLights() ? 'max-xl:hidden' : ''"></cc-nav-bar-logo>
         <div class="divider divider-horizontal mx-0" [class]="reservesTrafficLights() ? 'max-xl:hidden' : ''"></div>
         @if (isDesktop()) {
-            <cc-project-switcher [isIconOnlyBelowXl]="isComparing()"></cc-project-switcher>
+            <cc-project-switcher
+                data-fit-project
+                [labelMaxWidth]="fit.projectLabelMaxWidth()"
+                [iconOnly]="fit.isProjectIconOnly()"
+            ></cc-project-switcher>
             @if (isComparing()) {
                 <cc-workspace-status [iconOnly]="true"></cc-workspace-status>
-                <cc-comparison-chip></cc-comparison-chip>
+                <cc-comparison-chip data-fit-slot [width]="fit.slotWidth()" [labelsOnly]="fit.isSlotCompact()"></cc-comparison-chip>
             } @else if (hasFiles() && isDeltaState()) {
                 <cc-delta-selector></cc-delta-selector>
             } @else if (hasActiveProject()) {
-                <cc-workspace-status></cc-workspace-status>
+                <cc-workspace-status data-fit-slot [width]="fit.slotWidth()" [iconOnly]="fit.isSlotCompact()"></cc-workspace-status>
             } @else if (hasFiles()) {
                 <cc-map-selector></cc-map-selector>
             }

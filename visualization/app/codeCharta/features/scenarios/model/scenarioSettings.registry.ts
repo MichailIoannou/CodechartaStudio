@@ -11,6 +11,7 @@ import {
     MetricRule,
     RecursivePartial
 } from "../../../model/codeCharta.model"
+import type { MetricGlyphKind } from "../../shared/facade"
 
 export interface PlainPosition {
     readonly x: number
@@ -333,14 +334,16 @@ export const SCENARIO_GROUP_LABELS: Record<ScenarioGroupKey, string> = {
 
 export const SCENARIO_GROUP_KEYS = Object.keys(SCENARIO_GROUP_LABELS) as ScenarioGroupKey[]
 
-export const SCENARIO_GROUP_ICONS: Record<ScenarioGroupKey, string> = {
-    area: "fa-th-large",
-    height: "fa-bar-chart",
-    color: "fa-paint-brush",
-    edge: "fa-share-alt",
-    labels: "fa-tags",
-    camera: "fa-video-camera",
-    filters: "fa-filter"
+export type ScenarioGroupIcon = { readonly glyph: MetricGlyphKind } | { readonly fontAwesome: string }
+
+export const SCENARIO_GROUP_ICONS: Record<ScenarioGroupKey, ScenarioGroupIcon> = {
+    area: { glyph: "area" },
+    height: { glyph: "height" },
+    color: { fontAwesome: "fa-solid fa-palette" },
+    edge: { fontAwesome: "fa-solid fa-circle-nodes" },
+    labels: { fontAwesome: "fa fa-tags" },
+    camera: { fontAwesome: "fa fa-video-camera" },
+    filters: { fontAwesome: "fa fa-filter" }
 }
 
 export type ScenarioMetricSelectionKey = "areaMetric" | "heightMetric" | "colorMetric" | "edgeMetric"

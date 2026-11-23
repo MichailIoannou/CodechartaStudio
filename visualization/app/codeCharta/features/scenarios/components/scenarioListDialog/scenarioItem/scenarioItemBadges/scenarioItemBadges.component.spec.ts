@@ -91,7 +91,22 @@ describe("ScenarioItemBadgesComponent", () => {
         fixture.detectChanges()
 
         // Assert
-        const icons = fixture.nativeElement.querySelectorAll(".fa-bar-chart, .fa-paint-brush")
-        expect(icons.length).toBe(2)
+        const element: HTMLElement = fixture.nativeElement
+        expect(element.querySelector("cc-metric-glyph [data-glyph='height']")).not.toBeNull()
+        expect(element.querySelector(".fa-palette")).not.toBeNull()
+    })
+
+    it("should name each group icon by its group", () => {
+        // Arrange
+        TestBed.configureTestingModule({ imports: [ScenarioItemBadgesComponent] })
+        const fixture = TestBed.createComponent(ScenarioItemBadgesComponent)
+
+        // Act
+        fixture.componentRef.setInput("view", createTestView({ groupKeys: ["area", "edge"] }))
+        fixture.detectChanges()
+
+        // Assert
+        const titles = [...fixture.nativeElement.querySelectorAll("cc-scenario-group-icon")].map(icon => icon.getAttribute("title"))
+        expect(titles).toEqual(["Area", "Edges"])
     })
 })

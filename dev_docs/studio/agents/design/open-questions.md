@@ -73,6 +73,23 @@ answer that differs means the named file is changed, nothing else.
     of map would stay free; a window resize collapses the inspector first. Nothing changes above about
     1150 px. *Alternatives:* (a) leave it as a known limit, or (b) let the bar sit above the inspector
     and cover it. Applied in `02-themes.md` T4 "Too little room".
+    - *Answer (owner, 2026-11-22):* a compact icon-only metrics bar (one dedicated icon per element:
+      layout, area, height, color, edges, labels, scenarios, each with a help text on hover) replaces
+      the automatic collapsing of the side panels. Both panels stay open and the bar shrinks to icons
+      when too little map space is free (designer must change `02-themes.md` T4 "Too little room" and
+      design the compact bar's icons, breakpoint and hover texts; implementer must remove the panel
+      give-way behaviour built in 02-panels-give-way).
+    - *Applied (designer, 2026-11-22):* `02-themes.md` T4 "Too little room" and the new section "T4
+      compact bar": below 30rem of free map (back at 32rem) the bar becomes two rows of 28 px icon
+      buttons, 231 px wide, which fits 900 px with both panels open. Icons picked by the owner: area
+      footprint tile, height building with an up arrow (new glyphs), color `fa-palette`, edges
+      `fa-circle-nodes`, scenarios `fa-regular fa-bookmark`, labels `fa-solid fa-tags`, layout its
+      current glyph. Owner follow-up (2026-11-22): the full bar shows the same icons on each card's
+      settings button instead of the cog, and Labels uses the standard tags icon. Scenarios shows its
+      bookmark in place of its ＋; it opens the menu with "Open saved scenarios" and "Save current state
+      as scenario". The tooltip and `aria-label` text is "<cell> · <metric> ·
+      <meta>". The give-way removal includes the collapsed inspector strip and its selection dot, which
+      existed only for it. Mock-up `mockups/compact-metrics-bar.html`.
 
 13. **Linux window buttons: Breeze look only?** (O10) *Default:* the buttons CodeCharta draws on Linux
     always have KDE Breeze's shape (thin chevrons, diamond, cross, round highlight, red close) in the
@@ -80,9 +97,24 @@ answer that differs means the named file is changed, nothing else.
     `button-layout`). Other KDE decoration themes (Oxygen, Aurorae themes) and GNOME's Adwaita buttons
     are not imitated. *Alternatives:* (a) read the colours of the system's window decoration from KDE's
     `kdeglobals`; (b) a GNOME look on GNOME. Applied in `01-desktop-tools.md` D7.
+    - *Answer (owner, 2026-11-22):* alternative (b): on KDE keep the Breeze look; on GNOME draw GNOME
+      (Adwaita-style) buttons (designer must change `01-desktop-tools.md` D7: add the GNOME look with
+      shape, colours, light/dark, button order from `button-layout` and how the shell detects the
+      desktop; implementer must build both looks; mock-up `mockups/window-controls.html` needs the
+      GNOME variant).
 14. **"Use CodeCharta's title bar" off by default?** (O10) *Default:* off, so every Linux window manager
     keeps its native frame; *alternative:* on for Windows and macOS, where the system still draws the
     buttons, off on Linux. Applied in `01-desktop-tools.md` D6.
+    - *Answer (owner, 2026-11-22):* off everywhere, on every platform; the default stands.
+15. **Compact form for the domain and dependency bars?** (question 12) *Default:* only the metrics bar
+    gets the compact icon form; the domain bar and the dependency bar keep their behaviour, because
+    their cells are few and narrower. *Alternative:* give them the same compact form with their own
+    icons. Applied in `02-themes.md` "T4 compact bar", "Other bars".
+16. **W1's width now follows its content?** (owner request 2026-11-22: drop `@ <sha>` from the branch
+    chip and make it smaller.) *Default (designer):* W1 as wide as its content. *Alternative:* keep
+    OD2a's fixed width, only smaller.
+    - *Answer (owner, 2026-11-22):* keep the fixed width, just smaller (the alternative). Applied: W1
+      is a fixed 18rem (was 22rem), narrowed only by the nav bar fit (`05-snapshots.md` W1, principles §3).
 
 ## Area 01 — desktop tools
 
@@ -204,6 +236,10 @@ answer that differs means the named file is changed, nothing else.
     window-centring e2e test (designer must change `02-themes.md` T4; 02-M7 implementer must change the bar
     position and that test).
     *Applied (designer):* `02-themes.md` T4 "Position" bullet; the shell no longer claims an unchanged position.
+  - *Changed (owner, 2026-11-22):* the bar is centred on the window again, not between the panels.
+    *Applied (designer):* `02-themes.md` T4 "Position" and "T4 compact bar" → "When": the bar's room is the
+    width around the window centre that no panel covers, and the compact bar takes over below the full bar's
+    minimum, so no panel covers the bar. #4557's window-centring e2e test stands.
 
 - **O8 (2026-11-20). Design follow-ups from implementation** (`progress/ORCHESTRATION.md`, "Deviations
   from the plans"). *Answered (designer, 2026-11-20):*
@@ -415,3 +451,65 @@ answer that differs means the named file is changed, nothing else.
      Swap the renamed file is drawn at its old (base) path, because the delta shows the comparison side's
      paths — acceptable? A renamed file without metric changes looks unchanged on the map; only the Changes
      list and the inspector line name the rename — enough?
+
+- **O13 (2026-11-22). Follow-ups from the compact metrics bar** (`progress/02-compact-metrics-bar.md`,
+  built with the reading given). O12 item 1's strip question no longer applies: the collapsed inspector
+  strip is removed with the give-way.
+  1. Height: the full bar is about 96 px tall in the app, the compact bar 72 px (two 28 px rows), so
+     switching moves the bar's top edge by about 24 px, against "so the map does not jump". Make the
+     compact rows taller?
+  2. Linked Height and Color: the full bar disables the Color metric chooser while linked but keeps its
+     settings button. The compact Color button therefore opens Color settings directly while linked
+     (disabling it would leave the colour settings unreachable). Acceptable?
+  3. View tools in the compact bar keep their native `title` tooltip, not the daisyUI one, because
+     `cc-bar-tool` is shared with the domain and dependency bars that stay unchanged. Give them the
+     daisyUI tooltip in the compact bar only?
+  4. Scenarios tooltip: built as "Scenarios · 7 available" (the spec's example), while the card reads
+     "7 scenarios available". Which wording?
+  5. With both panels open in a 1600 px window the full bar's "AREA" label truncates to "A…" (it did before
+     this change too). Wanted, or should labels keep priority over metric names?
+
+- **O14 (2026-11-22). Follow-ups from the nav bar and metrics bar fit** (`progress/02-05-nav-and-bar-fit.md`,
+  built with the reading given). The equal 74 px height answers O13.1.
+  1. Compare chip at 1024 px: logo, divider, icon-only project menu, icon-only W1 and a labels-only chip
+     with `min-w-10` labels overflow by about 15 px, so the labels-only chip lets its labels shrink to
+     `min-w-8` with `gap-1 px-2`. Acceptable, or should something else give way (e.g. the arrow)?
+  2. The measured full-bar minimum is about 800 px with the sample map (mock-up: 732), because the app keeps
+     `px-3` on cells and `gap-1` on the shell, so the bar turns compact earlier. Reduce card padding or the
+     shell gap?
+  3. To fit 74 px, the labels/scenarios cell lost its separator line and its scenario count shortens
+     ("7 scenarios availa…"). OK?
+  4. Should the domain and dependency bars also get the 12-character name minimum and the 74 px height?
+  5. While dragging the window narrower, the 200 ms width transition can put a nav bar trigger up to about
+     8 px under the view tabs until it settles. OK, or narrow instantly and animate only widening?
+  6. W1's `aria-label` no longer says "map shows <sha>" (still in the title and dropdown). Bring it back?
+
+- **O15 (2026-11-22). Follow-ups from centring the bars on the window** (`progress/02-bar-window-centre.md`,
+  built with the reading given).
+  1. The domain and dependency bars use the same shell, so they are window-centred too and capped at the
+     same room, but they have no compact form: with one panel open at 1280 px their room is 616 px (was
+     942 px), and below 30rem they can still reach under a panel. Acceptable, or do they need their own
+     narrow-room behaviour?
+  2. With the explorer open at 320 px, the full metrics bar needs a window of about 1470 px with the sample
+     map, so a 1280–1440 px window shows the compact bar with only the explorer open. Intended?
+  3. The room keeps the 6 px island gap between the bar and each panel, so it is 12 px less than T4's
+     formula. Write that into T4?
+
+- **O16 (2026-11-22). Follow-ups from the stale notice for a moved checkout** (owner report: no stale notice
+  after switching and pulling, and an unexplained "dirty" tag; `progress/stale-notice-dirty-badge.md`, built
+  with the reading given).
+  1. The spec says a restored project shows no notice unless the target has none, and a switch or pull leaves
+     a non-checkout target unchanged. Built to the owner's expectation instead: a shown snapshot away from HEAD
+     gets the W1 distance badge and title ("Map is 4 commits behind the current checkout"), plus the S2 notice
+     ("No analysis of the current checkout — showing …, stale by N commits.", "Analyse current checkout")
+     while HEAD has no analysis. Should a snapshot explicitly opened from S4 also get the notice, or only the
+     badge?
+  2. When HEAD has its own analysis but the map shows an older snapshot, only the badge shows. Should the
+     notice offer "Show current checkout" there?
+  3. The W1 badge reads "uncommitted" instead of the plan's `dirty` chip (matches S4's flag and "words over
+     codes"). Every W1 badge now has a hint as its title and in the aria-label: "Map is 4 commits behind the
+     current checkout", "Map is an analysis of uncommitted changes on a1b2c3d", "This folder has no analysis
+     yet", "Map is imported; its analysis time is unknown", "The analysis failed; the menu has its log",
+     "Another analysis runs as well". Confirm the wording?
+  4. This distance comes from git, not from the snapshot resolution, so a snapshot of another profile is not
+     marked "· profile" here. Acceptable?

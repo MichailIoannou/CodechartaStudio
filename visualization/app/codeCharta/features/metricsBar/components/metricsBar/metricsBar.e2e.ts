@@ -3,10 +3,16 @@ import { clearIndexedDB, collapseExplorer, goto, readPersistedLayoutAlgorithm } 
 import sample1 from "../../../../assets/sample1.cc.json"
 import sample2 from "../../../../assets/sample2.cc.json"
 import { NavBarFolderButtonPageObject } from "../../../navBar/components/navBarFolderButton/navBarFolderButton.po"
+import { ExplorerTreeLevelPageObject } from "../../../sidebarExplorer/components/explorerTreeLevel/explorerTreeLevel.po"
+import { SidebarInspectorPageObject } from "../../../sidebarInspector/components/sidebarInspector/sidebarInspector.po"
 import { MetricsBarPageObject } from "./metricsBar.po"
+
+const SAMPLE_FOLDER = "/root/sample1.cc.json"
+const SAMPLE_FILE = "/root/sample1.cc.json/bigLeaf.ts"
 
 test.describe("MetricsBar", () => {
     test.beforeEach(async ({ page }) => {
+        await new MetricsBarPageObject(page).widenWindowForTheFullBar()
         await goto(page)
         const uploadFilesButton = new NavBarFolderButtonPageObject(page)
         await uploadFilesButton.openFiles(["./app/codeCharta/resources/sample1_with_different_edges.cc.json"])
@@ -58,6 +64,7 @@ test.describe("MetricsBar", () => {
 
 test.describe("MetricsBar layout cell", () => {
     test.beforeEach(async ({ page }) => {
+        await new MetricsBarPageObject(page).widenWindowForTheFullBar()
         await goto(page)
     })
 
@@ -77,7 +84,7 @@ test.describe("MetricsBar layout cell", () => {
         await expect(page.getByTestId("metrics-bar-layout-picker")).toBeVisible()
     })
 
-    test("should switch the map layout and name it on the cell", async ({ page }) => {
+    test("should switch the map layout and name it in the cell's tooltip", async ({ page }) => {
         // Arrange
         const metricsBar = new MetricsBarPageObject(page)
         await metricsBar.openLayoutPicker()
@@ -86,7 +93,7 @@ test.describe("MetricsBar layout cell", () => {
         await metricsBar.pickLayout("StreetMap")
 
         // Assert
-        await expect(metricsBar.layoutCell()).toContainText("StreetMap")
+        await expect(metricsBar.layoutCell()).toHaveAttribute("title", "Layout · StreetMap")
         await expect(page.locator("[data-testid='metrics-bar-layout-picker'] button[data-layout='StreetMap']")).toHaveAttribute(
             "aria-pressed",
             "true"
@@ -176,8 +183,9 @@ test.describe("MetricsBar legend tool", () => {
     })
 })
 
-test.describe("MetricsBar beside the explorer", () => {
+test.describe("MetricsBar on the window centre", () => {
     test.beforeEach(async ({ page }) => {
+        await new MetricsBarPageObject(page).widenWindowForTheFullBar()
         await goto(page)
     })
 
@@ -185,22 +193,38 @@ test.describe("MetricsBar beside the explorer", () => {
         await clearIndexedDB(page)
     })
 
-    test("should centre in the space beside the open explorer, and on the window once it is collapsed", async ({ page }) => {
+    test("should keep its place on the window centre when the explorer collapses, covered by it neither before nor after", async ({
+        page
+    }) => {
         // Arrange
         const explorer = page.locator("cc-sidebar-explorer")
         const bar = page.locator("cc-metrics-bar")
-        const viewportWidth = page.viewportSize().width
-        const explorerRight = await boundingBoxOf(explorer).then(box => box.x + box.width)
-        await expect
-            .poll(async () => centreOf(await boundingBoxOf(bar)), { timeout: 5000 })
-            .toBeCloseTo((explorerRight + viewportWidth) / 2, -1)
-        expect(overlaps(await boundingBoxOf(explorer), await boundingBoxOf(bar))).toBe(false)
+        const barWhileExplorerIsOpen = await boundingBoxOf(bar)
 
         // Act
         await collapseExplorer(page)
 
         // Assert
-        await expect.poll(async () => centreOf(await boundingBoxOf(bar)), { timeout: 5000 }).toBeCloseTo(viewportWidth / 2, -1)
+        expect(centreOf(barWhileExplorerIsOpen)).toBeCloseTo(page.viewportSize().width / 2, 0)
+        expect(overlaps(await boundingBoxOf(explorer), barWhileExplorerIsOpen)).toBe(false)
+        await expect.poll(async () => boundingBoxOf(bar), { timeout: 5000 }).toEqual(barWhileExplorerIsOpen)
+        expect(overlaps(await boundingBoxOf(explorer), await boundingBoxOf(bar))).toBe(false)
+    })
+
+    test("should stay on the window centre with both side panels open, covered by neither", async ({ page }) => {
+        // Arrange
+        const bar = page.locator("cc-metrics-bar")
+        const explorerTreeLevel = new ExplorerTreeLevelPageObject(page)
+        await explorerTreeLevel.openFolder(SAMPLE_FOLDER)
+
+        // Act
+        await explorerTreeLevel.selectNode(SAMPLE_FILE)
+
+        // Assert
+        await expect(new SidebarInspectorPageObject(page).nodeName()).toHaveText("bigLeaf.ts")
+        await expect.poll(async () => centreOf(await boundingBoxOf(bar)), { timeout: 5000 }).toBeCloseTo(page.viewportSize().width / 2, 0)
+        expect(overlaps(await boundingBoxOf(page.locator("cc-sidebar-explorer")), await boundingBoxOf(bar))).toBe(false)
+        expect(overlaps(await boundingBoxOf(page.locator("cc-sidebar-inspector")), await boundingBoxOf(bar))).toBe(false)
     })
 
     test("should be clickable from its first cell with the explorer open", async ({ page }) => {

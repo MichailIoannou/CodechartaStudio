@@ -13,18 +13,6 @@ export class SidebarInspectorPageObject {
         await this.page.locator("cc-sidebar-inspector.translate-x-full").waitFor({ state: "attached", timeout: this.DEFAULT_TIMEOUT })
     }
 
-    expandButton(): Locator {
-        return this.page.getByTestId("inspector-expand-button")
-    }
-
-    collapsedName(): Locator {
-        return this.page.getByTestId("inspector-collapsed-name")
-    }
-
-    selectionChangedDot(): Locator {
-        return this.page.getByTestId("inspector-selection-changed")
-    }
-
     nodeName(): Locator {
         return this.page.locator("[data-testid='inspector-node-name']")
     }

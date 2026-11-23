@@ -5,6 +5,7 @@ import { BehaviorSubject } from "rxjs"
 import { ColorMode } from "../../../../model/codeCharta.model"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
 import { Scenario, ScenariosService } from "../../../scenarios/facade"
+import { provideCompactBar } from "../../metricsBar.mocks"
 import { LabelsScenariosSegmentComponent } from "./labelsScenariosSegment.component"
 
 const createScenario = (name: string, id = "id-1"): Scenario => ({
@@ -25,7 +26,7 @@ describe("LabelsScenariosSegmentComponent", () => {
     let scenariosSubject: BehaviorSubject<Scenario[]>
     let scenariosService: { scenarios$: BehaviorSubject<Scenario[]>; loadScenarios: jest.Mock }
 
-    async function setup(initialScenarios: Scenario[] = []) {
+    async function setup(initialScenarios: Scenario[] = [], isCompact = false) {
         HTMLDialogElement.prototype.showModal = jest.fn()
         HTMLDialogElement.prototype.close = jest.fn()
 
@@ -39,7 +40,8 @@ describe("LabelsScenariosSegmentComponent", () => {
             providers: [
                 provideMockStore({ initialState: defaultState }),
                 { provide: State, useValue: { getValue: () => defaultState } },
-                { provide: ScenariosService, useValue: scenariosService }
+                { provide: ScenariosService, useValue: scenariosService },
+                ...(isCompact ? [provideCompactBar()] : [])
             ]
         })
         return { ...renderResult, component: renderResult.fixture.componentInstance }
@@ -52,7 +54,7 @@ describe("LabelsScenariosSegmentComponent", () => {
         // Assert
         expect(screen.getByTestId("metric-segment-labels")).not.toBeNull()
         expect(screen.getByTestId("metric-segment-scenario")).not.toBeNull()
-        expect(screen.getByTestId("metric-segment-scenario-save")).not.toBeNull()
+        expect(screen.getByTestId("metric-segment-scenario-menu")).not.toBeNull()
     })
 
     it("should load scenarios on init", async () => {
@@ -118,5 +120,68 @@ describe("LabelsScenariosSegmentComponent", () => {
         // Assert
         expect(saveOpenSpy).toHaveBeenCalled()
         expect(listOpenSpy).toHaveBeenCalled()
+    })
+
+    it("should show the labels icon on the label settings button", async () => {
+        // Act
+        await setup()
+
+        // Assert
+        const settingsButton = screen.getByRole("button", { name: "Label settings" })
+        expect(settingsButton.getAttribute("popovertarget")).toBe("metric-settings-popover-labels")
+        expect(settingsButton.querySelector(".fa-tags")).not.toBeNull()
+    })
+
+    it("should open the scenarios menu from the bookmark", async () => {
+        // Act
+        const { container } = await setup([createScenario("A", "a")])
+
+        // Assert
+        const bookmark = screen.getByRole("button", { name: "Scenarios" })
+        expect(bookmark.querySelector(".fa-bookmark")).not.toBeNull()
+        const menu = container.querySelector(`#${bookmark.getAttribute("popovertarget")}`)
+        expect(menu.textContent).toContain("Open saved scenarios (1)")
+    })
+
+    it("should keep its label rows whole and let only the scenario count shorten", async () => {
+        // Arrange
+        jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+            return { width: this.hasAttribute("data-label-row") ? 88 : 0 } as DOMRect
+        })
+
+        // Act
+        const { fixture } = await setup([createScenario("A", "a")])
+
+        // Assert
+        expect(fixture.nativeElement.style.minWidth).toBe("88px")
+        expect(screen.getByTitle("Open saved scenarios").classList).toContain("truncate")
+        jest.restoreAllMocks()
+    })
+
+    describe("in the compact bar", () => {
+        it("should stack the Labels and Scenarios buttons", async () => {
+            // Act
+            const { fixture } = await setup([createScenario("A", "a"), createScenario("B", "b")], true)
+
+            // Assert
+            const labels = screen.getByTestId("metric-segment-labels-compact")
+            const scenarios = screen.getByTestId("metric-segment-scenario-compact")
+            expect(fixture.nativeElement.classList).toContain("grid-rows-2")
+            expect(fixture.nativeElement.style.minWidth).toBe("")
+            expect(labels.getAttribute("aria-label")).toBe("Labels · label settings")
+            expect(labels.getAttribute("popovertarget")).toBe("metric-settings-popover-labels")
+            expect(scenarios.getAttribute("aria-label")).toBe("Scenarios · 2 available")
+            expect(scenarios.parentElement.className).toContain("row-start-2")
+        })
+
+        it("should open the same scenarios menu as the full bar's bookmark", async () => {
+            // Act
+            await setup([], true)
+
+            // Assert
+            expect(screen.getByTestId("metric-segment-scenario-compact").getAttribute("popovertarget")).toBe(
+                "metric-segment-scenarios-menu"
+            )
+        })
     })
 })

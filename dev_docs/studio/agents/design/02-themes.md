@@ -10,7 +10,7 @@ Plan: `02-themes.md` ("UI", "Error states and edge cases", M1, M5). Principles:
 | T1 | Theme picker | `cc-theme-picker` | Global Configuration dialog, first row | `cc-setting-toggle` row |
 | T2 | (removed by OD10: no theme control in the nav bar) | — | — | — |
 | T3 | Dark chrome audit | checklist | every existing screen | — |
-| T4 | Metrics bar, refreshed | `cc-metrics-bar`, `ccBarShell` | floating bar above the file extension bar | today's metrics bar |
+| T4 | Metrics bar, refreshed; cell icons on the settings buttons; compact icon form when the map is narrow | `cc-metrics-bar`, `ccBarShell`, new `cc-metric-glyph` | floating bar above the file extension bar | today's metrics bar |
 | T5 | File extension bar, blended edges | `cc-file-extension-bar`, `cc-file-extension-bar-segment` | full-width bar above the bottom bar | today's file extension bar |
 
 ## T1 Theme picker
@@ -116,34 +116,41 @@ Studio (dark, one rounded rectangle, nothing protrudes):
 - **Shell** (`ccBarShell`, unchanged z-index): `rounded-2xl border border-base-300
   bg-base-100 shadow-lg p-1.5 gap-1 items-stretch`. Sections are separated by `w-px bg-base-300 my-2`
   dividers, not by borders on the cards.
-- **Position** (owner answer O7, option A): the bar is centred in the free map area between the open
-  explorer and the open inspector, not on the window, so the wider bar is never covered by a panel.
-  Collapsed panels give their width back. The legend drawer opens above the bar (O6).
-- **Too little room** (implementation finding after O7: at about 900 px with both panels open only
-  236 px are free, the bar stops at its 30rem minimum and its tools lie under the inspector). Neither
-  a z-order change (the bar would cover the inspector instead) nor a compact bar (five metric cells
-  cannot fit in 236 px) solves it. Instead **side panels give way**: when opening a side panel would
-  leave less than 30rem of free map width, the panel on the other side collapses (it keeps its
-  content and reopens with one click, which in turn collapses the first). A window resize that makes
-  the free width too small collapses the inspector first. Above about 1150 px with default panel
-  widths nothing changes. Owner question 12 in `open-questions.md` (default applied).
-  Refinements (O9.1):
-  - The panel the user is working in never collapses under the pointer: a panel opened by a click
-    or focus inside the other panel opens collapsed itself.
-  - A new selection does not reopen a collapsed inspector; its strip shows a `badge badge-primary
-    badge-xs` dot until it is opened, title "Show inspector — selection changed".
-  - Collapsed inspector strip: the mirror of the explorer's strip (same island, width and
-    expand button on the side facing the map), icon `fa-solid fa-circle-info`, title "Show
-    inspector".
-  - The Dependencies view follows the same rule with the same strip for its inspector.
+- **Position** (owner, 2026-11-22, replacing O7 option A): the bar is centred on the **window**, as
+  upstream PR #4557 has it, not on the free map between the panels. Its room is the width around the
+  window centre that no open panel covers: twice the distance from the window centre to the nearer
+  panel edge (with both panels at their default 320 px, the same as the free map). A collapsed or
+  narrower panel on one side doesn't move the bar or give it more room. The bar is never covered by a
+  panel: with less room than the full bar needs it becomes the compact bar (below). The legend drawer
+  opens above the bar (O6).
+- **Too little room: compact bar** (owner answer to question 12, replacing the side panels that gave
+  way). Both side panels stay open; when the full bar does not fit, it becomes a **compact bar** of icon
+  buttons in two rows, about as tall as the full bar, so the map does not jump. Section "T4 compact bar"
+  below has the detail. The automatic collapsing of side panels is removed, with the collapsed
+  inspector strip and its "selection changed" dot (O9.1); the explorer's own collapse button stays.
 - **Cells** (axis cards, labels/scenarios, layout): `rounded-xl px-3 py-2 hover:bg-base-200
   transition-colors`; open popover → `bg-base-200 ring-1 ring-primary/40`. Inside unchanged: the
-  `text-[10px] uppercase tracking-wide text-base-content/60` label with the cog (`btn btn-ghost btn-xs
-  btn-square rounded-lg`) on the same line, the metric name `text-sm font-semibold truncate`, the meta
-  value (`Σ 1,420`, delta values with their colours) `text-xs text-base-content/70`.
-- **Layout** becomes the first cell inside the bar: label "LAYOUT", glyph + layout name (two lines
-  allowed, `leading-tight`) + `fa-caret-down`; same `title` "Change the map layout" and same popover
-  (`cc-settings-popover-shell`, now anchored above the cell).
+  `text-[10px] uppercase tracking-wide text-base-content/60` label with the settings button (`btn
+  btn-ghost btn-xs btn-square rounded-lg`) on the same line, the metric name `text-sm font-semibold
+  truncate`, the meta value (`Σ 1,420`, delta values with their colours) `text-xs
+  text-base-content/70`.
+- **Cell icon instead of the cog** (owner, 2026-11-22): the settings button shows the cell's own
+  icon (section "T4 compact bar", Icons) instead of `fa-cog`, at 14 px (`size-3.5` for the SVG
+  glyphs, `text-[13px]` for Font Awesome) in `text-base-content/70`, hover `text-base-content`. It
+  opens the same settings popover. Its `title` and `aria-label` name the cell: "Area settings",
+  "Height settings", "Color settings", "Edge settings", "Folder settings", "Label settings"; the delta
+  Color card uses the palette too. `cc-axis-card-header` gets an optional icon input; a card without
+  one keeps the cog, so the domain and dependency bars stay as they are. Scenarios gets its bookmark
+  in place of its ＋ (title "Scenarios"): it opens the same menu as in the compact bar ("Open saved
+  scenarios (7)", "Save current state as scenario"), so saving stays one click away and the icon
+  matches the compact bar. Clicking the count still opens the saved scenarios. Layout keeps its glyph
+  and caret.
+- **Layout** becomes the first cell inside the bar: label "LAYOUT", and below it **always only the
+  current layout's glyph** (`cc-layout-glyph`, 20 px) + `fa-caret-down` (owner, 2026-11-22); the
+  layout name is not shown in the bar. Tooltip and `aria-label` "Layout · Squarified TreeMap". Same
+  popover (`cc-settings-popover-shell`, now anchored above the cell); each layout in it is listed with
+  its glyph before its name. All five layouts already have a glyph: Squarified TreeMap, StreetMap,
+  TreeMapStreet, Sunburst, Radial TreeMap.
 - **Link Height and Color**: a `btn btn-sm btn-square rounded-lg` centred vertically in its own
   narrow column between Height and Color, inside the bar's height. Linked: `btn-soft btn-primary`
   with `fa-link`; unlinked: `btn-ghost border border-dashed border-base-300 text-base-content/60` with
@@ -159,13 +166,173 @@ Studio (dark, one rounded rectangle, nothing protrudes):
   `btn-active`. The drawer still slides in from the right.
 - **Variants keep their cells**: radial layout (Folders cell, no Height, no link button), delta mode
   (Color shows "Settings" with the delta colour popover), no edges (no Edges cell).
-- **States**: disabled cell `opacity-50 cursor-default`; narrow window (the bar is
-  `max-w-[min(95vw,1200px)]`): metric names truncate first, then the layout name shows only its glyph,
-  then the tools grid becomes `grid-cols-1`; the bar never scrolls or wraps.
+- **States**: disabled cell `opacity-50 cursor-default`.
+- **Narrow map** (owner, 2026-11-22: no clipped labels, no jumps, room for the names): the full bar
+  shortens only metric names, continuously, with "…", and **never below 12 characters** ("complexity"
+  always fits, "sonar_complexity" at least "sonar_comple…"). Labels, icons, meta values (`Σ 408,534`),
+  the link button and the tools never shrink. Each card's `min-width` is the widest of its label row,
+  its meta value and the first 12 characters of its name plus "…", measured when the metric changes
+  and set inline; the name is `min-w-0 truncate`. The tools grid stays 2 × 2 (the old one-column
+  step changed the bar's height). When the full bar can't get narrower than these minimums, the
+  compact bar takes over (T4 compact bar). The bar never scrolls or wraps.
 - **Keyboard**: unchanged order (layout, area, height, link, color, edges, labels, scenarios, tools);
   every icon-only button has `title` = `aria-label`.
 - **Domain bar** (`features/domainBar`) and **dependency bar** use the same shell and get the same
   shape and tools cell; the dependency view's rotated LEGEND tab also becomes a Legend tool (O6).
+
+## T4 compact bar (owner answer to question 12)
+
+When the room around the window centre between the open side panels is too narrow for the full bar, the bar shows one icon
+button per cell instead of its cards. The buttons open the same popovers as the cards. Mock-ups:
+`mockups/compact-metrics-bar.html` (states, variants) and `mockups/nav-and-bar-fit.html` (drag the
+free width or press Play to see the switch).
+
+```
+full bar, 1400 px window (unchanged):
+╭─────────────────────────────────────────────────────────────────────────────────────────────╮
+│ LAYOUT     │ AREA    ⚙ │ HEIGHT        ⚙ │⛓│ COLOR         ⚙ │ EDGES    ⚙ │ LABELS    ⚙ │ ⌖ 💡 │
+│ ▦ Squarif… │ rloc       │ sonar_complexity│  │ sonar_complexity│ avgCommits │ SCENARIOS ＋ │ 📷 ☰ │
+╰─────────────────────────────────────────────────────────────────────────────────────────────╯
+
+compact bar, 900 px window, both panels open (236 px free, bar 235 px):
+╭──────────────────────────────╮
+│ ▦ │ ⬖  ⬆▢ ┐│ 🏷 │ ⌖  💡 │
+│ ▾ │ ⊛  🎨 ┘│ 🔖 │ 📷 ☰ │
+╰──────────────────────────────╯
+  Layout | Area Height ⛓ / Edges Color | Labels / Scenarios | view tools
+```
+
+- **When:** the compact bar takes over when the bar's room (centred on the window, see "Position":
+  `2 × min(window centre − left inset, window width − right inset − window centre)`, from the panel
+  insets the shell already tracks) is less than the **full bar's minimum**: the sum of
+  the card minimums plus link, tools, dividers and padding (732 px with the sample map; it depends on
+  which cells show). It returns to the full bar when the room is **32 px more** than that, so
+  dragging a panel edge near the limit doesn't make it flicker. The minimum is measured again when
+  the cells change (layout, delta mode, edges); the room on every panel open, close or resize
+  and window resize, like the insets today. The bar stays centred on the window.
+- **Same height** (owner, 2026-11-22): both forms are **74 px** tall (the shell's content box
+  `h-[4.625rem]` in both). The compact groups are centred vertically: rows of 28 px with a 6 px gap
+  (`gap-y-1.5`), so nothing above or below the bar moves when it switches.
+- **Switching animation** (240 ms, `cubic-bezier(.2,.8,.2,1)`), done with the Web Animations API in
+  the metrics bar component:
+  1. Before the swap, record each cell icon's position (layout, area, height, link, color, edges,
+     labels, scenarios, each tool: the same icons exist in both forms) and the shell's width.
+  2. Swap the form, and lay a copy of the old form over the shell (`absolute inset-0
+     pointer-events-none`, its icons hidden) that fades out in 85 ms.
+  3. Animate the shell's `width` from the old to the new width. The shell stays centred, so the new
+     icons' final positions are known at once: animate each from its old position (`translate`) to
+     its new one (FLIP).
+  4. The new form's text (labels, names, meta, carets) fades in, from 40 % of the time on.
+  - A switch that starts while one runs finishes the running one first. With `prefers-reduced-motion`
+    the swap is instant.
+- **Shell:** the same `ccBarShell` (`rounded-2xl`, same z-index, 74 px tall), with cell groups
+  separated by the same `cc-bar-divider` and no extra gap between items in the compact form (the
+  dividers' margins space the groups). Inside, each group is a `grid grid-rows-2 grid-flow-col
+  gap-x-0.5 gap-y-1.5`; the buttons are placed with explicit `col-start`/`row-start`, so DOM and tab order stay
+  as today: layout, area, height, link, color, edges, labels, scenarios, tools.
+- **Buttons:** `btn btn-ghost btn-square size-7 min-h-0 rounded-lg` (28 px), icon 16 px
+  (`size-4` for the SVG glyphs, `text-[15px]` for Font Awesome), `text-base-content/80`, hover
+  `bg-base-200`. Open popover → `btn-active ring-1 ring-primary/40` (like an open card). Disabled
+  cell → `btn-disabled opacity-50`. Dimmed card (hidden edges, neutral folders) → icon
+  `text-base-content/40`.
+- **Groups and slots** (row 1 / row 2):
+
+  | Group | Slots | Notes |
+  |---|---|---|
+  | Layout | one button `row-span-2`, `h-full w-7`: layout glyph with `fa-caret-down text-[8px]` under it | |
+  | Metrics | col 1: Area / Edges · col 2: Height / Color · col 3: link `row-span-2` | link sits beside Height and Color, which it joins |
+  | Labels, Scenarios | Labels / Scenarios | same stacking as the full bar's cell |
+  | View tools | today's `grid-cols-2` of tools, buttons `size-7` | Unfocus adds a third column, as in the full bar |
+
+  - **Link** (`row-span-2`): `btn btn-square w-4 h-full min-h-0 p-0 rounded-md`, `fa-link` or
+    `fa-unlink` `text-[10px]`; linked `btn-soft btn-primary`, unlinked `btn-ghost
+    text-base-content/50`. Titles unchanged ("Link Height and Color Metric" / "Unlink Height and
+    Color Metric").
+  - **Radial layout:** Area / –, Folders / Color; no link, no edges.
+  - **No edge metric:** the Edges slot stays empty, so the other icons don't move between files.
+  - **Delta mode:** the Color button opens the delta colour popover directly.
+- **Width:** 28 (layout) + 76 (metrics) + 28 (labels/scenarios) + 58 (tools) + 3 dividers × 9 +
+  padding and border 14 ≈ **235 px** (measured in the mock-up), which fits the 236 px left at 900 px
+  with both panels at their default 320 px. If the map is narrower still (panels widened, or Unfocus
+  showing), the compact bar keeps its own width as the smallest the bar gets and reaches under a
+  panel's edge.
+
+### Icons
+
+One icon per cell, the same in both themes (`currentColor`). New glyphs are drawn like
+`cc-layout-glyph`: `viewBox="0 0 20 20"`, `fill="none" stroke="currentColor" stroke-width="1.4"
+stroke-linejoin="round" stroke-linecap="round"`. They go into a new `cc-metric-glyph` component
+(`features/metricsBar/components/metricGlyph`, input `kind: "area" | "height"`), next to
+`cc-layout-glyph`. The same icons appear in the full bar, on each card's settings button (T4, "Cell
+icon instead of the cog").
+
+| Cell | Icon | Source |
+|---|---|---|
+| Layout | the current layout's glyph | `cc-layout-glyph` (existing) |
+| Area | footprint tile | new glyph `area` |
+| Height | building with an up arrow | new glyph `height` |
+| Color | palette | `fa-solid fa-palette` |
+| Edges | circle nodes | `fa-solid fa-circle-nodes` |
+| Labels | tags | `fa-solid fa-tags` (owner, 2026-11-22) |
+| Scenarios | bookmark, outline | `fa-regular fa-bookmark` |
+| Folders (radial) | folder | `fa-regular fa-folder` (existing) |
+| Link, view tools | unchanged | existing |
+
+```html
+<!-- area -->
+<path d="M10 4.5l8.5 4.5-8.5 4.5-8.5-4.5z" fill="currentColor" fill-opacity=".4"/>
+<path d="M1.5 9v3l8.5 4.5 8.5-4.5V9M10 13.5v3"/>
+<!-- height -->
+<path d="M7.5 5.5l5-2.6 5 2.6-5 2.6z"/>
+<path d="M7.5 5.5v9.4l5 2.6 5-2.6V5.5M12.5 8.1v9.4"/>
+<path d="M3.5 17.5V3M1.3 5.2L3.5 3l2.2 2.2"/>
+```
+
+**One concept, one icon:** the Scenarios dialog's group icons (`SCENARIO_GROUP_ICONS`) switch to the
+same icons: area and height the new glyphs, color `fa-palette`, edge `fa-circle-nodes`; labels already
+use `fa-tags`. Camera and filters keep theirs.
+
+### Hover texts
+
+Every button gets a daisyUI tooltip above it (`tooltip tooltip-top`, `data-tip`), shown on hover
+and on keyboard focus. Its text is also the button's `aria-label`. The tooltip hides while that
+button's popover is open. The text is the cell's label, then what the card would show, joined by
+" · ". The meta part is left out when the card shows none.
+
+| Button | Tooltip (example) |
+|---|---|
+| Layout | "Layout · Squarified TreeMap" |
+| Area | "Area · rloc · Σ 1,420" |
+| Height | "Height · sonar_complexity · Σ 393" |
+| Color | "Color · sonar_complexity · Σ 393"; delta mode "Color · delta colours" |
+| Edges | "Edges · avgCommits"; hidden edges "Edges · avgCommits · hidden" |
+| Folders | "Folders · <value label> · <style label>" |
+| Labels | "Labels · label settings" |
+| Scenarios | "Scenarios · 7 available" (the count text the card shows) |
+| Link, tools | their titles today, as tooltips |
+
+Delta values in the tooltip keep their sign (`+12`, `−3`) but not their colour.
+
+### Clicks
+
+- **Layout:** the layout popover, anchored above the button.
+- **Area, Height, Color, Edges, Folders:** the metric chooser the card's metric name opens (for
+  Folders the value popover). In the compact bar the chooser ends with a row `border-t
+  border-base-300` holding `btn btn-ghost btn-sm justify-start w-full`: `fa-cog` "Area settings"
+  (Height settings, Color settings, …), which closes the chooser and opens the cell's settings
+  popover anchored to the same button. The full bar's choosers don't get this row.
+- **Labels:** the label settings popover.
+- **Scenarios:** a small menu above the button (`menu menu-sm`, in `cc-settings-popover-shell`
+  `w-60`): `fa-regular fa-bookmark` "Open saved scenarios (7)" and `fa-plus` "Save current state as
+  scenario". The full bar's bookmark button opens the same menu.
+- **Link, view tools:** unchanged; right-click on Center map keeps its zoom menu.
+- **Keyboard:** each button is a normal button (Enter/Space); popovers close with Esc and return
+  focus to the button.
+
+### Other bars
+
+The domain bar and the dependency bar keep their behaviour; they have no compact form. Owner
+question 15 in `open-questions.md` (default applied).
 
 ## T5 File extension bar, blended edges (owner decision OD7)
 

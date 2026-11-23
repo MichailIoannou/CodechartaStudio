@@ -16,7 +16,7 @@ import type { BatchSelection } from "../../../../model/coreApi/BatchSelection"
 import type { GitLocalBranch } from "../../../../model/coreApi/GitLocalBranch"
 import type { PreflightProblem } from "../../../../model/coreApi/PreflightProblem"
 import { counted, shortSha } from "../../../../util/wording"
-import { GitRepositoryService, isGitStatus } from "../../../gitHistory/facade"
+import { GitRepositoryService } from "../../../gitHistory/facade"
 import { ProjectsFacade } from "../../../projects/facade"
 import { AnalysisJobsService } from "../../services/analysisJobs.service"
 import { BatchAnalysisDialogService, BatchDialogRequest } from "../../services/batchAnalysisDialog.service"
@@ -210,8 +210,7 @@ export class BatchAnalysisDialogComponent implements AfterViewInit {
     }
 
     private headCommit(): string | null {
-        const status = this.gitRepository.statusOf(this.request().folder)
-        return isGitStatus(status) ? status.head.commit : null
+        return this.gitRepository.headCommitOf(this.request().folder)
     }
 
     private branchNameOf(selection: BatchSelection): string | null {

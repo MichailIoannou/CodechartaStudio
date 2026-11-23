@@ -16,6 +16,7 @@ varying vec4 vOutgoingDiffuseColor;
 varying vec4 vOutgoingDiffuseDeltaColor;
 
 uniform vec3 ambientLightColor;
+uniform float mapBaseDepth;
 
 struct DirectionalLight {
     vec3 direction;
@@ -64,6 +65,12 @@ void main()
 #ifdef USE_INSTANCING
     // Transform template vertex by instance matrix (scale + translate)
     vec4 instancePos = instanceMatrix * vec4(position, 1.0);
+
+    // Only the root floor's bottom lies on the ground, so lowering it gives the map its base. The plain path
+    // below draws the 3D print preview, which adds a base plate of its own.
+    if (instancePos.y < GROUND_LEVEL_TOLERANCE) {
+        instancePos.y -= mapBaseDepth;
+    }
 
     // Z-fighting offset applied in model space (Y is up).
     // The formula is intentionally identical to the non-instanced path below:

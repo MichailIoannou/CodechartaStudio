@@ -36,4 +36,8 @@
     </div>
 
     <p class="text-xs opacity-70">{{ footnote() }}</p>
+
+    @if (settingsShortcut(); as shortcut) {
+        <cc-settings-shortcut [shortcut]="shortcut" />
+    }
 </cc-settings-popover-shell>

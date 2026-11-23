@@ -2,17 +2,11 @@ import type { AnalysisJob } from "../../../model/coreApi/AnalysisJob"
 import type { FolderRef } from "../../../model/coreApi/FolderRef"
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import type { ProjectFolder } from "../../../model/coreApi/ProjectFolder"
-import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
 import type { SnapshotSummary } from "../../../model/coreApi/SnapshotSummary"
 import type { RunningGitOperation } from "../../gitHistory/facade"
 import { branchLabel, counted, fileDate, longDate, shortDate } from "../../projects/facade"
 import { isUnboundImport, progressPercent, targetName } from "../../snapshots/facade"
-
-/** How far the snapshot in the map is from what the user asked for, as a badge and as words for the title. */
-export interface Staleness {
-    badge: TriggerBadge
-    phrase: string
-}
+import { badgeOf, lowerFirst, Staleness, TriggerBadge } from "./triggerBadge"
 
 /** A git operation of the working folder that the trigger shows instead of an analysis (design W1). */
 export interface GitActivity {
@@ -59,21 +53,13 @@ export interface TriggerInput {
     gitActivity?: GitActivity | null
 }
 
-/** The part after the branch: the commit in the map, what runs, or a short state. */
+/** The part after the branch: what runs, or a short state; the commit in the map is only in the title and the dropdown. */
 interface MapPart {
-    sha: string | null
     text: string | null
     isAnalysing: boolean
     percent: number | null
     /** The running git operation, worded ("Fetching"). */
     activity?: string
-}
-
-type BadgeTone = "error" | "warning" | "ghost"
-
-interface TriggerBadge {
-    text: string
-    tone: BadgeTone
 }
 
 type FillKind = "none" | "determinate" | "indeterminate" | "finished" | "failed"
@@ -99,7 +85,14 @@ const IMPORTED_UNKNOWN = "imported · analysis time unknown"
 export function workspaceTrigger(input: TriggerInput): TriggerView {
     const status = typeof input.gitStatus === "object" ? input.gitStatus : null
     const mapPart = mapPartOf(input)
-    const badge = badgeOf(input)
+    const badge = badgeOf({
+        isFailed: input.outcome === "failed",
+        isGitActivityBesideAnalysis: Boolean(input.gitActivity && input.activeJob),
+        isAnalysing: input.activeJob !== null,
+        staleness: input.staleness,
+        shown: input.shown,
+        hasSnapshots: input.hasSnapshots
+    })
     const branch = branchOf(input, status)
     return {
         icon: iconOf(input),
@@ -114,7 +107,9 @@ export function workspaceTrigger(input: TriggerInput): TriggerView {
         behind: status?.upstream?.behind ?? 0,
         uncommitted: status ? uncommittedOf(status) : 0,
         title: titleOf(input, status),
-        ariaLabel: [branch ? `Branch ${branch}` : input.folder.label, mapAriaOf(input, mapPart), badge?.text].filter(Boolean).join(", ")
+        ariaLabel: [branch ? `Branch ${branch}` : input.folder.label, mapAriaOf(input, mapPart), badge && lowerFirst(badge.hint)]
+            .filter(Boolean)
+            .join(", ")
     }
 }
 
@@ -151,10 +146,10 @@ function mapPartOf(input: TriggerInput): MapPart | null {
         return textPart("Core offline")
     }
     if (input.gitActivity) {
-        return { sha: null, text: null, isAnalysing: false, percent: input.gitActivity.percent, activity: input.gitActivity.label }
+        return { text: null, isAnalysing: false, percent: input.gitActivity.percent, activity: input.gitActivity.label }
     }
     if (input.activeJob) {
-        return { sha: null, text: null, isAnalysing: true, percent: progressPercent(input.activeJob.progress) }
+        return { text: null, isAnalysing: true, percent: progressPercent(input.activeJob.progress) }
     }
     if (input.outcome === "failed") {
         return textPart("Analysis failed")
@@ -162,36 +157,15 @@ function mapPartOf(input: TriggerInput): MapPart | null {
     return input.shown ? shownPartOf(input.shown) : null
 }
 
-function shownPartOf(shown: SnapshotSummary): MapPart {
+function shownPartOf(shown: SnapshotSummary): MapPart | null {
     if (isUnboundImport(shown)) {
         return textPart(IMPORTED_UNKNOWN)
     }
-    return shown.shortCommit
-        ? { sha: shown.shortCommit, text: null, isAnalysing: false, percent: null }
-        : textPart(`snapshot from ${shortDate(shown.createdAt)}`)
+    return shown.shortCommit ? null : textPart(`snapshot from ${shortDate(shown.createdAt)}`)
 }
 
 function textPart(text: string): MapPart {
-    return { sha: null, text, isAnalysing: false, percent: null }
-}
-
-function badgeOf(input: TriggerInput): TriggerBadge | null {
-    if (input.outcome === "failed") {
-        return { text: "failed", tone: "error" }
-    }
-    if (input.gitActivity && input.activeJob) {
-        return { text: "+1", tone: "ghost" }
-    }
-    if (input.staleness) {
-        return input.staleness.badge
-    }
-    if (input.shown?.dirty) {
-        return { text: "dirty", tone: "warning" }
-    }
-    if (input.shown?.source === "imported" && !isUnboundImport(input.shown)) {
-        return { text: "imported", tone: "ghost" }
-    }
-    return input.hasSnapshots || input.activeJob ? null : { text: "not analysed", tone: "ghost" }
+    return { text, isAnalysing: false, percent: null }
 }
 
 function fillOf(input: TriggerInput): FillKind {
@@ -246,7 +220,8 @@ function mapLine(input: TriggerInput): string {
         return `Imported snapshot — analysis time unknown${fileDateLine}\nImported ${longDate(shown.createdAt)}`
     }
     const commit = shown.shortCommit ? `${shown.shortCommit} ${shown.subject ?? ""}`.trim() : `snapshot from ${shortDate(shown.createdAt)}`
-    return input.staleness ? `Map shows ${commit}, ${input.staleness.phrase}` : `Map shows ${commit}`
+    const uncommitted = shown.dirty ? " with uncommitted changes" : ""
+    return input.staleness ? `Map shows ${commit}${uncommitted}, ${input.staleness.phrase}` : `Map shows ${commit}${uncommitted}`
 }
 
 function gitActivityLine(activity: GitActivity | null): string | null {
@@ -265,9 +240,6 @@ function activityLine(job: AnalysisJob | null): string | null {
 }
 
 function mapAriaOf(input: TriggerInput, mapPart: MapPart | null): string | null {
-    if (mapPart?.sha) {
-        return `map shows ${mapPart.sha}`
-    }
     if (mapPart?.activity) {
         const label = mapPart.activity.toLowerCase()
         return mapPart.percent === null ? label : `${label} ${mapPart.percent} percent`
@@ -282,25 +254,6 @@ function mapAriaOf(input: TriggerInput, mapPart: MapPart | null): string | null 
 function uncommittedOf(status: GitStatus): number {
     const { staged, unstaged, untracked, conflicted } = status.counts
     return staged + unstaged + untracked + conflicted
-}
-
-/** `wanted` names what the user asked for in a sentence: a short SHA or "the current checkout". */
-export function stalenessOf(resolution: SnapshotResolution | null, badge: TriggerBadge | null, wanted: string): Staleness | null {
-    if (!badge || !(resolution?.kind === "nearest" || resolution?.kind === "exact")) {
-        return null
-    }
-    return { badge, phrase: resolution.kind === "exact" ? "analysed with a different profile" : distancePhrase(resolution, wanted) }
-}
-
-function distancePhrase({ relation, behind, ahead }: Extract<SnapshotResolution, { kind: "nearest" }>, wanted: string): string {
-    switch (relation) {
-        case "ancestor":
-            return `${counted(behind, "commit")} behind ${wanted}`
-        case "descendant":
-            return `${counted(ahead, "commit")} ahead of ${wanted}`
-        case "diverged":
-            return `${counted(behind, "commit")} behind and ${ahead} ahead of ${wanted}`
-    }
 }
 
 export function uncommittedTitle(count: number): string {

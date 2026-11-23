@@ -1,7 +1,8 @@
 import type { GitStatus } from "../../../model/coreApi/GitStatus"
 import { aFolder, aSnapshot } from "../../projects/projects.mocks"
 import { aJob } from "../../snapshots/snapshots.mocks"
-import { gitActivityOf, stalenessOf, TriggerInput, uncommittedTitle, workspaceTrigger } from "./workspaceTrigger"
+import { stalenessOf } from "./triggerBadge"
+import { gitActivityOf, TriggerInput, uncommittedTitle, workspaceTrigger } from "./workspaceTrigger"
 
 const STATUS: GitStatus = {
     head: { kind: "branch", name: "feature/invoice-rounding", commit: "a".repeat(40) },
@@ -95,14 +96,14 @@ describe("workspaceTrigger", () => {
                 fillPercent: 45
             })
             expect(view.title).toContain("Fetching — Receiving objects: 45%")
-            expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, fetching 45 percent, +1")
+            expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, fetching 45 percent, another analysis runs as well")
             expect(sweeping).toMatchObject({ fill: "indeterminate", fillPercent: null })
             expect(sweeping.title).toContain("Fetching…")
             expect(sweeping.ariaLabel).toBe("Branch feature/invoice-rounding, fetching")
         })
     })
 
-    it("should show the branch, its counts and the commit in the map while idle", () => {
+    it("should show the branch and its counts while idle, with the commit in the map only in the title", () => {
         // Act
         const view = workspaceTrigger(input())
 
@@ -111,7 +112,7 @@ describe("workspaceTrigger", () => {
             icon: "fa-solid fa-code-branch",
             isSpinning: false,
             branch: "feature/invoice-rounding",
-            mapPart: { sha: "9f8e7d6" },
+            mapPart: null,
             badge: null,
             fill: "none",
             ahead: 2,
@@ -123,7 +124,7 @@ describe("workspaceTrigger", () => {
             "Branch feature/invoice-rounding, 2 to push, 1 to pull, 3 uncommitted",
             "Map shows 9f8e7d6 Release 2.4.0"
         ])
-        expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, map shows 9f8e7d6")
+        expect(view.ariaLabel).toBe("Branch feature/invoice-rounding")
     })
 
     it("should show a determinate analysis with its percent and an indeterminate one as a sweep", () => {
@@ -199,15 +200,44 @@ describe("workspaceTrigger", () => {
         expect(imported).toMatchObject({ icon: "fa-solid fa-file-import", mapPart: { text: "imported · analysis time unknown" } })
         expect(imported.title).toContain("Imported snapshot — analysis time unknown\nFile date: 10 Nov 2026, ")
         expect(imported.title).toContain("\nImported 12 Nov 2026")
-        expect(boundView).toMatchObject({ mapPart: { sha: "9999999" }, badge: { text: "imported", tone: "ghost" } })
+        expect(boundView).toMatchObject({ mapPart: null, badge: { text: "imported", tone: "ghost" } })
     })
 
-    it("should flag an analysis of uncommitted changes", () => {
+    it("should flag an analysis of uncommitted changes and explain it", () => {
         // Act
         const view = workspaceTrigger(input({ shown: { ...SHOWN, dirty: true, target: "workingTree" } }))
+        const withoutCommit = workspaceTrigger(input({ shown: { ...SHOWN, shortCommit: null, dirty: true, target: "workingTree" } }))
 
         // Assert
-        expect(view.badge).toEqual({ text: "dirty", tone: "warning" })
+        expect(view.badge).toEqual({
+            text: "uncommitted",
+            tone: "warning",
+            hint: "Map is an analysis of uncommitted changes on 9f8e7d6"
+        })
+        expect(view.title).toContain("Map shows 9f8e7d6 Release 2.4.0 with uncommitted changes")
+        expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, map is an analysis of uncommitted changes on 9f8e7d6")
+        expect(withoutCommit.badge?.hint).toBe("Map is an analysis of uncommitted changes")
+    })
+
+    it("should explain every badge", () => {
+        // Arrange
+        const pulling = { label: "Pulling", icon: "fa-solid fa-arrow-down", percent: null, message: null }
+
+        // Act
+        const hints = [
+            workspaceTrigger(input({ outcome: "failed" })),
+            workspaceTrigger(input({ gitActivity: pulling, activeJob: aJob("job-1", { state: "running" }) })),
+            workspaceTrigger(input({ shown: { ...SHOWN, source: "imported", commit: "9".repeat(40) } })),
+            workspaceTrigger(input({ shown: null, hasSnapshots: false }))
+        ].map(view => view.badge?.hint)
+
+        // Assert
+        expect(hints).toEqual([
+            "The analysis failed; the menu has its log",
+            "Another analysis runs as well",
+            "Map is imported; its analysis time is unknown",
+            "This folder has no analysis yet"
+        ])
     })
 
     it("should show the folder while git is loading or cannot answer and while the core is offline", () => {
@@ -238,30 +268,9 @@ describe("workspaceTrigger", () => {
         const view = workspaceTrigger(input({ staleness, shown: { ...SHOWN, dirty: true } }))
 
         // Assert
-        expect(view.badge).toEqual({ text: "stale by 4", tone: "warning" })
-        expect(view.title).toContain("Map shows 9f8e7d6 Release 2.4.0, 4 commits behind the current checkout")
-    })
-
-    it("should word each distance and a different profile", () => {
-        // Arrange
-        const badge = { text: "badge", tone: "warning" as const }
-        const base = { kind: "nearest" as const, snapshot: SHOWN, isCurrentProfile: true }
-
-        // Act
-        const phrases = [
-            stalenessOf({ ...base, relation: "descendant", behind: 0, ahead: 1 }, badge, "a1b2c3d"),
-            stalenessOf({ ...base, relation: "diverged", behind: 3, ahead: 2 }, badge, "a1b2c3d"),
-            stalenessOf({ kind: "exact", snapshot: SHOWN, isCurrentProfile: false }, badge, "a1b2c3d")
-        ].map(staleness => staleness?.phrase)
-        const withoutBadge = stalenessOf({ kind: "exact", snapshot: SHOWN, isCurrentProfile: true }, null, "a1b2c3d")
-
-        // Assert
-        expect(phrases).toEqual([
-            "1 commit ahead of a1b2c3d",
-            "3 commits behind and 2 ahead of a1b2c3d",
-            "analysed with a different profile"
-        ])
-        expect(withoutBadge).toBeNull()
+        expect(view.badge).toEqual({ text: "stale by 4", tone: "warning", hint: "Map is 4 commits behind the current checkout" })
+        expect(view.title).toContain("Map shows 9f8e7d6 Release 2.4.0 with uncommitted changes, 4 commits behind the current checkout")
+        expect(view.ariaLabel).toBe("Branch feature/invoice-rounding, map is 4 commits behind the current checkout")
     })
 
     it("should count uncommitted changes in words", () => {

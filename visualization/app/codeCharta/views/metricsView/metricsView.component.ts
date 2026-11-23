@@ -27,8 +27,7 @@ import {
     injectIsRadialLayout,
     LoadingFileProgressSpinnerComponent,
     provideViewScopedCssVariables,
-    SharedFocusStore,
-    SidePanelRoom
+    SharedFocusStore
 } from "../../features/shared/facade"
 import {
     DEFAULT_EXPLORER_CAPABILITIES,
@@ -103,8 +102,7 @@ import { RevealsSelectedNodeAfterLoadDirective } from "./explorer/revealsSelecte
         provideChangesExplorerMode(),
         { provide: NODE_CONTEXT_MENU_CAPABILITIES, useValue: DEFAULT_NODE_CONTEXT_MENU_CAPABILITIES },
         provideViewScopedExplorerState("metrics"),
-        provideViewScopedCssVariables(),
-        SidePanelRoom
+        provideViewScopedCssVariables()
     ],
     hostDirectives: [RevealsSelectedNodeAfterLoadDirective, ShowsHandedOverMapNodeDirective],
     changeDetection: ChangeDetectionStrategy.OnPush

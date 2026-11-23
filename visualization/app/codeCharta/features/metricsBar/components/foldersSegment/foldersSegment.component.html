@@ -1,27 +1,44 @@
-<cc-axis-card
-    label="Folders"
-    [metricName]="valueLabel()"
-    [dimmed]="isNeutral()"
-    [hasCog]="true"
-    [cogPopoverId]="stylePopoverId"
-    [cogAnchorName]="styleAnchorName"
-    [searchPopoverId]="valuePopoverId"
-    [searchAnchorName]="valueAnchorName"
-    [testId]="'metric-segment-folders'"
-    [cogTestId]="'metric-segment-folders-cog'"
->
-    <div body class="flex items-center justify-center gap-1 text-xs leading-tight min-h-4">
-        <span class="inline-block h-2 w-3.5 shrink-0 rounded-sm border border-base-300" [style.background]="swatch()"></span>
-        <span class="font-medium" data-testid="metric-segment-folders-style">{{ styleLabel() }}</span>
-    </div>
-</cc-axis-card>
-
+@if (isCompact()) {
+    <cc-compact-bar-button
+        [class]="compactSlot"
+        [tooltip]="tooltip()"
+        [popoverId]="valuePopoverId"
+        [popoverIds]="[stylePopoverId]"
+        [anchorNames]="[valueAnchorName, styleAnchorName]"
+        [isDimmed]="isNeutral()"
+        testId="metric-segment-folders-compact"
+    >
+        <cc-cell-icon cell="folders" size="compact" />
+    </cc-compact-bar-button>
+} @else {
+    <ng-template #cellIcon><cc-cell-icon cell="folders" /></ng-template>
+    <cc-axis-card
+        label="Folders"
+        [metricName]="valueLabel()"
+        [dimmed]="isNeutral()"
+        [hasCog]="true"
+        [cogPopoverId]="stylePopoverId"
+        [cogAnchorName]="styleAnchorName"
+        [cogIcon]="cellIcon"
+        cogTitle="Folder settings"
+        [searchPopoverId]="valuePopoverId"
+        [searchAnchorName]="valueAnchorName"
+        [testId]="'metric-segment-folders'"
+        [cogTestId]="'metric-segment-folders-cog'"
+    >
+        <div body class="flex items-center justify-center gap-1 text-xs leading-tight min-h-4">
+            <span class="inline-block h-2 w-3.5 shrink-0 rounded-sm border border-base-300" [style.background]="swatch()"></span>
+            <span class="font-medium" data-testid="metric-segment-folders-style">{{ styleLabel() }}</span>
+        </div>
+    </cc-axis-card>
+}
 <cc-folder-value-popover
     [popoverId]="valuePopoverId"
     [anchorName]="valueAnchorName"
     [selected]="folderValue()"
     [isNeutral]="isNeutral()"
     [colorMetric]="colorMetric()"
+    [settingsShortcut]="settingsShortcut()"
     (valueSelected)="selectValue($event)"
 ></cc-folder-value-popover>
 

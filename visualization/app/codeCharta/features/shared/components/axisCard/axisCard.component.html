@@ -10,18 +10,22 @@
         [cogPopoverId]="cogPopoverId()"
         [cogAnchorName]="cogAnchorName()"
         [cogTestId]="cogTestId()"
+        [cogIcon]="cogIcon()"
+        [cogTitle]="cogTitle()"
     ></cc-axis-card-header>
 
     <ng-template #cardContent>
         @if (metricName(); as name) {
             <div
                 [class.opacity-50]="disabled() || dimmed()"
-                class="truncate text-center text-sm font-semibold leading-tight"
+                class="min-w-0 truncate text-center text-sm font-semibold leading-tight"
+                data-card-name
+                data-bar-text
             >
                 {{ name }}
             </div>
         }
-        <div class="flex flex-col items-stretch gap-1">
+        <div class="flex flex-col items-stretch gap-1" data-card-body data-bar-text>
             <ng-content select="[body]"></ng-content>
         </div>
     </ng-template>

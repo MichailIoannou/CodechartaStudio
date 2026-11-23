@@ -8,7 +8,7 @@ import type { PreflightProblem } from "../../../model/coreApi/PreflightProblem"
 import type { SnapshotRef } from "../../../model/coreApi/SnapshotRef"
 import type { SnapshotResolution } from "../../../model/coreApi/SnapshotResolution"
 import { DesktopEnvironment } from "../../../util/desktop/desktopEnvironment.service"
-import { GitRepositoryService, isGitStatus } from "../../gitHistory/facade"
+import { GitRepositoryService } from "../../gitHistory/facade"
 import { ProjectsFacade } from "../../projects/facade"
 import { ToastService } from "../../shared/facade"
 import { analysisTargetOf, SelectedTarget } from "../model/snapshotTarget"
@@ -33,6 +33,7 @@ import {
     visibleNoticeOf
 } from "../util/snapshotViewRules"
 import { AnalysisJobsService } from "./analysisJobs.service"
+import { CheckoutComparisonTracker } from "./checkoutComparisonTracker"
 import { SnapshotCatalogService } from "./snapshotCatalog.service"
 
 /** Where a refused analysis shows its preflight problems: the snapshots dialog, the workspace status or the notice. */
@@ -99,12 +100,25 @@ export class SnapshotViewService {
     })
     readonly headCommit = computed(() => {
         const ref = this.workingRef()
-        const status = ref ? this.gitRepository.statusOf(ref) : undefined
-        return isGitStatus(status) ? status.head.commit : null
+        return ref && this.gitRepository.headCommitOf(ref)
     })
     readonly resolution = computed(() => (this.state().folderTargetKey === this.folderTargetKey() ? this.state().resolution : null))
     readonly status = computed(() => this.state().status)
     readonly targetJob = computed(() => newestJobOf(this.jobs.jobs(), this.workingRef(), this.target()))
+    private readonly checkout = new CheckoutComparisonTracker(
+        {
+            folder: this.workingRef,
+            target: this.target,
+            shown: this.projects.shownSnapshot,
+            headCommit: this.headCommit,
+            resolution: this.resolution
+        },
+        this.gitRepository,
+        this.catalog
+    )
+    readonly checkoutResolution = this.checkout.resolution
+    /** What the map is compared with: the resolution of the target, or for a snapshot target the current checkout. */
+    readonly comparedResolution = this.checkout.comparedResolution
     readonly noticeText = computed(() => this.noticeTextOfTarget())
     readonly notice = computed(() => visibleNoticeOf(this.noticeText().notice, this.dismissedNoticeKey(), this.noticeKey()))
 
@@ -116,6 +130,7 @@ export class SnapshotViewService {
             const ref = this.workingRef()
             untracked(() => this.chooseFirstTarget(ref))
         })
+        this.checkout.track()
         const request = computed(() => this.resolutionRequest(), { equal: (first, second) => first?.key === second?.key })
         effect(() => {
             const next = request()
@@ -145,7 +160,12 @@ export class SnapshotViewService {
         }
     }
 
+    /** For a snapshot target away from the current checkout the notice offers the current checkout, which becomes the target. */
     analyseTarget(surface: ProblemsSurface): Promise<void> {
+        const awayFromCheckout = this.checkout.folderAwayFromCheckout()
+        if (awayFromCheckout) {
+            this.setTarget(awayFromCheckout, { kind: "workingTree" })
+        }
         const folder = this.workingRef()
         const analysisTarget = analysisTargetFor(folder, this.target())
         return folder && analysisTarget ? this.analyse({ folder, target: analysisTarget, surface }) : Promise.resolve()
@@ -334,7 +354,8 @@ export class SnapshotViewService {
             target: this.target(),
             resolution: this.resolution(),
             job: this.targetJob(),
-            shownSnapshotId: this.projects.shownSnapshot()?.ref.snapshotId ?? null
+            shownSnapshotId: this.projects.shownSnapshot()?.ref.snapshotId ?? null,
+            checkout: this.checkout.comparison()
         })
     }
 

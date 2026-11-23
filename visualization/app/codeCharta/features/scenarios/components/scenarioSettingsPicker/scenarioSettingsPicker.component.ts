@@ -4,9 +4,11 @@ import {
     SCENARIO_GROUP_KEYS,
     SCENARIO_GROUP_LABELS,
     SCENARIO_SETTINGS,
+    ScenarioGroupIcon,
     ScenarioGroupKey,
     ScenarioSettingKey
 } from "../../model/scenarioSettings.registry"
+import { ScenarioGroupIconComponent } from "../scenarioGroupIcon/scenarioGroupIcon.component"
 
 interface PickerSetting {
     readonly key: ScenarioSettingKey
@@ -17,7 +19,7 @@ interface PickerSetting {
 export interface PickerGroup {
     readonly key: ScenarioGroupKey
     readonly label: string
-    readonly icon: string
+    readonly icon: ScenarioGroupIcon
     readonly settings: PickerSetting[]
     readonly allSelected: boolean
     readonly someSelected: boolean
@@ -26,7 +28,8 @@ export interface PickerGroup {
 @Component({
     selector: "cc-scenario-settings-picker",
     templateUrl: "./scenarioSettingsPicker.component.html",
-    changeDetection: ChangeDetectionStrategy.OnPush
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [ScenarioGroupIconComponent]
 })
 export class ScenarioSettingsPickerComponent {
     readonly availableKeys = input.required<readonly ScenarioSettingKey[]>()

@@ -5,17 +5,19 @@ import { fireEvent, render, screen } from "@testing-library/angular"
 import { isColorMetricLinkedToHeightMetricSelector } from "../../../../stores/preferences/preferences.read.facade"
 import { toggleIsColorMetricLinkedToHeightMetric } from "../../../../stores/preferences/preferences.write.facade"
 import { defaultState } from "../../../../stores/rootStore/state.manager"
+import { provideCompactBar } from "../../metricsBar.mocks"
 import { LinkColorHeightButtonComponent } from "./linkColorHeightButton.component"
 
 describe("LinkColorHeightButtonComponent", () => {
-    async function setup(isLinked: boolean) {
+    async function setup(isLinked: boolean, isCompact = false) {
         return render(LinkColorHeightButtonComponent, {
             providers: [
                 provideMockStore({
                     initialState: defaultState,
                     selectors: [{ selector: isColorMetricLinkedToHeightMetricSelector, value: isLinked }]
                 }),
-                { provide: State, useValue: { getValue: () => defaultState } }
+                { provide: State, useValue: { getValue: () => defaultState } },
+                ...(isCompact ? [provideCompactBar()] : [])
             ]
         })
     }
@@ -106,5 +108,27 @@ describe("LinkColorHeightButtonComponent", () => {
         const button = screen.getByTestId("metric-link-button")
         expect(button.classList).toContain("btn-square")
         expect(button.classList).toContain("border-dashed")
+    })
+
+    it("should stand in both rows beside Height and Color in the compact bar, its title as a tooltip", async () => {
+        // Act
+        const { fixture } = await setup(false, true)
+
+        // Assert
+        const button = screen.getByTestId("metric-link-button")
+        expect(fixture.nativeElement.className).toContain("row-span-2")
+        expect(button.dataset.tip).toBe("Link Height and Color Metric")
+        expect(button.getAttribute("aria-label")).toBe("Link Height and Color Metric")
+        expect(button.hasAttribute("title")).toBe(false)
+        expect(button.classList).toContain("w-4")
+        expect(button.querySelector("i").classList).toContain("text-[10px]")
+    })
+
+    it("should tint the compact link while linked", async () => {
+        // Act
+        await setup(true, true)
+
+        // Assert
+        expect(screen.getByTestId("metric-link-button").classList).toContain("btn-primary")
     })
 })

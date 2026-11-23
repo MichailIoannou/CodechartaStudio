@@ -1,19 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from "@angular/core"
 import { toSignal } from "@angular/core/rxjs-interop"
-import { CodeMapNode, PrimaryMetrics } from "../../../../model/codeCharta.model"
+import { PrimaryMetrics } from "../../../../model/codeCharta.model"
 import { NodeSelectionService } from "../../services/nodeSelection.service"
 import { MetricsBarReadStore } from "../../stores/metricsBar.read.store"
 import { MetricChooserTypeComponent } from "./metricChooserType.component"
-
-type DeltaDisplay = {
-    label: string
-    styleClass: string
-}
-
-type MetricDisplay = {
-    value: string
-    delta: DeltaDisplay | null
-}
+import { toMetricDisplay } from "./metricDisplay"
 
 @Component({
     selector: "cc-metric-meta-value",
@@ -33,37 +24,4 @@ export class MetricMetaValueComponent {
     private readonly metricName = computed(() => this.primaryMetricNames()?.[this.metricFor()] ?? null)
 
     readonly display = computed(() => toMetricDisplay(this.node(), this.metricName(), this.metricFor()))
-}
-
-function toMetricDisplay(node: CodeMapNode | undefined, metricName: string | null, metricFor: keyof PrimaryMetrics): MetricDisplay | null {
-    if (!node || !metricName) {
-        return null
-    }
-    return {
-        value: formatMetricValue(node, metricName),
-        delta: toDeltaDisplay(node, metricName, metricFor)
-    }
-}
-
-function formatMetricValue(node: CodeMapNode, metricName: string): string {
-    const value = node.attributes?.[metricName]
-    return typeof value === "number" ? value.toLocaleString() : "—"
-}
-
-function toDeltaDisplay(node: CodeMapNode, metricName: string, metricFor: keyof PrimaryMetrics): DeltaDisplay | null {
-    const delta = node.deltas?.[metricName]
-    if (typeof delta !== "number") {
-        return null
-    }
-    return { label: delta.toLocaleString(), styleClass: deltaStyleClass(delta, metricFor) }
-}
-
-function deltaStyleClass(delta: number, metricFor: keyof PrimaryMetrics): string {
-    if (metricFor === "heightMetric" && delta > 0) {
-        return "text-success"
-    }
-    if (delta < 0) {
-        return "text-error"
-    }
-    return "text-base-content"
 }

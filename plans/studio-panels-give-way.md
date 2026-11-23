@@ -1,6 +1,7 @@
 ---
 name: Side panels give way, desktop tools deep link
 state: complete
+superseded-by: studio-compact-metrics-bar
 version: 1
 ---
 
@@ -32,3 +33,5 @@ settings dialog at the desktop tools section with the failing tool focused (desi
 ## Notes
 
 - Progress and deviations: `dev_docs/studio/agents/progress/02-panels-give-way.md`
+- Task 1 was undone by `studio-compact-metrics-bar.md` (owner answer to question 12): the panels stay open and the
+  metrics bar turns compact instead.
