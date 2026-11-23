@@ -15,6 +15,7 @@ use serde_json::{Value, json};
 
 pub const CORE_EXECUTABLE: &str = env!("CARGO_BIN_EXE_codecharta-core");
 pub const ANSWER_TIMEOUT: Duration = Duration::from_secs(5);
+const SLOW_RUNNER_ANSWER_TIMEOUT: Duration = Duration::from_secs(30);
 const EXIT_TIMEOUT: Duration = Duration::from_secs(5);
 const EXIT_POLL_INTERVAL: Duration = Duration::from_millis(20);
 pub const PROTOCOL_VERSION: u32 = 1;
@@ -123,7 +124,7 @@ impl ServingCore {
     }
 
     pub fn receive(&self) -> Value {
-        self.receive_within(ANSWER_TIMEOUT)
+        self.receive_within(SLOW_RUNNER_ANSWER_TIMEOUT)
     }
 
     pub fn receive_within(&self, timeout: Duration) -> Value {
